@@ -7,6 +7,7 @@
 
 import FamilyControls
 import SwiftUI
+internal import Combine
 
 struct HomeView: View {
     @Binding var showLockOptions: Bool
@@ -17,6 +18,12 @@ struct HomeView: View {
     @State private var isPickerPresented = false
     @State private var isMonitoring = false
     @State private var errorMessage: String?
+
+    @State private var isShieldActive = SharedStore.isShieldActive
+    @State private var oneMinuteRemaining = SharedStore.oneMinuteRemaining
+    @State private var shieldOverrideUntil: Date? = SharedStore.shieldOverrideUntil
+
+    private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         if !auth.isAuthorized {
@@ -53,16 +60,16 @@ struct HomeView: View {
                     HStack {
                         Text("쉴드 활성")
                         Spacer()
-                        Text(SharedStore.isShieldActive ? "잠금 중" : "사용 가능")
-                            .foregroundStyle(SharedStore.isShieldActive ? .red : .green)
+                        Text(isShieldActive ? "잠금 중" : "사용 가능")
+                            .foregroundStyle(isShieldActive ? .red : .green)
                     }
                     HStack {
                         Text("\"딱 1분만요\" 남은 횟수")
                         Spacer()
-                        Text("\(SharedStore.oneMinuteRemaining) / \(SharedStore.oneMinuteDailyLimit)")
+                        Text("\(oneMinuteRemaining) / \(SharedStore.oneMinuteDailyLimit)")
                             .foregroundStyle(.secondary)
                     }
-                    if let until = SharedStore.shieldOverrideUntil, until > Date() {
+                    if let until = shieldOverrideUntil, until > Date() {
                         HStack {
                             Text("연장 종료")
                             Spacer()
@@ -101,6 +108,12 @@ struct HomeView: View {
             .onChange(of: selection) { _, newValue in
                 SharedStore.selectedApps = newValue
             }
+            .onChange(of: showLockOptions) { _, newValue in
+                if !newValue { refreshShieldState() }
+            }
+            .onReceive(refreshTimer) { _ in
+                refreshShieldState()
+            }
         }
     }
 
@@ -126,6 +139,13 @@ struct HomeView: View {
             limitMinutes = SharedStore.dailyLimitMinutes
             isMonitoring = true
         }
+        refreshShieldState()
+    }
+
+    private func refreshShieldState() {
+        isShieldActive = SharedStore.isShieldActive
+        oneMinuteRemaining = SharedStore.oneMinuteRemaining
+        shieldOverrideUntil = SharedStore.shieldOverrideUntil
     }
 
     private func startMonitoring() {

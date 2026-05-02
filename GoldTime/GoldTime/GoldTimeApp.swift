@@ -9,6 +9,7 @@ import SwiftUI
 @main
 struct GoldTimeApp: App {
     @State private var showLockOptions = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([Item.self])
@@ -32,6 +33,12 @@ struct GoldTimeApp: App {
                 }
                 .onOpenURL { _ in
                     showLockOptions = SharedStore.isShieldActive
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        AuthorizationService.shared.refresh()
+                        showLockOptions = SharedStore.isShieldActive
+                    }
                 }
         }
         .modelContainer(sharedModelContainer)
