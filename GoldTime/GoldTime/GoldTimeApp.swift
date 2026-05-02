@@ -11,6 +11,13 @@ struct GoldTimeApp: App {
     @State private var showLockOptions = false
     @Environment(\.scenePhase) private var scenePhase
 
+    private func reapplyShieldIfOverrideExpired() {
+        if let until = SharedStore.shieldOverrideUntil, until <= Date() {
+            ScreenTimeManager.applyShield()
+            SharedStore.shieldOverrideUntil = nil
+        }
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([Item.self])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
@@ -29,14 +36,17 @@ struct GoldTimeApp: App {
                 }
                 .onAppear {
                     ScreenTimeManager.rolloverCounterIfNeeded()
+                    reapplyShieldIfOverrideExpired()
                     showLockOptions = SharedStore.isShieldActive
                 }
                 .onOpenURL { _ in
+                    reapplyShieldIfOverrideExpired()
                     showLockOptions = SharedStore.isShieldActive
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         AuthorizationService.shared.refresh()
+                        reapplyShieldIfOverrideExpired()
                         showLockOptions = SharedStore.isShieldActive
                     }
                 }

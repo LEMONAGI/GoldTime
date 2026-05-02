@@ -69,7 +69,7 @@ struct HomeView: View {
                         Text("\(oneMinuteRemaining) / \(SharedStore.oneMinuteDailyLimit)")
                             .foregroundStyle(.secondary)
                     }
-                    if let until = shieldOverrideUntil, until > Date() {
+                    if let until = shieldOverrideUntil, until.timeIntervalSinceNow > 0.5 {
                         HStack {
                             Text("연장 종료")
                             Spacer()
@@ -143,9 +143,20 @@ struct HomeView: View {
     }
 
     private func refreshShieldState() {
+        let overrideUntil = SharedStore.shieldOverrideUntil
+
+        if let until = overrideUntil, until <= Date() {
+            ScreenTimeManager.applyShield()
+            SharedStore.shieldOverrideUntil = nil
+            isShieldActive = true
+            oneMinuteRemaining = SharedStore.oneMinuteRemaining
+            shieldOverrideUntil = nil
+            return
+        }
+
         isShieldActive = SharedStore.isShieldActive
         oneMinuteRemaining = SharedStore.oneMinuteRemaining
-        shieldOverrideUntil = SharedStore.shieldOverrideUntil
+        shieldOverrideUntil = overrideUntil
     }
 
     private func startMonitoring() {
