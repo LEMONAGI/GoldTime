@@ -21,7 +21,7 @@ enum NotificationService {
     /// 쉴드의 "GoldTime 가기" 버튼 탭 시 발송. 알림 탭 → 앱 진입.
     static func scheduleOpenAppNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "시간이 금이다 ⏳"
+        content.title = "한도에 도달했어요"
         content.body = "GoldTime을 열어 1분 연장 또는 광고 시청을 선택하세요."
         content.sound = .default
         content.categoryIdentifier = openAppCategory

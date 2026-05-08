@@ -38,7 +38,7 @@ class ShieldActionExtension: ShieldActionDelegate {
     ) {
         switch action {
         case .primaryButtonPressed:
-            // "잘 참았어요" — 쉴드 닫고 홈으로
+            // "그만 쓰기" — 쉴드 닫고 홈으로
             completionHandler(.close)
         case .secondaryButtonPressed:
             // "GoldTime 가기" — 알림으로 진입 유도 (익스텐션에서 UIApplication.open 불가)
@@ -51,7 +51,7 @@ class ShieldActionExtension: ShieldActionDelegate {
 
     private func scheduleOpenAppNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "시간이 금이다 ⏳"
+        content.title = "한도에 도달했어요"
         content.body = "GoldTime을 열어 1분 연장 또는 광고 시청을 선택하세요."
         content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)

@@ -17,11 +17,11 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
-            Text("⏳")
+            Text("💰")
                 .font(.system(size: 80))
             Text("시간이 금이다")
                 .font(.largeTitle.bold())
-            Text("스크린타임 한도를 설정하면\n선택한 앱이 자동으로 잠겨요.\n그리고 광고를 봐야만 다시 풀 수 있어요.")
+            Text("한도를 넘기면 선택한 앱이 잠기고,\n더 쓰려면 광고를 봐야 해요.\n조금 불편하게 만들어두겠습니다.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -33,11 +33,11 @@ struct OnboardingView: View {
             Button {
                 Task { await requestAuthorization() }
             } label: {
-                Text(isRequesting ? "요청 중..." : "스크린타임 권한 허용하기")
+                Text(isRequesting ? "권한 요청 중..." : "스크린타임 권한 허용하기")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.yellow)
+                    .background(Color.goldPrimary)
                     .foregroundStyle(.black)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
@@ -56,7 +56,7 @@ struct OnboardingView: View {
             if auth.isAuthorized {
                 onAuthorized()
             } else {
-                errorMessage = "권한을 받지 못했어요. 설정에서 허용해주세요."
+                errorMessage = "권한이 필요해요. 설정에서 스크린타임 권한을 허용해주세요."
             }
         } catch {
             errorMessage = "권한 요청 실패: \(error.localizedDescription)"

@@ -64,7 +64,7 @@ struct HomeView: View {
                             .foregroundStyle(isShieldActive ? .red : .green)
                     }
                     HStack {
-                        Text("\"딱 1분만요\" 남은 횟수")
+                        Text("1분 연장 남은 횟수")
                         Spacer()
                         Text("\(oneMinuteRemaining) / \(SharedStore.oneMinuteDailyLimit)")
                             .foregroundStyle(.secondary)
