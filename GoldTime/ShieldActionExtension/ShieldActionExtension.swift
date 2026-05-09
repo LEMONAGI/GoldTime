@@ -8,6 +8,23 @@ import ManagedSettings
 import UserNotifications
 
 class ShieldActionExtension: ShieldActionDelegate {
+    private enum OpenRequestStore {
+        static let suiteName = "group.com.goldtime.shared"
+        static let startedAtKey = "shieldOpenRequestStartedAt"
+
+        static var defaults: UserDefaults {
+            UserDefaults(suiteName: suiteName) ?? .standard
+        }
+
+        static func markStarted() {
+            defaults.set(Date(), forKey: startedAtKey)
+        }
+
+        static func clear() {
+            defaults.removeObject(forKey: startedAtKey)
+        }
+    }
+
     override func handle(
         action: ShieldAction,
         for application: ApplicationToken,
@@ -39,11 +56,17 @@ class ShieldActionExtension: ShieldActionDelegate {
         switch action {
         case .primaryButtonPressed:
             // "그만 쓰기" — 쉴드 닫고 홈으로
+            OpenRequestStore.clear()
             completionHandler(.close)
         case .secondaryButtonPressed:
             // "GoldTime 가기" — 알림으로 진입 유도 (익스텐션에서 UIApplication.open 불가)
+            OpenRequestStore.markStarted()
             scheduleOpenAppNotification()
             completionHandler(.defer)
+        case .firstSecondarySubmenuItemPressed,
+             .secondSecondarySubmenuItemPressed,
+             .thirdSecondarySubmenuItemPressed:
+            completionHandler(.none)
         @unknown default:
             completionHandler(.none)
         }
@@ -56,7 +79,7 @@ class ShieldActionExtension: ShieldActionDelegate {
         content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
         let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
+            identifier: "goldtime.open-app",
             content: content,
             trigger: trigger
         )

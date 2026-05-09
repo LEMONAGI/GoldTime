@@ -37,16 +37,19 @@ struct GoldTimeApp: App {
                 .onAppear {
                     ScreenTimeManager.rolloverCounterIfNeeded()
                     reapplyShieldIfOverrideExpired()
+                    SharedStore.clearShieldOpenRequest()
                     showLockOptions = SharedStore.isShieldActive
                 }
                 .onOpenURL { _ in
                     reapplyShieldIfOverrideExpired()
+                    SharedStore.clearShieldOpenRequest()
                     showLockOptions = SharedStore.isShieldActive
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         AuthorizationService.shared.refresh()
                         reapplyShieldIfOverrideExpired()
+                        SharedStore.clearShieldOpenRequest()
                         showLockOptions = SharedStore.isShieldActive
                     }
                 }

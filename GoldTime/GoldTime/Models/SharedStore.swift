@@ -23,6 +23,7 @@ enum SharedStore {
         static let oneMinuteCounterDate = "oneMinuteCounterDate"
         static let isShieldActive = "isShieldActive"
         static let shieldOverrideUntil = "shieldOverrideUntil"
+        static let shieldOpenRequestStartedAt = "shieldOpenRequestStartedAt"
     }
 
     // MARK: - 차단 대상 앱
@@ -76,5 +77,9 @@ enum SharedStore {
     static var shieldOverrideUntil: Date? {
         get { defaults.object(forKey: Key.shieldOverrideUntil) as? Date }
         set { defaults.set(newValue, forKey: Key.shieldOverrideUntil) }
+    }
+
+    static func clearShieldOpenRequest() {
+        defaults.removeObject(forKey: Key.shieldOpenRequestStartedAt)
     }
 }
