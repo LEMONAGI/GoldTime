@@ -38,6 +38,7 @@ enum ScreenTimeManager {
 
     static func startDailyMonitoring(limitMinutes: Int, selection: FamilyActivitySelection) throws {
         SharedStore.dailyLimitMinutes = limitMinutes
+        SharedStore.isDailyMonitoringEnabled = true
         SharedStore.selectedApps = selection
         SharedStore.isShieldActive = false
         SharedStore.shieldOverrideUntil = nil
@@ -66,6 +67,7 @@ enum ScreenTimeManager {
         store.shield.applications = nil
         store.shield.applicationCategories = nil
         store.shield.webDomains = nil
+        SharedStore.isDailyMonitoringEnabled = false
         SharedStore.isShieldActive = false
         SharedStore.shieldOverrideUntil = nil
     }
@@ -119,6 +121,12 @@ enum ScreenTimeManager {
         }
     }
 
+    static func consumeAdReward() {
+        let seconds = 15 * 60
+        SharedStore.recordAdUnlock(seconds: seconds)
+        releaseShield(forSeconds: TimeInterval(seconds))
+    }
+
     @discardableResult
     static func reapplyShieldIfOverrideExpired(now: Date = Date()) -> Bool {
         guard let until = SharedStore.shieldOverrideUntil, until <= now else {
@@ -140,6 +148,7 @@ enum ScreenTimeManager {
             return false
         }
         SharedStore.oneMinuteUsedToday += 1
+        SharedStore.recordOneMinuteUnlock(seconds: 60)
         releaseShield(forSeconds: 60)
         return true
     }

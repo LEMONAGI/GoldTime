@@ -60,6 +60,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     ) {
         super.eventDidReachThreshold(event, activity: activity)
         if event == .dailyLimit {
+            SharedStore.recordShieldHit()
             applyShieldFromSelection()
         }
     }

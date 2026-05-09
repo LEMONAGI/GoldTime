@@ -84,7 +84,7 @@ struct LockOptionsView: View {
             AdMockView(
                 onComplete: {
                     showAdMock = false
-                    ScreenTimeManager.releaseShield(forSeconds: 15 * 60)
+                    ScreenTimeManager.consumeAdReward()
                     dismiss()
                 },
                 onCancel: {
