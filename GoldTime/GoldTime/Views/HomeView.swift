@@ -143,20 +143,10 @@ struct HomeView: View {
     }
 
     private func refreshShieldState() {
-        let overrideUntil = SharedStore.shieldOverrideUntil
-
-        if let until = overrideUntil, until <= Date() {
-            ScreenTimeManager.applyShield()
-            SharedStore.shieldOverrideUntil = nil
-            isShieldActive = true
-            oneMinuteRemaining = SharedStore.oneMinuteRemaining
-            shieldOverrideUntil = nil
-            return
-        }
-
+        ScreenTimeManager.reapplyShieldIfOverrideExpired()
         isShieldActive = SharedStore.isShieldActive
         oneMinuteRemaining = SharedStore.oneMinuteRemaining
-        shieldOverrideUntil = overrideUntil
+        shieldOverrideUntil = SharedStore.shieldOverrideUntil
     }
 
     private func startMonitoring() {

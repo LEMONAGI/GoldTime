@@ -66,6 +66,17 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     private func applyShieldFromSelection() {
         let selection = SharedStore.selectedApps
+        guard !selection.applicationTokens.isEmpty
+            || !selection.categoryTokens.isEmpty
+            || !selection.webDomainTokens.isEmpty
+        else {
+            store.shield.applications = nil
+            store.shield.applicationCategories = nil
+            store.shield.webDomains = nil
+            SharedStore.isShieldActive = false
+            return
+        }
+
         store.shield.applications = selection.applicationTokens.isEmpty
             ? nil : selection.applicationTokens
         store.shield.applicationCategories = selection.categoryTokens.isEmpty

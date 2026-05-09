@@ -27,6 +27,13 @@ enum ScreenTimeManager {
     private static var center: DeviceActivityCenter { DeviceActivityCenter() }
     private static var store: ManagedSettingsStore { ManagedSettingsStore(named: .goldtime) }
 
+    private static var hasSelection: Bool {
+        let selection = SharedStore.selectedApps
+        return !selection.applicationTokens.isEmpty
+            || !selection.categoryTokens.isEmpty
+            || !selection.webDomainTokens.isEmpty
+    }
+
     // MARK: - 일일 모니터링 시작
 
     static func startDailyMonitoring(limitMinutes: Int, selection: FamilyActivitySelection) throws {
@@ -66,6 +73,11 @@ enum ScreenTimeManager {
     // MARK: - 쉴드 제어
 
     static func applyShield() {
+        guard hasSelection else {
+            clearShield()
+            return
+        }
+
         let selection = SharedStore.selectedApps
         store.shield.applications = selection.applicationTokens.isEmpty ? nil : selection.applicationTokens
         store.shield.applicationCategories = selection.categoryTokens.isEmpty
@@ -84,12 +96,12 @@ enum ScreenTimeManager {
 
     /// 일정 시간 동안 쉴드 해제. 종료 시각에 일회성 DeviceActivitySchedule 콜백으로 재쉴드.
     static func releaseShield(forSeconds seconds: TimeInterval) {
-        clearShield()
-        let end = Date().addingTimeInterval(seconds)
+        let now = Date()
+        let end = now.addingTimeInterval(seconds)
         SharedStore.shieldOverrideUntil = end
+        clearShield()
 
         let calendar = Calendar.current
-        let now = Date()
         let startComps = calendar.dateComponents([.hour, .minute, .second], from: now)
         let endComps = calendar.dateComponents([.hour, .minute, .second], from: end)
 
@@ -100,7 +112,22 @@ enum ScreenTimeManager {
         )
 
         center.stopMonitoring([.override])
-        try? center.startMonitoring(.override, during: schedule, events: [:])
+        do {
+            try center.startMonitoring(.override, during: schedule, events: [:])
+        } catch {
+            print("Failed to start override monitoring: \(error.localizedDescription)")
+        }
+    }
+
+    @discardableResult
+    static func reapplyShieldIfOverrideExpired(now: Date = Date()) -> Bool {
+        guard let until = SharedStore.shieldOverrideUntil, until <= now else {
+            return false
+        }
+
+        applyShield()
+        SharedStore.shieldOverrideUntil = nil
+        return SharedStore.isShieldActive
     }
 
     // MARK: - 1분 카운터

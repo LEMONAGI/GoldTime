@@ -2,65 +2,92 @@
 //  AdMockView.swift
 //  GoldTime
 //
-//  10초 ProgressView 광고 모킹. 추후 GADRewardedAd 로 교체.
-//
 
+import GoogleMobileAds
 import SwiftUI
 
 struct AdMockView: View {
-    let durationSeconds: Double = 10
     let onComplete: () -> Void
     let onCancel: () -> Void
 
-    @State private var elapsed: Double = 0
-    @State private var task: Task<Void, Never>?
-
-    private var progress: Double {
-        min(elapsed / durationSeconds, 1.0)
-    }
-
-    private var remainingSeconds: Int {
-        max(0, Int(durationSeconds - elapsed.rounded(.down)))
-    }
+    private var adService: RewardedAdService { RewardedAdService.shared }
+    @State private var viewController: UIViewController?
+    @State private var isPresenting = false
+    @State private var showFallback = false
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            VStack(spacing: 24) {
-                Spacer()
-                Text("📺")
-                    .font(.system(size: 64))
-                Text("광고 시청 중")
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .tint(Color.goldPrimary)
-                    .padding(.horizontal, 48)
-                Text("\(remainingSeconds)초 남았어요")
-                    .foregroundStyle(.white.opacity(0.7))
-                Spacer()
-                Button("취소", role: .cancel) {
-                    task?.cancel()
-                    onCancel()
-                }
-                .foregroundStyle(.white.opacity(0.6))
-                .padding(.bottom, 32)
+            if showFallback { fallbackView } else { loadingView }
+            ViewControllerBridge { vc in
+                viewController = vc
+                presentIfReady()
+            }
+            .frame(width: 0, height: 0)
+        }
+        .onAppear {
+            switch adService.loadState {
+            case .ready: break
+            case .failed: showFallback = true
+            default: adService.loadAd()
             }
         }
-        .task {
-            task = Task {
-                let tickInterval: Double = 0.05
-                while elapsed < durationSeconds {
-                    try? await Task.sleep(for: .milliseconds(Int(tickInterval * 1000)))
-                    if Task.isCancelled { return }
-                    elapsed += tickInterval
-                }
-                if !Task.isCancelled {
-                    onComplete()
-                }
+        .onChange(of: adService.loadState) { _, state in
+            switch state {
+            case .ready: presentIfReady()
+            case .failed: showFallback = true
+            default: break
             }
-            await task?.value
         }
     }
+
+    private func presentIfReady() {
+        guard let vc = viewController, case .ready = adService.loadState, !isPresenting else { return }
+        isPresenting = true
+        adService.present(from: vc) { earned in
+            earned ? onComplete() : onCancel()
+        }
+    }
+
+    private var loadingView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Text("📺").font(.system(size: 64))
+            Text("광고 준비 중").font(.title2.bold()).foregroundStyle(.white)
+            ProgressView().tint(Color.goldPrimary)
+            Spacer()
+            Button("취소", role: .cancel) { onCancel() }
+                .foregroundStyle(.white.opacity(0.6))
+                .padding(.bottom, 32)
+        }
+    }
+
+    private var fallbackView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Text("광고를 불러올 수 없어요").font(.title2.bold()).foregroundStyle(.white)
+            Text("네트워크 상태를 확인해 주세요").foregroundStyle(.white.opacity(0.7))
+            Spacer()
+            VStack(spacing: 12) {
+                Button("그래도 15분 사용하기") { onComplete() }
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(Color.goldPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                Button("취소", role: .cancel) { onCancel() }
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+            .padding(.horizontal, 40).padding(.bottom, 32)
+        }
+    }
+}
+
+private struct ViewControllerBridge: UIViewControllerRepresentable {
+    let onAvailable: (UIViewController) -> Void
+    func makeUIViewController(context: Context) -> UIViewController {
+        let vc = UIViewController()
+        DispatchQueue.main.async { onAvailable(vc) }
+        return vc
+    }
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }

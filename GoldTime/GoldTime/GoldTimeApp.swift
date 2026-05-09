@@ -9,14 +9,12 @@ import SwiftUI
 @main
 struct GoldTimeApp: App {
     @State private var showLockOptions = false
-    @Environment(\.scenePhase) private var scenePhase
 
-    private func reapplyShieldIfOverrideExpired() {
-        if let until = SharedStore.shieldOverrideUntil, until <= Date() {
-            ScreenTimeManager.applyShield()
-            SharedStore.shieldOverrideUntil = nil
-        }
+    init() {
+        RewardedAdService.configure()
+        RewardedAdService.shared.loadAd()
     }
+    @Environment(\.scenePhase) private var scenePhase
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([Item.self])
@@ -36,19 +34,19 @@ struct GoldTimeApp: App {
                 }
                 .onAppear {
                     ScreenTimeManager.rolloverCounterIfNeeded()
-                    reapplyShieldIfOverrideExpired()
+                    ScreenTimeManager.reapplyShieldIfOverrideExpired()
                     SharedStore.clearShieldOpenRequest()
                     showLockOptions = SharedStore.isShieldActive
                 }
                 .onOpenURL { _ in
-                    reapplyShieldIfOverrideExpired()
+                    ScreenTimeManager.reapplyShieldIfOverrideExpired()
                     SharedStore.clearShieldOpenRequest()
                     showLockOptions = SharedStore.isShieldActive
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         AuthorizationService.shared.refresh()
-                        reapplyShieldIfOverrideExpired()
+                        ScreenTimeManager.reapplyShieldIfOverrideExpired()
                         SharedStore.clearShieldOpenRequest()
                         showLockOptions = SharedStore.isShieldActive
                     }
