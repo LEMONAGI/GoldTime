@@ -23,6 +23,10 @@ struct HomeView: View {
     @State private var successMessage: String?
     @State private var alertMessage: AlertMessage?
 
+    @State private var limitPickerGroupID: UUID? = nil
+    @State private var limitPickerHours: Int = 0
+    @State private var limitPickerMinutes: Int = 30
+
     @State private var isShieldActive = SharedStore.isShieldActive
     @State private var oneMinuteRemaining = SharedStore.oneMinuteRemaining
     @State private var shieldOverrideUntil: Date? = SharedStore.currentShieldOverrideUntil
@@ -74,6 +78,23 @@ struct HomeView: View {
                     message: Text(alert.message),
                     dismissButton: .default(Text("확인"))
                 )
+            }
+            .sheet(isPresented: Binding(
+                get: { limitPickerGroupID != nil },
+                set: { if !$0 { limitPickerGroupID = nil } }
+            )) {
+                LimitPickerSheet(
+                    hours: $limitPickerHours,
+                    minutes: $limitPickerMinutes,
+                    onConfirm: {
+                        if let id = limitPickerGroupID {
+                            updateGroupLimit(id, minutes: limitPickerHours * 60 + limitPickerMinutes)
+                        }
+                        limitPickerGroupID = nil
+                    },
+                    onCancel: { limitPickerGroupID = nil }
+                )
+                .presentationDetents([.height(320)])
             }
             .onChange(of: pickerSelection) { _, newValue in
                 handlePickerSelection(newValue)
@@ -340,22 +361,28 @@ struct HomeView: View {
                 .opacity(isMonitoring ? 0.35 : 1)
             }
 
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("일일 한도")
-                        .font(.subheadline.weight(.semibold))
-                    Text("\(group.dailyLimitMinutes)분 넘기면 이 그룹만 잠가요")
-                        .font(.footnote)
+            Button {
+                limitPickerHours = group.dailyLimitMinutes / 60
+                limitPickerMinutes = group.dailyLimitMinutes % 60
+                limitPickerGroupID = group.id
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("일일 한도")
+                            .font(.subheadline.weight(.semibold))
+                        Text(limitLabel(group.dailyLimitMinutes))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Stepper("", value: Binding(
-                    get: { group.dailyLimitMinutes },
-                    set: { updateGroupLimit(group.id, minutes: $0) }
-                ), in: 1...600, step: 5)
-                .labelsHidden()
-                .disabled(isMonitoring)
             }
+            .buttonStyle(.plain)
+            .disabled(isMonitoring)
+            .opacity(isMonitoring ? 0.45 : 1)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -622,6 +649,16 @@ struct HomeView: View {
         }
     }
 
+    private func limitLabel(_ minutes: Int) -> String {
+        let h = minutes / 60
+        let m = minutes % 60
+        if h > 0 {
+            return "\(h)시간 \(m)분 넘기면 이 그룹만 잠겨요"
+        } else {
+            return "\(m)분 넘기면 이 그룹만 잠겨요"
+        }
+    }
+
     private func updateGroupLimit(_ id: UUID, minutes: Int) {
         updateGroup(id) { group in
             group.dailyLimitMinutes = minutes
@@ -814,6 +851,73 @@ private struct EmptyChartState: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct LimitPickerSheet: View {
+    @Binding var hours: Int
+    @Binding var minutes: Int
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button("취소", action: onCancel)
+                Spacer()
+                Button("완료") { onConfirm() }
+                    .fontWeight(.semibold)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+
+            DurationWheelPicker(hours: $hours, minutes: $minutes)
+                .frame(height: 216)
+        }
+    }
+}
+
+private struct DurationWheelPicker: UIViewRepresentable {
+    @Binding var hours: Int
+    @Binding var minutes: Int
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> UIPickerView {
+        let picker = UIPickerView()
+        picker.dataSource = context.coordinator
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIView(_ uiView: UIPickerView, context: Context) {
+        uiView.selectRow(hours, inComponent: 0, animated: false)
+        uiView.selectRow(minutes, inComponent: 1, animated: false)
+    }
+
+    final class Coordinator: NSObject, UIPickerViewDataSource, UIPickerViewDelegate {
+        var parent: DurationWheelPicker
+
+        init(_ parent: DurationWheelPicker) { self.parent = parent }
+
+        func numberOfComponents(in pickerView: UIPickerView) -> Int { 2 }
+
+        func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+            component == 0 ? 24 : 60
+        }
+
+        func pickerView(_ pickerView: UIPickerView, viewForRow row: Int, forComponent component: Int, reusing view: UIView?) -> UIView {
+            let label = (view as? UILabel) ?? UILabel()
+            label.textAlignment = .center
+            label.font = .systemFont(ofSize: 20, weight: .regular)
+            label.text = component == 0 ? "\(row)시간" : "\(row)분"
+            return label
+        }
+
+        func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+            if component == 0 { parent.hours = row }
+            else { parent.minutes = row }
+        }
     }
 }
 
