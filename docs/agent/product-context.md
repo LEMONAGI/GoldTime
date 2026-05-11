@@ -1,5 +1,9 @@
 # Product Context
 
+Read when: 문구, 톤앤매너, UX 흐름, 화면의 감정적 판단을 해야 할 때.
+
+Skip when: 순수 로직, project config, 테스트, Screen Time 런타임 흐름만 바꿀 때.
+
 제품, 문구, 톤앤매너, UX 판단이 필요할 때 읽습니다.
 
 ## 앱 컨셉

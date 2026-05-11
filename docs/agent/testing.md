@@ -1,5 +1,9 @@
 # Testing Guide
 
+Read when: 동작 변경, regression test, TDD, 실기기 검증 시나리오를 정해야 할 때.
+
+Skip when: 문서만 수정하거나 테스트/검증 방식이 이미 명확한 작은 변경일 때.
+
 GoldTime의 테스트 원칙은 "구현 전에 기대 동작과 확인 방법을 먼저 고정한다"입니다. 모든 것을 unit test로 만들 수는 없으므로, 테스트 가능한 로직은 TDD로, Apple 시스템 의존 흐름은 검증 시나리오 우선으로 다룹니다.
 
 ## 기본 원칙

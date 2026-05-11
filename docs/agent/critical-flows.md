@@ -1,5 +1,9 @@
 # Critical Flows
 
+Read when: Screen Time, Shield, 보상형 광고, App Group 공유 상태, extension 런타임 흐름을 바꿀 때.
+
+Skip when: 독립 UI, 문구, 문서, 순수 테스트만 바꿀 때.
+
 Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸기 전에 읽습니다.
 
 ## Shared State 계약
