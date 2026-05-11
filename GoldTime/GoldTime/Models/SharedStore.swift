@@ -8,6 +8,7 @@
 
 import Foundation
 import FamilyControls
+import ManagedSettings
 
 enum SharedStore {
     static let suiteName = "group.com.goldtime.shared"
@@ -17,18 +18,54 @@ enum SharedStore {
     }
 
     private enum Key {
-        static let selectedApps = "selectedApps"
-        static let dailyLimitMinutes = "dailyLimitMinutes"
+        static let screenTimeGroups = "screenTimeGroups"
         static let isDailyMonitoringEnabled = "isDailyMonitoringEnabled"
         static let oneMinuteUsedToday = "oneMinuteUsedToday"
         static let oneMinuteCounterDate = "oneMinuteCounterDate"
         static let isShieldActive = "isShieldActive"
-        static let shieldOverrideUntil = "shieldOverrideUntil"
+        static let shieldedGroupIDs = "shieldedGroupIDs"
+        static let overrideUntilByGroupID = "overrideUntilByGroupID"
+        static let lastRequestedUnlockApplicationToken = "lastRequestedUnlockApplicationToken"
         static let shieldOpenRequestStartedAt = "shieldOpenRequestStartedAt"
         static let dailyStatsByDate = "dailyStatsByDate"
     }
 
     static let estimatedWonPerAd = 100
+    static let maxGroupCount = 5
+    static let maxAppsPerGroup = 9
+    static let maxShieldApplicationCount = 49
+
+    struct ScreenTimeGroup: Codable, Equatable, Identifiable {
+        var id: UUID
+        var name: String
+        var selection: FamilyActivitySelection
+        var dailyLimitMinutes: Int
+
+        init(
+            id: UUID = UUID(),
+            name: String,
+            selection: FamilyActivitySelection = FamilyActivitySelection(),
+            dailyLimitMinutes: Int = 30
+        ) {
+            self.id = id
+            self.name = name
+            self.selection = selection.appOnly
+            self.dailyLimitMinutes = dailyLimitMinutes
+        }
+
+        var appCount: Int {
+            selection.applicationTokens.count
+        }
+
+        var hasNonAppTokens: Bool {
+            !selection.categoryTokens.isEmpty || !selection.webDomainTokens.isEmpty
+        }
+
+        var displayName: String {
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? "이름 없는 그룹" : trimmed
+        }
+    }
 
     struct DailyStats: Codable, Equatable, Identifiable {
         var dateKey: String
@@ -52,36 +89,36 @@ enum SharedStore {
         }
     }
 
-    // MARK: - 차단 대상 앱
+    // MARK: - 그룹 설정
 
-    static var selectedApps: FamilyActivitySelection {
+    static var screenTimeGroups: [ScreenTimeGroup] {
         get {
-            guard let data = defaults.data(forKey: Key.selectedApps) else {
-                return FamilyActivitySelection()
+            guard let data = defaults.data(forKey: Key.screenTimeGroups) else {
+                return []
             }
-            return (try? JSONDecoder().decode(FamilyActivitySelection.self, from: data))
-                ?? FamilyActivitySelection()
+            return (try? JSONDecoder().decode([ScreenTimeGroup].self, from: data)) ?? []
         }
         set {
-            let data = try? JSONEncoder().encode(newValue)
-            defaults.set(data, forKey: Key.selectedApps)
+            let groups = Array(newValue.prefix(maxGroupCount)).map { group in
+                var sanitized = group
+                sanitized.selection = group.selection.appOnly
+                return sanitized
+            }
+            let data = try? JSONEncoder().encode(groups)
+            defaults.set(data, forKey: Key.screenTimeGroups)
         }
     }
 
-    // MARK: - 일일 한도 (분)
+    static func defaultGroupName(for index: Int) -> String {
+        "그룹 \(index + 1)"
+    }
 
-    static var dailyLimitMinutes: Int {
-        get { defaults.integer(forKey: Key.dailyLimitMinutes) }
-        set { defaults.set(newValue, forKey: Key.dailyLimitMinutes) }
+    static func group(id: UUID) -> ScreenTimeGroup? {
+        screenTimeGroups.first { $0.id == id }
     }
 
     static var isDailyMonitoringEnabled: Bool {
-        get {
-            guard defaults.object(forKey: Key.isDailyMonitoringEnabled) != nil else {
-                return dailyLimitMinutes > 0
-            }
-            return defaults.bool(forKey: Key.isDailyMonitoringEnabled)
-        }
+        get { defaults.bool(forKey: Key.isDailyMonitoringEnabled) }
         set { defaults.set(newValue, forKey: Key.isDailyMonitoringEnabled) }
     }
 
@@ -148,6 +185,17 @@ enum SharedStore {
     static func clearDailyStatsForTesting() {
         defaults.removeObject(forKey: Key.dailyStatsByDate)
     }
+
+    static func clearGroupStateForTesting() {
+        defaults.removeObject(forKey: Key.screenTimeGroups)
+        defaults.removeObject(forKey: Key.shieldedGroupIDs)
+        defaults.removeObject(forKey: Key.overrideUntilByGroupID)
+        defaults.removeObject(forKey: Key.lastRequestedUnlockApplicationToken)
+        defaults.removeObject(forKey: Key.isShieldActive)
+        defaults.removeObject(forKey: Key.isDailyMonitoringEnabled)
+        defaults.removeObject(forKey: Key.oneMinuteUsedToday)
+        defaults.removeObject(forKey: Key.oneMinuteCounterDate)
+    }
     #endif
 
     // MARK: - 쉴드 상태
@@ -157,9 +205,145 @@ enum SharedStore {
         set { defaults.set(newValue, forKey: Key.isShieldActive) }
     }
 
-    static var shieldOverrideUntil: Date? {
-        get { defaults.object(forKey: Key.shieldOverrideUntil) as? Date }
-        set { defaults.set(newValue, forKey: Key.shieldOverrideUntil) }
+    static var shieldedGroupIDs: Set<UUID> {
+        get {
+            guard let data = defaults.data(forKey: Key.shieldedGroupIDs) else {
+                return []
+            }
+            let strings = (try? JSONDecoder().decode([String].self, from: data)) ?? []
+            return Set(strings.compactMap(UUID.init(uuidString:)))
+        }
+        set {
+            let data = try? JSONEncoder().encode(newValue.map(\.uuidString))
+            defaults.set(data, forKey: Key.shieldedGroupIDs)
+        }
+    }
+
+    static var overrideUntilByGroupID: [UUID: Date] {
+        get {
+            guard let data = defaults.data(forKey: Key.overrideUntilByGroupID) else {
+                return [:]
+            }
+            let raw = (try? JSONDecoder().decode([String: Date].self, from: data)) ?? [:]
+            return Dictionary(
+                uniqueKeysWithValues: raw.compactMap { key, value in
+                    guard let id = UUID(uuidString: key) else { return nil }
+                    return (id, value)
+                }
+            )
+        }
+        set {
+            let raw = Dictionary(
+                uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) }
+            )
+            let data = try? JSONEncoder().encode(raw)
+            defaults.set(data, forKey: Key.overrideUntilByGroupID)
+        }
+    }
+
+    static var currentShieldOverrideUntil: Date? {
+        let now = Date()
+        return overrideUntilByGroupID.values
+            .filter { $0 > now }
+            .max()
+    }
+
+    static var lastRequestedUnlockApplicationToken: ApplicationToken? {
+        get {
+            guard let data = defaults.data(forKey: Key.lastRequestedUnlockApplicationToken) else {
+                return nil
+            }
+            return try? JSONDecoder().decode(ApplicationToken.self, from: data)
+        }
+        set {
+            guard let newValue else {
+                defaults.removeObject(forKey: Key.lastRequestedUnlockApplicationToken)
+                return
+            }
+            let data = try? JSONEncoder().encode(newValue)
+            defaults.set(data, forKey: Key.lastRequestedUnlockApplicationToken)
+        }
+    }
+
+    static func clearLastRequestedUnlockApplicationToken() {
+        defaults.removeObject(forKey: Key.lastRequestedUnlockApplicationToken)
+    }
+
+    static func setOverride(until date: Date, for groupID: UUID) {
+        var overrides = overrideUntilByGroupID
+        overrides[groupID] = date
+        overrideUntilByGroupID = overrides
+    }
+
+    static func clearOverride(for groupID: UUID) {
+        var overrides = overrideUntilByGroupID
+        overrides.removeValue(forKey: groupID)
+        overrideUntilByGroupID = overrides
+    }
+
+    static func clearAllShieldState() {
+        shieldedGroupIDs = []
+        overrideUntilByGroupID = [:]
+        isShieldActive = false
+    }
+
+    static func markGroupShielded(_ groupID: UUID) {
+        var ids = shieldedGroupIDs
+        ids.insert(groupID)
+        shieldedGroupIDs = ids
+    }
+
+    @discardableResult
+    static func clearExpiredOverrides(now: Date = Date()) -> Bool {
+        let overrides = overrideUntilByGroupID
+        let activeOverrides = overrides.filter { $0.value > now }
+        guard activeOverrides.count != overrides.count else {
+            return false
+        }
+        overrideUntilByGroupID = activeOverrides
+        return true
+    }
+
+    static func groupsInOverride(now: Date = Date()) -> [ScreenTimeGroup] {
+        clearExpiredOverrides(now: now)
+        let overrides = overrideUntilByGroupID
+        return screenTimeGroups.filter { group in
+            if let until = overrides[group.id] {
+                return until > now
+            }
+            return false
+        }
+    }
+
+    static func lockedGroups(now: Date = Date()) -> [ScreenTimeGroup] {
+        clearExpiredOverrides(now: now)
+        let ids = shieldedGroupIDs
+        let overrides = overrideUntilByGroupID
+        return screenTimeGroups.filter { group in
+            ids.contains(group.id) && (overrides[group.id] ?? .distantPast) <= now
+        }
+    }
+
+    static func lockedGroups(containing token: ApplicationToken, now: Date = Date()) -> [ScreenTimeGroup] {
+        lockedGroups(now: now).filter { group in
+            group.selection.applicationTokens.contains(token)
+        }
+    }
+
+    static func shieldApplicationTokens(now: Date = Date()) -> Set<ApplicationToken> {
+        lockedGroups(now: now).reduce(into: Set<ApplicationToken>()) { result, group in
+            result.formUnion(group.selection.applicationTokens)
+        }
+    }
+
+    static func hasPendingShieldOpenRequest(
+        now: Date = Date(),
+        pendingWindow: TimeInterval = 30
+    ) -> Bool {
+        guard let startedAt = defaults.object(forKey: Key.shieldOpenRequestStartedAt) as? Date else {
+            return false
+        }
+        return now.timeIntervalSince(startedAt) <= pendingWindow
     }
 
     static func clearShieldOpenRequest() {
@@ -205,4 +389,12 @@ enum SharedStore {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+}
+
+extension FamilyActivitySelection {
+    var appOnly: FamilyActivitySelection {
+        var selection = FamilyActivitySelection()
+        selection.applicationTokens = applicationTokens
+        return selection
+    }
 }

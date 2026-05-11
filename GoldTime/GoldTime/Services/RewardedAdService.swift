@@ -30,14 +30,16 @@ final class RewardedAdService: NSObject {
         guard case .idle = loadState else { return }
         loadState = .loading
         RewardedAd.load(with: adUnitID, request: Request()) { [weak self] ad, error in
-            guard let self else { return }
-            if error != nil {
-                self.loadState = .failed
-                self.rewardedAd = nil
-            } else {
-                self.rewardedAd = ad
-                self.rewardedAd?.fullScreenContentDelegate = self
-                self.loadState = .ready
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if error != nil {
+                    self.loadState = .failed
+                    self.rewardedAd = nil
+                } else {
+                    self.rewardedAd = ad
+                    self.rewardedAd?.fullScreenContentDelegate = self
+                    self.loadState = .ready
+                }
             }
         }
     }
@@ -45,7 +47,9 @@ final class RewardedAdService: NSObject {
     func present(from viewController: UIViewController, onDismissed: @escaping (_ didEarnReward: Bool) -> Void) {
         guard let ad = rewardedAd, case .ready = loadState else {
             loadState = .idle
-            onDismissed(false)
+            DispatchQueue.main.async {
+                onDismissed(false)
+            }
             return
         }
         dismissCallback = onDismissed
@@ -58,18 +62,22 @@ final class RewardedAdService: NSObject {
 
 extension RewardedAdService: FullScreenContentDelegate {
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        let earned = didEarnReward
-        rewardedAd = nil
-        loadState = .idle
-        dismissCallback?(earned)
-        dismissCallback = nil
-        loadAd()
+        DispatchQueue.main.async {
+            let earned = self.didEarnReward
+            self.rewardedAd = nil
+            self.loadState = .idle
+            self.dismissCallback?(earned)
+            self.dismissCallback = nil
+            self.loadAd()
+        }
     }
 
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
-        rewardedAd = nil
-        loadState = .failed
-        dismissCallback?(false)
-        dismissCallback = nil
+        DispatchQueue.main.async {
+            self.rewardedAd = nil
+            self.loadState = .failed
+            self.dismissCallback?(false)
+            self.dismissCallback = nil
+        }
     }
 }

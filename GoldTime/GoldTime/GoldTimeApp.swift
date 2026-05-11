@@ -33,25 +33,32 @@ struct GoldTimeApp: App {
                     LockOptionsView()
                 }
                 .onAppear {
-                    ScreenTimeManager.rolloverCounterIfNeeded()
-                    ScreenTimeManager.reapplyShieldIfOverrideExpired()
-                    SharedStore.clearShieldOpenRequest()
-                    showLockOptions = SharedStore.isShieldActive
+                    refreshLockOptionsPresentation()
                 }
                 .onOpenURL { _ in
-                    ScreenTimeManager.reapplyShieldIfOverrideExpired()
-                    SharedStore.clearShieldOpenRequest()
-                    showLockOptions = SharedStore.isShieldActive
+                    refreshLockOptionsPresentation()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         AuthorizationService.shared.refresh()
-                        ScreenTimeManager.reapplyShieldIfOverrideExpired()
-                        SharedStore.clearShieldOpenRequest()
-                        showLockOptions = SharedStore.isShieldActive
+                        refreshLockOptionsPresentation()
                     }
                 }
         }
         .modelContainer(sharedModelContainer)
+    }
+
+    private func refreshLockOptionsPresentation() {
+        ScreenTimeManager.rolloverCounterIfNeeded()
+        ScreenTimeManager.reapplyShieldIfOverrideExpired()
+
+        let shouldPresentLockOptions =
+            SharedStore.hasPendingShieldOpenRequest()
+            || SharedStore.isShieldActive
+            || !SharedStore.lockedGroups().isEmpty
+
+        if shouldPresentLockOptions {
+            showLockOptions = true
+        }
     }
 }

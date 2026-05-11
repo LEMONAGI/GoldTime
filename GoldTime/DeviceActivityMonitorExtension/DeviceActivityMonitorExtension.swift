@@ -10,11 +10,20 @@ import ManagedSettings
 
 extension DeviceActivityName {
     static let daily = Self("daily")
-    static let override = Self("override")
+
+    var overrideGroupID: UUID? {
+        let prefix = "override."
+        guard rawValue.hasPrefix(prefix) else { return nil }
+        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+    }
 }
 
 extension DeviceActivityEvent.Name {
-    static let dailyLimit = Self("dailyLimit")
+    var dailyLimitGroupID: UUID? {
+        let prefix = "dailyLimit."
+        guard rawValue.hasPrefix(prefix) else { return nil }
+        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+    }
 }
 
 extension ManagedSettingsStore.Name {
@@ -32,7 +41,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             store.shield.applications = nil
             store.shield.applicationCategories = nil
             store.shield.webDomains = nil
-            SharedStore.isShieldActive = false
+            SharedStore.clearAllShieldState()
         }
     }
 
@@ -45,11 +54,12 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             store.shield.applications = nil
             store.shield.applicationCategories = nil
             store.shield.webDomains = nil
-            SharedStore.isShieldActive = false
-        case .override:
-            applyShieldFromSelection()
-            SharedStore.shieldOverrideUntil = nil
+            SharedStore.clearAllShieldState()
         default:
+            if let groupID = activity.overrideGroupID {
+                SharedStore.clearOverride(for: groupID)
+                applyShieldFromGroups()
+            }
             break
         }
     }
@@ -59,18 +69,16 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         activity: DeviceActivityName
     ) {
         super.eventDidReachThreshold(event, activity: activity)
-        if event == .dailyLimit {
+        if activity == .daily, let groupID = event.dailyLimitGroupID {
             SharedStore.recordShieldHit()
-            applyShieldFromSelection()
+            SharedStore.markGroupShielded(groupID)
+            applyShieldFromGroups()
         }
     }
 
-    private func applyShieldFromSelection() {
-        let selection = SharedStore.selectedApps
-        guard !selection.applicationTokens.isEmpty
-            || !selection.categoryTokens.isEmpty
-            || !selection.webDomainTokens.isEmpty
-        else {
+    private func applyShieldFromGroups() {
+        let applicationTokens = SharedStore.shieldApplicationTokens()
+        guard !applicationTokens.isEmpty else {
             store.shield.applications = nil
             store.shield.applicationCategories = nil
             store.shield.webDomains = nil
@@ -78,12 +86,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             return
         }
 
-        store.shield.applications = selection.applicationTokens.isEmpty
-            ? nil : selection.applicationTokens
-        store.shield.applicationCategories = selection.categoryTokens.isEmpty
-            ? nil : .specific(selection.categoryTokens)
-        store.shield.webDomains = selection.webDomainTokens.isEmpty
-            ? nil : selection.webDomainTokens
+        store.shield.applications = applicationTokens
+        store.shield.applicationCategories = nil
+        store.shield.webDomains = nil
         SharedStore.isShieldActive = true
     }
 }
