@@ -71,7 +71,11 @@ struct HomeView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("GoldTime")
             .navigationBarTitleDisplayMode(.inline)
-            .familyActivityPicker(isPresented: $isPickerPresented, selection: $pickerSelection)
+            .sheet(isPresented: $isPickerPresented) {
+                PickerSheet(selection: $pickerSelection) {
+                    commitPickerSelection()
+                }
+            }
             .alert(item: $alertMessage) { alert in
                 Alert(
                     title: Text(alert.title),
@@ -95,9 +99,6 @@ struct HomeView: View {
                     onCancel: { limitPickerGroupID = nil }
                 )
                 .presentationDetents([.height(320)])
-            }
-            .onChange(of: pickerSelection) { _, newValue in
-                handlePickerSelection(newValue)
             }
             .onChange(of: isPickerPresented) { _, newValue in
                 if !newValue {
@@ -681,38 +682,10 @@ struct HomeView: View {
         isPickerPresented = true
     }
 
-    private func handlePickerSelection(_ selection: FamilyActivitySelection) {
-        guard let groupID = pickerGroupID, isPickerPresented else {
-            return
-        }
-
-        if !selection.categoryTokens.isEmpty || !selection.webDomainTokens.isEmpty {
-            restorePickerSelection(for: groupID)
-            alertMessage = AlertMessage(
-                title: "앱만 선택",
-                message: "이번 버전은 앱만 골라주세요."
-            )
-            return
-        }
-
-        if selection.applicationTokens.count > SharedStore.maxAppsPerGroup {
-            restorePickerSelection(for: groupID)
-            alertMessage = AlertMessage(
-                title: "앱 개수 제한",
-                message: "그룹당 앱은 9개까지예요."
-            )
-            return
-        }
-
+    private func commitPickerSelection() {
+        guard let groupID = pickerGroupID else { return }
         updateGroup(groupID) { group in
-            group.selection = selection.appOnly
-        }
-    }
-
-    private func restorePickerSelection(for groupID: UUID) {
-        let current = groups.first { $0.id == groupID }?.selection ?? FamilyActivitySelection()
-        if pickerSelection != current {
-            pickerSelection = current
+            group.selection = pickerSelection.appOnly
         }
     }
 
@@ -727,6 +700,66 @@ struct HomeView: View {
         } catch {
             successMessage = nil
             errorMessage = "모니터링 시작 실패: \(error.localizedDescription)"
+        }
+    }
+}
+
+private struct PickerSheet: View {
+    @Binding var selection: FamilyActivitySelection
+    @Environment(\.dismiss) private var dismiss
+    let onCommit: () -> Void
+
+    private var warnings: [String] {
+        var list: [String] = []
+        let hasCategory = !selection.categoryTokens.isEmpty
+        let hasWeb = !selection.webDomainTokens.isEmpty
+        if hasCategory && hasWeb {
+            list.append("카테고리와 웹사이트는 아직 지원하지 않아요. 앱만 선택해주세요.")
+        } else if hasCategory {
+            list.append("카테고리는 아직 지원하지 않아요. 앱만 선택해주세요.")
+        } else if hasWeb {
+            list.append("웹사이트는 아직 지원하지 않아요. 앱만 선택해주세요.")
+        }
+        let count = selection.applicationTokens.count
+        if count > SharedStore.maxAppsPerGroup {
+            list.append("앱을 \(SharedStore.maxAppsPerGroup)개 이하로 선택해주세요 (\(count)/\(SharedStore.maxAppsPerGroup))")
+        }
+        return list
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                if !warnings.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(warnings, id: \.self) { warning in
+                            Label(warning, systemImage: "exclamationmark.circle.fill")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(.red)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color(.systemBackground))
+                    Divider()
+                }
+                FamilyActivityPicker(selection: $selection)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("취소") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("완료") {
+                        onCommit()
+                        dismiss()
+                    }
+                    .disabled(!warnings.isEmpty)
+                }
+            }
+            .navigationTitle("앱 선택")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
