@@ -259,6 +259,18 @@ struct HomeView: View {
                     .foregroundStyle(groups.count >= SharedStore.maxGroupCount ? .red : .secondary)
             }
 
+            monitoringControls
+
+            if groups.isEmpty {
+                emptyGroupState
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(groups) { group in
+                        groupCard(group)
+                    }
+                }
+            }
+
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
@@ -291,18 +303,6 @@ struct HomeView: View {
             .padding(16)
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            if groups.isEmpty {
-                emptyGroupState
-            } else {
-                VStack(spacing: 12) {
-                    ForEach(groups) { group in
-                        groupCard(group)
-                    }
-                }
-            }
-
-            monitoringControls
         }
     }
 
