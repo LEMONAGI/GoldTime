@@ -50,6 +50,7 @@ High-risk 작업은 직렬로 처리하고 명시적인 검증 메모를 남깁�
 - 중앙화할 수 있는 상태 로직을 앱과 extension에 중복 구현하지 않습니다.
 - build, signing, simulator, sandbox 실패를 숨기지 않습니다.
 - 명시 요청 없이 사용자 변경을 되돌리지 않습니다.
+- FamilyControls, DeviceActivity, ManagedSettings 등 Apple 프레임워크 관련 문제가 생기면 추측하지 말고 Apple 공식 문서(developer.apple.com)를 먼저 확인합니다.
 
 ## 검증 명령
 
