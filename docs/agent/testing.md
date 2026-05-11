@@ -9,12 +9,13 @@ GoldTime의 테스트 원칙은 "구현 전에 기대 동작과 확인 방법을
 ## 기본 원칙
 
 1. 동작 변경 전 unit test, regression test, 또는 실기기 검증 시나리오 중 하나를 먼저 정합니다.
-2. 테스트 가능한 판단 로직은 Apple framework 호출부에서 분리합니다.
-3. Apple framework 호출부는 얇게 유지하고, 복잡한 조건 판단을 넣지 않습니다.
-4. 실기기에서 발견한 버그는 가능한 부분을 순수 로직으로 환원해 regression test로 남깁니다.
-5. 실행하지 못한 검증은 실패처럼 숨기지 말고 이유와 대체 확인을 기록합니다.
+2. unit test는 앱 내부의 판단과 기록을 검증하고, Apple 시스템 콜백 성공 자체를 대신 증명하지 않습니다.
+3. 테스트 가능한 판단 로직은 Apple framework 호출부에서 분리합니다.
+4. Apple framework 호출부는 얇게 유지하고, 복잡한 조건 판단을 넣지 않습니다.
+5. 실기기에서 발견한 버그는 가능한 부분을 순수 로직으로 환원해 regression test로 남깁니다.
+6. 실행하지 못한 검증은 실패처럼 숨기지 말고 이유와 대체 확인을 기록합니다.
 
-## TDD 적용 대상
+## Unit Test / Regression Test 대상
 
 먼저 실패하는 테스트를 만들거나 기존 테스트를 기대 동작에 맞게 조정합니다.
 
@@ -24,6 +25,8 @@ GoldTime의 테스트 원칙은 "구현 전에 기대 동작과 확인 방법을
 - 광고/1분 연장으로 기록되는 unlock seconds 계산.
 - 순수 helper, formatter, mapper, policy 로직.
 - 재현 가능한 로직 버그.
+- 광고 reward 이후 앱 내부 상태 변화.
+- Shield 해제/재적용을 결정하는 앱 내부 policy.
 
 현재 테스트는 Swift Testing 기반이며 `GoldTime/GoldTimeTests/` 아래에 둡니다.
 
@@ -38,9 +41,9 @@ import Testing
 }
 ```
 
-## 검증 시나리오 우선 대상
+## 수동/실기기 시나리오 대상
 
-다음 영역은 Apple 시스템 콜백 자체를 unit test로 증명하려 하지 않습니다. 구현 전에 수동 검증 시나리오를 먼저 씁니다.
+다음 영역은 unit test가 아니라 수동/실기기 검증으로 확인합니다. 구현 전에 시나리오를 먼저 쓰고, 그중 앱 내부 판단만 별도 테스트로 분리합니다.
 
 - FamilyControls 권한 요청과 시스템 다이얼로그.
 - DeviceActivity threshold / interval callback.
@@ -76,14 +79,12 @@ Follow-up testable logic: 카운터 증가, override 만료 시 상태 전이, �
 
 ## 테스트 생략 가능 조건
 
-다음 작업은 자동 테스트를 먼저 쓰지 않아도 됩니다.
+다음 작업은 자동 테스트를 먼저 쓰지 않아도 됩니다. 대신 acceptance criteria나 확인 기준을 먼저 정합니다.
 
 - 문서만 수정.
 - 단순 문구 변경.
 - 의미 있는 자동 테스트가 어려운 순수 시각 조정.
 - 빌드 설정 안내처럼 코드 동작이 없는 설명 변경.
-
-그래도 acceptance criteria는 먼저 적고, 완료 보고에 검증 생략 이유를 남깁니다.
 
 ## 완료 보고 기준
 

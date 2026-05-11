@@ -8,17 +8,16 @@ Skip when: 이미 작고 명확한 문서/문구 수정이며 검증 기준이 �
 
 ## 기본 작업 흐름
 
-1. `AGENTS.md`에서 필요한 가이드를 고르고, 상세 문서 읽기 예산을 지킵니다.
-2. 수정 전에 관련 코드 경로를 읽습니다.
-3. 작업 유형과 위험도를 분류합니다.
-4. 동작 변경이면 테스트 또는 검증 시나리오를 먼저 정합니다.
-5. 목표를 만족하는 가장 작은 변경을 합니다.
-6. 먼저 정한 테스트/시나리오로 실행 또는 확인합니다.
-7. 변경 파일, 실행한 검증, 남은 실기기 확인 항목을 보고합니다.
+1. `AGENTS.md`에서 작업 유형, 읽을 상세 문서, 검증 방식을 먼저 고정합니다.
+2. 수정 전에 관련 코드 경로와 현재 구현 흐름을 읽습니다.
+3. 위험도를 분류하고, high-risk 작업은 직렬로 처리합니다.
+4. 목표를 만족하는 가장 작은 변경을 합니다.
+5. 먼저 정한 테스트/시나리오로 실행 또는 확인합니다.
+6. 변경 파일, 실행한 검증, 실행하지 못한 검증을 보고합니다.
 
 ## 작업 유형
 
-| 유형 | 예시 | 테스트 우선순위 |
+| 유형 | 예시 | 먼저 정할 검증 |
 | --- | --- | --- |
 | UI-only | SwiftUI 레이아웃, 문구, 색상 | acceptance criteria 먼저, 가능하면 build 또는 preview 성격의 확인 |
 | Shared state | `SharedStore`, 카운터, 통계 | unit test 또는 regression test 먼저 |
@@ -27,14 +26,13 @@ Skip when: 이미 작고 명확한 문서/문구 수정이며 검증 기준이 �
 | Project config | `.xcodeproj`, SPM, entitlements, App Group | 설정 검증 시나리오 먼저, build와 target membership 검토 |
 | Docs-only | Markdown guide, setup note | 링크/경로 일치와 중복 확인 |
 
-## 테스트 우선 규칙
+## 검증 선택 규칙
 
-- `SharedStore` 통계, 카운터, 날짜 key, 저장/조회 로직은 테스트를 먼저 작성합니다.
-- 순수 계산 로직과 helper/service 로직은 가능하면 red test를 먼저 만듭니다.
-- 재현 가능한 버그 수정은 실패하는 regression test를 먼저 추가합니다.
-- FamilyControls, DeviceActivity, ManagedSettings Shield, Shield extension, 알림 복귀는 Apple 시스템 콜백 자체를 unit test로 검증하려 하지 않습니다.
-- 실기기 의존 흐름은 구현 전에 수동 검증 시나리오를 먼저 쓰고, 판단 가능한 로직만 테스트 가능한 형태로 분리합니다.
-- 문서, 단순 문구, 의미 있는 자동 테스트가 어려운 순수 시각 조정은 테스트 선행을 생략할 수 있지만 acceptance criteria는 먼저 정합니다.
+- 순수 로직, 저장/조회, 날짜 key, 카운터, formatter/helper는 unit test 또는 regression test로 확인합니다.
+- UI-only 변경은 acceptance criteria를 먼저 쓰고, 가능하면 build로 컴파일 회귀를 확인합니다.
+- FamilyControls, DeviceActivity, ManagedSettings Shield, Shield extension, 알림 복귀는 수동/실기기 시나리오를 먼저 정합니다.
+- 문서, 단순 문구, 순수 시각 조정은 자동 테스트를 생략할 수 있지만 확인 기준은 먼저 정합니다.
+- 자세한 TDD 기준과 실기기 시나리오 템플릿은 `testing.md`를 따릅니다.
 
 ## 위험도
 
@@ -68,7 +66,7 @@ Xcode가 제한된 cache에 쓰려 하거나 signing/simulator service 문제로
 최종 보고에는 다음을 포함합니다.
 
 - 무엇을 바꿨는지.
-- 먼저 정한 테스트 또는 검증 시나리오가 무엇이었는지.
-- 어떤 검증을 실행했는지.
-- 로컬에서 검증하지 못한 항목.
-- 남은 실기기 확인 항목.
+- 먼저 정한 검증 방식.
+- 실행한 검증 명령 또는 수동 확인.
+- 실행하지 못한 검증과 이유.
+- 남은 실기기 확인 항목이 있으면 그 항목.
