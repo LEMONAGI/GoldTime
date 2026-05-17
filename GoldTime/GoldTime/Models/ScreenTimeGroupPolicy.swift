@@ -23,7 +23,7 @@ enum ScreenTimeGroupPolicy {
             case .groupHasNoApps(let name):
                 return "\(name)에 앱이 없어요."
             case .groupHasNoLimit(let name):
-                return "\(name)의 한도를 1분 이상으로 정해주세요."
+                return "\(name)의 한도 설정이 올바르지 않아요."
             case .groupHasTooManyApps(let name):
                 return "\(name)은 앱 9개까지만 담을 수 있어요."
             case .groupHasNonAppTokens(let name):
@@ -70,7 +70,7 @@ enum ScreenTimeGroupPolicy {
             return .groupHasNoApps(group.name)
         }
 
-        for group in groups where group.dailyLimitMinutes <= 0 {
+        for group in groups where group.dailyLimitMinutes < 0 {
             return .groupHasNoLimit(group.name)
         }
 
@@ -88,6 +88,38 @@ enum ScreenTimeGroupPolicy {
         }
 
         return nil
+    }
+
+    static func invalidReason<Token>(
+        for group: GroupSnapshot<Token>,
+        maxAppsPerGroup: Int = SharedStore.maxAppsPerGroup
+    ) -> InvalidReason? {
+        if group.appTokens.isEmpty {
+            return .groupHasNoApps(group.name)
+        }
+
+        if group.dailyLimitMinutes < 0 {
+            return .groupHasNoLimit(group.name)
+        }
+
+        if group.appTokens.count > maxAppsPerGroup {
+            return .groupHasTooManyApps(group.name)
+        }
+
+        if group.hasNonAppTokens {
+            return .groupHasNonAppTokens(group.name)
+        }
+
+        return nil
+    }
+
+    static func monitoringEligibleGroups<Token>(
+        from groups: [GroupSnapshot<Token>],
+        maxAppsPerGroup: Int = SharedStore.maxAppsPerGroup
+    ) -> [GroupSnapshot<Token>] {
+        groups.filter { group in
+            invalidReason(for: group, maxAppsPerGroup: maxAppsPerGroup) == nil
+        }
     }
 
     static func unionAppTokens<Token>(for groups: [GroupSnapshot<Token>]) -> Set<Token> {
