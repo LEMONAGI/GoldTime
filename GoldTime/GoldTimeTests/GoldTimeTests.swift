@@ -149,6 +149,121 @@ struct GoldTimeTests {
         #expect(candidates.map(\.name) == ["게임", "SNS"])
     }
 
+    @Test func monitoringEligibilityKeepsValidGroupsWhenDraftsExist() {
+        let validID = UUID()
+        let emptyID = UUID()
+        let noLimitID = UUID()
+        let groups = [
+            ScreenTimeGroupPolicy.GroupSnapshot(
+                id: validID,
+                name: "SNS",
+                appTokens: ["instagram"],
+                dailyLimitMinutes: 20
+            ),
+            ScreenTimeGroupPolicy.GroupSnapshot<String>(
+                id: emptyID,
+                name: "빈 그룹",
+                appTokens: [],
+                dailyLimitMinutes: 20
+            ),
+            ScreenTimeGroupPolicy.GroupSnapshot(
+                id: noLimitID,
+                name: "한도 없음",
+                appTokens: ["video"],
+                dailyLimitMinutes: 0
+            )
+        ]
+
+        let eligible = ScreenTimeGroupPolicy.monitoringEligibleGroups(from: groups)
+
+        #expect(eligible.map(\.id) == [validID])
+    }
+
+    @Test func pruneShieldStateRemovesDeletedOrInvalidGroupsOnly() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let keptID = UUID()
+        let removedID = UUID()
+        let now = Date()
+        SharedStore.shieldedGroupIDs = [keptID, removedID]
+        SharedStore.setOverride(until: now.addingTimeInterval(60), for: keptID)
+        SharedStore.setOverride(until: now.addingTimeInterval(120), for: removedID)
+
+        let didChange = SharedStore.pruneShieldState(keepingGroupIDs: [keptID])
+
+        #expect(didChange)
+        #expect(SharedStore.shieldedGroupIDs == [keptID])
+        #expect(SharedStore.overrideUntilByGroupID[keptID] != nil)
+        #expect(SharedStore.overrideUntilByGroupID[removedID] == nil)
+    }
+
+    @Test func firstDailyProtectionCheckPreservesExistingShieldState() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.isShieldActive = true
+
+        let didReset = SharedStore.resetDailyProtectionStateIfNeeded(now: Date())
+
+        #expect(!didReset)
+        #expect(SharedStore.shieldedGroupIDs == [group.id])
+        #expect(SharedStore.lockedGroups().map(\.id) == [group.id])
+        #expect(SharedStore.isShieldActive)
+    }
+
+    @Test func sameDayDailyProtectionCheckPreservesLockedGroups() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let calendar = Calendar.current
+        let morning = calendar.date(from: DateComponents(year: 2026, month: 5, day: 17, hour: 9))!
+        let afternoon = calendar.date(from: DateComponents(year: 2026, month: 5, day: 17, hour: 15))!
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.oneMinuteCounterDate = morning
+        SharedStore.oneMinuteUsedToday = 2
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.setOverride(until: afternoon.addingTimeInterval(60), for: group.id)
+        SharedStore.isShieldActive = true
+
+        #expect(!SharedStore.resetDailyProtectionStateIfNeeded(now: morning))
+        #expect(!SharedStore.resetDailyProtectionStateIfNeeded(now: afternoon))
+
+        #expect(SharedStore.shieldedGroupIDs == [group.id])
+        #expect(SharedStore.overrideUntilByGroupID[group.id] != nil)
+        #expect(SharedStore.oneMinuteUsedToday == 2)
+        #expect(SharedStore.isShieldActive)
+    }
+
+    @Test func nextDayDailyProtectionCheckClearsLockedGroupsAndCounter() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let calendar = Calendar.current
+        let firstDay = calendar.date(from: DateComponents(year: 2026, month: 5, day: 17, hour: 23))!
+        let nextDay = calendar.date(from: DateComponents(year: 2026, month: 5, day: 18, hour: 0, minute: 1))!
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.oneMinuteCounterDate = firstDay
+        SharedStore.oneMinuteUsedToday = 4
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.setOverride(until: nextDay.addingTimeInterval(60), for: group.id)
+        SharedStore.isShieldActive = true
+
+        #expect(!SharedStore.resetDailyProtectionStateIfNeeded(now: firstDay))
+        #expect(SharedStore.resetDailyProtectionStateIfNeeded(now: nextDay))
+
+        #expect(SharedStore.shieldedGroupIDs.isEmpty)
+        #expect(SharedStore.overrideUntilByGroupID.isEmpty)
+        #expect(SharedStore.oneMinuteUsedToday == 0)
+        #expect(calendar.isDate(SharedStore.oneMinuteCounterDate, inSameDayAs: nextDay))
+        #expect(!SharedStore.isShieldActive)
+    }
+
     @Test func groupOverrideOnlyRemovesSelectedGroupFromLockedGroups() {
         SharedStore.clearGroupStateForTesting()
         defer { SharedStore.clearGroupStateForTesting() }
