@@ -37,7 +37,7 @@ struct OnboardingView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.goldPrimary)
+                    .background(Color.accentColor)
                     .foregroundStyle(.black)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }

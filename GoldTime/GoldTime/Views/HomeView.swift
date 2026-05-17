@@ -123,7 +123,7 @@ struct HomeView: View {
                         .foregroundStyle(.white.opacity(0.75))
                     Text("₩\(todayRevenue.formatted())")
                         .font(.system(size: 44, weight: .black, design: .rounded))
-                        .foregroundStyle(Color.goldPrimary)
+                        .foregroundStyle(Color.accentColor)
                         .minimumScaleFactor(0.75)
                         .lineLimit(1)
                     Text("벌어줬어요")
@@ -150,7 +150,7 @@ struct HomeView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.deepBlack)
+        .background(Color("gray100"))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -169,7 +169,7 @@ struct HomeView: View {
                 value: groupLimitValue,
                 caption: isMonitoring ? "그룹별 독립 적용" : "시작 전",
                 systemName: "timer",
-                tint: Color.goldPrimary
+                tint: Color.accentColor
             )
 
             DashboardMetricCard(
@@ -217,7 +217,7 @@ struct HomeView: View {
                             x: .value("날짜", stat.date, unit: .day),
                             y: .value("수익", stat.estimatedAdRevenueWon)
                         )
-                        .foregroundStyle(Color.goldPrimary)
+                        .foregroundStyle(Color.accentColor)
                     }
                     .chartXAxis {
                         AxisMarks(values: .stride(by: .day)) {
@@ -274,7 +274,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
-                        .foregroundStyle(Color.goldPrimary)
+                        .foregroundStyle(Color.accentColor)
                     Text("그룹당 앱 \(SharedStore.maxAppsPerGroup)개까지 · 카테고리와 웹은 아직 제외 · 같은 앱은 여러 그룹에 넣을 수 있어요.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -286,7 +286,7 @@ struct HomeView: View {
                     Label("그룹 추가", systemImage: "plus")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(DashboardActionButtonStyle(background: Color.goldPrimary, foreground: .black))
+                .buttonStyle(DashboardActionButtonStyle(background: Color.accentColor, foreground: .black))
                 .disabled(isMonitoring || groups.count >= SharedStore.maxGroupCount)
                 .opacity(isMonitoring || groups.count >= SharedStore.maxGroupCount ? 0.45 : 1)
 
@@ -310,7 +310,7 @@ struct HomeView: View {
         VStack(spacing: 10) {
             Image(systemName: "square.grid.2x2")
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(Color.goldPrimary)
+                .foregroundStyle(Color.accentColor)
             Text("아직 그룹이 없어요.")
                 .font(.headline)
             Text("그룹을 만들고 앱을 담으면, 그룹별로 다른 일일 한도를 걸 수 있어요.")
@@ -327,7 +327,7 @@ struct HomeView: View {
     private func groupCard(_ group: SharedStore.ScreenTimeGroup) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
-                IconTile(systemName: "app.badge", tint: Color.goldPrimary)
+                IconTile(systemName: "app.badge", tint: Color.accentColor)
 
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("그룹명", text: Binding(
@@ -440,7 +440,7 @@ struct HomeView: View {
             HStack(spacing: 12) {
                 IconTile(
                     systemName: isMonitoring ? "stop.fill" : "play.fill",
-                    tint: isMonitoring ? .red : Color.goldPrimary
+                    tint: isMonitoring ? .red : Color.accentColor
                 )
                 VStack(alignment: .leading, spacing: 3) {
                     Text(isMonitoring ? "모니터링 중" : "모니터링 시작")
@@ -476,7 +476,7 @@ struct HomeView: View {
                     Label("모니터링 시작", systemImage: "play.fill")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(DashboardActionButtonStyle(background: Color.goldPrimary, foreground: .black))
+                .buttonStyle(DashboardActionButtonStyle(background: Color.accentColor, foreground: .black))
                 .disabled(!canStart)
                 .opacity(canStart ? 1 : 0.45)
             }
@@ -778,7 +778,7 @@ private struct SectionHeader: View {
         HStack(spacing: 8) {
             Image(systemName: systemName)
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(Color.goldPrimary)
+                .foregroundStyle(Color.accentColor)
             Text(title)
                 .font(.headline)
         }
@@ -877,7 +877,7 @@ private struct EmptyChartState: View {
         VStack(spacing: 10) {
             Image(systemName: "chart.bar.xaxis")
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(Color.goldPrimary)
+                .foregroundStyle(Color.accentColor)
             Text("광고 기록이 생기면 7일 흐름을 보여줄게요.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

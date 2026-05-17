@@ -53,7 +53,7 @@ struct LockOptionsView: View {
                     subtitle: oneMinuteRemaining > 0
                         ? "전체 그룹에서 오늘 \(oneMinuteRemaining)번 남았어요"
                         : "오늘은 더 사용할 수 없어요",
-                    background: canExtendOneMinute ? Color.goldPrimary : Color.gray.opacity(0.3),
+                    background: canExtendOneMinute ? Color.accentColor : Color.gray.opacity(0.3),
                     foreground: canExtendOneMinute ? .black : .gray,
                     enabled: canExtendOneMinute,
                     action: tapOneMinute
@@ -62,7 +62,7 @@ struct LockOptionsView: View {
                 optionButton(
                     title: "광고 보고 15분 더 쓰기",
                     subtitle: selectedGroupName.map { "\($0)을 15분 연장해요" } ?? "풀 그룹을 먼저 고르세요",
-                    background: canExtendWithAd ? Color.goldPrimary : Color.gray.opacity(0.3),
+                    background: canExtendWithAd ? Color.accentColor : Color.gray.opacity(0.3),
                     foreground: canExtendWithAd ? .black : .gray,
                     enabled: canExtendWithAd,
                     action: startAdFlow
@@ -159,7 +159,7 @@ struct LockOptionsView: View {
                                 }
                                 Spacer()
                                 Image(systemName: selectedGroupID == group.id ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedGroupID == group.id ? Color.goldPrimary : .secondary)
+                                    .foregroundStyle(selectedGroupID == group.id ? Color.accentColor : .secondary)
                             }
                             .padding(12)
                             .background(Color(.tertiarySystemGroupedBackground))
