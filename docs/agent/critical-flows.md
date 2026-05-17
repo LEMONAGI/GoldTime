@@ -26,11 +26,31 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 
 1. 메인 앱이 FamilyControls 권한을 요청합니다.
 2. 사용자가 앱 그룹을 만들고 각 그룹에 앱과 일일 한도를 선택합니다. v1은 앱만 지원하고 카테고리/웹은 저장하지 않습니다.
-3. `ScreenTimeManager.startDailyMonitoring(groups:)`가 그룹 목록을 저장하고 `.daily` 모니터링을 시작합니다.
-4. `.daily` activity 안에 `dailyLimit.<groupID>` 이벤트가 그룹별로 등록됩니다.
-5. `DeviceActivityMonitorExtension.eventDidReachThreshold`가 해당 그룹 id를 `SharedStore.shieldedGroupIDs`에 추가합니다.
-6. Extension이 Shield hit을 기록하고 잠긴 그룹들의 앱 token union을 Shield로 적용합니다. override 중인 그룹은 union에서 제외합니다.
-6. 메인 앱은 열릴 때나 active 상태가 될 때 공유 Shield 상태를 읽습니다.
+3. 그룹 저장, 앱 시작, active 복귀 시 `ScreenTimeManager.syncDailyMonitoring(groups:)`가 그룹 목록을 저장하고 유효한 그룹만 `.daily` 모니터링에 자동 적용합니다.
+4. 유효한 그룹은 앱 1개 이상, 일일 한도 1분 이상, 앱-only, 그룹당 앱 제한 이내인 그룹입니다. 설정이 덜 끝난 그룹은 저장하지만 `.daily` 이벤트에서는 제외합니다.
+5. `.daily` activity 안에 `dailyLimit.<groupID>` 이벤트가 유효 그룹별로 등록됩니다.
+6. `DeviceActivityMonitorExtension.eventDidReachThreshold`가 해당 그룹 id를 `SharedStore.shieldedGroupIDs`에 추가합니다.
+7. Extension이 Shield hit을 기록하고 잠긴 그룹들의 앱 token union을 Shield로 적용합니다. override 중인 그룹은 union에서 제외합니다.
+8. 메인 앱은 열릴 때나 active 상태가 될 때 공유 Shield 상태를 읽고 모니터링 등록을 다시 동기화합니다.
+9. 같은 날짜의 foreground 자동 동기화와 `.daily` 재등록은 기존 `shieldedGroupIDs`를 지우면 안 됩니다. 잠금 상태 초기화는 실제 날짜가 바뀌었거나 전체 보호 초기화를 명시 실행했을 때만 허용합니다.
+
+## 그룹 수정 자동 적용 흐름
+
+1. 사용자가 그룹 이름, 앱 선택, 일일 한도, 그룹 삭제를 수정합니다.
+2. 이름 변경은 그룹 저장만 수행하고 DeviceActivity를 재등록하지 않습니다.
+3. 앱 선택, 한도 변경, 그룹 삭제는 `ScreenTimeManager.syncDailyMonitoring(groups:)`를 호출합니다.
+4. sync는 전체 그룹을 `SharedStore.screenTimeGroups`에 저장하되, 유효 그룹만 DeviceActivity event로 등록합니다.
+5. 삭제되었거나 무효화된 그룹 id는 `shieldedGroupIDs`와 override 상태에서 제거합니다.
+6. 남아 있는 잠긴 그룹이 있으면 Shield union을 재계산하고, 없으면 Shield를 비웁니다.
+7. 앱 시작/active 복귀 때문에 동일 설정을 재등록하는 경우에는 잠긴 유효 그룹을 보존해야 합니다.
+
+## 전체 보호 초기화 흐름
+
+1. 홈의 문제 해결 메뉴에서 `전체 보호 초기화`를 선택합니다.
+2. confirmationDialog가 "모든 모니터링과 현재 잠금을 초기화합니다. 그룹 설정은 유지됩니다."를 표시합니다.
+3. 확인하면 `ScreenTimeManager.resetProtectionState()`가 모든 DeviceActivity 모니터링과 ManagedSettings Shield를 정리하고 Shield/override 공유 상태를 비웁니다.
+4. 같은 함수가 저장된 그룹을 다시 읽어 유효 그룹만 `.daily` 모니터링에 자동 적용합니다.
+5. 이 기능은 사용자용 일시정지가 아니라 Screen Time 상태 꼬임, 개발 중 디버깅, stale Shield 복구를 위한 숨은 destructive action입니다.
 
 ## 1분 연장 흐름
 

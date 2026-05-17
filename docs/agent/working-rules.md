@@ -14,6 +14,7 @@ Skip when: 이미 작고 명확한 문서/문구 수정이며 검증 기준이 �
 4. 목표를 만족하는 가장 작은 변경을 합니다.
 5. 먼저 정한 테스트/시나리오로 실행 또는 확인합니다.
 6. 변경 파일, 실행한 검증, 실행하지 못한 검증을 보고합니다.
+7. 테스트 코드로 대체할 수 없는 실기기 확인 항목이 남으면 최종 보고에 사용자 체크리스트로 적습니다.
 
 ## 작업 유형
 
@@ -34,6 +35,7 @@ Skip when: 이미 작고 명확한 문서/문구 수정이며 검증 기준이 �
 - 공용 가능성이 있는 UI는 `GoldTime/GoldTime/Views/Component/` 추출 여부를 판단합니다.
 - 새 색상은 `AccentColor`를 제외하고 RGB literal 대신 Asset Color로 추가했는지 확인합니다.
 - FamilyControls, DeviceActivity, ManagedSettings Shield, Shield extension, 알림 복귀는 수동/실기기 시나리오를 먼저 정합니다.
+- Screen Time / Shield 런타임은 `xcodebuild test` 통과만으로 완료 검증처럼 말하지 않습니다. 실제 기기에서만 확인 가능한 항목은 완료 보고에 남깁니다.
 - 문서, 단순 문구, 순수 시각 조정은 자동 테스트를 생략할 수 있지만 확인 기준은 먼저 정합니다.
 - 기획이 모호한 작업은 `competitive-research.md` 확인 여부를 검증 기준에 포함합니다. 최신 리서치를 했다면 재사용 가치가 있는 관찰을 해당 문서에 추가했는지 확인합니다.
 - 자세한 TDD 기준과 실기기 시나리오 템플릿은 `testing.md`를 따릅니다.
@@ -51,6 +53,7 @@ High-risk 작업은 직렬로 처리하고 명시적인 검증 메모를 남깁�
 - migration/reset 결정 없이 App Group key를 바꾸지 않습니다.
 - project config 작업이 아닌데 `.xcodeproj`를 기계적으로 수정하지 않습니다.
 - 시뮬레이터 런타임으로 Screen Time 동작이 검증됐다고 보지 않습니다.
+- 자동 테스트로 확인하지 못한 FamilyControls, DeviceActivity callback, ManagedSettings Shield, Shield extension, AdMob reward 동작을 보고에서 누락하지 않습니다.
 - 중앙화할 수 있는 상태 로직을 앱과 extension에 중복 구현하지 않습니다.
 - build, signing, simulator, sandbox 실패를 숨기지 않습니다.
 - 명시 요청 없이 사용자 변경을 되돌리지 않습니다.
@@ -77,5 +80,5 @@ Xcode가 제한된 cache에 쓰려 하거나 signing/simulator service 문제로
 - 먼저 정한 검증 방식.
 - 실행한 검증 명령 또는 수동 확인.
 - 실행하지 못한 검증과 이유.
-- 남은 실기기 확인 항목이 있으면 그 항목.
+- 남은 실기기 확인 항목이 있으면 사용자가 바로 확인할 수 있는 체크리스트.
 - 최신 경쟁/유사 앱 리서치를 했다면 `competitive-research.md`에 반영한 내용 또는 반영하지 않은 이유.

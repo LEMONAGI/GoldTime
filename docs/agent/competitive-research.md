@@ -52,6 +52,16 @@ GoldTime 적용:
 - 피할 것: 기능을 너무 줄여 GoldTime의 광고 비용 장치가 흐려지는 것.
 - 비틀 것: 설정은 단순하게, 한도 초과 순간의 선택지는 GoldTime답게 선명하게 만듭니다.
 
+### 규칙 자동 적용
+
+Opal, Jomo, ScreenZen, Roots 계열은 사용자가 앱 그룹, 한도, 스케줄 같은 규칙을 저장하면 별도의 "모니터링 시작" 단계를 요구하기보다 규칙이 활성 상태가 되는 모델을 씁니다. 수동 액션은 보통 즉시 차단, 임시 break, strict mode, 문제 해결처럼 예외적인 동작에 가깝습니다.
+
+GoldTime 적용:
+
+- 빌릴 것: 유효한 그룹 설정이 곧 보호 규칙이라는 단순한 모델, 저장 즉시 적용되는 피드백, 문제 있는 그룹만 설정 필요로 남기는 방식.
+- 피할 것: 시작/중지 버튼을 핵심 CTA처럼 두어 사용자가 보호를 켜야 한다는 부담을 만드는 것.
+- 비틀 것: 일반적인 pause/break를 만들지 않고, Shield 순간의 1분/광고/그만쓰기 선택을 우선합니다. 전체 보호 해제는 사용자용 휴식 기능이 아니라 복구/개발용 초기화로 숨깁니다.
+
 ### 의도적 사용 점수화
 
 Roots 계열은 사용 시간의 양뿐 아니라 질, 의도성, 좋은/나쁜 사용의 구분을 강조합니다.
@@ -75,6 +85,7 @@ GoldTime 적용:
 ## 빌릴 것
 
 - 앱 그룹, 한도, 차단 상태를 사용자가 즉시 이해하게 하는 단순한 구조.
+- 유효한 규칙은 저장 즉시 자동 적용되는 모델.
 - 자동 행동을 끊는 짧은 마찰.
 - 지금 멈춘 선택을 성과로 기록하는 피드백.
 - 사용자가 직접 설정했다는 감각.
@@ -83,6 +94,7 @@ GoldTime 적용:
 ## 피할 것
 
 - 경쟁 앱의 리포트, 랭킹, 챌린지, 코칭을 GoldTime의 핵심처럼 가져오는 것.
+- 시작/중지 토글을 핵심 흐름으로 두어 보호를 쉽게 꺼도 되는 기능처럼 보이게 하는 것.
 - 사용자를 중독자처럼 부르거나 수치심을 주는 문구.
 - 광고 시청을 보상처럼 미화하는 흐름.
 - 기획이 모호하다는 이유로 기능을 많이 붙이는 결정.
@@ -95,6 +107,7 @@ GoldTime 적용:
 - "동기부여 문구"는 "사실 1개 + 짧은 찌름 + 선택지"로 바꿉니다.
 - "차단 강도"는 "선택 비용의 선명함"으로 바꿉니다.
 - "웰니스 코칭"은 "건조하고 직설적인 결제대 톤"으로 바꿉니다.
+- "규칙 시작 버튼"은 "유효한 그룹 저장 즉시 적용"으로 바꿉니다.
 
 ## 모호한 결정 체크리스트
 
@@ -135,22 +148,33 @@ GoldTime 적용:
 
 - Opal: https://www.opal.so/
 - Jomo: https://jomo.so/
+- Jomo Help Center: https://help.jomo.so/en/article/what-is-a-rule-on-jomo-mseknq/
 - one sec: https://one-sec.app/
+- one sec Delayed Interventions: https://tutorials.one-sec.app/en/articles/3973762
 - ScreenZen: https://www.screenzen.co/
+- ScreenZen App Store: https://apps.apple.com/us/app/screenzen-screen-time-control/id1541027222
 - ClearSpace: https://www.getclearspace.com/
+- ClearSpace App Store: https://apps.apple.com/us/app/clearspace-reduce-screen-time/id1572515807
 - Roots: https://www.getroots.com/
+- Roots App Store: https://apps.apple.com/us/app/roots-screen-time-control/id6446800962
 - Brick: https://getbrick.app/
 - Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines/
 - SwiftUI Documentation: https://developer.apple.com/documentation/swiftui/
+- DeviceActivityCenter startMonitoring: https://developer.apple.com/documentation/deviceactivity/deviceactivitycenter/startmonitoring%28_%3Aduring%3Aevents%3A%29
+- FamilyActivityPicker: https://developer.apple.com/documentation/familycontrols/familyactivitypicker
 
 관찰:
 
 - 시장은 생산성 운영체제, 사용 직전 마찰, 가벼운 차단, 의도적 사용 점수화, 강한 물리적 잠금으로 나뉩니다.
 - GoldTime은 그중 "사용 직전 마찰"과 가장 가깝지만, 광고를 비용으로 쓰는 점이 차별점입니다.
 - 경쟁 앱의 장기 리포트나 코칭보다 Shield 순간의 짧은 선택 경험이 GoldTime의 핵심에 더 맞습니다.
+- 최신 유사 앱들은 앱 그룹/규칙 저장 후 별도 시작 버튼보다 자동 적용, 즉시 차단, 스케줄, break/pause, strict mode를 조합합니다.
+- Apple Screen Time API는 앱이 `DeviceActivityCenter.startMonitoring`으로 activity와 event를 등록하는 구조이므로, GoldTime 내부에서는 그룹 저장 시 이 등록을 동기화하는 모델이 자연스럽습니다.
 
 GoldTime 적용점:
 
 - 대시보드는 총 사용 시간보다 광고 회피, 참고 나간 횟수, 광고로 산 추가 시간을 우선합니다.
 - Shield와 Lock Options는 코칭보다 결제대 같은 선택 구조를 우선합니다.
 - 경쟁 앱을 참고하더라도 기능을 늘리는 방향보다 선택 비용을 더 선명하게 만드는 방향을 택합니다.
+- 모니터링 시작/중지는 사용자 핵심 흐름에서 제거하고, 유효한 그룹 설정을 자동 적용합니다.
+- 일반 pause 기능은 두지 않습니다. 전체 보호 해제는 Screen Time 상태 꼬임을 풀기 위한 숨은 복구/개발용 초기화로만 둡니다.

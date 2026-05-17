@@ -80,7 +80,7 @@ Apple 기준 문서:
 
 예외:
 
-- `AccentColor`는 Xcode/SwiftUI 기본 Asset 역할이 있으므로 그대로 둡니다.
+- `AccentColor`는 Xcode가 `Color.accent`로 자동 생성하므로 extension 없이 `Color.accent`를 직접 씁니다. `Color.accentColor`는 deprecated이고 UIKit tint를 읽어 컨텍스트에 따라 금색이 아닌 파란색으로 렌더링될 수 있습니다.
 - `.primary`, `.secondary`, `.red`, `Color(.systemGroupedBackground)`, `Color(.secondarySystemGroupedBackground)` 같은 Apple semantic color는 직접 사용해도 됩니다.
 
 컬러 네이밍:
@@ -99,9 +99,10 @@ Apple 기준 문서:
 
 사용 방식:
 
-- SwiftUI: `Color("gold100")`.
-- UIKit 또는 extension: `UIColor(named: "gold100")`.
-- helper가 필요하면 `Color+Brand.swift`는 Asset name wrapper만 담당하고 RGB 값을 보관하지 않습니다.
+- `AccentColor`: `Color.accent` (Xcode 자동 생성 심볼, extension 불필요).
+- 그 외 Asset Color: `Color("gray100")` 같은 문자열 참조.
+- UIKit: `UIColor(named: "gray100")`.
+- 수동 extension(`Color+Brand.swift` 등)으로 같은 이름의 심볼을 만들면 `invalid redeclaration` 에러 발생 — 만들지 않습니다.
 
 기존 RGB literal을 만났을 때:
 
