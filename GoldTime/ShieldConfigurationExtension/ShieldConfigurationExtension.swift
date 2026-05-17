@@ -73,7 +73,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "알림을 탭하면 1분 연장 또는 광고 시청을 선택할 수 있어요. 늦게 오면 다시 보내주세요.",
+                text: "알림을 탭하면 1분 연장 또는 광고 시청을 선택할 수 있어요. 늦게 오면 다시 알림 보내기를 눌러주세요.",
                 color: UIColor.white.withAlphaComponent(0.72)
             ),
             primaryButtonLabel: ShieldConfiguration.Label(

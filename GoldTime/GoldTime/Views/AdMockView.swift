@@ -54,7 +54,7 @@ struct AdMockView: View {
             Spacer()
             Text("📺").font(.system(size: 64))
             Text("광고 준비 중").font(.title2.bold()).foregroundStyle(.white)
-            ProgressView().tint(Color.accentColor)
+            ProgressView().tint(Color.accent)
             Spacer()
             Button("취소", role: .cancel) { onCancel() }
                 .foregroundStyle(.white.opacity(0.6))
@@ -70,10 +70,8 @@ struct AdMockView: View {
             Spacer()
             VStack(spacing: 12) {
                 Button("그래도 15분 사용하기") { onComplete() }
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(Color.accentColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 12))
                 Button("취소", role: .cancel) { onCancel() }
                     .foregroundStyle(.white.opacity(0.6))
             }

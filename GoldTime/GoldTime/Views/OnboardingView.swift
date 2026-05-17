@@ -34,13 +34,9 @@ struct OnboardingView: View {
                 Task { await requestAuthorization() }
             } label: {
                 Text(isRequesting ? "권한 요청 중..." : "스크린타임 권한 허용하기")
-                    .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.accentColor)
-                    .foregroundStyle(.black)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+            .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 12))
             .disabled(isRequesting)
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
