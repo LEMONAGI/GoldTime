@@ -33,6 +33,7 @@ struct GoldTimeApp: App {
                     LockOptionsView()
                 }
                 .onAppear {
+                    syncProtectionRulesIfAuthorized()
                     refreshLockOptionsPresentation()
                 }
                 .onOpenURL { _ in
@@ -41,6 +42,7 @@ struct GoldTimeApp: App {
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active {
                         AuthorizationService.shared.refresh()
+                        syncProtectionRulesIfAuthorized()
                         refreshLockOptionsPresentation()
                     }
                 }
@@ -59,6 +61,18 @@ struct GoldTimeApp: App {
 
         if shouldPresentLockOptions {
             showLockOptions = true
+        }
+    }
+
+    private func syncProtectionRulesIfAuthorized() {
+        guard AuthorizationService.shared.isAuthorized else {
+            return
+        }
+
+        do {
+            try ScreenTimeManager.syncDailyMonitoring(groups: SharedStore.screenTimeGroups)
+        } catch {
+            print("Failed to sync protection rules: \(error.localizedDescription)")
         }
     }
 }

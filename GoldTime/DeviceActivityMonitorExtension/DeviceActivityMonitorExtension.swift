@@ -35,13 +35,8 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
-        if activity == .daily {
-            SharedStore.oneMinuteUsedToday = 0
-            SharedStore.oneMinuteCounterDate = Date()
-            store.shield.applications = nil
-            store.shield.applicationCategories = nil
-            store.shield.webDomains = nil
-            SharedStore.clearAllShieldState()
+        if activity == .daily, SharedStore.resetDailyProtectionStateIfNeeded() {
+            clearSystemShield()
         }
     }
 
@@ -49,12 +44,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         super.intervalDidEnd(for: activity)
         switch activity {
         case .daily:
-            SharedStore.oneMinuteUsedToday = 0
-            SharedStore.oneMinuteCounterDate = Date()
-            store.shield.applications = nil
-            store.shield.applicationCategories = nil
-            store.shield.webDomains = nil
-            SharedStore.clearAllShieldState()
+            break
         default:
             if let groupID = activity.overrideGroupID {
                 SharedStore.clearOverride(for: groupID)
@@ -90,5 +80,11 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         store.shield.applicationCategories = nil
         store.shield.webDomains = nil
         SharedStore.isShieldActive = true
+    }
+
+    private func clearSystemShield() {
+        store.shield.applications = nil
+        store.shield.applicationCategories = nil
+        store.shield.webDomains = nil
     }
 }

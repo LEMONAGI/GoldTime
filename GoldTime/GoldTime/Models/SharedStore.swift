@@ -27,6 +27,7 @@ enum SharedStore {
         static let overrideUntilByGroupID = "overrideUntilByGroupID"
         static let lastRequestedUnlockApplicationToken = "lastRequestedUnlockApplicationToken"
         static let shieldOpenRequestStartedAt = "shieldOpenRequestStartedAt"
+        static let dailyProtectionStateDate = "dailyProtectionStateDate"
         static let dailyStatsByDate = "dailyStatsByDate"
     }
 
@@ -195,6 +196,7 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.isDailyMonitoringEnabled)
         defaults.removeObject(forKey: Key.oneMinuteUsedToday)
         defaults.removeObject(forKey: Key.oneMinuteCounterDate)
+        defaults.removeObject(forKey: Key.dailyProtectionStateDate)
     }
     #endif
 
@@ -285,6 +287,48 @@ enum SharedStore {
         shieldedGroupIDs = []
         overrideUntilByGroupID = [:]
         isShieldActive = false
+    }
+
+    @discardableResult
+    static func resetDailyProtectionStateIfNeeded(now: Date = Date()) -> Bool {
+        let fallbackDate = oneMinuteCounterDate == .distantPast ? nil : oneMinuteCounterDate
+        let previousDate = defaults.object(forKey: Key.dailyProtectionStateDate) as? Date
+            ?? fallbackDate
+        defaults.set(now, forKey: Key.dailyProtectionStateDate)
+
+        guard let previousDate else {
+            return false
+        }
+
+        guard !Calendar.current.isDate(previousDate, inSameDayAs: now) else {
+            return false
+        }
+
+        oneMinuteUsedToday = 0
+        oneMinuteCounterDate = now
+        clearAllShieldState()
+        clearLastRequestedUnlockApplicationToken()
+        clearShieldOpenRequest()
+        return true
+    }
+
+    @discardableResult
+    static func pruneShieldState(keepingGroupIDs validGroupIDs: Set<UUID>) -> Bool {
+        let oldShieldedGroupIDs = shieldedGroupIDs
+        let newShieldedGroupIDs = oldShieldedGroupIDs.intersection(validGroupIDs)
+
+        let oldOverrides = overrideUntilByGroupID
+        let newOverrides = oldOverrides.filter { validGroupIDs.contains($0.key) }
+
+        let didChange = newShieldedGroupIDs != oldShieldedGroupIDs
+            || newOverrides.count != oldOverrides.count
+
+        if didChange {
+            shieldedGroupIDs = newShieldedGroupIDs
+            overrideUntilByGroupID = newOverrides
+        }
+
+        return didChange
     }
 
     static func markGroupShielded(_ groupID: UUID) {

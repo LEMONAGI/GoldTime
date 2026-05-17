@@ -2,7 +2,7 @@
 //  ScreenTimeManager.swift
 //  GoldTime
 //
-//  DeviceActivityCenter 기반 모니터링 시작/중지, 쉴드 적용/해제, 연장 처리.
+//  DeviceActivityCenter 기반 자동 모니터링 동기화, 쉴드 적용/해제, 연장 처리.
 //
 
 import DeviceActivity
@@ -13,13 +13,13 @@ import ManagedSettings
 extension DeviceActivityName {
     static let daily = Self("daily")
 
-    static func override(for groupID: UUID) -> Self {
+    nonisolated static func override(for groupID: UUID) -> Self {
         Self("override.\(groupID.uuidString)")
     }
 }
 
 extension DeviceActivityEvent.Name {
-    static func dailyLimit(for groupID: UUID) -> Self {
+    nonisolated static func dailyLimit(for groupID: UUID) -> Self {
         Self("dailyLimit.\(groupID.uuidString)")
     }
 }
@@ -60,23 +60,101 @@ enum ScreenTimeManager {
     private static var center: DeviceActivityCenter { DeviceActivityCenter() }
     private static var store: ManagedSettingsStore { ManagedSettingsStore(named: .goldtime) }
 
-    // MARK: - 일일 모니터링 시작
+    // MARK: - 일일 모니터링 동기화
 
     static func startDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
-        let sanitizedGroups = groups.map { group in
-            var sanitized = group
-            sanitized.selection = group.selection.appOnly
-            return sanitized
-        }
+        let sanitizedGroups = sanitized(groups)
 
         if let reason = ScreenTimeGroupPolicy.firstInvalidReason(for: sanitizedGroups.policySnapshots) {
             throw ManagerError.invalidConfiguration(reason.userMessage)
         }
 
         SharedStore.screenTimeGroups = sanitizedGroups
-        SharedStore.isDailyMonitoringEnabled = true
         SharedStore.clearAllShieldState()
+        do {
+            try registerDailyMonitoring(groups: sanitizedGroups)
+            SharedStore.isDailyMonitoringEnabled = true
+        } catch {
+            SharedStore.isDailyMonitoringEnabled = false
+            throw error
+        }
+    }
 
+    static func syncDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
+        resetDailyProtectionStateIfNeeded()
+
+        let sanitizedGroups = sanitized(groups)
+        let validGroups = validDailyMonitoringGroups(from: sanitizedGroups)
+        let validGroupIDs = Set(validGroups.map(\.id))
+        let staleOverrideActivities = SharedStore.overrideUntilByGroupID.keys
+            .filter { !validGroupIDs.contains($0) }
+            .map(DeviceActivityName.override(for:))
+
+        SharedStore.screenTimeGroups = sanitizedGroups
+        if !staleOverrideActivities.isEmpty {
+            center.stopMonitoring(staleOverrideActivities)
+        }
+        SharedStore.pruneShieldState(keepingGroupIDs: validGroupIDs)
+
+        guard !validGroups.isEmpty else {
+            center.stopMonitoring()
+            store.shield.applications = nil
+            store.shield.applicationCategories = nil
+            store.shield.webDomains = nil
+            SharedStore.isDailyMonitoringEnabled = false
+            SharedStore.clearAllShieldState()
+            return
+        }
+
+        do {
+            try registerDailyMonitoring(groups: validGroups)
+            SharedStore.isDailyMonitoringEnabled = true
+            applyShield()
+        } catch {
+            SharedStore.isDailyMonitoringEnabled = false
+            throw error
+        }
+    }
+
+    static func validDailyMonitoringGroups(
+        from groups: [SharedStore.ScreenTimeGroup]
+    ) -> [SharedStore.ScreenTimeGroup] {
+        sanitized(groups).filter { group in
+            ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) == nil
+        }
+    }
+
+    static func resetProtectionState() throws {
+        center.stopMonitoring()
+        store.shield.applications = nil
+        store.shield.applicationCategories = nil
+        store.shield.webDomains = nil
+        SharedStore.isDailyMonitoringEnabled = false
+        SharedStore.clearAllShieldState()
+        try syncDailyMonitoring(groups: SharedStore.screenTimeGroups)
+    }
+
+    @discardableResult
+    private static func resetDailyProtectionStateIfNeeded(now: Date = Date()) -> Bool {
+        guard SharedStore.resetDailyProtectionStateIfNeeded(now: now) else {
+            return false
+        }
+
+        clearShield()
+        return true
+    }
+
+    private static func sanitized(
+        _ groups: [SharedStore.ScreenTimeGroup]
+    ) -> [SharedStore.ScreenTimeGroup] {
+        Array(groups.prefix(SharedStore.maxGroupCount)).map { group in
+            var sanitized = group
+            sanitized.selection = group.selection.appOnly
+            return sanitized
+        }
+    }
+
+    private static func registerDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
         // 자정~자정 일일 스케줄
         let schedule = DeviceActivitySchedule(
             intervalStart: DateComponents(hour: 0, minute: 0),
@@ -85,7 +163,7 @@ enum ScreenTimeManager {
         )
 
         let events = Dictionary(
-            uniqueKeysWithValues: sanitizedGroups.map { group in
+            uniqueKeysWithValues: groups.map { group in
                 (
                     DeviceActivityEvent.Name.dailyLimit(for: group.id),
                     DeviceActivityEvent(
@@ -251,14 +329,18 @@ enum ScreenTimeManager {
 
 extension Array where Element == SharedStore.ScreenTimeGroup {
     var policySnapshots: [ScreenTimeGroupPolicy.GroupSnapshot<ApplicationToken>] {
-        map { group in
-            ScreenTimeGroupPolicy.GroupSnapshot(
-                id: group.id,
-                name: group.displayName,
-                appTokens: group.selection.applicationTokens,
-                hasNonAppTokens: group.hasNonAppTokens,
-                dailyLimitMinutes: group.dailyLimitMinutes
-            )
-        }
+        map(\.policySnapshot)
+    }
+}
+
+extension SharedStore.ScreenTimeGroup {
+    var policySnapshot: ScreenTimeGroupPolicy.GroupSnapshot<ApplicationToken> {
+        ScreenTimeGroupPolicy.GroupSnapshot(
+            id: id,
+            name: displayName,
+            appTokens: selection.applicationTokens,
+            hasNonAppTokens: hasNonAppTokens,
+            dailyLimitMinutes: dailyLimitMinutes
+        )
     }
 }
