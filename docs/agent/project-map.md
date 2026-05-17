@@ -31,8 +31,10 @@ GoldTime은 메인 iOS 앱 1개와 Screen Time 관련 extension 3개로 구성�
 | 온보딩 | `GoldTime/GoldTime/Views/OnboardingView.swift` | 권한 요청, 최초 설정 |
 | 잠금 선택지 | `GoldTime/GoldTime/Views/LockOptionsView.swift` | 1분 연장, 광고 해제, 참기 선택지 |
 | 광고 화면 | `GoldTime/GoldTime/Views/AdMockView.swift` | 보상형 광고 표시 래퍼와 fallback UI |
+| 공용 UI 컴포넌트 | `GoldTime/GoldTime/Views/Component/` | 여러 화면에서 반복되는 SwiftUI 컴포넌트와 ButtonStyle |
 | 앱 진입점 | `GoldTime/GoldTime/GoldTimeApp.swift` | 앱 시작, scene phase, lock sheet 표시 |
-| 브랜드 스타일 | `GoldTime/GoldTime/Extensions/Color+Brand.swift` | 골드/블랙/화이트 색상 helper |
+| 브랜드 스타일 | `GoldTime/GoldTime/Extensions/Color+Brand.swift` | Asset Color convenience wrapper |
+| 색상 Asset | `GoldTime/GoldTime/Assets.xcassets` | `AccentColor`와 `gray100`, `gold100` 같은 Color Set |
 
 ## 프로젝트 설정
 
@@ -46,7 +48,7 @@ GoldTime은 메인 iOS 앱 1개와 Screen Time 관련 extension 3개로 구성�
 
 ## 작업별 시작점
 
-- UI 문구 또는 레이아웃: `docs/agent/product-context.md`를 읽고 대상 `Views/*.swift` 확인.
+- UI 문구 또는 레이아웃: 문구/톤은 `docs/agent/product-context.md`, 구현/색상/공용 컴포넌트는 `docs/agent/ui-design-system.md`를 읽고 대상 `Views/*.swift` 확인.
 - 대시보드 통계: `SharedStore.swift`, `HomeView.swift`, 기존 테스트 확인.
 - 1분 연장 동작: `critical-flows.md`, `ScreenTimeManager.swift`, `LockOptionsView.swift`, `DeviceActivityMonitorExtension.swift` 확인.
 - 광고 해제: `critical-flows.md`, `RewardedAdService.swift`, `AdMockView.swift`, `ScreenTimeManager.swift` 확인.

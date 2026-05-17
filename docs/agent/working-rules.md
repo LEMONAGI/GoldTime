@@ -19,19 +19,23 @@ Skip when: 이미 작고 명확한 문서/문구 수정이며 검증 기준이 �
 
 | 유형 | 예시 | 먼저 정할 검증 |
 | --- | --- | --- |
-| UI-only | SwiftUI 레이아웃, 문구, 색상 | acceptance criteria 먼저, 가능하면 build 또는 preview 성격의 확인 |
+| UI-only | SwiftUI 레이아웃, 문구, 색상 | acceptance criteria 먼저, HIG/iOS 26.0 적합성 확인, 가능하면 build 또는 preview 성격의 확인 |
 | Shared state | `SharedStore`, 카운터, 통계 | unit test 또는 regression test 먼저 |
 | Screen Time / Shield | `ScreenTimeManager`, DeviceActivity, Shield extension | 실기기 검증 시나리오 먼저, 가능한 순수 로직은 unit test |
 | Ads | `RewardedAdService`, `AdMockView`, 보상 콜백 | reward/fallback 시나리오 먼저, 가능한 wrapper/helper는 unit test |
 | Project config | `.xcodeproj`, SPM, entitlements, App Group | 설정 검증 시나리오 먼저, build와 target membership 검토 |
-| Docs-only | Markdown guide, setup note | 링크/경로 일치와 중복 확인 |
+| Docs-only | Markdown guide, setup note | 링크/경로 일치, 중복 확인, `AGENTS.md`/`CLAUDE.md` 동일성 확인 |
 
 ## 검증 선택 규칙
 
 - 순수 로직, 저장/조회, 날짜 key, 카운터, formatter/helper는 unit test 또는 regression test로 확인합니다.
-- UI-only 변경은 acceptance criteria를 먼저 쓰고, 가능하면 build로 컴파일 회귀를 확인합니다.
+- UI-only 변경은 acceptance criteria를 먼저 쓰고, 가능하면 build로 컴파일 회귀를 확인합니다. HIG/iOS 26.0 적합성, 기본 iOS 컴포넌트 우선 여부, 접근성/동적 글자 크기도 함께 봅니다.
+- 날짜/시간, 선택, 설정, 확인 흐름은 `DatePicker`, `Picker`, `Form`, `confirmationDialog` 같은 의미에 맞는 시스템 컴포넌트를 먼저 검토합니다.
+- 공용 가능성이 있는 UI는 `GoldTime/GoldTime/Views/Component/` 추출 여부를 판단합니다.
+- 새 색상은 `AccentColor`를 제외하고 RGB literal 대신 Asset Color로 추가했는지 확인합니다.
 - FamilyControls, DeviceActivity, ManagedSettings Shield, Shield extension, 알림 복귀는 수동/실기기 시나리오를 먼저 정합니다.
 - 문서, 단순 문구, 순수 시각 조정은 자동 테스트를 생략할 수 있지만 확인 기준은 먼저 정합니다.
+- 기획이 모호한 작업은 `competitive-research.md` 확인 여부를 검증 기준에 포함합니다. 최신 리서치를 했다면 재사용 가치가 있는 관찰을 해당 문서에 추가했는지 확인합니다.
 - 자세한 TDD 기준과 실기기 시나리오 템플릿은 `testing.md`를 따릅니다.
 
 ## 위험도
@@ -51,6 +55,9 @@ High-risk 작업은 직렬로 처리하고 명시적인 검증 메모를 남깁�
 - build, signing, simulator, sandbox 실패를 숨기지 않습니다.
 - 명시 요청 없이 사용자 변경을 되돌리지 않습니다.
 - FamilyControls, DeviceActivity, ManagedSettings 등 Apple 프레임워크 관련 문제가 생기면 추측하지 말고 Apple 공식 문서(developer.apple.com)를 먼저 확인합니다.
+- iOS 26.0+ UI와 SwiftUI 패턴은 HIG와 Apple 공식 문서를 우선하고, 기본 iOS 컴포넌트를 대체하는 커스텀 UI는 이유를 남깁니다.
+- `DatePicker`가 맞는 날짜/시간 입력을 임의 버튼 묶음이나 별도 picker 조합으로 재구현하지 않습니다.
+- RGB/hex literal을 새로 추가하지 않습니다. 필요한 색상은 Asset Color로 추가합니다.
 
 ## 검증 명령
 
@@ -71,3 +78,4 @@ Xcode가 제한된 cache에 쓰려 하거나 signing/simulator service 문제로
 - 실행한 검증 명령 또는 수동 확인.
 - 실행하지 못한 검증과 이유.
 - 남은 실기기 확인 항목이 있으면 그 항목.
+- 최신 경쟁/유사 앱 리서치를 했다면 `competitive-research.md`에 반영한 내용 또는 반영하지 않은 이유.
