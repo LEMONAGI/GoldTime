@@ -2,7 +2,7 @@
 //  HomeView.swift
 //  GoldTime
 //
-//  대시보드, 그룹별 앱 한도 설정, 모니터링 시작/중지, 현재 상태 표시.
+//  대시보드, 그룹별 앱 한도 설정, 자동 보호 적용, 현재 상태 표시.
 //
 
 import Charts
@@ -22,6 +22,7 @@ struct HomeView: View {
     @State private var errorMessage: String?
     @State private var successMessage: String?
     @State private var alertMessage: AlertMessage?
+    @State private var isResetProtectionConfirmationPresented = false
 
     @State private var limitPickerGroupID: UUID? = nil
     @State private var limitPickerHours: Int = 0
@@ -83,6 +84,18 @@ struct HomeView: View {
                     dismissButton: .default(Text("확인"))
                 )
             }
+            .confirmationDialog(
+                "전체 보호 초기화",
+                isPresented: $isResetProtectionConfirmationPresented,
+                titleVisibility: .visible
+            ) {
+                Button("초기화", role: .destructive) {
+                    resetProtectionState()
+                }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("모든 모니터링과 현재 잠금을 초기화합니다. 그룹 설정은 유지됩니다.")
+            }
             .sheet(isPresented: Binding(
                 get: { limitPickerGroupID != nil },
                 set: { if !$0 { limitPickerGroupID = nil } }
@@ -123,7 +136,7 @@ struct HomeView: View {
                         .foregroundStyle(.white.opacity(0.75))
                     Text("₩\(todayRevenue.formatted())")
                         .font(.system(size: 44, weight: .black, design: .rounded))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.accent)
                         .minimumScaleFactor(0.75)
                         .lineLimit(1)
                     Text("벌어줬어요")
@@ -167,9 +180,9 @@ struct HomeView: View {
             DashboardMetricCard(
                 title: "그룹 한도",
                 value: groupLimitValue,
-                caption: isMonitoring ? "그룹별 독립 적용" : "시작 전",
+                caption: isMonitoring ? "유효 그룹 자동 적용" : "설정 필요",
                 systemName: "timer",
-                tint: Color.accentColor
+                tint: Color.accent
             )
 
             DashboardMetricCard(
@@ -217,7 +230,7 @@ struct HomeView: View {
                             x: .value("날짜", stat.date, unit: .day),
                             y: .value("수익", stat.estimatedAdRevenueWon)
                         )
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.accent)
                     }
                     .chartXAxis {
                         AxisMarks(values: .stride(by: .day)) {
@@ -243,9 +256,7 @@ struct HomeView: View {
                 }
                 .font(.subheadline)
             }
-            .padding(16)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .cardContainer()
         }
     }
 
@@ -274,7 +285,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.accent)
                     Text("그룹당 앱 \(SharedStore.maxAppsPerGroup)개까지 · 카테고리와 웹은 아직 제외 · 같은 앱은 여러 그룹에 넣을 수 있어요.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -286,23 +297,17 @@ struct HomeView: View {
                     Label("그룹 추가", systemImage: "plus")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(DashboardActionButtonStyle(background: Color.accentColor, foreground: .black))
-                .disabled(isMonitoring || groups.count >= SharedStore.maxGroupCount)
-                .opacity(isMonitoring || groups.count >= SharedStore.maxGroupCount ? 0.45 : 1)
+                .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black))
+                .disabled(groups.count >= SharedStore.maxGroupCount)
+                .opacity(groups.count >= SharedStore.maxGroupCount ? 0.45 : 1)
 
                 if groups.count >= SharedStore.maxGroupCount {
                     Text("그룹은 5개까지예요.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                } else if isMonitoring {
-                    Text("그룹을 바꾸려면 모니터링을 잠깐 중지하세요.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(16)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .cardContainer()
         }
     }
 
@@ -310,7 +315,7 @@ struct HomeView: View {
         VStack(spacing: 10) {
             Image(systemName: "square.grid.2x2")
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.accent)
             Text("아직 그룹이 없어요.")
                 .font(.headline)
             Text("그룹을 만들고 앱을 담으면, 그룹별로 다른 일일 한도를 걸 수 있어요.")
@@ -318,16 +323,14 @@ struct HomeView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .padding(20)
+        .cardContainer(padding: 20)
         .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private func groupCard(_ group: SharedStore.ScreenTimeGroup) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
-                IconTile(systemName: "app.badge", tint: Color.accentColor)
+                IconTile(systemName: "app.badge", tint: Color.accent)
 
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("그룹명", text: Binding(
@@ -335,7 +338,6 @@ struct HomeView: View {
                         set: { updateGroupName(group.id, name: $0) }
                     ))
                     .font(.headline)
-                    .disabled(isMonitoring)
 
                     HStack(spacing: 8) {
                         GroupStatusBadge(title: statusTitle(for: group), tint: statusTint(for: group))
@@ -358,8 +360,6 @@ struct HomeView: View {
                         .font(.body.weight(.semibold))
                 }
                 .buttonStyle(.plain)
-                .disabled(isMonitoring)
-                .opacity(isMonitoring ? 0.35 : 1)
             }
 
             Button {
@@ -382,8 +382,6 @@ struct HomeView: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(isMonitoring)
-            .opacity(isMonitoring ? 0.45 : 1)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -393,9 +391,7 @@ struct HomeView: View {
                         Label("앱 선택", systemImage: "square.grid.2x2")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(DashboardActionButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
-                    .disabled(isMonitoring)
-                    .opacity(isMonitoring ? 0.45 : 1)
+                    .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
                 }
 
                 Text("카테고리와 웹은 아직 제외")
@@ -405,9 +401,7 @@ struct HomeView: View {
                 appTokenList(for: group)
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .cardContainer()
     }
 
     @ViewBuilder
@@ -417,9 +411,7 @@ struct HomeView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(Color(.tertiarySystemGroupedBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .rowContainer()
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
@@ -429,9 +421,7 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(12)
-            .background(Color(.tertiarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .rowContainer()
         }
     }
 
@@ -439,51 +429,41 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 IconTile(
-                    systemName: isMonitoring ? "stop.fill" : "play.fill",
-                    tint: isMonitoring ? .red : Color.accentColor
+                    systemName: protectionStatusIcon,
+                    tint: protectionStatusTint
                 )
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(isMonitoring ? "모니터링 중" : "모니터링 시작")
+                    Text(protectionStatusTitle)
                         .font(.body.weight(.semibold))
-                    Text(isMonitoring ? "그룹별 한도가 적용 중이에요" : "유효한 그룹에 일일 한도를 적용합니다")
+                    Text(protectionStatusCaption)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
+
+                Menu {
+                    Button(role: .destructive) {
+                        isResetProtectionConfirmationPresented = true
+                    } label: {
+                        Label("전체 보호 초기화", systemImage: "arrow.clockwise")
+                    }
+                } label: {
+                    Image(systemName: "wrench.and.screwdriver")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 36)
+                        .background(Color(.tertiarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
             }
 
-            if let startDisabledMessage, !isMonitoring {
-                Text(startDisabledMessage)
+            if let setupMessage = protectionSetupMessage {
+                Text(setupMessage)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-
-            if isMonitoring {
-                Button(role: .destructive) {
-                    ScreenTimeManager.stopAllMonitoring()
-                    isMonitoring = false
-                    successMessage = "모니터링을 중지했어요."
-                    refreshDashboardState()
-                } label: {
-                    Label("모니터링 중지", systemImage: "stop.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(DashboardActionButtonStyle(background: .red, foreground: .white))
-            } else {
-                Button {
-                    startMonitoring()
-                } label: {
-                    Label("모니터링 시작", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(DashboardActionButtonStyle(background: Color.accentColor, foreground: .black))
-                .disabled(!canStart)
-                .opacity(canStart ? 1 : 0.45)
-            }
         }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .cardContainer()
     }
 
     private func statusSection(_ message: String, tint: Color, systemName: String) -> some View {
@@ -500,19 +480,69 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    private var canStart: Bool {
-        !groups.isEmpty && startInvalidReason == nil
+    private var validMonitoringGroups: [SharedStore.ScreenTimeGroup] {
+        ScreenTimeManager.validDailyMonitoringGroups(from: groups)
     }
 
-    private var startInvalidReason: ScreenTimeGroupPolicy.InvalidReason? {
-        ScreenTimeGroupPolicy.firstInvalidReason(for: groups.policySnapshots)
-    }
-
-    private var startDisabledMessage: String? {
-        if groups.isEmpty {
-            return "그룹을 하나 만들고 앱을 담아주세요."
+    private var invalidMonitoringGroups: [SharedStore.ScreenTimeGroup] {
+        groups.filter { group in
+            ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil
         }
-        return startInvalidReason?.userMessage
+    }
+
+    private var protectionStatusTitle: String {
+        if isMonitoring {
+            return "자동 적용 중"
+        }
+        if groups.isEmpty {
+            return "설정 필요"
+        }
+        if validMonitoringGroups.isEmpty {
+            return "설정 필요"
+        }
+        return "자동 적용 대기"
+    }
+
+    private var protectionStatusCaption: String {
+        if isMonitoring {
+            let count = validMonitoringGroups.count
+            return count > 1 ? "\(count)개 유효 그룹에 한도를 적용 중이에요" : "유효한 그룹에 한도를 적용 중이에요"
+        }
+        if groups.isEmpty {
+            return "그룹을 만들고 앱을 담으면 바로 적용돼요"
+        }
+        if validMonitoringGroups.isEmpty {
+            return "앱과 한도가 설정된 그룹이 필요해요"
+        }
+        return "자동 적용을 준비하고 있어요"
+    }
+
+    private var protectionStatusIcon: String {
+        isMonitoring ? "checkmark.shield.fill" : "shield"
+    }
+
+    private var protectionStatusTint: Color {
+        if isMonitoring {
+            return .green
+        }
+        return validMonitoringGroups.isEmpty ? .secondary : Color.accent
+    }
+
+    private var protectionSetupMessage: String? {
+        guard !groups.isEmpty else {
+            return nil
+        }
+
+        let invalidCount = invalidMonitoringGroups.count
+        guard invalidCount > 0 else {
+            return nil
+        }
+
+        if validMonitoringGroups.isEmpty {
+            return "아직 적용할 수 있는 그룹이 없어요. 앱을 하나 이상 담고 한도를 정해주세요."
+        }
+
+        return "\(invalidCount)개 그룹은 설정이 덜 끝나서 자동 적용에서 제외됐어요."
     }
 
     private var groupLimitValue: String {
@@ -556,7 +586,7 @@ struct HomeView: View {
             let seconds = max(1, Int(shieldOverrideUntil.timeIntervalSinceNow.rounded(.up)))
             return "\(durationText(seconds: seconds)) 뒤 재잠금"
         }
-        return isMonitoring ? "아직 한도 안쪽" : "모니터링 꺼짐"
+        return isMonitoring ? "아직 한도 안쪽" : "설정 필요"
     }
 
     private func statusTitle(for group: SharedStore.ScreenTimeGroup) -> String {
@@ -566,7 +596,10 @@ struct HomeView: View {
         if SharedStore.groupsInOverride().contains(where: { $0.id == group.id }) {
             return "연장 중"
         }
-        return isMonitoring ? "대기 중" : "시작 전"
+        if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
+            return "설정 필요"
+        }
+        return isMonitoring ? "적용 중" : "대기 중"
     }
 
     private func statusTint(for group: SharedStore.ScreenTimeGroup) -> Color {
@@ -575,8 +608,10 @@ struct HomeView: View {
             return .red
         case "연장 중":
             return .blue
-        case "대기 중":
+        case "적용 중", "대기 중":
             return .green
+        case "설정 필요":
+            return .orange
         default:
             return .secondary
         }
@@ -606,12 +641,12 @@ struct HomeView: View {
     private func loadState() {
         ScreenTimeManager.rolloverCounterIfNeeded()
         groups = SharedStore.screenTimeGroups
-        isMonitoring = SharedStore.isDailyMonitoringEnabled
-        refreshDashboardState()
+        syncProtectionRules()
     }
 
     private func refreshDashboardState() {
         ScreenTimeManager.reapplyShieldIfOverrideExpired()
+        isMonitoring = SharedStore.isDailyMonitoringEnabled
         isShieldActive = SharedStore.isShieldActive
         oneMinuteRemaining = SharedStore.oneMinuteRemaining
         shieldOverrideUntil = SharedStore.currentShieldOverrideUntil
@@ -619,9 +654,15 @@ struct HomeView: View {
         weeklyStats = SharedStore.lastSevenDayStats()
     }
 
-    private func persistGroups() {
+    private func persistGroups(shouldSyncProtection: Bool = true) {
         SharedStore.screenTimeGroups = groups
         groups = SharedStore.screenTimeGroups
+        if shouldSyncProtection {
+            syncProtectionRules()
+        } else {
+            isMonitoring = SharedStore.isDailyMonitoringEnabled
+            refreshDashboardState()
+        }
     }
 
     private func addGroup() {
@@ -633,19 +674,20 @@ struct HomeView: View {
             name: SharedStore.defaultGroupName(for: groups.count)
         )
         groups.append(group)
-        persistGroups()
+        persistGroups(shouldSyncProtection: false)
         successMessage = nil
         errorMessage = nil
     }
 
     private func deleteGroup(_ id: UUID) {
         groups.removeAll { $0.id == id }
-        persistGroups()
         successMessage = nil
+        errorMessage = nil
+        persistGroups()
     }
 
     private func updateGroupName(_ id: UUID, name: String) {
-        updateGroup(id) { group in
+        updateGroup(id, shouldSyncProtection: false) { group in
             group.name = name
         }
     }
@@ -666,14 +708,18 @@ struct HomeView: View {
         }
     }
 
-    private func updateGroup(_ id: UUID, update: (inout SharedStore.ScreenTimeGroup) -> Void) {
+    private func updateGroup(
+        _ id: UUID,
+        shouldSyncProtection: Bool = true,
+        update: (inout SharedStore.ScreenTimeGroup) -> Void
+    ) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else {
             return
         }
         update(&groups[index])
-        persistGroups()
         successMessage = nil
         errorMessage = nil
+        persistGroups(shouldSyncProtection: shouldSyncProtection)
     }
 
     private func presentPicker(for group: SharedStore.ScreenTimeGroup) {
@@ -689,21 +735,41 @@ struct HomeView: View {
         }
     }
 
-    private func startMonitoring() {
+    private func syncProtectionRules(showSuccess: Bool = false) {
         do {
-            try ScreenTimeManager.startDailyMonitoring(groups: groups)
+            try ScreenTimeManager.syncDailyMonitoring(groups: groups)
             groups = SharedStore.screenTimeGroups
-            isMonitoring = true
+            isMonitoring = SharedStore.isDailyMonitoringEnabled
             errorMessage = nil
-            successMessage = "\(groups.count)개 그룹 한도를 적용했어요."
+            if showSuccess {
+                let count = ScreenTimeManager.validDailyMonitoringGroups(from: groups).count
+                successMessage = count > 0 ? "\(count)개 유효 그룹을 다시 적용했어요." : "적용할 그룹이 없어 보호를 비웠어요."
+            }
             refreshDashboardState()
         } catch {
+            isMonitoring = SharedStore.isDailyMonitoringEnabled
             successMessage = nil
-            errorMessage = "모니터링 시작 실패: \(error.localizedDescription)"
+            errorMessage = "자동 적용 실패: \(error.localizedDescription)"
+            refreshDashboardState()
+        }
+    }
+
+    private func resetProtectionState() {
+        do {
+            try ScreenTimeManager.resetProtectionState()
+            groups = SharedStore.screenTimeGroups
+            isMonitoring = SharedStore.isDailyMonitoringEnabled
+            errorMessage = nil
+            successMessage = "보호 상태를 초기화하고 유효한 그룹을 다시 적용했어요."
+            refreshDashboardState()
+        } catch {
+            isMonitoring = SharedStore.isDailyMonitoringEnabled
+            successMessage = nil
+            errorMessage = "전체 보호 초기화 실패: \(error.localizedDescription)"
+            refreshDashboardState()
         }
     }
 }
-
 private struct PickerSheet: View {
     @Binding var selection: FamilyActivitySelection
     @Environment(\.dismiss) private var dismiss
@@ -778,106 +844,20 @@ private struct SectionHeader: View {
         HStack(spacing: 8) {
             Image(systemName: systemName)
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.accent)
             Text(title)
                 .font(.headline)
         }
     }
 }
 
-private struct DashboardMetricCard: View {
-    let title: String
-    let value: String
-    let caption: String
-    let systemName: String
-    let tint: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                IconTile(systemName: systemName, tint: tint)
-                Spacer()
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                Text(caption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-private struct StatusBadge: View {
-    let title: String
-    let systemName: String
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: systemName)
-                .font(.caption.weight(.bold))
-            Text(title)
-                .font(.caption.weight(.bold))
-                .lineLimit(1)
-        }
-        .foregroundStyle(tint)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(.white.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-private struct GroupStatusBadge: View {
-    let title: String
-    let tint: Color
-
-    var body: some View {
-        Text(title)
-            .font(.caption.weight(.bold))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(tint.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .lineLimit(1)
-    }
-}
-
-private struct IconTile: View {
-    let systemName: String
-    let tint: Color
-
-    var body: some View {
-        Image(systemName: systemName)
-            .font(.system(size: 15, weight: .bold))
-            .foregroundStyle(tint)
-            .frame(width: 32, height: 32)
-            .background(tint.opacity(0.14))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-}
 
 private struct EmptyChartState: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: "chart.bar.xaxis")
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.accent)
             Text("광고 기록이 생기면 7일 흐름을 보여줄게요.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -904,66 +884,24 @@ private struct LimitPickerSheet: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
 
-            DurationWheelPicker(hours: $hours, minutes: $minutes)
-                .frame(height: 216)
+            HStack(spacing: 0) {
+                Picker("시간", selection: $hours) {
+                    ForEach(0..<24, id: \.self) { h in
+                        Text("\(h)시간").tag(h)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity)
+
+                Picker("분", selection: $minutes) {
+                    ForEach(0..<60, id: \.self) { m in
+                        Text("\(m)분").tag(m)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity)
+            }
+            .frame(height: 216)
         }
-    }
-}
-
-private struct DurationWheelPicker: UIViewRepresentable {
-    @Binding var hours: Int
-    @Binding var minutes: Int
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func makeUIView(context: Context) -> UIPickerView {
-        let picker = UIPickerView()
-        picker.dataSource = context.coordinator
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIView(_ uiView: UIPickerView, context: Context) {
-        uiView.selectRow(hours, inComponent: 0, animated: false)
-        uiView.selectRow(minutes, inComponent: 1, animated: false)
-    }
-
-    final class Coordinator: NSObject, UIPickerViewDataSource, UIPickerViewDelegate {
-        var parent: DurationWheelPicker
-
-        init(_ parent: DurationWheelPicker) { self.parent = parent }
-
-        func numberOfComponents(in pickerView: UIPickerView) -> Int { 2 }
-
-        func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
-            component == 0 ? 24 : 60
-        }
-
-        func pickerView(_ pickerView: UIPickerView, viewForRow row: Int, forComponent component: Int, reusing view: UIView?) -> UIView {
-            let label = (view as? UILabel) ?? UILabel()
-            label.textAlignment = .center
-            label.font = .systemFont(ofSize: 20, weight: .regular)
-            label.text = component == 0 ? "\(row)시간" : "\(row)분"
-            return label
-        }
-
-        func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-            if component == 0 { parent.hours = row }
-            else { parent.minutes = row }
-        }
-    }
-}
-
-private struct DashboardActionButtonStyle: ButtonStyle {
-    let background: Color
-    let foreground: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .padding(.vertical, 14)
-            .foregroundStyle(foreground)
-            .background(background.opacity(configuration.isPressed ? 0.82 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
