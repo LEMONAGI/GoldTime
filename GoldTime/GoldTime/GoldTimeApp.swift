@@ -28,7 +28,7 @@ struct GoldTimeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView(showLockOptions: $showLockOptions)
+            ContentView(showLockOptions: $showLockOptions)
                 .sheet(isPresented: $showLockOptions) {
                     LockOptionsView()
                 }
