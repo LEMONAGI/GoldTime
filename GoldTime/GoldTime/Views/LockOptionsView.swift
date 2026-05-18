@@ -23,10 +23,10 @@ struct LockOptionsView: View {
     @State private var isExtending = false
 
     private let shieldMessages = [
-        "오늘 한도를 다 썼어요.",
-        "여기서 멈추면 광고는 없습니다.",
+        "오늘 한도 다 썼어요.",
+        "지금 나가면 광고는 없어요.",
         "더 쓰려면 광고가 필요해요.",
-        "잠깐 쉬어갈 시간이에요.",
+        "광고 없이 나가는 방법도 있어요.",
         "멈추거나, 광고를 보거나."
     ]
     @State private var headerMessage: String = ""
@@ -49,10 +49,19 @@ struct LockOptionsView: View {
 
             VStack(spacing: 12) {
                 optionButton(
+                    title: "그만 쓰기",
+                    subtitle: Text("무료").foregroundColor(.green) + Text(" · 광고 없이 종료"),
+                    background: Color.gray.opacity(0.2),
+                    foreground: .primary,
+                    enabled: true,
+                    action: { dismiss() }
+                )
+
+                optionButton(
                     title: "1분만 더 쓰기",
                     subtitle: oneMinuteRemaining > 0
-                        ? "전체 그룹에서 오늘 \(oneMinuteRemaining)번 남았어요"
-                        : "오늘은 더 사용할 수 없어요",
+                        ? Text("무료").foregroundColor(.green) + Text(" · 오늘 \(oneMinuteRemaining)번 남음")
+                        : Text("오늘은 더 사용할 수 없어요").foregroundColor(.red.opacity(0.8)),
                     background: canExtendOneMinute ? Color.accent : Color.gray.opacity(0.3),
                     foreground: canExtendOneMinute ? .black : .gray,
                     enabled: canExtendOneMinute,
@@ -61,20 +70,12 @@ struct LockOptionsView: View {
 
                 optionButton(
                     title: "광고 보고 15분 더 쓰기",
-                    subtitle: selectedGroupName.map { "\($0)을 15분 연장해요" } ?? "풀 그룹을 먼저 고르세요",
+                    subtitle: selectedGroupName.map { Text("광고 1회").foregroundColor(.red) + Text(" · \($0) 15분 연장") }
+                        ?? Text("풀 그룹을 먼저 고르세요").foregroundColor(.orange),
                     background: canExtendWithAd ? Color.accent : Color.gray.opacity(0.3),
                     foreground: canExtendWithAd ? .black : .gray,
                     enabled: canExtendWithAd,
                     action: startAdFlow
-                )
-
-                optionButton(
-                    title: "그만 쓰기",
-                    subtitle: "잠금을 유지하고 돌아갑니다",
-                    background: Color.gray.opacity(0.2),
-                    foreground: .primary,
-                    enabled: true,
-                    action: { dismiss() }
                 )
             }
             .padding(.horizontal, 20)
@@ -137,7 +138,7 @@ struct LockOptionsView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
-                Text("이 앱은 여러 그룹에 잠겨 있어요")
+                Text("잠긴 그룹이 여러 개예요")
                     .font(.headline)
                 Text("한 번에 한 그룹만 연장합니다.")
                     .font(.subheadline)
@@ -146,7 +147,11 @@ struct LockOptionsView: View {
                 VStack(spacing: 8) {
                     ForEach(lockedGroups) { group in
                         Button {
-                            selectedGroupID = group.id
+                            var t = Transaction()
+                            t.disablesAnimations = true
+                            withTransaction(t) {
+                                selectedGroupID = group.id
+                            }
                             infoMessage = nil
                         } label: {
                             HStack {
@@ -301,10 +306,10 @@ struct LockOptionsView: View {
         if let token = requestedApplicationToken {
             let remainingGroups = SharedStore.lockedGroups(containing: token)
             if let remainingGroup = remainingGroups.first {
-                message += "\n아직 \(remainingGroup.displayName) 때문에 잠겨 있어요. 하나 더 풀지는 직접 결정하세요."
+                message += "\n\(remainingGroup.displayName)는 아직 잠겨 있어요."
             }
         } else if let remainingGroup = result.remainingLockedGroups.first {
-            message += "\n아직 \(remainingGroup.displayName) 때문에 잠겨 있어요. 하나 더 풀지는 직접 결정하세요."
+            message += "\n\(remainingGroup.displayName)는 아직 잠겨 있어요."
         }
 
         return message
@@ -313,7 +318,7 @@ struct LockOptionsView: View {
     @ViewBuilder
     private func optionButton(
         title: String,
-        subtitle: String,
+        subtitle: Text,
         background: Color,
         foreground: Color,
         enabled: Bool,
@@ -323,7 +328,7 @@ struct LockOptionsView: View {
             VStack(spacing: 4) {
                 Text(title)
                     .font(.headline)
-                Text(subtitle)
+                subtitle
                     .font(.subheadline)
                     .opacity(0.8)
                     .multilineTextAlignment(.center)

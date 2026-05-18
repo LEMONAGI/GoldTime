@@ -83,8 +83,8 @@ class ShieldActionExtension: ShieldActionDelegate {
 
     private func scheduleOpenAppNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "한도에 도달했어요"
-        content.body = "GoldTime을 열어 1분 연장 또는 광고 시청을 선택하세요."
+        content.title = "한도 끝났어요"
+        content.body = "더 쓰려면 GoldTime에서 선택하세요. 지금 나가면 광고 없이 끝납니다."
         content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
         let request = UNNotificationRequest(

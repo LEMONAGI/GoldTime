@@ -26,10 +26,10 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     }
 
     private let shieldMessages = [
-        "오늘 한도를 다 썼어요.",
-        "여기서 멈추면 광고는 없습니다.",
+        "오늘 한도 다 썼어요.",
+        "지금 나가면 광고는 없어요.",
         "더 쓰려면 광고가 필요해요.",
-        "잠깐 쉬어갈 시간이에요.",
+        "광고 없이 나가는 방법도 있어요.",
         "멈추거나, 광고를 보거나."
     ]
 
@@ -48,7 +48,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "GoldTime을 열어 다음 행동을 선택하세요.",
+                text: "더 쓰려면 GoldTime에서 선택하세요.",
                 color: UIColor.white.withAlphaComponent(0.85)
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
@@ -73,7 +73,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "알림을 탭하면 1분 연장 또는 광고 시청을 선택할 수 있어요. 늦게 오면 다시 알림 보내기를 눌러주세요.",
+                text: "알림을 탭해서 선택하세요. 놓쳤으면 다시 알림 보내기를 누르세요.",
                 color: UIColor.white.withAlphaComponent(0.72)
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
