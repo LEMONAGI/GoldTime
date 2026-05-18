@@ -13,7 +13,8 @@ enum ExtensionFailure: Error, Equatable {
 }
 
 struct GroupExtensionResult {
-    let groupID: UUID
-    let source: ExtensionSource
+    let group: ScreenTimeGroup
+    let durationSeconds: Int
     let overrideUntil: Date
+    let remainingLockedGroups: [ScreenTimeGroup]
 }
