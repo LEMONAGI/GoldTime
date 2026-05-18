@@ -8,7 +8,7 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 
 ## Shared State 계약
 
-`SharedStore`는 메인 앱과 extension이 함께 쓰는 App Group UserDefaults wrapper입니다.
+`SharedStore`(`Core/Persistence/SharedStore.swift`)는 메인 앱과 extension이 함께 쓰는 App Group UserDefaults wrapper입니다.
 
 - App Group suite: `group.com.goldtime.shared`
 - 핵심 값:
@@ -26,7 +26,7 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 
 1. 메인 앱이 FamilyControls 권한을 요청합니다.
 2. 사용자가 앱 그룹을 만들고 각 그룹에 앱과 일일 한도를 선택합니다. v1은 앱만 지원하고 카테고리/웹은 저장하지 않습니다.
-3. 그룹 저장, 앱 시작, active 복귀 시 `ScreenTimeManager.syncDailyMonitoring(groups:)`가 그룹 목록을 저장하고 유효한 그룹만 `.daily` 모니터링에 자동 적용합니다.
+3. 그룹 저장, 앱 시작, active 복귀 시 `ScreenTimeManager.syncDailyMonitoring(groups:)`(`Core/ScreenTime/ScreenTimeManager.swift`)가 그룹 목록을 저장하고 유효한 그룹만 `.daily` 모니터링에 자동 적용합니다. 메인 앱에서는 `ScreenTimeRepositoryImpl` → `SyncProtectionUseCase`를 통해 호출됩니다.
 4. 유효한 그룹은 앱 1개 이상, 일일 한도 1분 이상, 앱-only, 그룹당 앱 제한 이내인 그룹입니다. 설정이 덜 끝난 그룹은 저장하지만 `.daily` 이벤트에서는 제외합니다.
 5. `.daily` activity 안에 `dailyLimit.<groupID>` 이벤트가 유효 그룹별로 등록됩니다.
 6. `DeviceActivityMonitorExtension.eventDidReachThreshold`가 해당 그룹 id를 `SharedStore.shieldedGroupIDs`에 추가합니다.

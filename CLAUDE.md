@@ -28,7 +28,9 @@ GoldTime은 스크린타임 한도를 넘기면 Shield 흐름과 보상형 광�
 - 일반적인 기능 변경은 2-3개까지 자연스럽게 허용합니다.
 - 4개 이상 필요하면 왜 필요한지 짧게 설명한 뒤 추가로 읽습니다.
 - 문서 전체를 습관적으로 읽지 말고 필요한 섹션만 확인합니다.
+- 새 파일 위치나 레이어 경계가 불명확할 때는 `architecture.md`를 먼저 읽습니다.
 - 코드 위치가 이미 명확하면 `project-map.md`를 생략합니다.
+- 레이어가 이미 명확하면 `architecture.md`를 생략합니다.
 - 제품 범위 판단이 없으면 `decision-context.md`를 생략합니다.
 - 문구/UX 판단이 없으면 `product-context.md`를 생략합니다.
 - Screen Time / Shield / 광고 / App Group을 안 건드리면 `critical-flows.md`를 생략합니다.
@@ -51,6 +53,7 @@ GoldTime은 스크린타임 한도를 넘기면 Shield 흐름과 보상형 광�
 
 | 트리거 조건 | 읽을 문서 |
 | --- | --- |
+| 레이어 경계, 의존 방향, 신규 파일 위치, UseCase/Repository 추가 | `docs/agent/architecture.md` |
 | 제품 범위, 하지 않을 일, 큰 방향 판단 | `docs/agent/decision-context.md` |
 | 프로젝트 구조, 타겟, 시작 위치만 확인 | `docs/agent/project-map.md` |
 | Screen Time, Shield, 광고, App Group 런타임 변경 | `docs/agent/critical-flows.md` |
@@ -69,7 +72,7 @@ GoldTime은 스크린타임 한도를 넘기면 Shield 흐름과 보상형 광�
 - 기획이 모호한 결정은 경쟁 앱을 그대로 따르지 말고 GoldTime의 비용감, 마찰, Shield 선택 경험에 맞게 해석합니다.
 - UI는 특별한 지시가 없으면 기본 iOS 컴포넌트를 기반으로 HIG와 iOS 26.0 UI/UX에 자연스럽게 맞춥니다.
 - 날짜/시간, 선택, 설정, 확인 흐름은 `DatePicker`, `Picker`, `Form`, `confirmationDialog` 같은 의미에 맞는 시스템 컴포넌트를 먼저 검토합니다.
-- 공용으로 반복될 UI는 `GoldTime/GoldTime/Views/Component/` 추출을 검토합니다.
+- 공용으로 반복될 UI는 `GoldTime/GoldTime/Presentation/Component/` 추출을 검토합니다.
 - 새 색상은 `AccentColor`를 제외하고 RGB literal 대신 Asset Color로 추가합니다.
 - 동작 변경이면 unit test, regression test, build, 수동/실기기 시나리오 중 하나를 먼저 정합니다.
 - `.xcodeproj`, entitlements, App Group, `SharedStore`, `ScreenTimeManager`, extension은 가볍게 수정하지 않습니다.

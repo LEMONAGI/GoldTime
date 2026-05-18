@@ -58,20 +58,34 @@ MVP에서 하지 않을 일:
 
 ## Architecture 기준
 
-GoldTime은 메인 SwiftUI 앱과 세 개의 Screen Time extension으로 나뉩니다.
+GoldTime은 메인 iOS 앱과 세 개의 Screen Time extension으로 나뉩니다.
+
+**Target별 역할:**
 
 - Main app: 권한, 설정, 대시보드, 해제 선택지, 광고 표시를 담당합니다.
 - DeviceActivity extension: interval / threshold callback에서 Shield 적용과 일일 상태 정리를 담당합니다.
 - ShieldConfiguration extension: 시스템 Shield 화면의 문구와 버튼 구성을 담당합니다.
 - ShieldAction extension: Shield 버튼 액션을 처리하고 앱 복귀 요청을 기록합니다.
-- `SharedStore`: App Group UserDefaults wrapper로 메인 앱과 extension 사이의 최소 공유 상태를 담당합니다.
 
-기본 방향:
+**메인 앱 내부 구조 (Clean Architecture, 5개 레이어):**
 
-- View는 사용자 입력과 표시를 담당하고, Screen Time 판단은 service/shared state 쪽으로 보냅니다.
-- Apple framework 호출부는 얇게 유지하고, 테스트 가능한 판단 로직은 분리합니다.
-- Extension은 앱 전용 API에 의존하지 않고 App Group 상태와 알림을 통해 메인 앱과 이어집니다.
-- App Group key와 Codable 저장 구조는 설치된 앱 상태에 영향을 주므로 하위 호환을 우선합니다.
+```
+Presentation → Domain ← Data → Core
+       App → 모든 레이어 (DI 조립)
+```
+
+- **App**: `AppDIContainer`가 모든 레이어를 조립합니다. DI 이외 로직 없음.
+- **Core**: Apple Framework 직접 의존. `SharedStore`, `ScreenTimeManager`, `AuthorizationService` 등 싱글톤 서비스.
+- **Domain**: 순수 Swift. Repository 프로토콜, UseCase, Model. Core/Data를 모릅니다.
+- **Data**: Domain Repository 프로토콜 구현. Core 서비스 호출 + Core ↔ Domain 타입 매핑.
+- **Presentation**: ViewModel이 UseCase만 의존. Core/Data 직접 참조 금지. `@Observable @MainActor`.
+
+레이어별 파일 경로, 의존 규칙, 새 파일 추가 위치는 `docs/agent/architecture.md`를 읽습니다.
+
+**Extension과 메인 앱 간 통신:**
+
+Extension은 앱 전용 API에 의존하지 않고 App Group 상태와 알림을 통해 메인 앱과 이어집니다.
+App Group key와 Codable 저장 구조는 설치된 앱 상태에 영향을 주므로 하위 호환을 우선합니다.
 
 ## ADR 기준
 
@@ -85,6 +99,8 @@ GoldTime은 메인 SwiftUI 앱과 세 개의 Screen Time extension으로 나뉩�
 - Screen Time / Shield 영역은 unit test보다 실기기 검증 시나리오를 먼저 고정합니다.
 - 공유 상태는 MVP에서 App Group UserDefaults를 사용합니다.
 - 외부 의존성은 실제 문제를 줄일 때만 추가합니다.
+- ViewModel은 UseCase만 의존하고, Core / Data 레이어를 직접 참조하지 않습니다.
+- 물리 모듈 분리 없이 폴더링으로 Clean Architecture 레이어를 표현합니다.
 
 주요 트레이드오프:
 
