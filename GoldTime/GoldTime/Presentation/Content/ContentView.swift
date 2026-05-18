@@ -14,7 +14,7 @@ struct ContentView: View {
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        if !AuthorizationService.shared.isAuthorized {
+        if !viewModel.isAuthorized {
             OnboardingView(onAuthorized: viewModel.refreshAuthorization)
         } else {
             content
@@ -33,6 +33,9 @@ struct ContentView: View {
                     shieldOverrideUntil: viewModel.shieldOverrideUntil,
                     successMessage: viewModel.successMessage,
                     errorMessage: viewModel.errorMessage,
+                    lockedGroupIDs: viewModel.lockedGroupIDs,
+                    overrideGroupIDs: viewModel.overrideGroupIDs,
+                    validGroupIDs: viewModel.validGroupIDs,
                     onAddGroup: viewModel.addGroup,
                     onDeleteGroup: viewModel.deleteGroup,
                     onUpdateGroupName: viewModel.updateGroupName,
@@ -62,7 +65,7 @@ struct ContentView: View {
 
             NavigationStack {
                 SettingsView(
-                    auth: AuthorizationService.shared,
+                    isAuthorized: viewModel.isAuthorized,
                     onRequestResetProtection: viewModel.requestResetProtection
                 )
             }
@@ -71,6 +74,7 @@ struct ContentView: View {
             }
             .tag(GoldTimeTab.settings)
         }
+        .tint(Color.accent)
         .sheet(isPresented: $viewModel.isPickerPresented) {
             AppPickerSheet(selection: $viewModel.pickerSelection) {
                 viewModel.commitPickerSelection()

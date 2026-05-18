@@ -12,34 +12,45 @@ import UIKit
 
 @MainActor
 struct ViewModelTests {
+
+    // MARK: - ContentViewModel
+
     @Test func contentViewModelAddsGroupAndPersistsWithoutSync() {
-        let store = FakeGoldTimeStore()
-        let screenTimeManager = FakeScreenTimeManager()
+        let groupRepo = FakeGroupRepository()
+        let screenTimeRepo = FakeScreenTimeRepository()
         let viewModel = ContentViewModel(
-            store: store,
-            screenTimeManager: screenTimeManager,
-            authorization: FakeAuthorization(isAuthorized: true)
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
         )
 
         viewModel.addGroup()
 
         #expect(viewModel.groups.count == 1)
-        #expect(store.screenTimeGroups.count == 1)
-        #expect(screenTimeManager.syncCallCount == 0)
+        #expect(groupRepo.screenTimeGroups.count == 1)
+        #expect(screenTimeRepo.syncCallCount == 0)
         #expect(viewModel.errorMessage == nil)
     }
 
     @Test func contentViewModelBlocksSixthGroup() {
-        let store = FakeGoldTimeStore()
-        store.screenTimeGroups = (0..<SharedStore.maxGroupCount).map {
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = (0..<SharedStore.maxGroupCount).map {
             SharedStore.ScreenTimeGroup(name: "그룹 \($0 + 1)")
         }
         let viewModel = ContentViewModel(
-            store: store,
-            screenTimeManager: FakeScreenTimeManager(),
-            authorization: FakeAuthorization(isAuthorized: true)
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
         )
-        viewModel.groups = store.screenTimeGroups
+        viewModel.groups = groupRepo.screenTimeGroups
 
         viewModel.addGroup()
 
@@ -49,13 +60,17 @@ struct ViewModelTests {
 
     @Test func contentViewModelCommitsLimitPickerSelection() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
-        let store = FakeGoldTimeStore()
-        store.screenTimeGroups = [group]
-        let screenTimeManager = FakeScreenTimeManager()
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
         let viewModel = ContentViewModel(
-            store: store,
-            screenTimeManager: screenTimeManager,
-            authorization: FakeAuthorization(isAuthorized: true)
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
         )
         viewModel.groups = [group]
 
@@ -65,29 +80,33 @@ struct ViewModelTests {
         viewModel.commitLimitPickerSelection()
 
         #expect(viewModel.groups.first?.dailyLimitMinutes == 75)
-        #expect(store.screenTimeGroups.first?.dailyLimitMinutes == 75)
-        #expect(screenTimeManager.syncCallCount == 1)
+        #expect(groupRepo.screenTimeGroups.first?.dailyLimitMinutes == 75)
+        #expect(screenTimeRepo.syncCallCount == 1)
     }
 
+    // MARK: - HomeViewModel
+
     @Test func homeViewModelDescribesShieldAndOverrideStates() {
-        let store = FakeGoldTimeStore()
-        store.lockedGroupsValue = [SharedStore.ScreenTimeGroup(name: "게임")]
+        let lockedGroup = SharedStore.ScreenTimeGroup(name: "게임")
         let viewModel = HomeViewModel(
-            groups: store.lockedGroupsValue,
+            groups: [lockedGroup],
             todayStats: SharedStore.DailyStats(dateKey: "2026-05-18"),
             isMonitoring: true,
             isShieldActive: true,
             shieldOverrideUntil: nil,
             successMessage: nil,
             errorMessage: nil,
-            store: store,
-            screenTimeManager: FakeScreenTimeManager()
+            lockedGroupIDs: [lockedGroup.id],
+            overrideGroupIDs: [],
+            validGroupIDs: [lockedGroup.id]
         )
 
         #expect(viewModel.shieldStatusValue == "잠금 중")
         #expect(viewModel.shieldStatusCaption == "한도를 넘겼어요")
         #expect(viewModel.protectionStatusTitle == "자동 적용 중")
     }
+
+    // MARK: - StatsViewModel
 
     @Test func statsViewModelCalculatesWeeklySummary() {
         let weeklyStats = [
@@ -109,65 +128,81 @@ struct ViewModelTests {
         #expect(viewModel.protectionGroupCaption == "유효 그룹 자동 적용")
     }
 
+    // MARK: - LockOptionsViewModel
+
     @Test func lockOptionsViewModelExtendsSelectedGroupWithOneMinute() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
-        let store = FakeGoldTimeStore()
-        store.oneMinuteRemaining = 5
-        store.lockedGroupsValue = [group]
-        let screenTimeManager = FakeScreenTimeManager()
-        screenTimeManager.extendResult = .success(
-            ScreenTimeManager.GroupExtensionResult(
-                group: group,
-                durationSeconds: 60,
-                overrideUntil: Date().addingTimeInterval(60),
-                remainingLockedGroups: []
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        shieldRepo.oneMinuteRemainingValue = 5
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.extendResult = .success(GroupExtensionResult(
+            group: group,
+            durationSeconds: 60,
+            overrideUntil: Date().addingTimeInterval(60),
+            remainingLockedGroups: []
+        ))
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
             )
         )
-        let viewModel = LockOptionsViewModel(store: store, screenTimeManager: screenTimeManager)
 
         viewModel.onAppear()
         viewModel.tapOneMinute()
 
-        #expect(screenTimeManager.extendCallCount == 1)
-        #expect(screenTimeManager.lastExtensionSource == .oneMinute)
+        #expect(screenTimeRepo.extendCallCount == 1)
+        #expect(screenTimeRepo.lastExtensionSource == .oneMinute)
         #expect(viewModel.completionAlert?.title == "연장 완료")
         #expect(viewModel.lockedGroups.isEmpty)
     }
 
     @Test func lockOptionsViewModelRecordsWalkAwayOnlyWhenLockedGroupExists() {
-        let store = FakeGoldTimeStore()
-        store.lockedGroupsValue = [SharedStore.ScreenTimeGroup(name: "SNS")]
-        let viewModel = LockOptionsViewModel(store: store, screenTimeManager: FakeScreenTimeManager())
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [SharedStore.ScreenTimeGroup(name: "SNS")]
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            )
+        )
 
         viewModel.onAppear()
         _ = viewModel.tapWalkAway()
 
-        #expect(store.recordWalkAwayCallCount == 1)
+        #expect(shieldRepo.recordWalkAwayCallCount == 1)
     }
 
+    // MARK: - OnboardingViewModel
+
     @Test func onboardingViewModelRequestsNotificationAfterAuthorization() async {
-        let authorization = FakeAuthorization(isAuthorized: false)
-        authorization.requestResultIsAuthorized = true
-        let notification = FakeNotificationAuthorizer()
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        authRepo.requestResultIsAuthorized = true
+        let notifRepo = FakeNotificationRepository()
         var didAuthorize = false
         let viewModel = OnboardingViewModel(
-            authorization: authorization,
-            notificationAuthorizer: notification,
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: notifRepo
+            ),
             onAuthorized: { didAuthorize = true }
         )
 
         await viewModel.requestAuthorization()
 
-        #expect(authorization.requestCallCount == 1)
-        #expect(notification.requestCallCount == 1)
+        #expect(authRepo.requestCallCount == 1)
+        #expect(notifRepo.requestCallCount == 1)
         #expect(didAuthorize)
         #expect(viewModel.errorMessage == nil)
     }
 
+    // MARK: - RewardedAdViewModel
+
     @Test func rewardedAdViewModelShowsFallbackWhenLoadFails() {
-        let adProvider = FakeRewardedAdProvider(loadState: .failed)
+        let adRepo = FakeAdRepository(loadState: .failed)
         let viewModel = RewardedAdViewModel(
-            adProvider: adProvider,
+            adRepository: adRepo,
             onComplete: {},
             onCancel: {}
         )
@@ -175,15 +210,15 @@ struct ViewModelTests {
         viewModel.onAppear()
 
         #expect(viewModel.showFallback)
-        #expect(adProvider.loadCallCount == 0)
+        #expect(adRepo.loadCallCount == 0)
     }
 
     @Test func rewardedAdViewModelCompletesWhenRewardEarned() async throws {
-        let adProvider = FakeRewardedAdProvider(loadState: .ready)
+        let adRepo = FakeAdRepository(loadState: .ready)
         var didComplete = false
         var didCancel = false
         let viewModel = RewardedAdViewModel(
-            adProvider: adProvider,
+            adRepository: adRepo,
             onComplete: { didComplete = true },
             onCancel: { didCancel = true }
         )
@@ -191,58 +226,43 @@ struct ViewModelTests {
         viewModel.presentIfReady(from: UIViewController())
         try await Task.sleep(for: .milliseconds(10))
 
-        #expect(adProvider.presentCallCount == 1)
+        #expect(adRepo.presentCallCount == 1)
         #expect(didComplete)
         #expect(!didCancel)
     }
+
+    // MARK: - Helpers
+
+    private func makeSyncProtectionUseCase(
+        screenTimeRepo: FakeScreenTimeRepository? = nil
+    ) -> SyncProtectionUseCase {
+        SyncProtectionUseCase(
+            groupRepository: FakeGroupRepository(),
+            screenTimeRepository: screenTimeRepo ?? FakeScreenTimeRepository()
+        )
+    }
+
+    private func makeLoadDashboardUseCase() -> LoadDashboardUseCase {
+        LoadDashboardUseCase(
+            shieldRepository: FakeShieldRepository(),
+            statsRepository: FakeStatsRepository(),
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+    }
+
+    private func makeAuthorizeUseCase(isAuthorized: Bool = false) -> AuthorizeUseCase {
+        AuthorizeUseCase(
+            authRepository: FakeAuthorizationRepository(isAuthorized: isAuthorized),
+            notificationRepository: FakeNotificationRepository()
+        )
+    }
 }
 
+// MARK: - Fake Repositories
+
 @MainActor
-private final class FakeGoldTimeStore: GoldTimeStoreProviding {
-    var screenTimeGroups: [SharedStore.ScreenTimeGroup] = []
-    var isDailyMonitoringEnabled = false
-    var isShieldActive = false
-    var oneMinuteRemaining = 5
-    var currentShieldOverrideUntil: Date?
-    var todayStats = SharedStore.DailyStats(dateKey: "2026-05-18")
-    var weeklyStats: [SharedStore.DailyStats] = []
-    var lastRequestedUnlockApplicationToken: ApplicationToken?
-    var lockedGroupsValue: [SharedStore.ScreenTimeGroup] = []
-    var groupsInOverrideValue: [SharedStore.ScreenTimeGroup] = []
-    var pendingShieldOpenRequest = false
-    private(set) var recordWalkAwayCallCount = 0
-
-    func lastSevenDayStats() -> [SharedStore.DailyStats] {
-        weeklyStats
-    }
-
-    func lockedGroups() -> [SharedStore.ScreenTimeGroup] {
-        lockedGroupsValue
-    }
-
-    func lockedGroups(containing token: ApplicationToken) -> [SharedStore.ScreenTimeGroup] {
-        lockedGroupsValue
-    }
-
-    func groupsInOverride() -> [SharedStore.ScreenTimeGroup] {
-        groupsInOverrideValue
-    }
-
-    func hasPendingShieldOpenRequest() -> Bool {
-        pendingShieldOpenRequest
-    }
-
-    func clearLastRequestedUnlockApplicationToken() {
-        lastRequestedUnlockApplicationToken = nil
-    }
-
-    func clearShieldOpenRequest() {
-        pendingShieldOpenRequest = false
-    }
-
-    func recordWalkAway() {
-        recordWalkAwayCallCount += 1
-    }
+private final class FakeGroupRepository: GroupRepository {
+    var screenTimeGroups: [ScreenTimeGroup] = []
 
     func defaultGroupName(for index: Int) -> String {
         "그룹 \(index + 1)"
@@ -250,62 +270,74 @@ private final class FakeGoldTimeStore: GoldTimeStoreProviding {
 }
 
 @MainActor
-private final class FakeScreenTimeManager: ScreenTimeManaging {
+private final class FakeShieldRepository: ShieldRepository {
+    var isShieldActive = false
+    var currentShieldOverrideUntil: Date?
+    var oneMinuteRemainingValue = 5
+    var oneMinuteRemaining: Int { oneMinuteRemainingValue }
+    var lastRequestedUnlockApplicationToken: ApplicationToken?
+    var lockedGroupsValue: [ScreenTimeGroup] = []
+    var groupsInOverrideValue: [ScreenTimeGroup] = []
+    var pendingShieldOpenRequest = false
+    private(set) var recordWalkAwayCallCount = 0
+
+    func lockedGroups() -> [ScreenTimeGroup] { lockedGroupsValue }
+    func lockedGroups(containing token: ApplicationToken) -> [ScreenTimeGroup] { lockedGroupsValue }
+    func groupsInOverride() -> [ScreenTimeGroup] { groupsInOverrideValue }
+    func hasPendingShieldOpenRequest() -> Bool { pendingShieldOpenRequest }
+    func clearLastRequestedUnlockApplicationToken() { lastRequestedUnlockApplicationToken = nil }
+    func clearShieldOpenRequest() { pendingShieldOpenRequest = false }
+    func recordWalkAway() { recordWalkAwayCallCount += 1 }
+}
+
+@MainActor
+private final class FakeStatsRepository: StatsRepository {
+    var todayStats = SharedStore.DailyStats(dateKey: "2026-05-18")
+    var weeklyStatsValue: [DailyStats] = []
+
+    func lastSevenDayStats() -> [DailyStats] { weeklyStatsValue }
+}
+
+@MainActor
+private final class FakeScreenTimeRepository: ScreenTimeRepository {
+    var isDailyMonitoringEnabled = false
     var syncCallCount = 0
-    var resetCallCount = 0
     var extendCallCount = 0
-    var reapplyCallCount = 0
-    var lastExtensionSource: ScreenTimeManager.ExtensionSource?
+    var lastExtensionSource: ExtensionSource?
     var syncError: Error?
-    var resetError: Error?
-    var extendResult: Result<ScreenTimeManager.GroupExtensionResult, ScreenTimeManager.ExtensionFailure>?
+    var extendResult: Result<GroupExtensionResult, ExtensionFailure>?
 
     func rolloverCounterIfNeeded() {}
 
-    func reapplyShieldIfOverrideExpired() -> Bool {
-        reapplyCallCount += 1
-        return false
-    }
+    @discardableResult
+    func reapplyShieldIfOverrideExpired() -> Bool { false }
 
-    func syncDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
+    func syncDailyMonitoring(groups: [ScreenTimeGroup]) throws {
         syncCallCount += 1
-        if let syncError {
-            throw syncError
-        }
+        if let syncError { throw syncError }
     }
 
-    func resetProtectionState() throws {
-        resetCallCount += 1
-        if let resetError {
-            throw resetError
-        }
-    }
+    func resetProtectionState() throws {}
 
-    func validDailyMonitoringGroups(
-        from groups: [SharedStore.ScreenTimeGroup]
-    ) -> [SharedStore.ScreenTimeGroup] {
+    func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] {
         groups.filter { !$0.selection.applicationTokens.isEmpty || $0.dailyLimitMinutes >= 0 }
     }
 
     func extendGroup(
         groupID: UUID,
         duration seconds: Int,
-        source: ScreenTimeManager.ExtensionSource
-    ) -> Result<ScreenTimeManager.GroupExtensionResult, ScreenTimeManager.ExtensionFailure> {
+        source: ExtensionSource
+    ) -> Result<GroupExtensionResult, ExtensionFailure> {
         extendCallCount += 1
         lastExtensionSource = source
-        if let extendResult {
-            return extendResult
-        }
-        return .failure(.groupNotFound)
+        return extendResult ?? .failure(.groupNotFound)
     }
 }
 
 @MainActor
-private final class FakeAuthorization: AuthorizationProviding {
+private final class FakeAuthorizationRepository: AuthorizationRepository {
     var isAuthorized: Bool
     var requestResultIsAuthorized: Bool
-    private(set) var refreshCallCount = 0
     private(set) var requestCallCount = 0
 
     init(isAuthorized: Bool) {
@@ -313,9 +345,7 @@ private final class FakeAuthorization: AuthorizationProviding {
         requestResultIsAuthorized = isAuthorized
     }
 
-    func refresh() {
-        refreshCallCount += 1
-    }
+    func refresh() {}
 
     func request() async throws {
         requestCallCount += 1
@@ -324,7 +354,7 @@ private final class FakeAuthorization: AuthorizationProviding {
 }
 
 @MainActor
-private final class FakeNotificationAuthorizer: NotificationAuthorizing {
+private final class FakeNotificationRepository: NotificationRepository {
     private(set) var requestCallCount = 0
 
     func requestAuthorizationIfNeeded() async {
@@ -333,23 +363,21 @@ private final class FakeNotificationAuthorizer: NotificationAuthorizing {
 }
 
 @MainActor
-private final class FakeRewardedAdProvider: RewardedAdProviding {
-    var loadState: RewardedAdService.LoadState
+private final class FakeAdRepository: AdRepository {
+    var loadState: AdLoadState
     var shouldEarnReward = true
     private(set) var loadCallCount = 0
     private(set) var presentCallCount = 0
 
-    init(loadState: RewardedAdService.LoadState) {
+    init(loadState: AdLoadState) {
         self.loadState = loadState
     }
 
-    func loadAd() {
-        loadCallCount += 1
-    }
+    func loadAd() { loadCallCount += 1 }
 
     func present(
         from viewController: UIViewController,
-        onDismissed: @escaping (_ didEarnReward: Bool) -> Void
+        onDismissed: @escaping (Bool) -> Void
     ) {
         presentCallCount += 1
         onDismissed(shouldEarnReward)

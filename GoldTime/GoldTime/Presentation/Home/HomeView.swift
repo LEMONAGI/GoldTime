@@ -13,23 +13,26 @@ struct HomeView: View {
     let onAddGroup: () -> Void
     let onDeleteGroup: (UUID) -> Void
     let onUpdateGroupName: (UUID, String) -> Void
-    let onPresentPicker: (SharedStore.ScreenTimeGroup) -> Void
-    let onPresentLimitPicker: (SharedStore.ScreenTimeGroup) -> Void
+    let onPresentPicker: (ScreenTimeGroup) -> Void
+    let onPresentLimitPicker: (ScreenTimeGroup) -> Void
     let onRequestResetProtection: () -> Void
 
     init(
-        groups: [SharedStore.ScreenTimeGroup],
-        todayStats: SharedStore.DailyStats,
+        groups: [ScreenTimeGroup],
+        todayStats: DailyStats,
         isMonitoring: Bool,
         isShieldActive: Bool,
         shieldOverrideUntil: Date?,
         successMessage: String?,
         errorMessage: String?,
+        lockedGroupIDs: Set<UUID> = [],
+        overrideGroupIDs: Set<UUID> = [],
+        validGroupIDs: Set<UUID> = [],
         onAddGroup: @escaping () -> Void,
         onDeleteGroup: @escaping (UUID) -> Void,
         onUpdateGroupName: @escaping (UUID, String) -> Void,
-        onPresentPicker: @escaping (SharedStore.ScreenTimeGroup) -> Void,
-        onPresentLimitPicker: @escaping (SharedStore.ScreenTimeGroup) -> Void,
+        onPresentPicker: @escaping (ScreenTimeGroup) -> Void,
+        onPresentLimitPicker: @escaping (ScreenTimeGroup) -> Void,
         onRequestResetProtection: @escaping () -> Void
     ) {
         self.viewModel = HomeViewModel(
@@ -39,7 +42,10 @@ struct HomeView: View {
             isShieldActive: isShieldActive,
             shieldOverrideUntil: shieldOverrideUntil,
             successMessage: successMessage,
-            errorMessage: errorMessage
+            errorMessage: errorMessage,
+            lockedGroupIDs: lockedGroupIDs,
+            overrideGroupIDs: overrideGroupIDs,
+            validGroupIDs: validGroupIDs
         )
         self.onAddGroup = onAddGroup
         self.onDeleteGroup = onDeleteGroup
@@ -211,7 +217,7 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func groupCard(_ group: SharedStore.ScreenTimeGroup) -> some View {
+    private func groupCard(_ group: ScreenTimeGroup) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
                 IconTile(systemName: "app.badge", tint: Color.accent)
@@ -287,7 +293,7 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private func appTokenList(for group: SharedStore.ScreenTimeGroup) -> some View {
+    private func appTokenList(for group: ScreenTimeGroup) -> some View {
         if group.selection.applicationTokens.isEmpty {
             Text("선택된 앱 없음")
                 .font(.footnote)

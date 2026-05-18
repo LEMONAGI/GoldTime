@@ -13,6 +13,12 @@ final class SyncProtectionUseCase {
         self.screenTimeRepository = screenTimeRepository
     }
 
+    // 앱 활성화 시 자정 리셋 + 만료된 override 재적용
+    func prepareForAppActivation() {
+        screenTimeRepository.rolloverCounterIfNeeded()
+        screenTimeRepository.reapplyShieldIfOverrideExpired()
+    }
+
     func syncIfAuthorized(groups: [ScreenTimeGroup], isAuthorized: Bool) throws {
         guard isAuthorized else { return }
         try screenTimeRepository.syncDailyMonitoring(groups: groups)

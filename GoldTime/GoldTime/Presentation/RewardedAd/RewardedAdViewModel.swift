@@ -1,3 +1,4 @@
+
 //
 //  RewardedAdViewModel.swift
 //  GoldTime
@@ -12,36 +13,36 @@ final class RewardedAdViewModel {
     var isPresenting = false
     var showFallback = false
 
-    private let adProvider: any RewardedAdProviding
+    private let adRepository: any AdRepository
     private let onComplete: () -> Void
     private let onCancel: () -> Void
 
     init(
-        adProvider: (any RewardedAdProviding)? = nil,
+        adRepository: (any AdRepository)? = nil,
         onComplete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
-        self.adProvider = adProvider ?? RewardedAdService.shared
+        self.adRepository = adRepository ?? AdRepositoryImpl()
         self.onComplete = onComplete
         self.onCancel = onCancel
     }
 
-    var loadState: RewardedAdService.LoadState {
-        adProvider.loadState
+    var loadState: AdLoadState {
+        adRepository.loadState
     }
 
     func onAppear() {
-        switch adProvider.loadState {
+        switch adRepository.loadState {
         case .ready:
             break
         case .failed:
             showFallback = true
         default:
-            adProvider.loadAd()
+            adRepository.loadAd()
         }
     }
 
-    func handleLoadStateChange(_ state: RewardedAdService.LoadState, viewController: UIViewController?) {
+    func handleLoadStateChange(_ state: AdLoadState, viewController: UIViewController?) {
         switch state {
         case .ready:
             presentIfReady(from: viewController)
@@ -53,9 +54,9 @@ final class RewardedAdViewModel {
     }
 
     func presentIfReady(from viewController: UIViewController?) {
-        guard let viewController, case .ready = adProvider.loadState, !isPresenting else { return }
+        guard let viewController, case .ready = adRepository.loadState, !isPresenting else { return }
         isPresenting = true
-        adProvider.present(from: viewController) { [weak self] earned in
+        adRepository.present(from: viewController) { [weak self] earned in
             guard let self else { return }
             Task { @MainActor in
                 earned ? self.onComplete() : self.onCancel()

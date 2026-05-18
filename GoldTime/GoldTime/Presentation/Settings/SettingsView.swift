@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    let auth: AuthorizationService
+    let isAuthorized: Bool
     let onRequestResetProtection: () -> Void
 
     var body: some View {
@@ -31,9 +31,9 @@ struct SettingsView: View {
             VStack(spacing: 10) {
                 settingsRow(
                     title: "스크린 타임 권한",
-                    subtitle: auth.isAuthorized ? "허용됨" : "확인이 필요해요",
-                    systemName: auth.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
-                    tint: auth.isAuthorized ? .green : .orange
+                    subtitle: isAuthorized ? "허용됨" : "확인이 필요해요",
+                    systemName: isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
+                    tint: isAuthorized ? .green : .orange
                 )
             }
             .cardContainer()

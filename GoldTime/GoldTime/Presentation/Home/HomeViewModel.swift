@@ -8,27 +8,28 @@ import FamilyControls
 import SwiftUI
 
 struct HomeViewModel {
-    let groups: [SharedStore.ScreenTimeGroup]
-    let todayStats: SharedStore.DailyStats
+    let groups: [ScreenTimeGroup]
+    let todayStats: DailyStats
     let isMonitoring: Bool
     let isShieldActive: Bool
     let shieldOverrideUntil: Date?
     let successMessage: String?
     let errorMessage: String?
-
-    private let store: any GoldTimeStoreProviding
-    private let screenTimeManager: any ScreenTimeManaging
+    let lockedGroupIDs: Set<UUID>
+    let overrideGroupIDs: Set<UUID>
+    let validGroupIDs: Set<UUID>
 
     init(
-        groups: [SharedStore.ScreenTimeGroup],
-        todayStats: SharedStore.DailyStats,
+        groups: [ScreenTimeGroup],
+        todayStats: DailyStats,
         isMonitoring: Bool,
         isShieldActive: Bool,
         shieldOverrideUntil: Date?,
         successMessage: String?,
         errorMessage: String?,
-        store: any GoldTimeStoreProviding = GoldTimeStoreAdapter(),
-        screenTimeManager: any ScreenTimeManaging = ScreenTimeManagerAdapter()
+        lockedGroupIDs: Set<UUID> = [],
+        overrideGroupIDs: Set<UUID> = [],
+        validGroupIDs: Set<UUID> = []
     ) {
         self.groups = groups
         self.todayStats = todayStats
@@ -37,8 +38,9 @@ struct HomeViewModel {
         self.shieldOverrideUntil = shieldOverrideUntil
         self.successMessage = successMessage
         self.errorMessage = errorMessage
-        self.store = store
-        self.screenTimeManager = screenTimeManager
+        self.lockedGroupIDs = lockedGroupIDs
+        self.overrideGroupIDs = overrideGroupIDs
+        self.validGroupIDs = validGroupIDs
     }
 
     var maxGroupCount: Int { SharedStore.maxGroupCount }
@@ -126,7 +128,7 @@ struct HomeViewModel {
 
     var shieldStatusCaption: String {
         if isShieldActive {
-            let count = store.lockedGroups().count
+            let count = lockedGroupIDs.count
             return count > 1 ? "\(count)개 그룹이 한도에 닿았어요" : "한도를 넘겼어요"
         }
         if let shieldOverrideUntil, shieldOverrideUntil.timeIntervalSinceNow > 0.5 {
@@ -136,11 +138,11 @@ struct HomeViewModel {
         return isMonitoring ? "아직 한도 안쪽" : "설정 필요"
     }
 
-    func statusTitle(for group: SharedStore.ScreenTimeGroup) -> String {
-        if store.lockedGroups().contains(where: { $0.id == group.id }) {
+    func statusTitle(for group: ScreenTimeGroup) -> String {
+        if lockedGroupIDs.contains(group.id) {
             return "잠금 중"
         }
-        if store.groupsInOverride().contains(where: { $0.id == group.id }) {
+        if overrideGroupIDs.contains(group.id) {
             return "연장 중"
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
@@ -149,7 +151,7 @@ struct HomeViewModel {
         return isMonitoring ? "적용 중" : "대기 중"
     }
 
-    func statusTint(for group: SharedStore.ScreenTimeGroup) -> Color {
+    func statusTint(for group: ScreenTimeGroup) -> Color {
         switch statusTitle(for: group) {
         case "잠금 중":
             return .red
@@ -164,7 +166,7 @@ struct HomeViewModel {
         }
     }
 
-    func groupHasDuplicateApps(_ group: SharedStore.ScreenTimeGroup) -> Bool {
+    func groupHasDuplicateApps(_ group: ScreenTimeGroup) -> Bool {
         groups.contains { other in
             other.id != group.id
                 && !other.selection.applicationTokens.isDisjoint(with: group.selection.applicationTokens)
@@ -181,11 +183,11 @@ struct HomeViewModel {
         }
     }
 
-    private var validMonitoringGroups: [SharedStore.ScreenTimeGroup] {
-        screenTimeManager.validDailyMonitoringGroups(from: groups)
+    private var validMonitoringGroups: [ScreenTimeGroup] {
+        groups.filter { validGroupIDs.contains($0.id) }
     }
 
-    private var invalidMonitoringGroups: [SharedStore.ScreenTimeGroup] {
+    private var invalidMonitoringGroups: [ScreenTimeGroup] {
         groups.filter { group in
             ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil
         }

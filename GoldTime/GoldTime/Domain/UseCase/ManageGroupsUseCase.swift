@@ -49,6 +49,10 @@ final class ManageGroupsUseCase {
         groups[index].selection = selection.appOnly
     }
 
+    func currentGroups() -> [ScreenTimeGroup] {
+        groupRepository.screenTimeGroups
+    }
+
     func persist(_ groups: [ScreenTimeGroup]) {
         groupRepository.screenTimeGroups = groups
     }

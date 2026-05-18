@@ -60,31 +60,28 @@ final class AppDIContainer {
 
     func makeAppLifecycleViewModel() -> AppLifecycleViewModel {
         AppLifecycleViewModel(
-            store: nil,
-            screenTimeManager: nil,
-            authorization: nil
+            authorizeUseCase: makeAuthorizeUseCase(),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: shieldRepository
         )
     }
 
     func makeContentViewModel() -> ContentViewModel {
         ContentViewModel(
-            store: nil,
-            screenTimeManager: nil,
-            authorization: nil
+            manageGroupsUseCase: makeManageGroupsUseCase(),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase()
         )
     }
 
     func makeLockOptionsViewModel() -> LockOptionsViewModel {
-        LockOptionsViewModel(
-            store: nil,
-            screenTimeManager: nil
-        )
+        LockOptionsViewModel(extendGroupUseCase: makeExtendGroupUseCase())
     }
 
     func makeOnboardingViewModel(onAuthorized: @escaping () -> Void) -> OnboardingViewModel {
         OnboardingViewModel(
-            authorization: nil,
-            notificationAuthorizer: nil,
+            authorizeUseCase: makeAuthorizeUseCase(),
             onAuthorized: onAuthorized
         )
     }
@@ -94,7 +91,7 @@ final class AppDIContainer {
         onCancel: @escaping () -> Void
     ) -> RewardedAdViewModel {
         RewardedAdViewModel(
-            adProvider: nil,
+            adRepository: adRepository,
             onComplete: onComplete,
             onCancel: onCancel
         )

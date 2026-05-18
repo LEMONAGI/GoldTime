@@ -27,7 +27,7 @@ struct GoldTimeAlertMessage: Identifiable, Equatable {
 final class ContentViewModel {
     var selectedTab = GoldTimeTab.home
     var isAuthorized: Bool
-    var groups: [SharedStore.ScreenTimeGroup] = []
+    var groups: [ScreenTimeGroup] = []
     var pickerSelection = FamilyActivitySelection()
     var pickerGroupID: UUID?
     var isPickerPresented = false
@@ -44,29 +44,54 @@ final class ContentViewModel {
     var isShieldActive: Bool
     var oneMinuteRemaining: Int
     var shieldOverrideUntil: Date?
-    var todayStats: SharedStore.DailyStats
-    var weeklyStats: [SharedStore.DailyStats]
+    var todayStats: DailyStats
+    var weeklyStats: [DailyStats]
+    var lockedGroupIDs: Set<UUID> = []
+    var overrideGroupIDs: Set<UUID> = []
+    var validGroupIDs: Set<UUID> = []
 
-    private var store: any GoldTimeStoreProviding
-    private let screenTimeManager: any ScreenTimeManaging
-    private let authorization: any AuthorizationProviding
+    private let manageGroupsUseCase: ManageGroupsUseCase
+    private let syncProtectionUseCase: SyncProtectionUseCase
+    private let loadDashboardUseCase: LoadDashboardUseCase
+    private let authorizeUseCase: AuthorizeUseCase
 
     init(
-        store: (any GoldTimeStoreProviding)? = nil,
-        screenTimeManager: (any ScreenTimeManaging)? = nil,
-        authorization: (any AuthorizationProviding)? = nil
+        manageGroupsUseCase: ManageGroupsUseCase? = nil,
+        syncProtectionUseCase: SyncProtectionUseCase? = nil,
+        loadDashboardUseCase: LoadDashboardUseCase? = nil,
+        authorizeUseCase: AuthorizeUseCase? = nil
     ) {
-        let resolvedStore = store ?? GoldTimeStoreAdapter()
-        let resolvedAuthorization = authorization ?? AuthorizationService.shared
-        self.store = resolvedStore
-        self.screenTimeManager = screenTimeManager ?? ScreenTimeManagerAdapter()
-        self.authorization = resolvedAuthorization
-        isAuthorized = resolvedAuthorization.isAuthorized
-        isShieldActive = resolvedStore.isShieldActive
-        oneMinuteRemaining = resolvedStore.oneMinuteRemaining
-        shieldOverrideUntil = resolvedStore.currentShieldOverrideUntil
-        todayStats = resolvedStore.todayStats
-        weeklyStats = resolvedStore.lastSevenDayStats()
+        let groupRepo = GroupRepositoryImpl()
+        let shieldRepo = ShieldRepositoryImpl()
+        let statsRepo = StatsRepositoryImpl()
+        let screenTimeRepo = ScreenTimeRepositoryImpl()
+        let authRepo = AuthorizationRepositoryImpl()
+        let notifRepo = NotificationRepositoryImpl()
+
+        self.manageGroupsUseCase = manageGroupsUseCase ?? ManageGroupsUseCase(
+            groupRepository: groupRepo,
+            screenTimeRepository: screenTimeRepo
+        )
+        self.syncProtectionUseCase = syncProtectionUseCase ?? SyncProtectionUseCase(
+            groupRepository: groupRepo,
+            screenTimeRepository: screenTimeRepo
+        )
+        self.loadDashboardUseCase = loadDashboardUseCase ?? LoadDashboardUseCase(
+            shieldRepository: shieldRepo,
+            statsRepository: statsRepo,
+            screenTimeRepository: screenTimeRepo
+        )
+        self.authorizeUseCase = authorizeUseCase ?? AuthorizeUseCase(
+            authRepository: authRepo,
+            notificationRepository: notifRepo
+        )
+
+        isAuthorized = authRepo.isAuthorized
+        isShieldActive = shieldRepo.isShieldActive
+        oneMinuteRemaining = shieldRepo.oneMinuteRemaining
+        shieldOverrideUntil = shieldRepo.currentShieldOverrideUntil
+        todayStats = statsRepo.todayStats
+        weeklyStats = statsRepo.lastSevenDayStats()
     }
 
     var isLimitPickerPresented: Bool {
@@ -80,25 +105,20 @@ final class ContentViewModel {
     }
 
     func refreshAuthorization() {
-        authorization.refresh()
-        isAuthorized = authorization.isAuthorized
+        authorizeUseCase.refresh()
+        isAuthorized = authorizeUseCase.isAuthorized
     }
 
     func loadState() {
         refreshAuthorization()
-        screenTimeManager.rolloverCounterIfNeeded()
-        groups = store.screenTimeGroups
+        syncProtectionUseCase.prepareForAppActivation()
+        groups = manageGroupsUseCase.currentGroups()
         syncProtectionRules()
     }
 
     func refreshDashboardState() {
-        screenTimeManager.reapplyShieldIfOverrideExpired()
-        isMonitoring = store.isDailyMonitoringEnabled
-        isShieldActive = store.isShieldActive
-        oneMinuteRemaining = store.oneMinuteRemaining
-        shieldOverrideUntil = store.currentShieldOverrideUntil
-        todayStats = store.todayStats
-        weeklyStats = store.lastSevenDayStats()
+        let state = loadDashboardUseCase.refresh(groups: groups)
+        applyDashboardState(state)
     }
 
     func handlePickerPresentationChange(isPresented: Bool) {
@@ -108,17 +128,15 @@ final class ContentViewModel {
     }
 
     func addGroup() {
-        guard groups.count < SharedStore.maxGroupCount else {
-            alertMessage = GoldTimeAlertMessage(title: "그룹 제한", message: "그룹은 5개까지예요.")
-            return
+        do {
+            let newGroup = try manageGroupsUseCase.makeNewGroup(currentCount: groups.count)
+            groups.append(newGroup)
+            persistGroups(shouldSyncProtection: false)
+            successMessage = nil
+            errorMessage = nil
+        } catch {
+            alertMessage = GoldTimeAlertMessage(title: "그룹 제한", message: error.localizedDescription)
         }
-        let group = SharedStore.ScreenTimeGroup(
-            name: store.defaultGroupName(for: groups.count)
-        )
-        groups.append(group)
-        persistGroups(shouldSyncProtection: false)
-        successMessage = nil
-        errorMessage = nil
     }
 
     func deleteGroup(_ id: UUID) {
@@ -129,24 +147,24 @@ final class ContentViewModel {
     }
 
     func updateGroupName(_ id: UUID, name: String) {
-        updateGroup(id, shouldSyncProtection: false) { group in
-            group.name = name
+        updateGroup(id, shouldSyncProtection: false) { groups in
+            manageGroupsUseCase.updateName(id: id, name: name, in: &groups)
         }
     }
 
     func updateGroupLimit(_ id: UUID, minutes: Int) {
-        updateGroup(id) { group in
-            group.dailyLimitMinutes = minutes
+        updateGroup(id) { groups in
+            manageGroupsUseCase.updateLimit(id: id, minutes: minutes, in: &groups)
         }
     }
 
-    func presentPicker(for group: SharedStore.ScreenTimeGroup) {
+    func presentPicker(for group: ScreenTimeGroup) {
         pickerGroupID = group.id
         pickerSelection = group.selection
         isPickerPresented = true
     }
 
-    func presentLimitPicker(for group: SharedStore.ScreenTimeGroup) {
+    func presentLimitPicker(for group: ScreenTimeGroup) {
         limitPickerHours = group.dailyLimitMinutes / 60
         limitPickerMinutes = group.dailyLimitMinutes % 60
         limitPickerGroupID = group.id
@@ -154,8 +172,9 @@ final class ContentViewModel {
 
     func commitPickerSelection() {
         guard let groupID = pickerGroupID else { return }
-        updateGroup(groupID) { group in
-            group.selection = pickerSelection.appOnly
+        let selection = pickerSelection
+        updateGroup(groupID) { groups in
+            manageGroupsUseCase.updateSelection(id: groupID, selection: selection, in: &groups)
         }
     }
 
@@ -171,14 +190,12 @@ final class ContentViewModel {
 
     func resetProtectionState() {
         do {
-            try screenTimeManager.resetProtectionState()
-            groups = store.screenTimeGroups
-            isMonitoring = store.isDailyMonitoringEnabled
+            try syncProtectionUseCase.resetProtectionState()
+            groups = manageGroupsUseCase.currentGroups()
             errorMessage = nil
             successMessage = "보호 상태를 초기화하고 유효한 그룹을 다시 적용했어요."
             refreshDashboardState()
         } catch {
-            isMonitoring = store.isDailyMonitoringEnabled
             successMessage = nil
             errorMessage = "전체 보호 초기화 실패: \(error.localizedDescription)"
             refreshDashboardState()
@@ -186,12 +203,11 @@ final class ContentViewModel {
     }
 
     private func persistGroups(shouldSyncProtection: Bool = true) {
-        store.screenTimeGroups = groups
-        groups = store.screenTimeGroups
         if shouldSyncProtection {
             syncProtectionRules()
         } else {
-            isMonitoring = store.isDailyMonitoringEnabled
+            manageGroupsUseCase.persist(groups)
+            groups = manageGroupsUseCase.currentGroups()
             refreshDashboardState()
         }
     }
@@ -199,33 +215,38 @@ final class ContentViewModel {
     private func updateGroup(
         _ id: UUID,
         shouldSyncProtection: Bool = true,
-        update: (inout SharedStore.ScreenTimeGroup) -> Void
+        update: (inout [ScreenTimeGroup]) -> Void
     ) {
-        guard let index = groups.firstIndex(where: { $0.id == id }) else {
-            return
-        }
-        update(&groups[index])
+        update(&groups)
         successMessage = nil
         errorMessage = nil
         persistGroups(shouldSyncProtection: shouldSyncProtection)
     }
 
-    private func syncProtectionRules(showSuccess: Bool = false) {
+    private func syncProtectionRules() {
         do {
-            try screenTimeManager.syncDailyMonitoring(groups: groups)
-            groups = store.screenTimeGroups
-            isMonitoring = store.isDailyMonitoringEnabled
+            try manageGroupsUseCase.persistAndSync(groups)
+            groups = manageGroupsUseCase.currentGroups()
             errorMessage = nil
-            if showSuccess {
-                let count = screenTimeManager.validDailyMonitoringGroups(from: groups).count
-                successMessage = count > 0 ? "\(count)개 유효 그룹을 다시 적용했어요." : "적용할 그룹이 없어 보호를 비웠어요."
-            }
-            refreshDashboardState()
+            let state = loadDashboardUseCase.refresh(groups: groups)
+            isMonitoring = state.isDailyMonitoringEnabled
+            applyDashboardState(state)
         } catch {
-            isMonitoring = store.isDailyMonitoringEnabled
             successMessage = nil
             errorMessage = "자동 적용 실패: \(error.localizedDescription)"
             refreshDashboardState()
         }
+    }
+
+    private func applyDashboardState(_ state: DashboardState) {
+        isShieldActive = state.isShieldActive
+        oneMinuteRemaining = state.oneMinuteRemaining
+        shieldOverrideUntil = state.shieldOverrideUntil
+        todayStats = state.todayStats
+        weeklyStats = state.weeklyStats
+        isMonitoring = state.isDailyMonitoringEnabled
+        lockedGroupIDs = state.lockedGroupIDs
+        overrideGroupIDs = state.overrideGroupIDs
+        validGroupIDs = state.validGroupIDs
     }
 }
