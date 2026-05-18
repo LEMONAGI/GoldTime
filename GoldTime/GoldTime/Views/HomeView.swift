@@ -10,9 +10,16 @@ import FamilyControls
 import SwiftUI
 internal import Combine
 
+private enum GoldTimeTab: Hashable {
+    case home
+    case stats
+    case settings
+}
+
 struct HomeView: View {
     @Binding var showLockOptions: Bool
 
+    @State private var selectedTab = GoldTimeTab.home
     @State private var auth = AuthorizationService.shared
     @State private var groups: [SharedStore.ScreenTimeGroup] = []
     @State private var pickerSelection = FamilyActivitySelection()
@@ -50,28 +57,67 @@ struct HomeView: View {
     }
 
     private var content: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    revenueHero
-                    metricGrid
-                    weeklyRevenueSection
-                    managementSection
+        TabView(selection: $selectedTab) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        timeBillHero
+                        currentStatusSection
+                        managementSection
 
-                    if let successMessage {
-                        statusSection(successMessage, tint: .green, systemName: "checkmark.circle.fill")
-                    }
+                        if let successMessage {
+                            statusSection(successMessage, tint: .green, systemName: "checkmark.circle.fill")
+                        }
 
-                    if let errorMessage {
-                        statusSection(errorMessage, tint: .red, systemName: "exclamationmark.triangle.fill")
+                        if let errorMessage {
+                            statusSection(errorMessage, tint: .red, systemName: "exclamationmark.triangle.fill")
+                        }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .background(Color(.systemGroupedBackground))
+                .navigationTitle("GoldTime")
+                .navigationBarTitleDisplayMode(.inline)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("GoldTime")
-            .navigationBarTitleDisplayMode(.inline)
+            .tabItem {
+                Label("홈", systemImage: "house.fill")
+            }
+            .tag(GoldTimeTab.home)
+
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        metricGrid
+                        weeklyBillSection
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                }
+                .background(Color(.systemGroupedBackground))
+                .navigationTitle("통계")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .tabItem {
+                Label("통계", systemImage: "chart.bar.xaxis")
+            }
+            .tag(GoldTimeTab.stats)
+
+            NavigationStack {
+                ScrollView {
+                    settingsSection
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                }
+                .background(Color(.systemGroupedBackground))
+                .navigationTitle("설정")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .tabItem {
+                Label("설정", systemImage: "gearshape")
+            }
+            .tag(GoldTimeTab.settings)
+        }
             .sheet(isPresented: $isPickerPresented) {
                 PickerSheet(selection: $pickerSelection) {
                     commitPickerSelection()
@@ -124,24 +170,23 @@ struct HomeView: View {
             .onReceive(refreshTimer) { _ in
                 refreshDashboardState()
             }
-        }
     }
 
-    private var revenueHero: some View {
-        VStack(alignment: .leading, spacing: 14) {
+    private var timeBillHero: some View {
+        VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("오늘 저한테")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("오늘의 시간 청구서")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.75))
-                    Text("₩\(todayRevenue.formatted())")
-                        .font(.system(size: 44, weight: .black, design: .rounded))
-                        .foregroundStyle(Color.accent)
-                        .minimumScaleFactor(0.75)
-                        .lineLimit(1)
-                    Text("벌어줬어요")
-                        .font(.title3.bold())
+                    Text(billSummaryLine)
+                        .font(.title2.bold())
                         .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(billComment)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.accent)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: 12)
@@ -153,13 +198,19 @@ struct HomeView: View {
                 )
             }
 
-            Text("실제 수익과 무관하게 광고 1개당 \(SharedStore.estimatedWonPerAd)원으로 계산한 값이에요.")
+            HStack(spacing: 10) {
+                BillPill(title: "광고", value: "\(todayStats.adWatchCount)개")
+                BillPill(title: "추가 사용", value: durationText(seconds: todayStats.adUnlockedSeconds))
+            }
+
+            HStack(spacing: 10) {
+                BillPill(title: "1분 연장", value: "\(todayStats.oneMinuteUsedCount)회")
+                BillPill(title: "시간을 아낀 선택", value: "\(todayStats.walkAwayCount)회")
+            }
+
+            Text("한도 넘긴 뒤의 선택만 기록합니다.")
                 .font(.footnote)
                 .foregroundStyle(.white.opacity(0.68))
-
-            Text("광고 \(todayStats.adWatchCount)개 · 1분 연장 \(todayStats.oneMinuteUsedCount)회 · 잠금 \(todayStats.shieldHitCount)회")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.86))
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,68 +218,94 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
+    private var currentStatusSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "현재 상태", systemName: "shield")
+
+            HStack(spacing: 12) {
+                IconTile(
+                    systemName: isShieldActive ? "lock.fill" : "lock.open.fill",
+                    tint: isShieldActive ? .red : protectionStatusTint
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(shieldStatusValue)
+                        .font(.headline)
+                    Text(shieldStatusCaption)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                GroupStatusBadge(title: protectionStatusTitle, tint: protectionStatusTint)
+            }
+            .cardContainer()
+        }
+    }
+
     private var metricGrid: some View {
         LazyVGrid(columns: metricColumns, spacing: 12) {
             DashboardMetricCard(
-                title: "현재 상태",
-                value: shieldStatusValue,
-                caption: shieldStatusCaption,
-                systemName: isShieldActive ? "shield.fill" : "shield",
-                tint: isShieldActive ? .red : .green
+                title: "시간을 아낀 선택",
+                value: "\(todayStats.walkAwayCount)회",
+                caption: "광고도 1분도 안 사고 닫았어요.",
+                systemName: "checkmark.seal.fill",
+                tint: .green
             )
 
             DashboardMetricCard(
-                title: "그룹 한도",
-                value: groupLimitValue,
-                caption: isMonitoring ? "유효 그룹 자동 적용" : "설정 필요",
-                systemName: "timer",
-                tint: Color.accent
+                title: "광고로 산 시간",
+                value: durationText(seconds: todayStats.adUnlockedSeconds),
+                caption: "광고 \(todayStats.adWatchCount)개",
+                systemName: "play.rectangle.fill",
+                tint: .orange
             )
 
             DashboardMetricCard(
                 title: "남은 1분",
                 value: "\(oneMinuteRemaining)회",
-                caption: "전체 그룹 공유 · 오늘 최대 \(SharedStore.oneMinuteDailyLimit)회",
+                caption: "오늘 무료 연장 잔여",
                 systemName: "plus.forwardslash.minus",
                 tint: .blue
             )
 
             DashboardMetricCard(
-                title: "오늘 광고",
-                value: "\(todayStats.adWatchCount)개",
-                caption: "수익 ₩\(todayRevenue.formatted())",
-                systemName: "play.rectangle.fill",
+                title: "전체 추가 사용",
+                value: durationText(seconds: todayStats.totalUnlockedSeconds),
+                caption: "광고 + 1분 연장",
+                systemName: "clock.arrow.circlepath",
                 tint: .purple
             )
 
             DashboardMetricCard(
-                title: "추가 사용",
-                value: durationText(seconds: todayStats.totalUnlockedSeconds),
-                caption: "광고 + 1분 연장",
-                systemName: "clock.arrow.circlepath",
-                tint: .orange
-            )
-
-            DashboardMetricCard(
-                title: "잠금 발생",
+                title: "잠금 도달",
                 value: "\(todayStats.shieldHitCount)회",
                 caption: "그룹 한도 도달",
                 systemName: "hand.raised.fill",
                 tint: .pink
             )
+
+            DashboardMetricCard(
+                title: "보호 그룹",
+                value: groupLimitValue,
+                caption: isMonitoring ? "유효 그룹 자동 적용" : "설정 필요",
+                systemName: "rectangle.3.group",
+                tint: Color.accent
+            )
         }
     }
 
-    private var weeklyRevenueSection: some View {
+    private var weeklyBillSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "7일 광고 수익", systemName: "chart.bar.xaxis")
+            SectionHeader(title: "7일간 시간을 아낀 선택", systemName: "chart.bar.xaxis")
 
             VStack(alignment: .leading, spacing: 12) {
-                if hasWeeklyRevenue {
+                if hasWeeklyWalkAway {
                     Chart(weeklyStats) { stat in
                         BarMark(
                             x: .value("날짜", stat.date, unit: .day),
-                            y: .value("수익", stat.estimatedAdRevenueWon)
+                            y: .value("선택", stat.walkAwayCount)
                         )
                         .foregroundStyle(Color.accent)
                     }
@@ -251,7 +328,7 @@ struct HomeView: View {
                     Text("최근 7일 합계")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("₩\(weeklyRevenue.formatted())")
+                    Text("\(weeklyWalkAwayCount)회")
                         .fontWeight(.bold)
                 }
                 .font(.subheadline)
@@ -260,10 +337,64 @@ struct HomeView: View {
         }
     }
 
+    private var settingsSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: "권한", systemName: "checkmark.shield")
+
+                VStack(spacing: 10) {
+                    settingsRow(
+                        title: "스크린 타임 권한",
+                        subtitle: auth.isAuthorized ? "허용됨" : "확인이 필요해요",
+                        systemName: auth.isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
+                        tint: auth.isAuthorized ? .green : .orange
+                    )
+                }
+                .cardContainer()
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: "알림과 언어", systemName: "bell.badge")
+
+                VStack(spacing: 10) {
+                    settingsRow(
+                        title: "알림",
+                        subtitle: "Shield에서 GoldTime으로 돌아올 때 사용",
+                        systemName: "bell",
+                        tint: Color.accent
+                    )
+                    settingsRow(
+                        title: "언어",
+                        subtitle: "현재는 시스템 언어를 사용",
+                        systemName: "globe",
+                        tint: .blue
+                    )
+                }
+                .cardContainer()
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: "문제 해결", systemName: "wrench.and.screwdriver")
+
+                Button(role: .destructive) {
+                    isResetProtectionConfirmationPresented = true
+                } label: {
+                    actionRow(
+                        title: "전체 보호 초기화",
+                        subtitle: "그룹 설정은 유지하고 현재 잠금과 모니터링만 다시 맞춤",
+                        systemName: "arrow.clockwise"
+                    )
+                }
+                .buttonStyle(.plain)
+                .cardContainer()
+            }
+        }
+    }
+
     private var managementSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                SectionHeader(title: "그룹 관리", systemName: "rectangle.3.group")
+                SectionHeader(title: "보호 그룹", systemName: "rectangle.3.group")
                 Spacer()
                 Text("그룹 \(groups.count)/\(SharedStore.maxGroupCount)")
                     .font(.subheadline.weight(.bold))
@@ -480,6 +611,43 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
+    private func actionRow(title: String, subtitle: String, systemName: String) -> some View {
+        HStack(spacing: 12) {
+            IconTile(systemName: systemName, tint: Color.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .rowContainer()
+    }
+
+    private func settingsRow(title: String, subtitle: String, systemName: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            IconTile(systemName: systemName, tint: tint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .rowContainer()
+    }
+
     private var validMonitoringGroups: [SharedStore.ScreenTimeGroup] {
         ScreenTimeManager.validDailyMonitoringGroups(from: groups)
     }
@@ -555,16 +723,32 @@ struct HomeView: View {
         return "\(groups.count)그룹"
     }
 
-    private var todayRevenue: Int {
-        todayStats.estimatedAdRevenueWon
+    private var billSummaryLine: String {
+        "광고 \(todayStats.adWatchCount)개. 추가 사용 \(durationText(seconds: todayStats.adUnlockedSeconds))."
     }
 
-    private var weeklyRevenue: Int {
-        weeklyStats.reduce(0) { $0 + $1.estimatedAdRevenueWon }
+    private var billComment: String {
+        if !hasBillCost, todayStats.walkAwayCount > 0 {
+            return "광고 안 보면 당신 승리예요. 저는 손해고요."
+        }
+        if !hasBillCost {
+            return "좋은 날입니다. 저한텐 아니고요."
+        }
+        return "시간이 금이면, 오늘 좀 썼네요."
     }
 
-    private var hasWeeklyRevenue: Bool {
-        weeklyStats.contains { $0.estimatedAdRevenueWon > 0 }
+    private var hasBillCost: Bool {
+        todayStats.adWatchCount > 0
+            || todayStats.adUnlockedSeconds > 0
+            || todayStats.oneMinuteUsedCount > 0
+    }
+
+    private var weeklyWalkAwayCount: Int {
+        weeklyStats.reduce(0) { $0 + $1.walkAwayCount }
+    }
+
+    private var hasWeeklyWalkAway: Bool {
+        weeklyStats.contains { $0.walkAwayCount > 0 }
     }
 
     private var shieldStatusValue: String {
@@ -851,6 +1035,28 @@ private struct SectionHeader: View {
     }
 }
 
+private struct BillPill: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.68))
+            Text(value)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
 
 private struct EmptyChartState: View {
     var body: some View {
@@ -858,7 +1064,7 @@ private struct EmptyChartState: View {
             Image(systemName: "chart.bar.xaxis")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(Color.accent)
-            Text("광고 기록이 생기면 7일 흐름을 보여줄게요.")
+            Text("시간을 아낀 선택이 생기면 여기에 쌓입니다.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

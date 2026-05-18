@@ -18,11 +18,13 @@ struct GoldTimeTests {
             adWatchCount: 3,
             adUnlockedSeconds: 15 * 60,
             oneMinuteUsedCount: 2,
-            shieldHitCount: 1
+            shieldHitCount: 1,
+            walkAwayCount: 4
         )
 
         #expect(stats.estimatedAdRevenueWon == 300)
         #expect(stats.totalUnlockedSeconds == 17 * 60)
+        #expect(stats.walkAwayCount == 4)
     }
 
     @Test func recordsTodayDashboardStats() {
@@ -32,13 +34,36 @@ struct GoldTimeTests {
         SharedStore.recordAdUnlock(seconds: 15 * 60)
         SharedStore.recordOneMinuteUnlock(seconds: 60)
         SharedStore.recordShieldHit()
+        SharedStore.recordWalkAway()
 
         let stats = SharedStore.todayStats
         #expect(stats.adWatchCount == 1)
         #expect(stats.adUnlockedSeconds == 15 * 60)
         #expect(stats.oneMinuteUsedCount == 1)
         #expect(stats.shieldHitCount == 1)
+        #expect(stats.walkAwayCount == 1)
         #expect(stats.estimatedAdRevenueWon == 100)
+    }
+
+    @Test func dailyStatsDecodeOldPayloadWithoutWalkAwayCount() throws {
+        let payload = Data("""
+        {
+            "dateKey": "2026-05-09",
+            "adWatchCount": 2,
+            "adUnlockedSeconds": 1800,
+            "oneMinuteUsedCount": 1,
+            "shieldHitCount": 3
+        }
+        """.utf8)
+
+        let stats = try JSONDecoder().decode(SharedStore.DailyStats.self, from: payload)
+
+        #expect(stats.dateKey == "2026-05-09")
+        #expect(stats.adWatchCount == 2)
+        #expect(stats.adUnlockedSeconds == 1800)
+        #expect(stats.oneMinuteUsedCount == 1)
+        #expect(stats.shieldHitCount == 3)
+        #expect(stats.walkAwayCount == 0)
     }
 
     @Test func groupPolicyRejectsMoreThanFiveGroups() {
@@ -176,7 +201,7 @@ struct GoldTimeTests {
 
         let eligible = ScreenTimeGroupPolicy.monitoringEligibleGroups(from: groups)
 
-        #expect(eligible.map(\.id) == [validID])
+        #expect(eligible.map(\.id) == [validID, noLimitID])
     }
 
     @Test func pruneShieldStateRemovesDeletedOrInvalidGroupsOnly() {

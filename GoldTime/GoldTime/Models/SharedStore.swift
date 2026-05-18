@@ -70,10 +70,56 @@ enum SharedStore {
 
     struct DailyStats: Codable, Equatable, Identifiable {
         var dateKey: String
-        var adWatchCount: Int = 0
-        var adUnlockedSeconds: Int = 0
-        var oneMinuteUsedCount: Int = 0
-        var shieldHitCount: Int = 0
+        var adWatchCount: Int
+        var adUnlockedSeconds: Int
+        var oneMinuteUsedCount: Int
+        var shieldHitCount: Int
+        var walkAwayCount: Int
+
+        init(
+            dateKey: String,
+            adWatchCount: Int = 0,
+            adUnlockedSeconds: Int = 0,
+            oneMinuteUsedCount: Int = 0,
+            shieldHitCount: Int = 0,
+            walkAwayCount: Int = 0
+        ) {
+            self.dateKey = dateKey
+            self.adWatchCount = adWatchCount
+            self.adUnlockedSeconds = adUnlockedSeconds
+            self.oneMinuteUsedCount = oneMinuteUsedCount
+            self.shieldHitCount = shieldHitCount
+            self.walkAwayCount = walkAwayCount
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case dateKey
+            case adWatchCount
+            case adUnlockedSeconds
+            case oneMinuteUsedCount
+            case shieldHitCount
+            case walkAwayCount
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            dateKey = try container.decode(String.self, forKey: .dateKey)
+            adWatchCount = try container.decodeIfPresent(Int.self, forKey: .adWatchCount) ?? 0
+            adUnlockedSeconds = try container.decodeIfPresent(Int.self, forKey: .adUnlockedSeconds) ?? 0
+            oneMinuteUsedCount = try container.decodeIfPresent(Int.self, forKey: .oneMinuteUsedCount) ?? 0
+            shieldHitCount = try container.decodeIfPresent(Int.self, forKey: .shieldHitCount) ?? 0
+            walkAwayCount = try container.decodeIfPresent(Int.self, forKey: .walkAwayCount) ?? 0
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(dateKey, forKey: .dateKey)
+            try container.encode(adWatchCount, forKey: .adWatchCount)
+            try container.encode(adUnlockedSeconds, forKey: .adUnlockedSeconds)
+            try container.encode(oneMinuteUsedCount, forKey: .oneMinuteUsedCount)
+            try container.encode(shieldHitCount, forKey: .shieldHitCount)
+            try container.encode(walkAwayCount, forKey: .walkAwayCount)
+        }
 
         var id: String { dateKey }
 
@@ -179,6 +225,12 @@ enum SharedStore {
     static func recordShieldHit() {
         updateStatsForToday { stats in
             stats.shieldHitCount += 1
+        }
+    }
+
+    static func recordWalkAway() {
+        updateStatsForToday { stats in
+            stats.walkAwayCount += 1
         }
     }
 

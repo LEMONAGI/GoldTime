@@ -54,7 +54,7 @@ struct LockOptionsView: View {
                     background: Color.gray.opacity(0.2),
                     foreground: .primary,
                     enabled: true,
-                    action: { dismiss() }
+                    action: tapWalkAway
                 )
 
                 optionButton(
@@ -195,6 +195,13 @@ struct LockOptionsView: View {
 
     private var canExtendWithAd: Bool {
         selectedGroup != nil && !isExtending
+    }
+
+    private func tapWalkAway() {
+        if !lockedGroups.isEmpty {
+            SharedStore.recordWalkAway()
+        }
+        dismiss()
     }
 
     private func refreshLockedGroups() {

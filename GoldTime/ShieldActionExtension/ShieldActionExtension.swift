@@ -33,6 +33,83 @@ class ShieldActionExtension: ShieldActionDelegate {
         }
     }
 
+    private enum DailyStatsStore {
+        static let suiteName = "group.com.goldtime.shared"
+        static let dailyStatsByDateKey = "dailyStatsByDate"
+
+        static var defaults: UserDefaults {
+            UserDefaults(suiteName: suiteName) ?? .standard
+        }
+
+        struct DailyStats: Codable {
+            var dateKey: String
+            var adWatchCount: Int
+            var adUnlockedSeconds: Int
+            var oneMinuteUsedCount: Int
+            var shieldHitCount: Int
+            var walkAwayCount: Int
+
+            init(dateKey: String) {
+                self.dateKey = dateKey
+                adWatchCount = 0
+                adUnlockedSeconds = 0
+                oneMinuteUsedCount = 0
+                shieldHitCount = 0
+                walkAwayCount = 0
+            }
+
+            private enum CodingKeys: String, CodingKey {
+                case dateKey
+                case adWatchCount
+                case adUnlockedSeconds
+                case oneMinuteUsedCount
+                case shieldHitCount
+                case walkAwayCount
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                dateKey = try container.decode(String.self, forKey: .dateKey)
+                adWatchCount = try container.decodeIfPresent(Int.self, forKey: .adWatchCount) ?? 0
+                adUnlockedSeconds = try container.decodeIfPresent(Int.self, forKey: .adUnlockedSeconds) ?? 0
+                oneMinuteUsedCount = try container.decodeIfPresent(Int.self, forKey: .oneMinuteUsedCount) ?? 0
+                shieldHitCount = try container.decodeIfPresent(Int.self, forKey: .shieldHitCount) ?? 0
+                walkAwayCount = try container.decodeIfPresent(Int.self, forKey: .walkAwayCount) ?? 0
+            }
+        }
+
+        static func recordWalkAway() {
+            let key = dateKey(for: Date())
+            var statsByDate = loadStatsByDate()
+            var stats = statsByDate[key] ?? DailyStats(dateKey: key)
+            stats.walkAwayCount += 1
+            statsByDate[key] = stats
+            if let data = try? JSONEncoder().encode(statsByDate) {
+                defaults.set(data, forKey: dailyStatsByDateKey)
+            }
+        }
+
+        private static func loadStatsByDate() -> [String: DailyStats] {
+            guard let data = defaults.data(forKey: dailyStatsByDateKey) else {
+                return [:]
+            }
+            return (try? JSONDecoder().decode([String: DailyStats].self, from: data)) ?? [:]
+        }
+
+        private static func dateKey(for date: Date) -> String {
+            dateKeyFormatter.string(from: date)
+        }
+
+        private static let dateKeyFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.calendar = Calendar.current
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = .current
+            formatter.dateFormat = "yyyy-MM-dd"
+            return formatter
+        }()
+    }
+
     override func handle(
         action: ShieldAction,
         for application: ApplicationToken,
@@ -65,6 +142,7 @@ class ShieldActionExtension: ShieldActionDelegate {
         switch action {
         case .primaryButtonPressed:
             // "그만 쓰기" — 쉴드 닫고 홈으로
+            DailyStatsStore.recordWalkAway()
             OpenRequestStore.clear()
             completionHandler(.close)
         case .secondaryButtonPressed:
