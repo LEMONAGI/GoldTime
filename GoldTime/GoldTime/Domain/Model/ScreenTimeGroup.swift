@@ -1,0 +1,2 @@
+
+typealias ScreenTimeGroup = SharedStore.ScreenTimeGroup

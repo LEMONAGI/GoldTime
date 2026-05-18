@@ -1,0 +1,2 @@
+
+typealias DailyStats = SharedStore.DailyStats
