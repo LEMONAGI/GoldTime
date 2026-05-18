@@ -1,51 +1,38 @@
 //
-//  AdMockView.swift
+//  RewardedAdView.swift
 //  GoldTime
 //
 
 import GoogleMobileAds
 import SwiftUI
 
-struct AdMockView: View {
-    let onComplete: () -> Void
-    let onCancel: () -> Void
+struct RewardedAdView: View {
+    @State private var viewModel: RewardedAdViewModel
 
-    private var adService: RewardedAdService { RewardedAdService.shared }
     @State private var viewController: UIViewController?
-    @State private var isPresenting = false
-    @State private var showFallback = false
+
+    init(onComplete: @escaping () -> Void, onCancel: @escaping () -> Void) {
+        _viewModel = State(initialValue: RewardedAdViewModel(
+            onComplete: onComplete,
+            onCancel: onCancel
+        ))
+    }
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            if showFallback { fallbackView } else { loadingView }
+            if viewModel.showFallback { fallbackView } else { loadingView }
             ViewControllerBridge { vc in
                 viewController = vc
-                presentIfReady()
+                viewModel.presentIfReady(from: vc)
             }
             .frame(width: 0, height: 0)
         }
         .onAppear {
-            switch adService.loadState {
-            case .ready: break
-            case .failed: showFallback = true
-            default: adService.loadAd()
-            }
+            viewModel.onAppear()
         }
-        .onChange(of: adService.loadState) { _, state in
-            switch state {
-            case .ready: presentIfReady()
-            case .failed: showFallback = true
-            default: break
-            }
-        }
-    }
-
-    private func presentIfReady() {
-        guard let vc = viewController, case .ready = adService.loadState, !isPresenting else { return }
-        isPresenting = true
-        adService.present(from: vc) { earned in
-            earned ? onComplete() : onCancel()
+        .onChange(of: viewModel.loadState) { _, state in
+            viewModel.handleLoadStateChange(state, viewController: viewController)
         }
     }
 
@@ -56,7 +43,7 @@ struct AdMockView: View {
             Text("광고 준비 중").font(.title2.bold()).foregroundStyle(.white)
             ProgressView().tint(Color.accent)
             Spacer()
-            Button("취소", role: .cancel) { onCancel() }
+            Button("취소", role: .cancel) { viewModel.cancel() }
                 .foregroundStyle(.white.opacity(0.6))
                 .padding(.bottom, 32)
         }
@@ -69,10 +56,10 @@ struct AdMockView: View {
             Text("네트워크 상태를 확인해 주세요").foregroundStyle(.white.opacity(0.7))
             Spacer()
             VStack(spacing: 12) {
-                Button("그래도 15분 사용하기") { onComplete() }
+                Button("그래도 15분 사용하기") { viewModel.completeFallback() }
                     .frame(maxWidth: .infinity)
                     .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 12))
-                Button("취소", role: .cancel) { onCancel() }
+                Button("취소", role: .cancel) { viewModel.cancel() }
                     .foregroundStyle(.white.opacity(0.6))
             }
             .padding(.horizontal, 40).padding(.bottom, 32)

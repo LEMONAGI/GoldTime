@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    let onAuthorized: () -> Void
+    @State private var viewModel: OnboardingViewModel
 
-    @State private var auth = AuthorizationService.shared
-    @State private var errorMessage: String?
-    @State private var isRequesting = false
+    init(onAuthorized: @escaping () -> Void) {
+        _viewModel = State(initialValue: OnboardingViewModel(onAuthorized: onAuthorized))
+    }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -25,37 +25,21 @@ struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             Spacer()
-            if let errorMessage {
+            if let errorMessage = viewModel.errorMessage {
                 Text(errorMessage)
                     .font(.footnote)
                     .foregroundStyle(.red)
             }
             Button {
-                Task { await requestAuthorization() }
+                Task { await viewModel.requestAuthorization() }
             } label: {
-                Text(isRequesting ? "권한 요청 중..." : "스크린타임 권한 허용하기")
+                Text(viewModel.isRequesting ? "권한 요청 중..." : "스크린타임 권한 허용하기")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 12))
-            .disabled(isRequesting)
+            .disabled(viewModel.isRequesting)
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
-        }
-    }
-
-    private func requestAuthorization() async {
-        isRequesting = true
-        defer { isRequesting = false }
-        do {
-            try await auth.request()
-            await NotificationService.requestAuthorizationIfNeeded()
-            if auth.isAuthorized {
-                onAuthorized()
-            } else {
-                errorMessage = "권한이 필요해요. 설정에서 스크린타임 권한을 허용해주세요."
-            }
-        } catch {
-            errorMessage = "권한 요청 실패: \(error.localizedDescription)"
         }
     }
 }

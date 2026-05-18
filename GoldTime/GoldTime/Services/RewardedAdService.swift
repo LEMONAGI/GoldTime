@@ -10,7 +10,7 @@ import GoogleMobileAds
 final class RewardedAdService: NSObject {
     static let shared = RewardedAdService()
 
-    enum LoadState { case idle, loading, ready, failed }
+    enum LoadState: Equatable { case idle, loading, ready, failed }
     private(set) var loadState: LoadState = .idle
 
     private var rewardedAd: RewardedAd?

@@ -11,30 +11,16 @@ struct AppPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let onCommit: () -> Void
 
-    private var warnings: [String] {
-        var list: [String] = []
-        let hasCategory = !selection.categoryTokens.isEmpty
-        let hasWeb = !selection.webDomainTokens.isEmpty
-        if hasCategory && hasWeb {
-            list.append("카테고리와 웹사이트는 아직 지원하지 않아요. 앱만 선택해주세요.")
-        } else if hasCategory {
-            list.append("카테고리는 아직 지원하지 않아요. 앱만 선택해주세요.")
-        } else if hasWeb {
-            list.append("웹사이트는 아직 지원하지 않아요. 앱만 선택해주세요.")
-        }
-        let count = selection.applicationTokens.count
-        if count > SharedStore.maxAppsPerGroup {
-            list.append("앱을 \(SharedStore.maxAppsPerGroup)개 이하로 선택해주세요 (\(count)/\(SharedStore.maxAppsPerGroup))")
-        }
-        return list
+    private var viewModel: AppPickerSheetViewModel {
+        AppPickerSheetViewModel(selection: selection)
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if !warnings.isEmpty {
+                if !viewModel.warnings.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(warnings, id: \.self) { warning in
+                        ForEach(viewModel.warnings, id: \.self) { warning in
                             Label(warning, systemImage: "exclamationmark.circle.fill")
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(.red)
@@ -57,7 +43,7 @@ struct AppPickerSheet: View {
                         onCommit()
                         dismiss()
                     }
-                    .disabled(!warnings.isEmpty)
+                    .disabled(!viewModel.warnings.isEmpty)
                 }
             }
             .navigationTitle("앱 선택")
