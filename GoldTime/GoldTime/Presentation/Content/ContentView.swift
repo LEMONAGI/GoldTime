@@ -8,9 +8,8 @@ import SwiftUI
 internal import Combine
 
 struct ContentView: View {
+    @Bindable var viewModel: ContentViewModel
     @Binding var showLockOptions: Bool
-
-    @State private var viewModel = ContentViewModel()
 
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -123,5 +122,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(showLockOptions: .constant(false))
+    ContentView(viewModel: ContentViewModel(), showLockOptions: .constant(false))
 }

@@ -9,16 +9,18 @@ import SwiftUI
 @main
 struct GoldTimeApp: App {
     @State private var appLifecycle = AppLifecycleViewModel()
+    @State private var contentViewModel = ContentViewModel()
+
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         RewardedAdService.configure()
         RewardedAdService.shared.loadAd()
     }
-    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            ContentView(showLockOptions: $appLifecycle.showLockOptions)
+            ContentView(viewModel: contentViewModel, showLockOptions: $appLifecycle.showLockOptions)
                 .sheet(isPresented: $appLifecycle.showLockOptions) {
                     LockOptionsView()
                 }
