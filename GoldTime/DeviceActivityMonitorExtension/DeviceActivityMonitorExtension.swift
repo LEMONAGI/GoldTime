@@ -37,6 +37,8 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         super.intervalDidStart(for: activity)
         if activity == .daily, SharedStore.resetDailyProtectionStateIfNeeded() {
             clearSystemShield()
+        } else if activity.overrideGroupID != nil {
+            SharedStore.recordOverrideIntervalDidStart(activityName: activity.rawValue)
         }
     }
 
@@ -46,10 +48,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         case .daily:
             break
         default:
-            if let groupID = activity.overrideGroupID {
-                SharedStore.clearOverride(for: groupID)
-                applyShieldFromGroups()
-            }
+            let result = SharedStore.clearOverrideAfterActivityEnd(activityName: activity.rawValue)
+            SharedStore.recordOverrideIntervalDidEnd(
+                activityName: activity.rawValue,
+                parsedGroupID: result.parsedGroupID,
+                didClearOverride: result.didClearOverride
+            )
+            applyShieldFromGroups()
             break
         }
     }
@@ -66,20 +71,30 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         }
     }
 
-    private func applyShieldFromGroups() {
+    @discardableResult
+    private func applyShieldFromGroups() -> Int {
         let applicationTokens = SharedStore.shieldApplicationTokens()
         guard !applicationTokens.isEmpty else {
             store.shield.applications = nil
             store.shield.applicationCategories = nil
             store.shield.webDomains = nil
             SharedStore.isShieldActive = false
-            return
+            SharedStore.recordOverrideReapply(
+                tokenCount: 0,
+                message: "cleared shield because token union is empty"
+            )
+            return 0
         }
 
         store.shield.applications = applicationTokens
         store.shield.applicationCategories = nil
         store.shield.webDomains = nil
         SharedStore.isShieldActive = true
+        SharedStore.recordOverrideReapply(
+            tokenCount: applicationTokens.count,
+            message: "applied shield from locked groups"
+        )
+        return applicationTokens.count
     }
 
     private func clearSystemShield() {

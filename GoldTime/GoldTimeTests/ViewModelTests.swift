@@ -15,6 +15,32 @@ struct ViewModelTests {
 
     // MARK: - ContentViewModel
 
+    @Test func contentViewModelUsesInjectedAuthorizationStateOnInit() {
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+        )
+
+        #expect(viewModel.isAuthorized)
+    }
+
+    @Test func contentViewModelUpdatesWhenAuthorizationStateChanges() {
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            )
+        )
+
+        authRepo.setAuthorized(true)
+
+        #expect(viewModel.isAuthorized)
+    }
+
     @Test func contentViewModelAddsGroupAndPersistsWithoutSync() {
         let groupRepo = FakeGroupRepository()
         let screenTimeRepo = FakeScreenTimeRepository()
@@ -339,6 +365,7 @@ private final class FakeAuthorizationRepository: AuthorizationRepository {
     var isAuthorized: Bool
     var requestResultIsAuthorized: Bool
     private(set) var requestCallCount = 0
+    private var authorizationChangeHandlers: [UUID: AuthorizationChangeHandler] = [:]
 
     init(isAuthorized: Bool) {
         self.isAuthorized = isAuthorized
@@ -349,7 +376,21 @@ private final class FakeAuthorizationRepository: AuthorizationRepository {
 
     func request() async throws {
         requestCallCount += 1
-        isAuthorized = requestResultIsAuthorized
+        setAuthorized(requestResultIsAuthorized)
+    }
+
+    func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
+        let id = UUID()
+        authorizationChangeHandlers[id] = handler
+        handler(isAuthorized)
+        return AuthorizationObservation { }
+    }
+
+    func setAuthorized(_ isAuthorized: Bool) {
+        self.isAuthorized = isAuthorized
+        for handler in authorizationChangeHandlers.values {
+            handler(isAuthorized)
+        }
     }
 }
 

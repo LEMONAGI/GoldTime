@@ -25,6 +25,7 @@ enum SharedStore {
         static let isShieldActive = "isShieldActive"
         static let shieldedGroupIDs = "shieldedGroupIDs"
         static let overrideUntilByGroupID = "overrideUntilByGroupID"
+        static let overrideDiagnostics = "overrideDiagnostics"
         static let lastRequestedUnlockApplicationToken = "lastRequestedUnlockApplicationToken"
         static let shieldOpenRequestStartedAt = "shieldOpenRequestStartedAt"
         static let dailyProtectionStateDate = "dailyProtectionStateDate"
@@ -136,6 +137,28 @@ enum SharedStore {
         }
     }
 
+    struct OverrideDiagnostics: Codable, Equatable {
+        var registeredAt: Date?
+        var registeredActivityName: String?
+        var registeredGroupID: UUID?
+        var overrideUntil: Date?
+        var registrationMessage: String?
+        var intervalDidStartAt: Date?
+        var intervalDidStartActivityName: String?
+        var intervalDidEndAt: Date?
+        var intervalDidEndActivityName: String?
+        var intervalDidEndParsedGroupID: UUID?
+        var intervalDidEndMessage: String?
+        var reappliedAt: Date?
+        var reappliedTokenCount: Int = 0
+        var reappliedMessage: String?
+    }
+
+    struct OverrideActivityEndResult: Equatable {
+        let parsedGroupID: UUID?
+        let didClearOverride: Bool
+    }
+
     // MARK: - 그룹 설정
 
     static var screenTimeGroups: [ScreenTimeGroup] {
@@ -243,6 +266,7 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.screenTimeGroups)
         defaults.removeObject(forKey: Key.shieldedGroupIDs)
         defaults.removeObject(forKey: Key.overrideUntilByGroupID)
+        defaults.removeObject(forKey: Key.overrideDiagnostics)
         defaults.removeObject(forKey: Key.lastRequestedUnlockApplicationToken)
         defaults.removeObject(forKey: Key.isShieldActive)
         defaults.removeObject(forKey: Key.isDailyMonitoringEnabled)
@@ -302,6 +326,21 @@ enum SharedStore {
             .max()
     }
 
+    static var overrideDiagnostics: OverrideDiagnostics {
+        get {
+            guard let data = defaults.data(forKey: Key.overrideDiagnostics),
+                  let diagnostics = try? JSONDecoder().decode(OverrideDiagnostics.self, from: data)
+            else {
+                return OverrideDiagnostics()
+            }
+            return diagnostics
+        }
+        set {
+            let data = try? JSONEncoder().encode(newValue)
+            defaults.set(data, forKey: Key.overrideDiagnostics)
+        }
+    }
+
     static var lastRequestedUnlockApplicationToken: ApplicationToken? {
         get {
             guard let data = defaults.data(forKey: Key.lastRequestedUnlockApplicationToken) else {
@@ -333,6 +372,85 @@ enum SharedStore {
         var overrides = overrideUntilByGroupID
         overrides.removeValue(forKey: groupID)
         overrideUntilByGroupID = overrides
+    }
+
+    static func recordOverrideRegistration(
+        activityName: String,
+        groupID: UUID,
+        overrideUntil: Date,
+        registeredAt: Date = Date(),
+        message: String
+    ) {
+        var diagnostics = overrideDiagnostics
+        diagnostics.registeredAt = registeredAt
+        diagnostics.registeredActivityName = activityName
+        diagnostics.registeredGroupID = groupID
+        diagnostics.overrideUntil = overrideUntil
+        diagnostics.registrationMessage = message
+        overrideDiagnostics = diagnostics
+    }
+
+    static func recordOverrideIntervalDidStart(
+        activityName: String,
+        startedAt: Date = Date()
+    ) {
+        var diagnostics = overrideDiagnostics
+        diagnostics.intervalDidStartAt = startedAt
+        diagnostics.intervalDidStartActivityName = activityName
+        overrideDiagnostics = diagnostics
+    }
+
+    static func clearOverrideAfterActivityEnd(
+        activityName: String,
+        now: Date = Date()
+    ) -> OverrideActivityEndResult {
+        let parsedGroupID = Self.overrideGroupID(fromActivityName: activityName)
+        let didClearOverride: Bool
+        if let parsedGroupID {
+            let overrides = overrideUntilByGroupID
+            didClearOverride = overrides[parsedGroupID] != nil
+            clearOverride(for: parsedGroupID)
+        } else {
+            didClearOverride = clearExpiredOverrides(now: now)
+        }
+        return OverrideActivityEndResult(
+            parsedGroupID: parsedGroupID,
+            didClearOverride: didClearOverride
+        )
+    }
+
+    static func recordOverrideIntervalDidEnd(
+        activityName: String,
+        parsedGroupID: UUID?,
+        didClearOverride: Bool,
+        endedAt: Date = Date()
+    ) {
+        var diagnostics = overrideDiagnostics
+        diagnostics.intervalDidEndAt = endedAt
+        diagnostics.intervalDidEndActivityName = activityName
+        diagnostics.intervalDidEndParsedGroupID = parsedGroupID
+        diagnostics.intervalDidEndMessage = didClearOverride
+            ? "cleared override"
+            : "no matching override to clear"
+        overrideDiagnostics = diagnostics
+    }
+
+    static func recordOverrideReapply(
+        tokenCount: Int,
+        reappliedAt: Date = Date(),
+        message: String
+    ) {
+        var diagnostics = overrideDiagnostics
+        diagnostics.reappliedAt = reappliedAt
+        diagnostics.reappliedTokenCount = tokenCount
+        diagnostics.reappliedMessage = message
+        overrideDiagnostics = diagnostics
+    }
+
+    static func overrideGroupID(fromActivityName activityName: String) -> UUID? {
+        let prefix = "override."
+        guard activityName.hasPrefix(prefix) else { return nil }
+        return UUID(uuidString: String(activityName.dropFirst(prefix.count)))
     }
 
     static func clearAllShieldState() {

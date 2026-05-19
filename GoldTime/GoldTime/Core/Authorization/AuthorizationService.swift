@@ -15,6 +15,7 @@ final class AuthorizationService {
 
     private(set) var isAuthorized: Bool = false
     private var cancellable: AnyCancellable?
+    private var authorizationChangeHandlers: [UUID: AuthorizationChangeHandler] = [:]
 
     private init() {
         refresh()
@@ -28,11 +29,30 @@ final class AuthorizationService {
     }
 
     func refresh() {
-        isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        let newValue = AuthorizationCenter.shared.authorizationStatus == .approved
+        guard isAuthorized != newValue else { return }
+        isAuthorized = newValue
+        notifyAuthorizationChangeHandlers(newValue)
     }
 
     func request() async throws {
         try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
         refresh()
+    }
+
+    func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
+        let id = UUID()
+        authorizationChangeHandlers[id] = handler
+        Task { @MainActor in handler(isAuthorized) }
+
+        return AuthorizationObservation { [weak self] in
+            self?.authorizationChangeHandlers[id] = nil
+        }
+    }
+
+    private func notifyAuthorizationChangeHandlers(_ isAuthorized: Bool) {
+        for handler in authorizationChangeHandlers.values {
+            Task { @MainActor in handler(isAuthorized) }
+        }
     }
 }

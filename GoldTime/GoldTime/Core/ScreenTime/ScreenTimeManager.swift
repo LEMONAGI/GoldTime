@@ -57,8 +57,16 @@ enum ScreenTimeManager {
         let remainingLockedGroups: [SharedStore.ScreenTimeGroup]
     }
 
+    struct OverrideScheduleWindow {
+        let start: Date
+        let end: Date
+        let startComponents: DateComponents
+        let endComponents: DateComponents
+    }
+
     private static var center: DeviceActivityCenter { DeviceActivityCenter() }
     private static var store: ManagedSettingsStore { ManagedSettingsStore(named: .goldtime) }
+    private static let overrideMonitorStartDelay: TimeInterval = 1
 
     // MARK: - 일일 모니터링 동기화
 
@@ -211,6 +219,55 @@ enum ScreenTimeManager {
         SharedStore.isShieldActive = false
     }
 
+    static func overrideScheduleWindow(
+        now: Date,
+        overrideUntil: Date,
+        calendar: Calendar = .current
+    ) -> OverrideScheduleWindow {
+        let start = roundedUpToWholeSecond(
+            now.addingTimeInterval(overrideMonitorStartDelay),
+            calendar: calendar
+        )
+        let minimumEnd = max(overrideUntil, start.addingTimeInterval(1))
+        let end = roundedUpToWholeSecond(minimumEnd, calendar: calendar)
+
+        return OverrideScheduleWindow(
+            start: start,
+            end: end,
+            startComponents: calendar.dateComponents(
+                [.year, .month, .day, .hour, .minute, .second],
+                from: start
+            ),
+            endComponents: calendar.dateComponents(
+                [.year, .month, .day, .hour, .minute, .second],
+                from: end
+            )
+        )
+    }
+
+    private static func roundedUpToWholeSecond(
+        _ date: Date,
+        calendar: Calendar
+    ) -> Date {
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second, .nanosecond],
+            from: date
+        )
+        var roundedComponents = DateComponents()
+        roundedComponents.year = components.year
+        roundedComponents.month = components.month
+        roundedComponents.day = components.day
+        roundedComponents.hour = components.hour
+        roundedComponents.minute = components.minute
+        roundedComponents.second = components.second
+        let base = calendar.date(from: roundedComponents) ?? date
+
+        if (components.nanosecond ?? 0) == 0 {
+            return base
+        }
+        return calendar.date(byAdding: .second, value: 1, to: base) ?? date
+    }
+
     /// 특정 그룹만 일정 시간 동안 쉴드 해제. 다른 잠긴 그룹은 계속 Shield union에 남긴다.
     @discardableResult
     static func releaseShield(
@@ -222,13 +279,11 @@ enum ScreenTimeManager {
         SharedStore.setOverride(until: end, for: groupID)
         applyShield()
 
-        let calendar = Calendar.current
-        let startComps = calendar.dateComponents([.hour, .minute, .second], from: now)
-        let endComps = calendar.dateComponents([.hour, .minute, .second], from: end)
+        let window = overrideScheduleWindow(now: now, overrideUntil: end)
 
         let schedule = DeviceActivitySchedule(
-            intervalStart: startComps,
-            intervalEnd: endComps,
+            intervalStart: window.startComponents,
+            intervalEnd: window.endComponents,
             repeats: false
         )
 
@@ -236,7 +291,21 @@ enum ScreenTimeManager {
         center.stopMonitoring([activity])
         do {
             try center.startMonitoring(activity, during: schedule, events: [:])
+            SharedStore.recordOverrideRegistration(
+                activityName: activity.rawValue,
+                groupID: groupID,
+                overrideUntil: end,
+                registeredAt: now,
+                message: "registered override monitor"
+            )
         } catch {
+            SharedStore.recordOverrideRegistration(
+                activityName: activity.rawValue,
+                groupID: groupID,
+                overrideUntil: end,
+                registeredAt: now,
+                message: "failed to register override monitor: \(error.localizedDescription)"
+            )
             print("Failed to start override monitoring: \(error.localizedDescription)")
         }
 

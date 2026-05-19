@@ -17,6 +17,10 @@ final class AuthorizeUseCase {
 
     func refresh() { authRepository.refresh() }
 
+    func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
+        authRepository.observeAuthorizationChanges(handler)
+    }
+
     func requestAll() async throws {
         try await authRepository.request()
         await notificationRepository.requestAuthorizationIfNeeded()

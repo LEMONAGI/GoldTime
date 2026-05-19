@@ -13,4 +13,8 @@ final class AuthorizationRepositoryImpl: AuthorizationRepository {
     func refresh() { service.refresh() }
 
     func request() async throws { try await service.request() }
+
+    func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
+        service.observeAuthorizationChanges(handler)
+    }
 }

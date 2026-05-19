@@ -400,6 +400,116 @@ struct GoldTimeTests {
         #expect(SharedStore.lockedGroups(now: now).map(\.id) == [second.id])
     }
 
+    @Test func expiredOverrideReturnsGroupToLockedGroups() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let calendar = Calendar(identifier: .gregorian)
+        let startedAt = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 5,
+            day: 19,
+            hour: 10,
+            minute: 0
+        ))!
+        let expiredAt = startedAt.addingTimeInterval(60)
+        let checkedAt = expiredAt.addingTimeInterval(1)
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.setOverride(until: expiredAt, for: group.id)
+
+        #expect(SharedStore.lockedGroups(now: startedAt).isEmpty)
+        #expect(SharedStore.clearExpiredOverrides(now: checkedAt))
+        #expect(SharedStore.lockedGroups(now: checkedAt).map(\.id) == [group.id])
+    }
+
+    @Test func overrideActivityNameParsesGroupID() {
+        let id = UUID()
+
+        #expect(SharedStore.overrideGroupID(fromActivityName: "override.\(id.uuidString)") == id)
+        #expect(SharedStore.overrideGroupID(fromActivityName: "override") == nil)
+        #expect(SharedStore.overrideGroupID(fromActivityName: "override.not-a-uuid") == nil)
+    }
+
+    @Test func overrideActivityEndFallbackClearsExpiredOverrides() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let calendar = Calendar(identifier: .gregorian)
+        let now = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 5,
+            day: 19,
+            hour: 10,
+            minute: 0
+        ))!
+        let expired = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let active = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
+        SharedStore.screenTimeGroups = [expired, active]
+        SharedStore.shieldedGroupIDs = [expired.id, active.id]
+        SharedStore.setOverride(until: now.addingTimeInterval(-1), for: expired.id)
+        SharedStore.setOverride(until: now.addingTimeInterval(60), for: active.id)
+
+        let result = SharedStore.clearOverrideAfterActivityEnd(
+            activityName: "override.invalid",
+            now: now
+        )
+
+        #expect(result.parsedGroupID == nil)
+        #expect(result.didClearOverride)
+        #expect(SharedStore.overrideUntilByGroupID[expired.id] == nil)
+        #expect(SharedStore.overrideUntilByGroupID[active.id] != nil)
+        #expect(SharedStore.lockedGroups(now: now).map(\.id) == [expired.id])
+    }
+
+    @Test func overrideScheduleWindowStartsInFutureAndDoesNotEndEarly() {
+        let calendar = Calendar(identifier: .gregorian)
+        let now = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 5,
+            day: 19,
+            hour: 10,
+            minute: 0,
+            second: 0
+        ))!.addingTimeInterval(0.25)
+        let overrideUntil = now.addingTimeInterval(60)
+
+        let window = ScreenTimeManager.overrideScheduleWindow(
+            now: now,
+            overrideUntil: overrideUntil,
+            calendar: calendar
+        )
+
+        #expect(window.start > now)
+        #expect(window.end >= overrideUntil)
+        #expect(calendar.date(from: window.startComponents) == window.start)
+        #expect(calendar.date(from: window.endComponents) == window.end)
+    }
+
+    @Test func overrideScheduleWindowCanCrossMidnight() {
+        let calendar = Calendar(identifier: .gregorian)
+        let now = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 5,
+            day: 19,
+            hour: 23,
+            minute: 59,
+            second: 30
+        ))!
+        let overrideUntil = now.addingTimeInterval(15 * 60)
+
+        let window = ScreenTimeManager.overrideScheduleWindow(
+            now: now,
+            overrideUntil: overrideUntil,
+            calendar: calendar
+        )
+
+        #expect(window.start > now)
+        #expect(window.end >= overrideUntil)
+        #expect(calendar.component(.day, from: window.end) == 20)
+    }
+
     @Test func oneMinuteExtensionFailureDoesNotConsumeCounter() {
         SharedStore.clearGroupStateForTesting()
         SharedStore.clearDailyStatsForTesting()
