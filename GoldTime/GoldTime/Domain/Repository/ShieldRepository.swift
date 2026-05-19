@@ -5,6 +5,7 @@ import ManagedSettings
 protocol ShieldRepository {
     var isShieldActive: Bool { get }
     var currentShieldOverrideUntil: Date? { get }
+    var overrideUntilByGroupID: [UUID: Date] { get }
     var oneMinuteRemaining: Int { get }
     var lastRequestedUnlockApplicationToken: ApplicationToken? { get }
 

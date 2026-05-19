@@ -18,6 +18,7 @@ struct HomeViewModel {
     let lockedGroupIDs: Set<UUID>
     let overrideGroupIDs: Set<UUID>
     let validGroupIDs: Set<UUID>
+    let overrideUntilByGroupID: [UUID: Date]
 
     init(
         groups: [ScreenTimeGroup],
@@ -29,7 +30,8 @@ struct HomeViewModel {
         errorMessage: String?,
         lockedGroupIDs: Set<UUID> = [],
         overrideGroupIDs: Set<UUID> = [],
-        validGroupIDs: Set<UUID> = []
+        validGroupIDs: Set<UUID> = [],
+        overrideUntilByGroupID: [UUID: Date] = [:]
     ) {
         self.groups = groups
         self.todayStats = todayStats
@@ -41,6 +43,7 @@ struct HomeViewModel {
         self.lockedGroupIDs = lockedGroupIDs
         self.overrideGroupIDs = overrideGroupIDs
         self.validGroupIDs = validGroupIDs
+        self.overrideUntilByGroupID = overrideUntilByGroupID
     }
 
     var maxGroupCount: Int { SharedStore.maxGroupCount }
@@ -164,6 +167,13 @@ struct HomeViewModel {
         default:
             return .secondary
         }
+    }
+
+    func overrideRemainingLabel(for group: ScreenTimeGroup) -> String? {
+        guard let until = overrideUntilByGroupID[group.id] else { return nil }
+        let seconds = until.timeIntervalSinceNow
+        guard seconds > 0.5 else { return nil }
+        return "\(goldTimeDurationText(seconds: Int(seconds.rounded(.up)))) 뒤 재잠금"
     }
 
     func groupHasDuplicateApps(_ group: ScreenTimeGroup) -> Bool {

@@ -49,11 +49,13 @@ final class ContentViewModel {
     var lockedGroupIDs: Set<UUID> = []
     var overrideGroupIDs: Set<UUID> = []
     var validGroupIDs: Set<UUID> = []
+    var overrideUntilByGroupID: [UUID: Date] = [:]
 
     private let manageGroupsUseCase: ManageGroupsUseCase
     private let syncProtectionUseCase: SyncProtectionUseCase
     private let loadDashboardUseCase: LoadDashboardUseCase
     private let authorizeUseCase: AuthorizeUseCase
+    private var authorizationObservation: AuthorizationObservation?
 
     init(
         manageGroupsUseCase: ManageGroupsUseCase? = nil,
@@ -86,12 +88,16 @@ final class ContentViewModel {
             notificationRepository: notifRepo
         )
 
-        isAuthorized = authRepo.isAuthorized
+        isAuthorized = self.authorizeUseCase.isAuthorized
         isShieldActive = shieldRepo.isShieldActive
         oneMinuteRemaining = shieldRepo.oneMinuteRemaining
         shieldOverrideUntil = shieldRepo.currentShieldOverrideUntil
         todayStats = statsRepo.todayStats
         weeklyStats = statsRepo.lastSevenDayStats()
+
+        authorizationObservation = self.authorizeUseCase.observeAuthorizationChanges { [weak self] isAuthorized in
+            self?.isAuthorized = isAuthorized
+        }
     }
 
     var isLimitPickerPresented: Bool {
@@ -248,5 +254,6 @@ final class ContentViewModel {
         lockedGroupIDs = state.lockedGroupIDs
         overrideGroupIDs = state.overrideGroupIDs
         validGroupIDs = state.validGroupIDs
+        overrideUntilByGroupID = state.overrideUntilByGroupID
     }
 }

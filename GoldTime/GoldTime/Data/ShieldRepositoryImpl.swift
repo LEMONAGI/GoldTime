@@ -5,6 +5,7 @@ import ManagedSettings
 struct ShieldRepositoryImpl: ShieldRepository {
     var isShieldActive: Bool { SharedStore.isShieldActive }
     var currentShieldOverrideUntil: Date? { SharedStore.currentShieldOverrideUntil }
+    var overrideUntilByGroupID: [UUID: Date] { SharedStore.overrideUntilByGroupID }
     var oneMinuteRemaining: Int { SharedStore.oneMinuteRemaining }
     var lastRequestedUnlockApplicationToken: ApplicationToken? {
         SharedStore.lastRequestedUnlockApplicationToken

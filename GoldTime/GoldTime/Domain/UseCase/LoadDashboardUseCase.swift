@@ -5,6 +5,7 @@ struct DashboardState {
     let isShieldActive: Bool
     let oneMinuteRemaining: Int
     let shieldOverrideUntil: Date?
+    let overrideUntilByGroupID: [UUID: Date]
     let todayStats: DailyStats
     let weeklyStats: [DailyStats]
     let isDailyMonitoringEnabled: Bool
@@ -44,6 +45,7 @@ final class LoadDashboardUseCase {
             isShieldActive: shieldRepository.isShieldActive,
             oneMinuteRemaining: shieldRepository.oneMinuteRemaining,
             shieldOverrideUntil: shieldRepository.currentShieldOverrideUntil,
+            overrideUntilByGroupID: shieldRepository.overrideUntilByGroupID,
             todayStats: statsRepository.todayStats,
             weeklyStats: statsRepository.lastSevenDayStats(),
             isDailyMonitoringEnabled: screenTimeRepository.isDailyMonitoringEnabled,

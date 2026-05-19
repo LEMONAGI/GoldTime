@@ -28,6 +28,7 @@ struct HomeView: View {
         lockedGroupIDs: Set<UUID> = [],
         overrideGroupIDs: Set<UUID> = [],
         validGroupIDs: Set<UUID> = [],
+        overrideUntilByGroupID: [UUID: Date] = [:],
         onAddGroup: @escaping () -> Void,
         onDeleteGroup: @escaping (UUID) -> Void,
         onUpdateGroupName: @escaping (UUID, String) -> Void,
@@ -45,7 +46,8 @@ struct HomeView: View {
             errorMessage: errorMessage,
             lockedGroupIDs: lockedGroupIDs,
             overrideGroupIDs: overrideGroupIDs,
-            validGroupIDs: validGroupIDs
+            validGroupIDs: validGroupIDs,
+            overrideUntilByGroupID: overrideUntilByGroupID
         )
         self.onAddGroup = onAddGroup
         self.onDeleteGroup = onDeleteGroup
@@ -59,7 +61,6 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 timeBillHero
-                currentStatusSection
                 managementSection
 
                 if let successMessage = viewModel.successMessage {
@@ -231,6 +232,9 @@ struct HomeView: View {
 
                     HStack(spacing: 8) {
                         GroupStatusBadge(title: viewModel.statusTitle(for: group), tint: viewModel.statusTint(for: group))
+                        if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
+                            GroupStatusBadge(title: remainingLabel, tint: .blue)
+                        }
                         GroupStatusBadge(
                             title: "앱 \(group.appCount)/\(viewModel.maxAppsPerGroup)",
                             tint: group.appCount >= 8 ? .orange : .secondary

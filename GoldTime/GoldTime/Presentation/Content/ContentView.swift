@@ -36,6 +36,7 @@ struct ContentView: View {
                     lockedGroupIDs: viewModel.lockedGroupIDs,
                     overrideGroupIDs: viewModel.overrideGroupIDs,
                     validGroupIDs: viewModel.validGroupIDs,
+                    overrideUntilByGroupID: viewModel.overrideUntilByGroupID,
                     onAddGroup: viewModel.addGroup,
                     onDeleteGroup: viewModel.deleteGroup,
                     onUpdateGroupName: viewModel.updateGroupName,
