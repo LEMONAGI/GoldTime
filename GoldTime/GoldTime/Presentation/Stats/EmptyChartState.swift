@@ -11,7 +11,7 @@ struct EmptyChartState: View {
             Image(systemName: "chart.bar.xaxis")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(Color.accent)
-            Text("시간을 아낀 선택이 생기면 여기에 쌓입니다.")
+            Text("추가 사용 기록이 생기면 여기에 쌓입니다.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
