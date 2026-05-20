@@ -57,8 +57,10 @@ struct ContentView: View {
                     groups: viewModel.groups,
                     todayStats: viewModel.todayStats,
                     weeklyStats: viewModel.weeklyStats,
+                    previousWeekStats: viewModel.previousWeekStats,
                     oneMinuteRemaining: viewModel.oneMinuteRemaining,
-                    isMonitoring: viewModel.isMonitoring
+                    isMonitoring: viewModel.isMonitoring,
+                    adFreeStreakDays: viewModel.adFreeStreakDays
                 )
             }
             .tabItem {

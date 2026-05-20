@@ -234,6 +234,26 @@ enum SharedStore {
         }
     }
 
+    static func previousSevenDayStats(referenceDate: Date = Date()) -> [DailyStats] {
+        let anchor = Calendar.current.date(byAdding: .day, value: -7, to: referenceDate) ?? referenceDate
+        return lastSevenDayStats(referenceDate: anchor)
+    }
+
+    static func lastNDayStats(_ n: Int, referenceDate: Date = Date()) -> [DailyStats] {
+        let calendar = Calendar.current
+        let dict = dailyStatsByDate
+        return (0..<n).reversed().map { offset in
+            let date = calendar.date(byAdding: .day, value: -offset, to: referenceDate) ?? referenceDate
+            let key = dateKey(for: date)
+            return dict[key] ?? DailyStats(dateKey: key)
+        }
+    }
+
+    static var oldestStatDate: Date? {
+        guard let minKey = dailyStatsByDate.keys.min() else { return nil }
+        return dateKeyFormatter.date(from: minKey)
+    }
+
     static func recordAdUnlock(seconds: Int) {
         updateStatsForToday { stats in
             stats.adWatchCount += 1

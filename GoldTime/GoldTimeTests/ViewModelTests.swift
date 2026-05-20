@@ -205,24 +205,176 @@ struct ViewModelTests {
 
     // MARK: - StatsViewModel
 
-    @Test func statsViewModelCalculatesWeeklySummary() {
-        let weeklyStats = [
-            SharedStore.DailyStats(dateKey: "2026-05-12", walkAwayCount: 1),
-            SharedStore.DailyStats(dateKey: "2026-05-13", walkAwayCount: 0),
-            SharedStore.DailyStats(dateKey: "2026-05-14", walkAwayCount: 3)
-        ]
+    private func makeWeeklyStats(
+        adUnlockedSecondsPerDay: [Int] = Array(repeating: 0, count: 7)
+    ) -> [SharedStore.DailyStats] {
+        let baseDate = Calendar.current.date(
+            byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: Date())
+        )!
+        return (0..<7).map { offset in
+            let date = Calendar.current.date(byAdding: .day, value: offset, to: baseDate)!
+            let key = SharedStore.dateKey(for: date)
+            return SharedStore.DailyStats(
+                dateKey: key,
+                adUnlockedSeconds: adUnlockedSecondsPerDay[offset]
+            )
+        }
+    }
+
+    @Test func statsViewModelTodayDeltaCaptionLess() {
+        let weekly = makeWeeklyStats(adUnlockedSecondsPerDay: [0, 0, 0, 0, 0, 600, 0])
         let viewModel = StatsViewModel(
-            groups: [SharedStore.ScreenTimeGroup(name: "SNS", dailyLimitMinutes: 45)],
-            todayStats: SharedStore.DailyStats(dateKey: "2026-05-18"),
-            weeklyStats: weeklyStats,
-            oneMinuteRemaining: 2,
-            isMonitoring: true
+            groups: [],
+            todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 300),
+            weeklyStats: weekly,
+            previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
+            oneMinuteRemaining: 3,
+            isMonitoring: true,
+            adFreeStreakDays: 0
         )
 
-        #expect(viewModel.groupLimitValue == "45분")
-        #expect(viewModel.weeklyWalkAwayCount == 4)
-        #expect(viewModel.hasWeeklyWalkAway)
-        #expect(viewModel.protectionGroupCaption == "유효 그룹 자동 적용")
+        #expect(viewModel.yesterdayAdUnlockedSeconds == 600)
+        #expect(viewModel.todayDeltaCaption == "어제보다 5분 적어요")
+    }
+
+    @Test func statsViewModelTodayDeltaCaptionMore() {
+        let weekly = makeWeeklyStats(adUnlockedSecondsPerDay: [0, 0, 0, 0, 0, 300, 0])
+        let viewModel = StatsViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 600),
+            weeklyStats: weekly,
+            previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
+            oneMinuteRemaining: 3,
+            isMonitoring: true,
+            adFreeStreakDays: 0
+        )
+
+        #expect(viewModel.todayDeltaCaption == "어제보다 5분 많아요")
+    }
+
+    @Test func statsViewModelTodayDeltaCaptionNoneYesterday() {
+        let weekly = makeWeeklyStats(adUnlockedSecondsPerDay: [0, 0, 0, 0, 0, 0, 0])
+        let viewModel = StatsViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 0),
+            weeklyStats: weekly,
+            previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
+            oneMinuteRemaining: 5,
+            isMonitoring: false,
+            adFreeStreakDays: 0
+        )
+
+        #expect(viewModel.todayDeltaCaption == "어제도 오늘도 없어요")
+    }
+
+    @Test func statsViewModelWeeklyDeltaCaptionLess() {
+        let thisWeek = makeWeeklyStats(adUnlockedSecondsPerDay: [0, 0, 0, 600, 600, 0, 0])
+        let prevWeek = makeWeeklyStats(adUnlockedSecondsPerDay: [600, 600, 600, 600, 600, 600, 0])
+        let viewModel = StatsViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(dateKey: thisWeek[6].dateKey),
+            weeklyStats: thisWeek,
+            previousWeekStats: prevWeek,
+            oneMinuteRemaining: 5,
+            isMonitoring: true,
+            adFreeStreakDays: 0
+        )
+
+        // thisWeek total = 1200s, prevWeek total = 3600s → delta = -2400s = -40분
+        #expect(viewModel.weeklyAdUnlockedSeconds == 1200)
+        #expect(viewModel.previousWeekAdUnlockedSeconds == 3600)
+        #expect(viewModel.weeklyDeltaCaption == "지난 주보다 40분 적어요")
+    }
+
+    @Test func statsViewModelWeeklyDeltaCaptionNoPrevData() {
+        let viewModel = StatsViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(dateKey: "2026-05-20"),
+            weeklyStats: makeWeeklyStats(),
+            previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
+            oneMinuteRemaining: 5,
+            isMonitoring: true,
+            adFreeStreakDays: 0
+        )
+
+        #expect(viewModel.weeklyDeltaCaption == "지난 주 기록 없음")
+    }
+
+    // MARK: - LoadDashboardUseCase streak
+
+    @Test func adFreeStreakIsZeroWhenOldestStatDateNil() {
+        let statsRepo = FakeStatsRepository()
+        statsRepo.oldestStatDateValue = nil
+        let useCase = LoadDashboardUseCase(
+            shieldRepository: FakeShieldRepository(),
+            statsRepository: statsRepo,
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+
+        #expect(useCase.calculateAdFreeStreak() == 0)
+    }
+
+    @Test func adFreeStreakIsZeroWhenTodayHasAd() {
+        let statsRepo = FakeStatsRepository()
+        let today = Calendar.current.startOfDay(for: Date())
+        statsRepo.oldestStatDateValue = today
+        statsRepo.nDayStatsValue = [
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: today), adWatchCount: 1)
+        ]
+        let useCase = LoadDashboardUseCase(
+            shieldRepository: FakeShieldRepository(),
+            statsRepository: statsRepo,
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+
+        #expect(useCase.calculateAdFreeStreak() == 0)
+    }
+
+    @Test func adFreeStreakCountsConsecutiveDays() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: today)!
+
+        let statsRepo = FakeStatsRepository()
+        statsRepo.oldestStatDateValue = threeDaysAgo
+        statsRepo.nDayStatsValue = [
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: threeDaysAgo), adWatchCount: 2),
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: calendar.date(byAdding: .day, value: -2, to: today)!), adWatchCount: 0),
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: calendar.date(byAdding: .day, value: -1, to: today)!), adWatchCount: 0),
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: today), adWatchCount: 0)
+        ]
+        let useCase = LoadDashboardUseCase(
+            shieldRepository: FakeShieldRepository(),
+            statsRepository: statsRepo,
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+
+        #expect(useCase.calculateAdFreeStreak() == 3)
+    }
+
+    @Test func adFreeStreakStopsAtOldestDate() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let twoDaysAgo = calendar.date(byAdding: .day, value: -2, to: today)!
+        let fourDaysAgo = calendar.date(byAdding: .day, value: -4, to: today)!
+
+        let statsRepo = FakeStatsRepository()
+        statsRepo.oldestStatDateValue = twoDaysAgo
+        // 앱 설치 이전 데이터(4일 전, 3일 전)도 포함된 경우 → oldestDate 이전은 무시
+        statsRepo.nDayStatsValue = [
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: fourDaysAgo), adWatchCount: 0),
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: calendar.date(byAdding: .day, value: -3, to: today)!), adWatchCount: 0),
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: twoDaysAgo), adWatchCount: 0),
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: calendar.date(byAdding: .day, value: -1, to: today)!), adWatchCount: 0),
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: today), adWatchCount: 0)
+        ]
+        let useCase = LoadDashboardUseCase(
+            shieldRepository: FakeShieldRepository(),
+            statsRepository: statsRepo,
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+
+        #expect(useCase.calculateAdFreeStreak() == 3)
     }
 
     // MARK: - LockOptionsViewModel
@@ -477,9 +629,15 @@ private final class FakeShieldRepository: ShieldRepository {
 @MainActor
 private final class FakeStatsRepository: StatsRepository {
     var todayStats = SharedStore.DailyStats(dateKey: "2026-05-18")
-    var weeklyStatsValue: [DailyStats] = []
+    var weeklyStatsValue: [DailyStats] = Array(repeating: SharedStore.DailyStats(dateKey: "2026-05-18"), count: 7)
+    var previousWeekStatsValue: [DailyStats] = Array(repeating: SharedStore.DailyStats(dateKey: "2026-05-11"), count: 7)
+    var nDayStatsValue: [DailyStats] = []
+    var oldestStatDateValue: Date?
 
     func lastSevenDayStats() -> [DailyStats] { weeklyStatsValue }
+    func previousSevenDayStats() -> [DailyStats] { previousWeekStatsValue }
+    func lastNDayStats(_ n: Int) -> [DailyStats] { Array(nDayStatsValue.prefix(n)) }
+    var oldestStatDate: Date? { oldestStatDateValue }
 }
 
 @MainActor

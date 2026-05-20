@@ -8,6 +8,8 @@ struct DashboardState {
     let overrideUntilByGroupID: [UUID: Date]
     let todayStats: DailyStats
     let weeklyStats: [DailyStats]
+    let previousWeekStats: [DailyStats]
+    let adFreeStreakDays: Int
     let isDailyMonitoringEnabled: Bool
     let lockedGroupIDs: Set<UUID>
     let overrideGroupIDs: Set<UUID>
@@ -48,10 +50,24 @@ final class LoadDashboardUseCase {
             overrideUntilByGroupID: shieldRepository.overrideUntilByGroupID,
             todayStats: statsRepository.todayStats,
             weeklyStats: statsRepository.lastSevenDayStats(),
+            previousWeekStats: statsRepository.previousSevenDayStats(),
+            adFreeStreakDays: calculateAdFreeStreak(),
             isDailyMonitoringEnabled: screenTimeRepository.isDailyMonitoringEnabled,
             lockedGroupIDs: Set(shieldRepository.lockedGroups().map(\.id)),
             overrideGroupIDs: Set(shieldRepository.groupsInOverride().map(\.id)),
             validGroupIDs: Set(validGroups.map(\.id))
         )
+    }
+
+    func calculateAdFreeStreak() -> Int {
+        guard let firstDate = statsRepository.oldestStatDate else { return 0 }
+        let stats = statsRepository.lastNDayStats(30)
+        var streak = 0
+        for dailyStat in stats.reversed() {
+            guard dailyStat.date >= firstDate else { break }
+            if dailyStat.adWatchCount > 0 { break }
+            streak += 1
+        }
+        return streak
     }
 }

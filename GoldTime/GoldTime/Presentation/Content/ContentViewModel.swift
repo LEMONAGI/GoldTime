@@ -46,6 +46,8 @@ final class ContentViewModel {
     var shieldOverrideUntil: Date?
     var todayStats: DailyStats
     var weeklyStats: [DailyStats]
+    var previousWeekStats: [DailyStats]
+    var adFreeStreakDays: Int
     var lockedGroupIDs: Set<UUID> = []
     var overrideGroupIDs: Set<UUID> = []
     var validGroupIDs: Set<UUID> = []
@@ -96,6 +98,8 @@ final class ContentViewModel {
         shieldOverrideUntil = shieldRepo.currentShieldOverrideUntil
         todayStats = statsRepo.todayStats
         weeklyStats = statsRepo.lastSevenDayStats()
+        previousWeekStats = statsRepo.previousSevenDayStats()
+        adFreeStreakDays = 0
 
         authorizationObservation = self.authorizeUseCase.observeAuthorizationChanges { [weak self] isAuthorized in
             self?.isAuthorized = isAuthorized
@@ -257,6 +261,8 @@ final class ContentViewModel {
         shieldOverrideUntil = state.shieldOverrideUntil
         todayStats = state.todayStats
         weeklyStats = state.weeklyStats
+        previousWeekStats = state.previousWeekStats
+        adFreeStreakDays = state.adFreeStreakDays
         isMonitoring = state.isDailyMonitoringEnabled
         lockedGroupIDs = state.lockedGroupIDs
         overrideGroupIDs = state.overrideGroupIDs
