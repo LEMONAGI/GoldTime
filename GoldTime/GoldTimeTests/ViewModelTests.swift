@@ -184,6 +184,42 @@ struct ViewModelTests {
         #expect(viewModel.lockedGroups.isEmpty)
     }
 
+    @Test func lockOptionsViewModelCanRetryRelockRegistrationFailure() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        shieldRepo.oneMinuteRemainingValue = 5
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.extendResults = [
+            .failure(.relockTimerRegistrationFailed),
+            .success(GroupExtensionResult(
+                group: group,
+                durationSeconds: 60,
+                overrideUntil: Date().addingTimeInterval(60),
+                remainingLockedGroups: []
+            ))
+        ]
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            )
+        )
+
+        viewModel.onAppear()
+        viewModel.tapOneMinute()
+
+        #expect(screenTimeRepo.extendCallCount == 1)
+        #expect(viewModel.canRetryRelockRegistration)
+        #expect(viewModel.infoMessage?.contains("재잠금 타이머 등록 실패") == true)
+
+        viewModel.retryRelockRegistration()
+
+        #expect(screenTimeRepo.extendCallCount == 2)
+        #expect(!viewModel.canRetryRelockRegistration)
+        #expect(viewModel.completionAlert?.title == "연장 완료")
+    }
+
     @Test func lockOptionsViewModelRecordsWalkAwayOnlyWhenLockedGroupExists() {
         let shieldRepo = FakeShieldRepository()
         shieldRepo.lockedGroupsValue = [SharedStore.ScreenTimeGroup(name: "SNS")]
@@ -299,6 +335,7 @@ private final class FakeGroupRepository: GroupRepository {
 private final class FakeShieldRepository: ShieldRepository {
     var isShieldActive = false
     var currentShieldOverrideUntil: Date?
+    var overrideUntilByGroupID: [UUID: Date] = [:]
     var oneMinuteRemainingValue = 5
     var oneMinuteRemaining: Int { oneMinuteRemainingValue }
     var lastRequestedUnlockApplicationToken: ApplicationToken?
@@ -332,6 +369,7 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     var lastExtensionSource: ExtensionSource?
     var syncError: Error?
     var extendResult: Result<GroupExtensionResult, ExtensionFailure>?
+    var extendResults: [Result<GroupExtensionResult, ExtensionFailure>] = []
 
     func rolloverCounterIfNeeded() {}
 
@@ -356,6 +394,9 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     ) -> Result<GroupExtensionResult, ExtensionFailure> {
         extendCallCount += 1
         lastExtensionSource = source
+        if !extendResults.isEmpty {
+            return extendResults.removeFirst()
+        }
         return extendResult ?? .failure(.groupNotFound)
     }
 }

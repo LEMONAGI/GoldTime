@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import DeviceActivity
 @testable import GoldTime
 
 @MainActor
@@ -320,6 +321,10 @@ struct GoldTimeTests {
         SharedStore.oneMinuteUsedToday = 0
         SharedStore.oneMinuteCounterDate = now
         SharedStore.isShieldActive = true
+        let registrar = FakeOverrideMonitorRegistrar()
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
 
         let outcome = ScreenTimeManager.extendGroup(
             groupID: group.id,
@@ -339,6 +344,8 @@ struct GoldTimeTests {
         #expect(SharedStore.lockedGroups(now: now).isEmpty)
         #expect(!SharedStore.isShieldActive)
         #expect(SharedStore.oneMinuteUsedToday == 1)
+        #expect(registrar.startCallCount == 1)
+        #expect(registrar.lastSchedule?.warningTime != nil)
     }
 
     @Test func adExtensionClearsSingleLockedGroup() {
@@ -354,6 +361,10 @@ struct GoldTimeTests {
         SharedStore.screenTimeGroups = [group]
         SharedStore.shieldedGroupIDs = [group.id]
         SharedStore.isShieldActive = true
+        let registrar = FakeOverrideMonitorRegistrar()
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
 
         let outcome = ScreenTimeManager.extendGroup(
             groupID: group.id,
@@ -373,6 +384,46 @@ struct GoldTimeTests {
         #expect(!SharedStore.isShieldActive)
         #expect(SharedStore.todayStats.adWatchCount == 1)
         #expect(SharedStore.todayStats.adUnlockedSeconds == 15 * 60)
+        #expect(registrar.startCallCount == 1)
+    }
+
+    @Test func relockRegistrationFailureKeepsShieldAndDoesNotConsumeOneMinute() {
+        SharedStore.clearGroupStateForTesting()
+        SharedStore.clearDailyStatsForTesting()
+        defer {
+            SharedStore.clearGroupStateForTesting()
+            SharedStore.clearDailyStatsForTesting()
+        }
+
+        let now = Date()
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.oneMinuteUsedToday = 0
+        SharedStore.oneMinuteCounterDate = now
+        SharedStore.isShieldActive = true
+        let registrar = FakeOverrideMonitorRegistrar(startError: TestRelockError())
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
+
+        let outcome = ScreenTimeManager.extendGroup(
+            groupID: group.id,
+            duration: 60,
+            source: .oneMinute,
+            now: now
+        )
+
+        guard case .failure(.relockTimerRegistrationFailed) = outcome else {
+            #expect(Bool(false), "재잠금 타이머 등록 실패여야 합니다.")
+            return
+        }
+        #expect(SharedStore.overrideUntilByGroupID[group.id] == nil)
+        #expect(SharedStore.lockedGroups(now: now).map(\.id) == [group.id])
+        #expect(SharedStore.isShieldActive)
+        #expect(SharedStore.oneMinuteUsedToday == 0)
+        #expect(SharedStore.todayStats.oneMinuteUsedCount == 0)
+        #expect(registrar.startCallCount == 1)
     }
 
     @Test func extendingOneGroupLeavesOtherLockedGroups() {
@@ -384,6 +435,10 @@ struct GoldTimeTests {
         let second = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
         SharedStore.screenTimeGroups = [first, second]
         SharedStore.shieldedGroupIDs = [first.id, second.id]
+        let registrar = FakeOverrideMonitorRegistrar()
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
 
         let outcome = ScreenTimeManager.extendGroup(
             groupID: first.id,
@@ -463,6 +518,48 @@ struct GoldTimeTests {
         #expect(SharedStore.lockedGroups(now: now).map(\.id) == [expired.id])
     }
 
+    @Test func overrideActivityEndBeforeExpiryDoesNotRelockGroup() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let now = Date()
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.setOverride(until: now.addingTimeInterval(60), for: group.id)
+
+        let result = SharedStore.clearOverrideAfterActivityEnd(
+            activityName: "override.\(group.id.uuidString)",
+            now: now
+        )
+
+        #expect(result.parsedGroupID == group.id)
+        #expect(!result.didClearOverride)
+        #expect(SharedStore.overrideUntilByGroupID[group.id] != nil)
+        #expect(SharedStore.lockedGroups(now: now).isEmpty)
+    }
+
+    @Test func overrideActivityEndAfterExpiryRelocksGroup() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let now = Date()
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.setOverride(until: now.addingTimeInterval(-1), for: group.id)
+
+        let result = SharedStore.clearOverrideAfterActivityEnd(
+            activityName: "override.\(group.id.uuidString)",
+            now: now
+        )
+
+        #expect(result.parsedGroupID == group.id)
+        #expect(result.didClearOverride)
+        #expect(SharedStore.overrideUntilByGroupID[group.id] == nil)
+        #expect(SharedStore.lockedGroups(now: now).map(\.id) == [group.id])
+    }
+
     @Test func overrideScheduleWindowStartsInFutureAndDoesNotEndEarly() {
         let calendar = Calendar(identifier: .gregorian)
         let now = calendar.date(from: DateComponents(
@@ -483,6 +580,8 @@ struct GoldTimeTests {
 
         #expect(window.start > now)
         #expect(window.end >= overrideUntil)
+        #expect(window.end.timeIntervalSince(window.start) >= 15 * 60)
+        #expect(window.warningTimeComponents != nil)
         #expect(calendar.date(from: window.startComponents) == window.start)
         #expect(calendar.date(from: window.endComponents) == window.end)
     }
@@ -507,6 +606,7 @@ struct GoldTimeTests {
 
         #expect(window.start > now)
         #expect(window.end >= overrideUntil)
+        #expect(window.end.timeIntervalSince(window.start) >= 15 * 60)
         #expect(calendar.component(.day, from: window.end) == 20)
     }
 
@@ -564,4 +664,37 @@ struct GoldTimeTests {
         #expect(SharedStore.oneMinuteRemaining == 0)
     }
 
+}
+
+private struct TestRelockError: LocalizedError {
+    var errorDescription: String? { "test relock registration failure" }
+}
+
+private final class FakeOverrideMonitorRegistrar: OverrideMonitorRegistering {
+    private let startError: Error?
+    private(set) var startCallCount = 0
+    private(set) var stopCallCount = 0
+    private(set) var lastActivity: DeviceActivityName?
+    private(set) var lastSchedule: DeviceActivitySchedule?
+
+    init(startError: Error? = nil) {
+        self.startError = startError
+    }
+
+    func stopMonitoring(_ activities: [DeviceActivityName]) {
+        stopCallCount += 1
+    }
+
+    func startMonitoring(
+        _ activity: DeviceActivityName,
+        during schedule: DeviceActivitySchedule,
+        events: [DeviceActivityEvent.Name: DeviceActivityEvent]
+    ) throws {
+        startCallCount += 1
+        lastActivity = activity
+        lastSchedule = schedule
+        if let startError {
+            throw startError
+        }
+    }
 }

@@ -76,6 +76,13 @@ struct LockOptionsView: View {
                     .padding(.top, 8)
             }
 
+            if viewModel.canRetryRelockRegistration {
+                Button("다시 시도") {
+                    viewModel.retryRelockRegistration()
+                }
+                .buttonStyle(.bordered)
+            }
+
             Spacer()
         }
         .onAppear {

@@ -27,12 +27,22 @@ final class LockOptionsViewModel {
     var lockedGroups: [ScreenTimeGroup] = []
     var selectedGroupID: UUID?
     var headerMessage = ""
+    var canRetryRelockRegistration: Bool {
+        pendingRetry != nil && !isExtending
+    }
 
     private var requestedApplicationToken: ApplicationToken?
     private var pendingAdRewardGroupID: UUID?
+    private var pendingRetry: (groupID: UUID, source: ExtensionSource)?
+    private var retryTask: Task<Void, Never>?
     private var isExtending = false
 
     private let extendGroupUseCase: ExtendGroupUseCase
+    private let relockRetryDelays: [UInt64] = [
+        300_000_000,
+        700_000_000,
+        1_200_000_000
+    ]
 
     private let shieldMessages = [
         "오늘 한도 다 썼어요.",
@@ -93,6 +103,14 @@ final class LockOptionsViewModel {
         extendGroup(groupID: groupID, source: .oneMinute)
     }
 
+    func retryRelockRegistration() {
+        guard let pendingRetry else {
+            infoMessage = "다시 시도할 연장 요청이 없어요."
+            return
+        }
+        extendGroup(groupID: pendingRetry.groupID, source: pendingRetry.source)
+    }
+
     func startAdFlow() {
         guard let groupID = selectedGroupID else {
             infoMessage = "풀 그룹을 먼저 골라주세요."
@@ -147,6 +165,9 @@ final class LockOptionsViewModel {
 
         switch outcome {
         case .success(let result):
+            pendingRetry = nil
+            retryTask?.cancel()
+            retryTask = nil
             oneMinuteRemaining = extendGroupUseCase.currentOneMinuteRemaining()
             lockedGroups = extendGroupUseCase.lockedGroupsAfterExtension(
                 result: result,
@@ -163,7 +184,41 @@ final class LockOptionsViewModel {
         case .failure(let failure):
             infoMessage = message(for: failure, source: source)
             oneMinuteRemaining = extendGroupUseCase.currentOneMinuteRemaining()
+            if failure == .relockTimerRegistrationFailed {
+                pendingRetry = (groupID, source)
+                scheduleRelockRegistrationRetry(groupID: groupID, source: source)
+            }
         }
+    }
+
+    private func scheduleRelockRegistrationRetry(groupID: UUID, source: ExtensionSource) {
+        retryTask?.cancel()
+        let delays = relockRetryDelays
+        retryTask = Task { [weak self] in
+            for delay in delays {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled else { return }
+                await self?.retryIfStillPending(groupID: groupID, source: source)
+                guard await self?.isRetryPending(groupID: groupID, source: source) == true else {
+                    return
+                }
+            }
+        }
+    }
+
+    private func retryIfStillPending(groupID: UUID, source: ExtensionSource) {
+        guard pendingRetry?.groupID == groupID,
+              pendingRetry?.source == source,
+              !isExtending
+        else {
+            return
+        }
+        infoMessage = "재잠금 타이머 등록을 다시 시도하고 있어요."
+        extendGroup(groupID: groupID, source: source)
+    }
+
+    private func isRetryPending(groupID: UUID, source: ExtensionSource) -> Bool {
+        pendingRetry?.groupID == groupID && pendingRetry?.source == source
     }
 
     private func message(for failure: ExtensionFailure, source: ExtensionSource) -> String {
@@ -174,6 +229,8 @@ final class LockOptionsViewModel {
             return source == .oneMinute
                 ? "오늘 1분 연장은 모두 사용했어요. 광고를 보거나 잠금을 유지할 수 있어요."
                 : "광고 연장을 처리하지 못했어요. 잠시 뒤 다시 시도해주세요."
+        case .relockTimerRegistrationFailed:
+            return "재잠금 타이머 등록 실패로 잠금을 유지했어요. 자동으로 다시 시도하고 있어요."
         }
     }
 

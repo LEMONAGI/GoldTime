@@ -59,6 +59,19 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         }
     }
 
+    override func intervalWillEndWarning(for activity: DeviceActivityName) {
+        super.intervalWillEndWarning(for: activity)
+        guard activity.overrideGroupID != nil else { return }
+
+        let result = SharedStore.clearOverrideAfterActivityEnd(activityName: activity.rawValue)
+        SharedStore.recordOverrideIntervalWillEndWarning(
+            activityName: activity.rawValue,
+            parsedGroupID: result.parsedGroupID,
+            didClearOverride: result.didClearOverride
+        )
+        applyShieldFromGroups()
+    }
+
     override func eventDidReachThreshold(
         _ event: DeviceActivityEvent.Name,
         activity: DeviceActivityName

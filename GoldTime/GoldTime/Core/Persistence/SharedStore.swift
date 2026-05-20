@@ -145,6 +145,10 @@ enum SharedStore {
         var registrationMessage: String?
         var intervalDidStartAt: Date?
         var intervalDidStartActivityName: String?
+        var intervalWillEndWarningAt: Date?
+        var intervalWillEndWarningActivityName: String?
+        var intervalWillEndWarningParsedGroupID: UUID?
+        var intervalWillEndWarningMessage: String?
         var intervalDidEndAt: Date?
         var intervalDidEndActivityName: String?
         var intervalDidEndParsedGroupID: UUID?
@@ -408,8 +412,13 @@ enum SharedStore {
         let didClearOverride: Bool
         if let parsedGroupID {
             let overrides = overrideUntilByGroupID
-            didClearOverride = overrides[parsedGroupID] != nil
-            clearOverride(for: parsedGroupID)
+            if let overrideUntil = overrides[parsedGroupID],
+               overrideUntil <= now {
+                didClearOverride = true
+                clearOverride(for: parsedGroupID)
+            } else {
+                didClearOverride = false
+            }
         } else {
             didClearOverride = clearExpiredOverrides(now: now)
         }
@@ -417,6 +426,22 @@ enum SharedStore {
             parsedGroupID: parsedGroupID,
             didClearOverride: didClearOverride
         )
+    }
+
+    static func recordOverrideIntervalWillEndWarning(
+        activityName: String,
+        parsedGroupID: UUID?,
+        didClearOverride: Bool,
+        warnedAt: Date = Date()
+    ) {
+        var diagnostics = overrideDiagnostics
+        diagnostics.intervalWillEndWarningAt = warnedAt
+        diagnostics.intervalWillEndWarningActivityName = activityName
+        diagnostics.intervalWillEndWarningParsedGroupID = parsedGroupID
+        diagnostics.intervalWillEndWarningMessage = didClearOverride
+            ? "cleared override from warning"
+            : "warning did not clear active override"
+        overrideDiagnostics = diagnostics
     }
 
     static func recordOverrideIntervalDidEnd(

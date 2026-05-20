@@ -28,6 +28,29 @@ extension ManagedSettingsStore.Name {
     static let goldtime = Self("goldtime")
 }
 
+protocol OverrideMonitorRegistering {
+    func stopMonitoring(_ activities: [DeviceActivityName])
+    func startMonitoring(
+        _ activity: DeviceActivityName,
+        during schedule: DeviceActivitySchedule,
+        events: [DeviceActivityEvent.Name: DeviceActivityEvent]
+    ) throws
+}
+
+struct DeviceActivityOverrideMonitorRegistrar: OverrideMonitorRegistering {
+    func stopMonitoring(_ activities: [DeviceActivityName]) {
+        DeviceActivityCenter().stopMonitoring(activities)
+    }
+
+    func startMonitoring(
+        _ activity: DeviceActivityName,
+        during schedule: DeviceActivitySchedule,
+        events: [DeviceActivityEvent.Name: DeviceActivityEvent]
+    ) throws {
+        try DeviceActivityCenter().startMonitoring(activity, during: schedule, events: events)
+    }
+}
+
 enum ScreenTimeManager {
     enum ManagerError: LocalizedError {
         case invalidConfiguration(String)
@@ -40,7 +63,7 @@ enum ScreenTimeManager {
         }
     }
 
-    enum ExtensionSource {
+    enum ExtensionSource: Equatable {
         case oneMinute
         case adReward
     }
@@ -48,6 +71,7 @@ enum ScreenTimeManager {
     enum ExtensionFailure: Error, Equatable {
         case groupNotFound
         case oneMinuteLimitReached
+        case relockTimerRegistrationFailed
     }
 
     struct GroupExtensionResult {
@@ -62,11 +86,14 @@ enum ScreenTimeManager {
         let end: Date
         let startComponents: DateComponents
         let endComponents: DateComponents
+        let warningTimeComponents: DateComponents?
     }
 
     private static var center: DeviceActivityCenter { DeviceActivityCenter() }
     private static var store: ManagedSettingsStore { ManagedSettingsStore(named: .goldtime) }
+    static var overrideMonitorRegistrar: any OverrideMonitorRegistering = DeviceActivityOverrideMonitorRegistrar()
     private static let overrideMonitorStartDelay: TimeInterval = 1
+    private static let minimumOverrideMonitorDuration: TimeInterval = 15 * 60
 
     // MARK: - 일일 모니터링 동기화
 
@@ -228,8 +255,15 @@ enum ScreenTimeManager {
             now.addingTimeInterval(overrideMonitorStartDelay),
             calendar: calendar
         )
-        let minimumEnd = max(overrideUntil, start.addingTimeInterval(1))
+        let minimumEnd = max(
+            overrideUntil,
+            start.addingTimeInterval(minimumOverrideMonitorDuration)
+        )
         let end = roundedUpToWholeSecond(minimumEnd, calendar: calendar)
+        let warningTimeComponents = warningTimeComponents(
+            from: end,
+            warningAt: overrideUntil
+        )
 
         return OverrideScheduleWindow(
             start: start,
@@ -241,7 +275,21 @@ enum ScreenTimeManager {
             endComponents: calendar.dateComponents(
                 [.year, .month, .day, .hour, .minute, .second],
                 from: end
-            )
+            ),
+            warningTimeComponents: warningTimeComponents
+        )
+    }
+
+    private static func warningTimeComponents(
+        from intervalEnd: Date,
+        warningAt: Date
+    ) -> DateComponents? {
+        let secondsBeforeEnd = Int(ceil(intervalEnd.timeIntervalSince(warningAt)))
+        guard secondsBeforeEnd > 0 else { return nil }
+
+        return DateComponents(
+            minute: secondsBeforeEnd / 60,
+            second: secondsBeforeEnd % 60
         )
     }
 
@@ -274,23 +322,23 @@ enum ScreenTimeManager {
         forSeconds seconds: TimeInterval,
         groupID: UUID,
         now: Date = Date()
-    ) -> Date {
+    ) -> Result<Date, ExtensionFailure> {
         let end = now.addingTimeInterval(seconds)
-        SharedStore.setOverride(until: end, for: groupID)
-        applyShield()
-
         let window = overrideScheduleWindow(now: now, overrideUntil: end)
 
         let schedule = DeviceActivitySchedule(
             intervalStart: window.startComponents,
             intervalEnd: window.endComponents,
-            repeats: false
+            repeats: false,
+            warningTime: window.warningTimeComponents
         )
 
         let activity = DeviceActivityName.override(for: groupID)
-        center.stopMonitoring([activity])
+        overrideMonitorRegistrar.stopMonitoring([activity])
         do {
-            try center.startMonitoring(activity, during: schedule, events: [:])
+            try overrideMonitorRegistrar.startMonitoring(activity, during: schedule, events: [:])
+            SharedStore.setOverride(until: end, for: groupID)
+            applyShield()
             SharedStore.recordOverrideRegistration(
                 activityName: activity.rawValue,
                 groupID: groupID,
@@ -307,9 +355,10 @@ enum ScreenTimeManager {
                 message: "failed to register override monitor: \(error.localizedDescription)"
             )
             print("Failed to start override monitoring: \(error.localizedDescription)")
+            return .failure(.relockTimerRegistrationFailed)
         }
 
-        return end
+        return .success(end)
     }
 
     @discardableResult
@@ -323,23 +372,35 @@ enum ScreenTimeManager {
             return .failure(.groupNotFound)
         }
 
-        switch source {
-        case .oneMinute:
+        if source == .oneMinute {
             rolloverCounterIfNeeded(now: now)
             guard SharedStore.oneMinuteUsedToday < SharedStore.oneMinuteDailyLimit else {
                 return .failure(.oneMinuteLimitReached)
             }
+        }
+
+        let releaseResult = releaseShield(
+            forSeconds: TimeInterval(seconds),
+            groupID: groupID,
+            now: now
+        )
+
+        let overrideUntil: Date
+        switch releaseResult {
+        case .success(let end):
+            overrideUntil = end
+        case .failure(let failure):
+            return .failure(failure)
+        }
+
+        switch source {
+        case .oneMinute:
             SharedStore.oneMinuteUsedToday += 1
             SharedStore.recordOneMinuteUnlock(seconds: seconds)
         case .adReward:
             SharedStore.recordAdUnlock(seconds: seconds)
         }
 
-        let overrideUntil = releaseShield(
-            forSeconds: TimeInterval(seconds),
-            groupID: groupID,
-            now: now
-        )
         return .success(
             GroupExtensionResult(
                 group: group,
