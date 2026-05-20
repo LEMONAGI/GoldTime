@@ -84,28 +84,18 @@ struct HomeView: View {
 
     private var timeBillHero: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("오늘의 시간 청구서")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.75))
-                    Text(viewModel.billSummaryLine)
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(viewModel.billComment)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.accent)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                StatusBadge(
-                    title: viewModel.shieldStatusValue,
-                    systemName: viewModel.isShieldActive ? "lock.fill" : "lock.open.fill",
-                    tint: viewModel.isShieldActive ? .red : .green
-                )
+            VStack(alignment: .leading, spacing: 6) {
+                Text("오늘의 시간 청구서")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+                Text(viewModel.billSummaryLine)
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(viewModel.billComment)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accent)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack(spacing: 10) {
@@ -235,8 +225,10 @@ struct HomeView: View {
 
                     HStack(spacing: 8) {
                         GroupStatusBadge(title: viewModel.statusTitle(for: group), tint: viewModel.statusTint(for: group))
-                        if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
-                            GroupStatusBadge(title: remainingLabel, tint: .blue)
+                        TimelineView(.periodic(from: .now, by: 60)) { _ in
+                            if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
+                                GroupStatusBadge(title: remainingLabel, tint: .blue)
+                            }
                         }
                         GroupStatusBadge(
                             title: "앱 \(group.appCount)/\(viewModel.maxAppsPerGroup)",
