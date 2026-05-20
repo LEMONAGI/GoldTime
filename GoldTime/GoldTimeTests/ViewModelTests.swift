@@ -41,6 +41,77 @@ struct ViewModelTests {
         #expect(viewModel.isAuthorized)
     }
 
+    // MARK: - SettingsViewModel
+
+    @Test func settingsViewModelLoadsPermissionStates() async {
+        let authRepo = FakeAuthorizationRepository(isAuthorized: true)
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .denied
+        let viewModel = SettingsViewModel(
+            manageSettingsUseCase: ManageSettingsUseCase(
+                authRepository: authRepo,
+                notificationRepository: notifRepo
+            )
+        )
+
+        await viewModel.loadState()
+
+        #expect(viewModel.isScreenTimeAuthorized)
+        #expect(viewModel.notificationPermissionState == .denied)
+        #expect(notifRepo.authorizationStateCallCount == 1)
+    }
+
+    @Test func settingsViewModelRequestsNotificationAuthorization() async {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.requestAuthorizationResult = .authorized
+        let viewModel = SettingsViewModel(
+            manageSettingsUseCase: ManageSettingsUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            )
+        )
+
+        await viewModel.requestNotificationAuthorization()
+
+        #expect(notifRepo.requestCallCount == 1)
+        #expect(viewModel.notificationPermissionState == .authorized)
+        #expect(!viewModel.isRequestingNotificationAuthorization)
+    }
+
+    @Test func settingsViewModelRequestsScreenTimeAuthorization() async {
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        authRepo.requestResultIsAuthorized = true
+        let viewModel = SettingsViewModel(
+            manageSettingsUseCase: ManageSettingsUseCase(
+                authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            )
+        )
+
+        await viewModel.requestScreenTimeAuthorization()
+
+        #expect(authRepo.requestCallCount == 1)
+        #expect(viewModel.isScreenTimeAuthorized)
+        #expect(viewModel.alertMessage == nil)
+        #expect(!viewModel.isRequestingScreenTimeAuthorization)
+    }
+
+    @Test func settingsViewModelAlertsWhenScreenTimeAuthorizationStillMissing() async {
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        authRepo.requestResultIsAuthorized = false
+        let viewModel = SettingsViewModel(
+            manageSettingsUseCase: ManageSettingsUseCase(
+                authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            )
+        )
+
+        await viewModel.requestScreenTimeAuthorization()
+
+        #expect(!viewModel.isScreenTimeAuthorized)
+        #expect(viewModel.alertMessage?.title == "스크린 타임 권한 필요")
+    }
+
     @Test func contentViewModelAddsGroupAndPersistsWithoutSync() {
         let groupRepo = FakeGroupRepository()
         let screenTimeRepo = FakeScreenTimeRepository()
@@ -487,10 +558,20 @@ private final class FakeAuthorizationRepository: AuthorizationRepository {
 
 @MainActor
 private final class FakeNotificationRepository: NotificationRepository {
+    var authorizationStateValue: NotificationPermissionState = .notDetermined
+    var requestAuthorizationResult: NotificationPermissionState = .authorized
+    private(set) var authorizationStateCallCount = 0
     private(set) var requestCallCount = 0
 
-    func requestAuthorizationIfNeeded() async {
+    func authorizationState() async -> NotificationPermissionState {
+        authorizationStateCallCount += 1
+        return authorizationStateValue
+    }
+
+    func requestAuthorizationIfNeeded() async -> NotificationPermissionState {
         requestCallCount += 1
+        authorizationStateValue = requestAuthorizationResult
+        return requestAuthorizationResult
     }
 }
 

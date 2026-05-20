@@ -23,6 +23,6 @@ final class AuthorizeUseCase {
 
     func requestAll() async throws {
         try await authRepository.request()
-        await notificationRepository.requestAuthorizationIfNeeded()
+        _ = await notificationRepository.requestAuthorizationIfNeeded()
     }
 }

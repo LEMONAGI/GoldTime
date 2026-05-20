@@ -9,6 +9,7 @@ internal import Combine
 
 struct ContentView: View {
     @Bindable var viewModel: ContentViewModel
+    @Bindable var settingsViewModel: SettingsViewModel
     @Binding var showLockOptions: Bool
 
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -67,7 +68,7 @@ struct ContentView: View {
 
             NavigationStack {
                 SettingsView(
-                    isAuthorized: viewModel.isAuthorized,
+                    viewModel: settingsViewModel,
                     onRequestResetProtection: viewModel.requestResetProtection
                 )
             }
@@ -128,5 +129,9 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(viewModel: ContentViewModel(), showLockOptions: .constant(false))
+    ContentView(
+        viewModel: ContentViewModel(),
+        settingsViewModel: SettingsViewModel(),
+        showLockOptions: .constant(false)
+    )
 }

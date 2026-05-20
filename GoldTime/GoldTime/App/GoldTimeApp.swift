@@ -10,6 +10,7 @@ import SwiftUI
 struct GoldTimeApp: App {
     @State private var appLifecycle = AppLifecycleViewModel()
     @State private var contentViewModel = ContentViewModel()
+    @State private var settingsViewModel = SettingsViewModel()
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -20,7 +21,11 @@ struct GoldTimeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(viewModel: contentViewModel, showLockOptions: $appLifecycle.showLockOptions)
+            ContentView(
+                viewModel: contentViewModel,
+                settingsViewModel: settingsViewModel,
+                showLockOptions: $appLifecycle.showLockOptions
+            )
                 .sheet(isPresented: $appLifecycle.showLockOptions) {
                     LockOptionsView()
                 }

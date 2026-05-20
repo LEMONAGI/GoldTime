@@ -2,5 +2,6 @@
 import Foundation
 
 protocol NotificationRepository {
-    func requestAuthorizationIfNeeded() async
+    func authorizationState() async -> NotificationPermissionState
+    func requestAuthorizationIfNeeded() async -> NotificationPermissionState
 }

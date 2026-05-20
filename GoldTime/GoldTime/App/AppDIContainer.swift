@@ -56,6 +56,13 @@ final class AppDIContainer {
         )
     }
 
+    func makeManageSettingsUseCase() -> ManageSettingsUseCase {
+        ManageSettingsUseCase(
+            authRepository: authorizationRepository,
+            notificationRepository: notificationRepository
+        )
+    }
+
     // MARK: - ViewModel 팩토리
 
     func makeAppLifecycleViewModel() -> AppLifecycleViewModel {
@@ -77,6 +84,10 @@ final class AppDIContainer {
 
     func makeLockOptionsViewModel() -> LockOptionsViewModel {
         LockOptionsViewModel(extendGroupUseCase: makeExtendGroupUseCase())
+    }
+
+    func makeSettingsViewModel() -> SettingsViewModel {
+        SettingsViewModel(manageSettingsUseCase: makeManageSettingsUseCase())
     }
 
     func makeOnboardingViewModel(onAuthorized: @escaping () -> Void) -> OnboardingViewModel {

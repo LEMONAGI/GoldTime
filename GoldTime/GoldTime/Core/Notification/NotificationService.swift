@@ -11,11 +11,20 @@ import UserNotifications
 enum NotificationService {
     static let openAppCategory = "GOLDTIME_OPEN"
 
-    static func requestAuthorizationIfNeeded() async {
+    static func authorizationStatus() async -> UNAuthorizationStatus {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .notDetermined else { return }
+        return settings.authorizationStatus
+    }
+
+    static func requestAuthorizationIfNeeded() async -> UNAuthorizationStatus {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .notDetermined else {
+            return settings.authorizationStatus
+        }
         _ = try? await center.requestAuthorization(options: [.alert, .sound])
+        return await authorizationStatus()
     }
 
     /// 쉴드의 "GoldTime 가기" 버튼 탭 시 발송. 알림 탭 → 앱 진입.

@@ -4,68 +4,97 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
-    let isAuthorized: Bool
+    @Bindable var viewModel: SettingsViewModel
     let onRequestResetProtection: () -> Void
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                permissionsSection
-                notificationAndLanguageSection
-                troubleshootingSection
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+        Form {
+            permissionsSection
+            notificationsSection
+            troubleshootingSection
         }
-        .background(Color(.systemGroupedBackground))
         .navigationTitle("설정")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await viewModel.loadState()
+        }
+        .alert(item: $viewModel.alertMessage) { alert in
+            Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("확인"))
+            )
+        }
     }
 
     private var permissionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "권한", systemName: "checkmark.shield")
-
-            VStack(spacing: 10) {
+        Section("권한") {
+            if viewModel.isScreenTimeAuthorized {
                 settingsRow(
                     title: "스크린 타임 권한",
-                    subtitle: isAuthorized ? "허용됨" : "확인이 필요해요",
-                    systemName: isAuthorized ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
-                    tint: isAuthorized ? .green : .orange
+                    subtitle: "허용됨",
+                    systemName: "checkmark.circle.fill",
+                    tint: .green
                 )
+            } else {
+                Button {
+                    guard !viewModel.isRequestingScreenTimeAuthorization else { return }
+                    Task { await viewModel.requestScreenTimeAuthorization() }
+                } label: {
+                    settingsRow(
+                        title: "스크린 타임 권한",
+                        subtitle: "확인이 필요해요",
+                        systemName: "exclamationmark.circle.fill",
+                        tint: .orange,
+                        showsProgress: viewModel.isRequestingScreenTimeAuthorization,
+                        showsChevron: true
+                    )
+                }
+                .buttonStyle(.plain)
             }
-            .cardContainer()
         }
     }
 
-    private var notificationAndLanguageSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "알림과 언어", systemName: "bell.badge")
-
-            VStack(spacing: 10) {
-                settingsRow(
-                    title: "알림",
-                    subtitle: "Shield에서 GoldTime으로 돌아올 때 사용",
-                    systemName: "bell",
-                    tint: Color.accent
-                )
-                settingsRow(
-                    title: "언어",
-                    subtitle: "현재는 시스템 언어를 사용",
-                    systemName: "globe",
-                    tint: .blue
-                )
+    private var notificationsSection: some View {
+        Section("알림") {
+            if viewModel.notificationPermissionState == .notDetermined {
+                Button {
+                    guard !viewModel.isRequestingNotificationAuthorization else { return }
+                    Task { await viewModel.requestNotificationAuthorization() }
+                } label: {
+                    notificationRow(showsChevron: true)
+                }
+                .buttonStyle(.plain)
+            } else if viewModel.notificationPermissionState == .denied {
+                Button {
+                    openAppSettings()
+                } label: {
+                    notificationRow(showsChevron: true)
+                }
+                .buttonStyle(.plain)
+            } else {
+                notificationRow()
             }
-            .cardContainer()
         }
+    }
+
+    private func notificationRow(showsChevron: Bool = false) -> some View {
+        settingsRow(
+            title: "GoldTime 복귀 알림",
+            subtitle: notificationSubtitle,
+            systemName: notificationIconName,
+            tint: notificationTint,
+            showsProgress: viewModel.isRequestingNotificationAuthorization,
+            showsChevron: showsChevron
+        )
     }
 
     private var troubleshootingSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "문제 해결", systemName: "wrench.and.screwdriver")
-
+        Section("문제 해결") {
             Button(role: .destructive) {
                 onRequestResetProtection()
             } label: {
@@ -76,7 +105,6 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
-            .cardContainer()
         }
     }
 
@@ -97,10 +125,17 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .rowContainer()
+        .padding(.vertical, 4)
     }
 
-    private func settingsRow(title: String, subtitle: String, systemName: String, tint: Color) -> some View {
+    private func settingsRow(
+        title: String,
+        subtitle: String,
+        systemName: String,
+        tint: Color,
+        showsProgress: Bool = false,
+        showsChevron: Bool = false
+    ) -> some View {
         HStack(spacing: 12) {
             IconTile(systemName: systemName, tint: tint)
             VStack(alignment: .leading, spacing: 3) {
@@ -112,8 +147,59 @@ struct SettingsView: View {
                     .lineLimit(2)
             }
             Spacer(minLength: 8)
+            if showsProgress {
+                ProgressView()
+            } else if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .rowContainer()
+        .padding(.vertical, 4)
+    }
+
+    private var notificationSubtitle: String {
+        switch viewModel.notificationPermissionState {
+        case .notDetermined:
+            "권한 요청 전"
+        case .authorized:
+            "허용됨"
+        case .denied:
+            "iOS 설정에서 꺼져 있어요"
+        case .provisional:
+            "임시 허용됨"
+        case .ephemeral:
+            "일시 허용됨"
+        case .unknown:
+            "상태 확인 필요"
+        }
+    }
+
+    private var notificationIconName: String {
+        switch viewModel.notificationPermissionState {
+        case .authorized, .provisional, .ephemeral:
+            "bell.badge.fill"
+        case .denied:
+            "bell.slash.fill"
+        case .notDetermined, .unknown:
+            "bell"
+        }
+    }
+
+    private var notificationTint: Color {
+        switch viewModel.notificationPermissionState {
+        case .authorized, .provisional, .ephemeral:
+            .green
+        case .denied:
+            .orange
+        case .notDetermined, .unknown:
+            Color.accent
+        }
+    }
+
+    private func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(url)
     }
 }
