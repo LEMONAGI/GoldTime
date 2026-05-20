@@ -49,12 +49,7 @@ final class AppLifecycleViewModel {
 
     func refreshLockOptionsPresentation() {
         syncProtectionUseCase.prepareForAppActivation()
-        let shouldPresentLockOptions =
-            shieldRepository.hasPendingShieldOpenRequest()
-            || shieldRepository.isShieldActive
-            || !shieldRepository.lockedGroups().isEmpty
-
-        if shouldPresentLockOptions {
+        if shieldRepository.hasPendingShieldOpenRequest() {
             showLockOptions = true
         }
     }

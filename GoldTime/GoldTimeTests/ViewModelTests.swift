@@ -320,6 +320,56 @@ struct ViewModelTests {
     }
 }
 
+// MARK: - AppLifecycleViewModel
+
+@MainActor
+struct AppLifecycleViewModelTests {
+
+    @Test func doesNotShowLockOptionsWhenNoPendingRequest() {
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.pendingShieldOpenRequest = false
+        shieldRepo.isShieldActive = true
+        shieldRepo.lockedGroupsValue = [SharedStore.ScreenTimeGroup(name: "SNS")]
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: makeAuthorizeUseCase(),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: shieldRepo
+        )
+
+        viewModel.refreshLockOptionsPresentation()
+
+        #expect(viewModel.showLockOptions == false)
+    }
+
+    @Test func showsLockOptionsWhenPendingRequestExists() {
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.pendingShieldOpenRequest = true
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: makeAuthorizeUseCase(),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: shieldRepo
+        )
+
+        viewModel.refreshLockOptionsPresentation()
+
+        #expect(viewModel.showLockOptions == true)
+    }
+
+    private func makeSyncProtectionUseCase() -> SyncProtectionUseCase {
+        SyncProtectionUseCase(
+            groupRepository: FakeGroupRepository(),
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+    }
+
+    private func makeAuthorizeUseCase() -> AuthorizeUseCase {
+        AuthorizeUseCase(
+            authRepository: FakeAuthorizationRepository(isAuthorized: false),
+            notificationRepository: FakeNotificationRepository()
+        )
+    }
+}
+
 // MARK: - Fake Repositories
 
 @MainActor
