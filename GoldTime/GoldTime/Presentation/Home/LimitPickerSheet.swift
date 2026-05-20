@@ -32,7 +32,7 @@ struct LimitPickerSheet: View {
                 .frame(maxWidth: .infinity)
 
                 Picker("분", selection: $minutes) {
-                    ForEach(0..<60, id: \.self) { m in
+                    ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { m in
                         Text("\(m)분").tag(m)
                     }
                 }
