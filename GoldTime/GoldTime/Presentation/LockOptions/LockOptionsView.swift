@@ -13,6 +13,11 @@ import SwiftUI
 struct LockOptionsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = LockOptionsViewModel()
+    let initialGroupID: UUID?
+
+    init(initialGroupID: UUID? = nil) {
+        self.initialGroupID = initialGroupID
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -86,7 +91,7 @@ struct LockOptionsView: View {
             Spacer()
         }
         .onAppear {
-            viewModel.onAppear()
+            viewModel.onAppear(initialGroupID: initialGroupID)
         }
         .fullScreenCover(isPresented: $viewModel.isRewardedAdPresented, onDismiss: {
             viewModel.rewardedAdDismissed()

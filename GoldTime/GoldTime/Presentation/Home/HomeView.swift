@@ -16,6 +16,7 @@ struct HomeView: View {
     let onPresentPicker: (ScreenTimeGroup) -> Void
     let onPresentLimitPicker: (ScreenTimeGroup) -> Void
     let onRequestResetProtection: () -> Void
+    let onUnlockGroup: (UUID) -> Void
 
     init(
         groups: [ScreenTimeGroup],
@@ -34,7 +35,8 @@ struct HomeView: View {
         onUpdateGroupName: @escaping (UUID, String) -> Void,
         onPresentPicker: @escaping (ScreenTimeGroup) -> Void,
         onPresentLimitPicker: @escaping (ScreenTimeGroup) -> Void,
-        onRequestResetProtection: @escaping () -> Void
+        onRequestResetProtection: @escaping () -> Void,
+        onUnlockGroup: @escaping (UUID) -> Void = { _ in }
     ) {
         self.viewModel = HomeViewModel(
             groups: groups,
@@ -55,6 +57,7 @@ struct HomeView: View {
         self.onPresentPicker = onPresentPicker
         self.onPresentLimitPicker = onPresentLimitPicker
         self.onRequestResetProtection = onRequestResetProtection
+        self.onUnlockGroup = onUnlockGroup
     }
 
     var body: some View {
@@ -274,6 +277,16 @@ struct HomeView: View {
                 }
             }
             .buttonStyle(.plain)
+
+            if viewModel.lockedGroupIDs.contains(group.id) {
+                Button {
+                    onUnlockGroup(group.id)
+                } label: {
+                    Label("잠금 해제", systemImage: "lock.open")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(GoldTimeButtonStyle(background: Color.red.opacity(0.12), foreground: .red))
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {

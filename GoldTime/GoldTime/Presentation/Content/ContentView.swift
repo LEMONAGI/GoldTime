@@ -42,7 +42,8 @@ struct ContentView: View {
                     onUpdateGroupName: viewModel.updateGroupName,
                     onPresentPicker: viewModel.presentPicker,
                     onPresentLimitPicker: viewModel.presentLimitPicker,
-                    onRequestResetProtection: viewModel.requestResetProtection
+                    onRequestResetProtection: viewModel.requestResetProtection,
+                    onUnlockGroup: viewModel.presentUnlockSheet
                 )
             }
             .tabItem {

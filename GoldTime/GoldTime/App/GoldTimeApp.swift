@@ -24,6 +24,15 @@ struct GoldTimeApp: App {
                 .sheet(isPresented: $appLifecycle.showLockOptions) {
                     LockOptionsView()
                 }
+                .sheet(isPresented: $contentViewModel.isUnlockSheetPresented) {
+                    LockOptionsView(initialGroupID: contentViewModel.unlockSheetGroupID)
+                }
+                .onChange(of: contentViewModel.isUnlockSheetPresented) { _, newValue in
+                    if !newValue {
+                        contentViewModel.unlockSheetGroupID = nil
+                        contentViewModel.refreshDashboardState()
+                    }
+                }
                 .onAppear {
                     appLifecycle.appDidAppear()
                 }

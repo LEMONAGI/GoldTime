@@ -50,6 +50,8 @@ final class ContentViewModel {
     var overrideGroupIDs: Set<UUID> = []
     var validGroupIDs: Set<UUID> = []
     var overrideUntilByGroupID: [UUID: Date] = [:]
+    var unlockSheetGroupID: UUID? = nil
+    var isUnlockSheetPresented = false
 
     private let manageGroupsUseCase: ManageGroupsUseCase
     private let syncProtectionUseCase: SyncProtectionUseCase
@@ -188,6 +190,11 @@ final class ContentViewModel {
         guard let id = limitPickerGroupID else { return }
         updateGroupLimit(id, minutes: limitPickerHours * 60 + limitPickerMinutes)
         limitPickerGroupID = nil
+    }
+
+    func presentUnlockSheet(groupID: UUID) {
+        unlockSheetGroupID = groupID
+        isUnlockSheetPresented = true
     }
 
     func requestResetProtection() {

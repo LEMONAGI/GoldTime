@@ -76,9 +76,12 @@ final class LockOptionsViewModel {
 
     var maxAppsPerGroup: Int { SharedStore.maxAppsPerGroup }
 
-    func onAppear() {
+    func onAppear(initialGroupID: UUID? = nil) {
         headerMessage = shieldMessages.randomElement() ?? "오늘 한도를 다 썼어요."
         refreshLockedGroups()
+        if let id = initialGroupID, lockedGroups.contains(where: { $0.id == id }) {
+            selectedGroupID = id
+        }
     }
 
     func selectGroup(_ id: UUID) {
