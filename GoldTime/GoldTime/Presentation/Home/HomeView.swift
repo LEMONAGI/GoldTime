@@ -85,22 +85,24 @@ struct HomeView: View {
     private var timeBillHero: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("오늘의 시간 청구서")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.75))
-                Text(viewModel.billSummaryLine)
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(viewModel.billComment)
+                Label("오늘의 시간 청구서", systemImage: "receipt")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.accent)
+
+                billSummaryText
+                    .font(.title.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(viewModel.billComment)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.55))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack(spacing: 10) {
-                BillPill(title: "광고", value: "\(viewModel.todayStats.adWatchCount)개")
-                BillPill(title: "추가 사용", value: goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds))
+                BillPill(title: "광고", value: "\(viewModel.todayStats.adWatchCount)개", accentValue: viewModel.hasBillCost)
+                BillPill(title: "추가 사용", value: goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds), accentValue: viewModel.hasBillCost)
             }
 
             HStack(spacing: 10) {
@@ -110,12 +112,31 @@ struct HomeView: View {
 
             Text("한도 넘긴 뒤의 선택만 기록합니다.")
                 .font(.footnote)
-                .foregroundStyle(.white.opacity(0.68))
+                .foregroundStyle(.white.opacity(0.55))
         }
-        .padding(20)
+        .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color("gray100"))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(alignment: .leading) {
+            if viewModel.hasBillCost {
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.accent.opacity(0.5), lineWidth: 1.5)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var billSummaryText: some View {
+        if viewModel.hasBillCost {
+            Text("광고 ")
+            + Text("\(viewModel.todayStats.adWatchCount)개").foregroundStyle(Color.accent)
+            + Text(". 추가 사용 ")
+            + Text(goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds)).foregroundStyle(Color.accent)
+            + Text(".")
+        } else {
+            Text(viewModel.billSummaryLine)
+        }
     }
 
     private var currentStatusSection: some View {

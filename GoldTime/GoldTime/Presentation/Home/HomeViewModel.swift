@@ -106,7 +106,10 @@ struct HomeViewModel {
     }
 
     var billSummaryLine: String {
-        "광고 \(todayStats.adWatchCount)개. 추가 사용 \(goldTimeDurationText(seconds: todayStats.adUnlockedSeconds))."
+        if hasBillCost {
+            return "광고 \(todayStats.adWatchCount)개. 추가 사용 \(goldTimeDurationText(seconds: todayStats.adUnlockedSeconds))."
+        }
+        return "광고 없음. 추가 사용 없음."
     }
 
     var billComment: String {
@@ -116,7 +119,7 @@ struct HomeViewModel {
         if !hasBillCost {
             return "좋은 날입니다. 저한텐 아니고요."
         }
-        return "시간이 금이면, 오늘 좀 썼네요."
+        return "계산서 나왔어요."
     }
 
     var shieldStatusValue: String {
@@ -203,7 +206,7 @@ struct HomeViewModel {
         }
     }
 
-    private var hasBillCost: Bool {
+    var hasBillCost: Bool {
         todayStats.adWatchCount > 0
             || todayStats.adUnlockedSeconds > 0
             || todayStats.oneMinuteUsedCount > 0

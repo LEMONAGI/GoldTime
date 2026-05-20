@@ -8,6 +8,7 @@ import SwiftUI
 struct BillPill: View {
     let title: String
     let value: String
+    var accentValue: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -16,7 +17,7 @@ struct BillPill: View {
                 .foregroundStyle(.white.opacity(0.68))
             Text(value)
                 .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(accentValue ? Color.accent : .white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
