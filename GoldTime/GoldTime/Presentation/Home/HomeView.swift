@@ -315,42 +315,35 @@ struct HomeView: View {
             }
             .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
         } else {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text("제한 항목")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Color(.tertiarySystemGroupedBackground))
-                        .clipShape(Capsule())
-                    Spacer()
-                    Button(action: onEdit) {
-                        Image(systemName: "pencil")
+            Button(action: onEdit) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("제한 항목")
                             .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Image(systemName: "pencil")
+                            .font(.footnote.weight(.semibold))
                             .foregroundStyle(.secondary)
-                            .frame(width: 36, height: 36)
                     }
-                    .buttonStyle(.plain)
-                }
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 0) {
-                        ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
-                            Label(token)
-                                .labelStyle(.iconOnly)
-                                .scaleEffect(1.3)
-                                .frame(width: 36, height: 36)
-                                
-                        }
-                        ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
-                            Label(token)
-                                .labelStyle(.iconOnly)
-                                .scaleEffect(1.3)
-                                .frame(width: 36, height: 36)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 0) {
+                            ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
+                                Label(token)
+                                    .labelStyle(.iconOnly)
+                                    .scaleEffect(1.3)
+                                    .frame(width: 36, height: 36)
+                            }
+                            ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
+                                Label(token)
+                                    .labelStyle(.iconOnly)
+                                    .scaleEffect(1.3)
+                                    .frame(width: 36, height: 36)
+                            }
                         }
                     }
                 }
             }
+            .buttonStyle(.plain)
             .rowContainer()
         }
     }
