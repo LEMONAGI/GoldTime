@@ -190,7 +190,7 @@ struct LockOptionsView: View {
             .padding(.vertical, 16)
             .background(background)
             .foregroundStyle(foreground)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .disabled(!enabled)
     }

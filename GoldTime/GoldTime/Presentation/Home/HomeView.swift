@@ -117,7 +117,7 @@ struct HomeView: View {
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color("gray100"))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(alignment: .leading) {
             if viewModel.hasBillCost {
                 RoundedRectangle(cornerRadius: 14)
@@ -411,7 +411,7 @@ struct HomeView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tint.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
 }

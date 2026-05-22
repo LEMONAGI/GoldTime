@@ -53,6 +53,6 @@ struct DashboardMetricCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
         .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 }
