@@ -49,6 +49,7 @@ struct GoldTimeApp: App {
                     appLifecycle.appDidBecomeActive()
                 }
             }
+            .tint(Color.accent)
         }
     }
 }
