@@ -189,11 +189,11 @@ struct HomeView: View {
     private var managementSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                SectionHeader(title: "보호 그룹", systemName: "rectangle.3.group")
+                SectionHeader(title: "그룹 목록", systemName: "rectangle.3.group")
                 Spacer()
                 Text("그룹 \(viewModel.groups.count)/\(viewModel.maxGroupCount)")
                     .font(.subheadline.weight(.bold))
-                    .foregroundStyle(viewModel.isAtGroupLimit ? .red : .secondary)
+                    .foregroundStyle(viewModel.isAtGroupLimit ? .orange : .secondary)
             }
             
             monitoringControls
