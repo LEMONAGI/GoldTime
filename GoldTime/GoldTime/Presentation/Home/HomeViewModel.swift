@@ -105,17 +105,21 @@ struct HomeViewModel {
         return "\(invalidCount)개 그룹은 설정이 덜 끝나서 자동 적용에서 제외됐어요."
     }
 
-    var billSummaryLine: String {
-        if hasBillCost {
-            return "광고 \(todayStats.adWatchCount)개. 추가 사용 \(goldTimeDurationText(seconds: todayStats.adUnlockedSeconds))."
-        }
-        return "광고 없음. 추가 사용 없음."
+    var billTotalText: String {
+        let total = todayStats.totalUnlockedSeconds
+        guard total > 0 else { return "0분" }
+        return "+\(goldTimeDurationText(seconds: total))"
+    }
+
+    var oneMinuteRemaining: Int {
+        SharedStore.oneMinuteRemaining
+    }
+
+    var oneMinuteDailyLimit: Int {
+        SharedStore.oneMinuteDailyLimit
     }
 
     var billComment: String {
-        if !hasBillCost, todayStats.walkAwayCount > 0 {
-            return "광고 안 보면 당신 승리예요. 저는 손해고요."
-        }
         if !hasBillCost {
             return "좋은 날입니다. 저한텐 아니고요."
         }
@@ -207,8 +211,6 @@ struct HomeViewModel {
     }
 
     var hasBillCost: Bool {
-        todayStats.adWatchCount > 0
-            || todayStats.adUnlockedSeconds > 0
-            || todayStats.oneMinuteUsedCount > 0
+        todayStats.totalUnlockedSeconds > 0
     }
 }

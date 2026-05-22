@@ -306,6 +306,52 @@ struct ViewModelTests {
         #expect(viewModel.protectionStatusTitle == "자동 적용 중")
     }
 
+    @Test func homeViewModelBillUsesSingleTotal() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        SharedStore.oneMinuteUsedToday = 4
+
+        let viewModel = HomeViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(
+                dateKey: "2026-05-18",
+                adWatchCount: 2,
+                adUnlockedSeconds: 17 * 60,
+                oneMinuteUsedCount: 1
+            ),
+            isMonitoring: false,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil
+        )
+
+        #expect(viewModel.billTotalText == "+18분")
+        #expect(viewModel.billComment == "계산서 나왔어요.")
+        #expect(viewModel.oneMinuteRemaining == 1)
+        #expect(viewModel.oneMinuteDailyLimit == 5)
+    }
+
+    @Test func homeViewModelBillZeroStateIgnoresWalkAwayCount() {
+        let viewModel = HomeViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(
+                dateKey: "2026-05-18",
+                walkAwayCount: 3
+            ),
+            isMonitoring: false,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil
+        )
+
+        #expect(viewModel.billTotalText == "0분")
+        #expect(viewModel.billComment == "좋은 날입니다. 저한텐 아니고요.")
+        #expect(viewModel.hasBillCost == false)
+    }
+
     // MARK: - StatsViewModel
 
     private func makeWeeklyStats(
@@ -331,9 +377,9 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 300),
             weeklyStats: weekly,
             previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
-            oneMinuteRemaining: 3,
             isMonitoring: true,
-            adFreeStreakDays: 0
+            adFreeStreakDays: 0,
+            maxAdFreeStreakDays: 7
         )
 
         #expect(viewModel.yesterdayAdUnlockedSeconds == 600)
@@ -347,9 +393,9 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 600),
             weeklyStats: weekly,
             previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
-            oneMinuteRemaining: 3,
             isMonitoring: true,
-            adFreeStreakDays: 0
+            adFreeStreakDays: 0,
+            maxAdFreeStreakDays: 7
         )
 
         #expect(viewModel.todayDeltaCaption == "어제보다 5분 많아요")
@@ -362,9 +408,9 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 0),
             weeklyStats: weekly,
             previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
-            oneMinuteRemaining: 5,
             isMonitoring: false,
-            adFreeStreakDays: 0
+            adFreeStreakDays: 0,
+            maxAdFreeStreakDays: 7
         )
 
         #expect(viewModel.todayDeltaCaption == "어제도 오늘도 없어요")
@@ -378,9 +424,9 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: thisWeek[6].dateKey),
             weeklyStats: thisWeek,
             previousWeekStats: prevWeek,
-            oneMinuteRemaining: 5,
             isMonitoring: true,
-            adFreeStreakDays: 0
+            adFreeStreakDays: 0,
+            maxAdFreeStreakDays: 7
         )
 
         // thisWeek total = 1200s, prevWeek total = 3600s → delta = -2400s = -40분
@@ -395,9 +441,9 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: "2026-05-20"),
             weeklyStats: makeWeeklyStats(),
             previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
-            oneMinuteRemaining: 5,
             isMonitoring: true,
-            adFreeStreakDays: 0
+            adFreeStreakDays: 0,
+            maxAdFreeStreakDays: 7
         )
 
         #expect(viewModel.weeklyDeltaCaption == "지난 주 기록 없음")
@@ -878,6 +924,10 @@ private final class FakeAuthorizationRepository: AuthorizationRepository {
     func request() async throws {
         requestCallCount += 1
         setAuthorized(requestResultIsAuthorized)
+    }
+
+    func settledIsAuthorized() async -> Bool {
+        isAuthorized
     }
 
     func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {

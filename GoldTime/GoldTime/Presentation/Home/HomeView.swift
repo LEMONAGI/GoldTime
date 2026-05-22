@@ -80,16 +80,11 @@ struct HomeView: View {
     }
 
     private var timeBillHero: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 Label("오늘의 시간 청구서", systemImage: "receipt")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.headline.weight(.semibold))
                     .foregroundStyle(Color.accent)
-
-                billSummaryText
-                    .font(.title.weight(.heavy))
-                    .foregroundStyle(.white)
-                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(viewModel.billComment)
                     .font(.subheadline.weight(.semibold))
@@ -97,14 +92,31 @@ struct HomeView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack(spacing: 10) {
-                BillPill(title: "광고", value: "\(viewModel.todayStats.adWatchCount)개", accentValue: viewModel.hasBillCost)
-                BillPill(title: "추가 사용", value: goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds), accentValue: viewModel.hasBillCost)
-            }
+            Spacer().frame(height: 24)
 
-            HStack(spacing: 10) {
-                BillPill(title: "1분 연장", value: "\(viewModel.todayStats.oneMinuteUsedCount)회")
-                BillPill(title: "시간을 아낀 선택", value: "\(viewModel.todayStats.walkAwayCount)회")
+            VStack(alignment: .center, spacing: 4) {
+                Text(viewModel.billTotalText)
+                    .font(.system(size: 52, weight: .heavy, design: .rounded))
+                    .foregroundStyle(viewModel.hasBillCost ? Color.accent : .white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+
+                Text("총 초과 사용 시간")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+            }
+            .frame(maxWidth: .infinity)
+
+            Spacer().frame(height: 20)
+            dashedDivider
+            Spacer().frame(height: 18)
+
+            VStack(spacing: 10) {
+                billRow("광고", "\(viewModel.todayStats.adWatchCount)개", accent: viewModel.hasBillCost)
+                billRow(
+                    "남은 1분 연장",
+                    "\(viewModel.oneMinuteRemaining)/\(viewModel.oneMinuteDailyLimit)"
+                )
             }
         }
         .padding(22)
@@ -120,26 +132,32 @@ struct HomeView: View {
         }
     }
 
-    @ViewBuilder
-    private var billSummaryText: some View {
-        if viewModel.hasBillCost {
-            Text(billSummaryAttributed)
-        } else {
-            Text(viewModel.billSummaryLine)
+    private var dashedDivider: some View {
+        GeometryReader { geometry in
+            Path { path in
+                path.move(to: .zero)
+                path.addLine(to: CGPoint(x: geometry.size.width, y: 0))
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+            .foregroundStyle(.white.opacity(0.2))
         }
+        .frame(height: 1)
     }
 
-    private var billSummaryAttributed: AttributedString {
-        var str = AttributedString("광고 ")
-        var countPart = AttributedString("\(viewModel.todayStats.adWatchCount)개")
-        countPart.swiftUI.foregroundColor = Color.accent
-        str += countPart
-        str += AttributedString(". 추가 사용 ")
-        var durationPart = AttributedString(goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds))
-        durationPart.swiftUI.foregroundColor = Color.accent
-        str += durationPart
-        str += AttributedString(".")
-        return str
+    private func billRow(_ label: String, _ value: String, accent: Bool = false) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.6))
+
+            Spacer(minLength: 12)
+
+            Text(value)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(accent ? Color.accent : .white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
     }
 
     private var currentStatusSection: some View {
