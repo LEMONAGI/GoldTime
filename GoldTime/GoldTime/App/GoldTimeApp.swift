@@ -50,6 +50,7 @@ struct GoldTimeApp: App {
                 }
             }
             .tint(Color.accent)
+            .preferredColorScheme(.dark)
         }
     }
 }
