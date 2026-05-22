@@ -14,6 +14,8 @@ final class AuthorizationRepositoryImpl: AuthorizationRepository {
 
     func request() async throws { try await service.request() }
 
+    func settledIsAuthorized() async -> Bool { await service.settledIsAuthorized() }
+
     func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
         service.observeAuthorizationChanges(handler)
     }

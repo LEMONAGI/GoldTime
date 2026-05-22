@@ -40,6 +40,33 @@ final class AuthorizationService {
         refresh()
     }
 
+    func settledIsAuthorized() async -> Bool {
+        guard AuthorizationCenter.shared.authorizationStatus == .notDetermined else {
+            return AuthorizationCenter.shared.authorizationStatus == .approved
+        }
+        return await withCheckedContinuation { continuation in
+            var cancellable: AnyCancellable?
+            var resumed = false
+            let resume: (Bool) -> Void = { value in
+                guard !resumed else { return }
+                resumed = true
+                continuation.resume(returning: value)
+                cancellable?.cancel()
+                cancellable = nil
+            }
+            cancellable = AuthorizationCenter.shared.objectWillChange
+                .receive(on: DispatchQueue.main)
+                .sink { _ in
+                    DispatchQueue.main.async {
+                        resume(AuthorizationCenter.shared.authorizationStatus == .approved)
+                    }
+                }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                resume(AuthorizationCenter.shared.authorizationStatus == .approved)
+            }
+        }
+    }
+
     func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
         let id = UUID()
         authorizationChangeHandlers[id] = handler
