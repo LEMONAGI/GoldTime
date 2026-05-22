@@ -16,7 +16,7 @@ struct HomeView: View {
     let onPresentPicker: (ScreenTimeGroup) -> Void
     let onPresentLimitPicker: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
-
+    
     init(
         groups: [ScreenTimeGroup],
         todayStats: DailyStats,
@@ -56,17 +56,17 @@ struct HomeView: View {
         self.onPresentLimitPicker = onPresentLimitPicker
         self.onUnlockGroup = onUnlockGroup
     }
-
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 timeBillHero
                 managementSection
-
+                
                 if let successMessage = viewModel.successMessage {
                     statusSection(successMessage, tint: .green, systemName: "checkmark.circle.fill")
                 }
-
+                
                 if let errorMessage = viewModel.errorMessage {
                     statusSection(errorMessage, tint: .red, systemName: "exclamationmark.triangle.fill")
                 }
@@ -78,39 +78,39 @@ struct HomeView: View {
         .navigationTitle("GoldTime")
         .navigationBarTitleDisplayMode(.large)
     }
-
+    
     private var timeBillHero: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 Label("오늘의 시간 청구서", systemImage: "receipt")
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(Color.accent)
-
+                
                 Text(viewModel.billComment)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.55))
                     .fixedSize(horizontal: false, vertical: true)
             }
-
+            
             Spacer().frame(height: 24)
-
+            
             VStack(alignment: .center, spacing: 4) {
                 Text(viewModel.billTotalText)
                     .font(.system(size: 52, weight: .heavy, design: .rounded))
                     .foregroundStyle(viewModel.hasBillCost ? Color.accent : .white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
-
+                
                 Text("총 초과 사용 시간")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.45))
             }
             .frame(maxWidth: .infinity)
-
+            
             Spacer().frame(height: 20)
             dashedDivider
             Spacer().frame(height: 18)
-
+            
             VStack(spacing: 10) {
                 billRow("광고", "\(viewModel.todayStats.adWatchCount)개", accent: viewModel.hasBillCost)
                 billRow(
@@ -131,7 +131,7 @@ struct HomeView: View {
             }
         }
     }
-
+    
     private var dashedDivider: some View {
         GeometryReader { geometry in
             Path { path in
@@ -143,15 +143,15 @@ struct HomeView: View {
         }
         .frame(height: 1)
     }
-
+    
     private func billRow(_ label: String, _ value: String, accent: Bool = false) -> some View {
         HStack {
             Text(label)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.6))
-
+            
             Spacer(minLength: 12)
-
+            
             Text(value)
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(accent ? Color.accent : .white)
@@ -159,17 +159,17 @@ struct HomeView: View {
                 .minimumScaleFactor(0.8)
         }
     }
-
+    
     private var currentStatusSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "현재 상태", systemName: "shield")
-
+            
             HStack(spacing: 12) {
                 IconTile(
                     systemName: viewModel.isShieldActive ? "lock.fill" : "lock.open.fill",
                     tint: viewModel.isShieldActive ? .red : viewModel.protectionStatusTint
                 )
-
+                
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.shieldStatusValue)
                         .font(.headline)
@@ -177,15 +177,15 @@ struct HomeView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-
+                
                 Spacer(minLength: 8)
-
+                
                 GroupStatusBadge(title: viewModel.protectionStatusTitle, tint: viewModel.protectionStatusTint)
             }
             .cardContainer()
         }
     }
-
+    
     private var managementSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -195,9 +195,9 @@ struct HomeView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(viewModel.isAtGroupLimit ? .red : .secondary)
             }
-
+            
             monitoringControls
-
+            
             if viewModel.groups.isEmpty {
                 emptyGroupState
             } else {
@@ -207,7 +207,7 @@ struct HomeView: View {
                     }
                 }
             }
-
+            
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
@@ -216,7 +216,7 @@ struct HomeView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-
+                
                 Button {
                     onAddGroup()
                 } label: {
@@ -226,7 +226,7 @@ struct HomeView: View {
                 .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black))
                 .disabled(viewModel.isAtGroupLimit)
                 .opacity(viewModel.isAtGroupLimit ? 0.45 : 1)
-
+                
                 if viewModel.isAtGroupLimit {
                     Text("그룹은 5개까지예요.")
                         .font(.footnote)
@@ -236,7 +236,7 @@ struct HomeView: View {
             .cardContainer()
         }
     }
-
+    
     private var emptyGroupState: some View {
         VStack(spacing: 10) {
             Image(systemName: "square.grid.2x2")
@@ -252,19 +252,19 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .cardContainer(padding: 20)
     }
-
+    
     private func groupCard(_ group: ScreenTimeGroup) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
                 IconTile(systemName: "app.badge", tint: Color.accent)
-
+                
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("그룹명", text: Binding(
                         get: { group.name },
                         set: { onUpdateGroupName(group.id, $0) }
                     ))
                     .font(.headline)
-
+                    
                     HStack(spacing: 8) {
                         GroupStatusBadge(title: viewModel.statusTitle(for: group), tint: viewModel.statusTint(for: group))
                         if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
@@ -278,9 +278,9 @@ struct HomeView: View {
                         )
                     }
                 }
-
+                
                 Spacer(minLength: 8)
-
+                
                 Button(role: .destructive) {
                     onDeleteGroup(group.id)
                 } label: {
@@ -289,30 +289,31 @@ struct HomeView: View {
                 }
                 .buttonStyle(.plain)
             }
-
+            
             Divider()
-
-            HStack(alignment: .center, spacing: 0) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("일일 한도")
-                        .font(.subheadline.weight(.semibold))
-                    Text(viewModel.limitLabel(group.dailyLimitMinutes))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button {
-                    onPresentLimitPicker(group)
-                } label: {
+            
+            Button {
+                onPresentLimitPicker(group)
+            } label: {
+                HStack(alignment: .center, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("일일 한도")
+                            .font(.subheadline.weight(.semibold))
+                        Text(viewModel.limitLabel(group.dailyLimitMinutes))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 18))
                         .foregroundStyle(.secondary)
                         .padding(.leading, 18)
                         .padding(.vertical, 6)
                 }
-                .buttonStyle(.plain)
+                .contentShape(Rectangle())
             }
-
+            .buttonStyle(.plain)
+            
             if viewModel.lockedGroupIDs.contains(group.id) {
                 Button {
                     onUnlockGroup(group.id)
@@ -322,12 +323,12 @@ struct HomeView: View {
                 }
                 .buttonStyle(GoldTimeButtonStyle(background: Color.red.opacity(0.12), foreground: .red))
             }
-
+            
             selectedTokenList(for: group, onEdit: { onPresentPicker(group) })
         }
         .cardContainer()
     }
-
+    
     @ViewBuilder
     private func selectedTokenList(for group: ScreenTimeGroup, onEdit: @escaping () -> Void) -> some View {
         if group.selectionCount == 0 {
@@ -376,12 +377,13 @@ struct HomeView: View {
                         }
                     }
                 }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .rowContainer()
         }
     }
-
+    
     private var monitoringControls: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
@@ -398,7 +400,7 @@ struct HomeView: View {
                 }
                 Spacer()
             }
-
+            
             if let setupMessage = viewModel.protectionSetupMessage {
                 Text(setupMessage)
                     .font(.footnote)
@@ -407,7 +409,7 @@ struct HomeView: View {
         }
         .cardContainer()
     }
-
+    
     private func statusSection(_ message: String, tint: Color, systemName: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: systemName)
@@ -421,5 +423,5 @@ struct HomeView: View {
         .background(tint.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
-
+    
 }

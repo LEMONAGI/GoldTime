@@ -42,7 +42,7 @@ struct AppPickerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(role: .cancel) { dismiss() }
-                        .tint(.gray100)
+                        .tint(.white)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .confirm) {
