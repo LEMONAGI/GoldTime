@@ -15,7 +15,6 @@ struct HomeView: View {
     let onUpdateGroupName: (UUID, String) -> Void
     let onPresentPicker: (ScreenTimeGroup) -> Void
     let onPresentLimitPicker: (ScreenTimeGroup) -> Void
-    let onRequestResetProtection: () -> Void
     let onUnlockGroup: (UUID) -> Void
 
     init(
@@ -35,7 +34,6 @@ struct HomeView: View {
         onUpdateGroupName: @escaping (UUID, String) -> Void,
         onPresentPicker: @escaping (ScreenTimeGroup) -> Void,
         onPresentLimitPicker: @escaping (ScreenTimeGroup) -> Void,
-        onRequestResetProtection: @escaping () -> Void,
         onUnlockGroup: @escaping (UUID) -> Void = { _ in }
     ) {
         self.viewModel = HomeViewModel(
@@ -56,7 +54,6 @@ struct HomeView: View {
         self.onUpdateGroupName = onUpdateGroupName
         self.onPresentPicker = onPresentPicker
         self.onPresentLimitPicker = onPresentLimitPicker
-        self.onRequestResetProtection = onRequestResetProtection
         self.onUnlockGroup = onUnlockGroup
     }
 
@@ -382,21 +379,6 @@ struct HomeView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-
-                Menu {
-                    Button(role: .destructive) {
-                        onRequestResetProtection()
-                    } label: {
-                        Label("전체 보호 초기화", systemImage: "arrow.clockwise")
-                    }
-                } label: {
-                    Image(systemName: "wrench.and.screwdriver")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 36, height: 36)
-                        .background(Color(.tertiarySystemGroupedBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
             }
 
             if let setupMessage = viewModel.protectionSetupMessage {

@@ -38,7 +38,7 @@ final class ContentViewModel {
     var errorMessage: String?
     var successMessage: String?
     var alertMessage: GoldTimeAlertMessage?
-    var isResetProtectionConfirmationPresented = false
+    var isReconnecting = false
 
     var limitPickerGroupID: UUID?
     var limitPickerHours = 0
@@ -222,21 +222,19 @@ final class ContentViewModel {
         isUnlockSheetPresented = true
     }
 
-    func requestResetProtection() {
-        isResetProtectionConfirmationPresented = true
-    }
-
-    func resetProtectionState() {
-        do {
-            try syncProtectionUseCase.resetProtectionState()
-            groups = manageGroupsUseCase.currentGroups()
-            errorMessage = nil
-            successMessage = "보호 상태를 초기화하고 유효한 그룹을 다시 적용했어요."
-            refreshDashboardState()
-        } catch {
-            successMessage = nil
-            errorMessage = "전체 보호 초기화 실패: \(error.localizedDescription)"
-            refreshDashboardState()
+    func reconnectMonitoring() {
+        guard !isReconnecting else { return }
+        Task { @MainActor in
+            isReconnecting = true
+            defer { isReconnecting = false }
+            do {
+                try syncProtectionUseCase.reconnectMonitoring()
+                refreshDashboardState()
+                alertMessage = GoldTimeAlertMessage(title: "재연결 완료", message: "스크린 타임이 다시 연결됐어요.")
+            } catch {
+                refreshDashboardState()
+                alertMessage = GoldTimeAlertMessage(title: "재연결 실패", message: error.localizedDescription)
+            }
         }
     }
 

@@ -57,8 +57,8 @@ struct ScreenTimeRepositoryImpl: ScreenTimeRepository {
         try ScreenTimeManager.syncDailyMonitoring(groups: groups)
     }
 
-    func resetProtectionState() throws {
-        try ScreenTimeManager.resetProtectionState()
+    func reconnectMonitoring() throws {
+        try ScreenTimeManager.reconnectMonitoring()
     }
 
     func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] {

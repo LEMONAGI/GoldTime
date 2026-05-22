@@ -159,13 +159,8 @@ enum ScreenTimeManager {
         }
     }
 
-    static func resetProtectionState() throws {
+    static func reconnectMonitoring() throws {
         center.stopMonitoring()
-        store.shield.applications = nil
-        store.shield.applicationCategories = nil
-        store.shield.webDomains = nil
-        SharedStore.isDailyMonitoringEnabled = false
-        SharedStore.clearAllShieldState()
         try syncDailyMonitoring(groups: SharedStore.screenTimeGroups)
     }
 

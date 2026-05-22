@@ -841,7 +841,7 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
         if let syncError { throw syncError }
     }
 
-    func resetProtectionState() throws {}
+    func reconnectMonitoring() throws {}
 
     func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] {
         groups.filter { $0.selectionCount > 0 && $0.dailyLimitMinutes >= 0 }

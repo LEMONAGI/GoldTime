@@ -24,8 +24,8 @@ final class SyncProtectionUseCase {
         try screenTimeRepository.syncDailyMonitoring(groups: groups)
     }
 
-    func resetProtectionState() throws {
-        try screenTimeRepository.resetProtectionState()
+    func reconnectMonitoring() throws {
+        try screenTimeRepository.reconnectMonitoring()
     }
 
     func validGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] {

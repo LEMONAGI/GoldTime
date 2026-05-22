@@ -46,7 +46,6 @@ struct ContentView: View {
                     onUpdateGroupName: viewModel.updateGroupName,
                     onPresentPicker: viewModel.presentPicker,
                     onPresentLimitPicker: viewModel.presentLimitPicker,
-                    onRequestResetProtection: viewModel.requestResetProtection,
                     onUnlockGroup: viewModel.presentUnlockSheet
                 )
             }
@@ -74,7 +73,8 @@ struct ContentView: View {
             NavigationStack {
                 SettingsView(
                     viewModel: settingsViewModel,
-                    onRequestResetProtection: viewModel.requestResetProtection
+                    isReconnecting: viewModel.isReconnecting,
+                    onRequestReconnect: viewModel.reconnectMonitoring
                 )
             }
             .tabItem {
@@ -94,18 +94,6 @@ struct ContentView: View {
                 message: Text(alert.message),
                 dismissButton: .default(Text("확인"))
             )
-        }
-        .confirmationDialog(
-            "전체 보호 초기화",
-            isPresented: $viewModel.isResetProtectionConfirmationPresented,
-            titleVisibility: .visible
-        ) {
-            Button("초기화", role: .destructive) {
-                viewModel.resetProtectionState()
-            }
-            Button("취소", role: .cancel) {}
-        } message: {
-            Text("모든 모니터링과 현재 잠금을 초기화합니다. 그룹 설정은 유지됩니다.")
         }
         .sheet(isPresented: Binding(
             get: { viewModel.isLimitPickerPresented },

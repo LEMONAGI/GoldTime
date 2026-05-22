@@ -8,7 +8,8 @@ import UIKit
 
 struct SettingsView: View {
     @Bindable var viewModel: SettingsViewModel
-    let onRequestResetProtection: () -> Void
+    let isReconnecting: Bool
+    let onRequestReconnect: () -> Void
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -102,16 +103,18 @@ struct SettingsView: View {
     private var troubleshootingCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "문제 해결", systemName: "wrench.and.screwdriver")
-            Button(role: .destructive) {
-                onRequestResetProtection()
+            Button {
+                onRequestReconnect()
             } label: {
                 actionRow(
-                    title: "전체 보호 초기화",
-                    subtitle: "그룹 설정은 유지하고 현재 잠금과 모니터링만 다시 맞춤",
-                    systemName: "arrow.clockwise"
+                    title: "스크린 타임 재연결",
+                    subtitle: "모니터링 연결이 끊겼을 때 다시 연결합니다",
+                    systemName: "arrow.clockwise",
+                    showsProgress: isReconnecting
                 )
             }
             .buttonStyle(.plain)
+            .disabled(isReconnecting)
             .cardContainer()
         }
     }
@@ -127,7 +130,7 @@ struct SettingsView: View {
         )
     }
 
-    private func actionRow(title: String, subtitle: String, systemName: String) -> some View {
+    private func actionRow(title: String, subtitle: String, systemName: String, showsProgress: Bool = false) -> some View {
         HStack(spacing: 12) {
             IconTile(systemName: systemName, tint: Color.accent)
             VStack(alignment: .leading, spacing: 3) {
@@ -139,9 +142,13 @@ struct SettingsView: View {
                     .lineLimit(2)
             }
             Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+            if showsProgress {
+                ProgressView()
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)

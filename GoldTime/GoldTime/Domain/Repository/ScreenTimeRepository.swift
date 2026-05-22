@@ -7,7 +7,7 @@ protocol ScreenTimeRepository {
     func rolloverCounterIfNeeded()
     @discardableResult func reapplyShieldIfOverrideExpired() -> Bool
     func syncDailyMonitoring(groups: [ScreenTimeGroup]) throws
-    func resetProtectionState() throws
+    func reconnectMonitoring() throws
     func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup]
     func extendGroup(
         groupID: UUID,
