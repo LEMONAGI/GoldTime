@@ -71,7 +71,8 @@ struct StatsView: View {
                 value: goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds),
                 caption: viewModel.todayDeltaCaption,
                 systemName: "play.rectangle.fill",
-                tint: .orange
+                tint: .orange,
+                trend: viewModel.todayTrend
             )
 
             DashboardMetricCard(
@@ -79,7 +80,8 @@ struct StatsView: View {
                 value: goldTimeDurationText(seconds: viewModel.weeklyAdUnlockedSeconds),
                 caption: viewModel.weeklyDeltaCaption,
                 systemName: "calendar.badge.clock",
-                tint: .purple
+                tint: .purple,
+                trend: viewModel.weeklyTrend
             )
         }
     }
@@ -89,28 +91,24 @@ struct StatsView: View {
             SectionHeader(title: "7일간 추가 사용", systemName: "chart.bar.xaxis")
 
             VStack(alignment: .leading, spacing: 12) {
-                if viewModel.hasWeeklyAdUnlocked {
-                    Chart(viewModel.weeklyStats) { stat in
-                        BarMark(
-                            x: .value("날짜", stat.date, unit: .day),
-                            y: .value("추가 사용", stat.adUnlockedSeconds / 60)
-                        )
-                        .foregroundStyle(Color.accent)
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: .stride(by: .day)) {
-                            AxisGridLine()
-                            AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
-                        }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading)
-                    }
-                    .frame(height: 180)
-                } else {
-                    EmptyChartState()
-                        .frame(height: 180)
+                Chart(viewModel.weeklyStats) { stat in
+                    BarMark(
+                        x: .value("날짜", stat.date, unit: .day),
+                        y: .value("추가 사용", stat.adUnlockedSeconds / 60)
+                    )
+                    .foregroundStyle(Color.accent)
                 }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day)) {
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading)
+                }
+                .chartYScale(domain: 0...max(5, viewModel.weeklyMaxMinutes))
+                .frame(height: 180)
 
                 HStack {
                     Text("최근 7일 합계")
