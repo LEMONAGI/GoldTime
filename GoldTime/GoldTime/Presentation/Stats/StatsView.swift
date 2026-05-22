@@ -45,7 +45,7 @@ struct StatsView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("통계")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
     }
 
     private var metricGrid: some View {
@@ -102,7 +102,8 @@ struct StatsView: View {
                 }
                 .chartYScale(domain: 0...max(5, viewModel.weeklyMaxMinutes))
                 .frame(height: 180)
-
+                .padding(.top, 8)
+                
                 HStack {
                     Text("최근 7일 합계")
                         .foregroundStyle(.secondary)

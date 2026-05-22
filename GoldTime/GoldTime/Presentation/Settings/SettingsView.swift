@@ -18,7 +18,7 @@ struct SettingsView: View {
             troubleshootingSection
         }
         .navigationTitle("설정")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.large)
         .task {
             await viewModel.loadState()
         }
