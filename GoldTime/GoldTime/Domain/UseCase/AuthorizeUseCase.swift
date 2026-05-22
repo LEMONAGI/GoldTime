@@ -25,4 +25,16 @@ final class AuthorizeUseCase {
         try await authRepository.request()
         _ = await notificationRepository.requestAuthorizationIfNeeded()
     }
+
+    func requestScreenTime() async throws {
+        try await authRepository.request()
+    }
+
+    func requestNotification() async -> NotificationPermissionState {
+        await notificationRepository.requestAuthorizationIfNeeded()
+    }
+
+    func notificationState() async -> NotificationPermissionState {
+        await notificationRepository.authorizationState()
+    }
 }

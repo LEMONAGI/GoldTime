@@ -6,9 +6,17 @@
 
 import Foundation
 
+enum OnboardingStep {
+    case intro
+    case screenTimePermission
+    case notificationPermission
+    case completion
+}
+
 @MainActor
 @Observable
 final class OnboardingViewModel {
+    var currentStep: OnboardingStep
     var errorMessage: String?
     var isRequesting = false
 
@@ -17,27 +25,46 @@ final class OnboardingViewModel {
 
     init(
         authorizeUseCase: AuthorizeUseCase? = nil,
+        startStep: OnboardingStep = .intro,
         onAuthorized: @escaping () -> Void
     ) {
         self.authorizeUseCase = authorizeUseCase ?? AuthorizeUseCase(
             authRepository: AuthorizationRepositoryImpl(),
             notificationRepository: NotificationRepositoryImpl()
         )
+        self.currentStep = startStep
         self.onAuthorized = onAuthorized
     }
 
-    func requestAuthorization() async {
+    func advance() {
+        currentStep = .screenTimePermission
+    }
+
+    func requestScreenTime() async {
         isRequesting = true
         defer { isRequesting = false }
         do {
-            try await authorizeUseCase.requestAll()
-            if authorizeUseCase.isAuthorized {
-                onAuthorized()
-            } else {
-                errorMessage = "권한이 필요해요. 설정에서 스크린타임 권한을 허용해주세요."
-            }
+            try await authorizeUseCase.requestScreenTime()
+            errorMessage = nil
+            currentStep = .notificationPermission
         } catch {
-            errorMessage = "권한 요청 실패: \(error.localizedDescription)"
+            errorMessage = "권한이 필요해요. 설정에서 스크린타임 권한을 허용해주세요."
         }
+    }
+
+    func requestNotification() async {
+        isRequesting = true
+        defer { isRequesting = false }
+        let state = await authorizeUseCase.requestNotification()
+        if [NotificationPermissionState.authorized, .provisional, .ephemeral].contains(state) {
+            errorMessage = nil
+            currentStep = .completion
+        } else {
+            errorMessage = "알림을 허용해야 앱을 시작할 수 있어요. iOS 설정 > GoldTime에서 알림을 켜주세요."
+        }
+    }
+
+    func complete() {
+        onAuthorized()
     }
 }

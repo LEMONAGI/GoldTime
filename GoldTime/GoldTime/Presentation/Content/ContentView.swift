@@ -15,8 +15,11 @@ struct ContentView: View {
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        if !viewModel.isAuthorized {
-            OnboardingView(onAuthorized: viewModel.refreshAuthorization)
+        if viewModel.isCheckingPermissions {
+            Color(.systemBackground).ignoresSafeArea()
+        } else if !viewModel.isFullyAuthorized {
+            let startStep: OnboardingStep = viewModel.isAuthorized ? .notificationPermission : .intro
+            OnboardingView(startStep: startStep, onAuthorized: viewModel.refreshAuthorization)
         } else {
             content
                 .onAppear(perform: viewModel.loadState)

@@ -41,6 +41,42 @@ struct ViewModelTests {
         #expect(viewModel.isAuthorized)
     }
 
+    @Test func contentViewModelIsNotFullyAuthorizedWhenNotificationDenied() async throws {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .denied
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            )
+        )
+        try await Task.sleep(for: .milliseconds(10))
+
+        #expect(viewModel.isAuthorized)
+        #expect(!viewModel.isNotificationAuthorized)
+        #expect(!viewModel.isFullyAuthorized)
+    }
+
+    @Test func contentViewModelIsFullyAuthorizedWhenBothGranted() async throws {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .authorized
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            )
+        )
+        try await Task.sleep(for: .milliseconds(10))
+
+        #expect(viewModel.isAuthorized)
+        #expect(viewModel.isNotificationAuthorized)
+        #expect(viewModel.isFullyAuthorized)
+    }
+
     // MARK: - SettingsViewModel
 
     @Test func settingsViewModelLoadsPermissionStates() async {
@@ -528,25 +564,98 @@ struct ViewModelTests {
 
     // MARK: - OnboardingViewModel
 
-    @Test func onboardingViewModelRequestsNotificationAfterAuthorization() async {
+    @Test func onboardingViewModelScreenTimeApprovalMovesToNotificationStep() async {
         let authRepo = FakeAuthorizationRepository(isAuthorized: false)
         authRepo.requestResultIsAuthorized = true
-        let notifRepo = FakeNotificationRepository()
-        var didAuthorize = false
         let viewModel = OnboardingViewModel(
             authorizeUseCase: AuthorizeUseCase(
                 authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            ),
+            onAuthorized: {}
+        )
+
+        await viewModel.requestScreenTime()
+
+        #expect(authRepo.requestCallCount == 1)
+        #expect(viewModel.currentStep == .notificationPermission)
+        #expect(viewModel.errorMessage == nil)
+    }
+
+    @Test func onboardingViewModelScreenTimeDenialStaysOnSameStep() async {
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        authRepo.requestResultIsAuthorized = false
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            ),
+            startStep: .screenTimePermission,
+            onAuthorized: {}
+        )
+
+        await viewModel.requestScreenTime()
+
+        #expect(viewModel.currentStep == .screenTimePermission)
+        #expect(viewModel.errorMessage != nil)
+    }
+
+    @Test func onboardingViewModelNotificationApprovalMovesToCompletionStep() async {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.requestAuthorizationResult = .authorized
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
                 notificationRepository: notifRepo
             ),
+            startStep: .notificationPermission,
+            onAuthorized: {}
+        )
+
+        await viewModel.requestNotification()
+
+        #expect(notifRepo.requestCallCount == 1)
+        #expect(viewModel.currentStep == .completion)
+        #expect(viewModel.errorMessage == nil)
+    }
+
+    @Test func onboardingViewModelNotificationDenialStaysOnSameStep() async {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.requestAuthorizationResult = .denied
+        var didAuthorize = false
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            ),
+            startStep: .notificationPermission,
             onAuthorized: { didAuthorize = true }
         )
 
-        await viewModel.requestAuthorization()
+        await viewModel.requestNotification()
 
-        #expect(authRepo.requestCallCount == 1)
-        #expect(notifRepo.requestCallCount == 1)
+        #expect(viewModel.currentStep == .notificationPermission)
+        #expect(viewModel.errorMessage != nil)
+        #expect(!didAuthorize)
+    }
+
+    @Test func onboardingViewModelCompleteCallsOnAuthorized() async {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.requestAuthorizationResult = .authorized
+        var didAuthorize = false
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            ),
+            startStep: .notificationPermission,
+            onAuthorized: { didAuthorize = true }
+        )
+
+        await viewModel.requestNotification()
+        viewModel.complete()
+
         #expect(didAuthorize)
-        #expect(viewModel.errorMessage == nil)
     }
 
     // MARK: - RewardedAdViewModel

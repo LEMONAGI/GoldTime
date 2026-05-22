@@ -27,6 +27,9 @@ struct GoldTimeAlertMessage: Identifiable, Equatable {
 final class ContentViewModel {
     var selectedTab = GoldTimeTab.home
     var isAuthorized: Bool
+    var isNotificationAuthorized: Bool = false
+    var isCheckingPermissions: Bool = true
+    var isFullyAuthorized: Bool { isAuthorized && isNotificationAuthorized }
     var groups: [ScreenTimeGroup] = []
     var pickerSelection = FamilyActivitySelection(includeEntireCategory: true)
     var pickerGroupID: UUID?
@@ -104,6 +107,13 @@ final class ContentViewModel {
         authorizationObservation = self.authorizeUseCase.observeAuthorizationChanges { [weak self] isAuthorized in
             self?.isAuthorized = isAuthorized
         }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let state = await self.authorizeUseCase.notificationState()
+            self.isNotificationAuthorized = [NotificationPermissionState.authorized, .provisional, .ephemeral].contains(state)
+            self.isCheckingPermissions = false
+        }
     }
 
     var isLimitPickerPresented: Bool {
@@ -119,6 +129,11 @@ final class ContentViewModel {
     func refreshAuthorization() {
         authorizeUseCase.refresh()
         isAuthorized = authorizeUseCase.isAuthorized
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let state = await self.authorizeUseCase.notificationState()
+            self.isNotificationAuthorized = [NotificationPermissionState.authorized, .provisional, .ephemeral].contains(state)
+        }
     }
 
     func loadState() {
