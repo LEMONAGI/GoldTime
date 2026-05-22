@@ -120,6 +120,7 @@ struct LockOptionsView: View {
                 )
             }
         }
+        .padding(.top, 10)
     }
 
     private var walkAwayButton: some View {
@@ -191,8 +192,7 @@ struct LockOptionsView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.accent)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(group.displayName)
-                            .font(.subheadline.weight(.semibold))
+                        groupTitle(for: group)
                         Text("이 그룹만 한 번 연장할 수 있어요.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -205,36 +205,84 @@ struct LockOptionsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                VStack(spacing: 8) {
-                    ForEach(viewModel.lockedGroups) { group in
-                        Button {
-                            var t = Transaction()
-                            t.disablesAnimations = true
-                            withTransaction(t) {
-                                viewModel.selectGroup(group.id)
-                            }
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(group.displayName)
-                                        .font(.subheadline.weight(.semibold))
-                                    Text("항목 \(group.selectionCount)/\(viewModel.maxAppsPerGroup) · \(group.dailyLimitMinutes)분 한도")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 8) {
+                        ForEach(viewModel.lockedGroups) { group in
+                            Button {
+                                var t = Transaction()
+                                t.disablesAnimations = true
+                                withTransaction(t) {
+                                    viewModel.selectGroup(group.id)
                                 }
-                                Spacer()
-                                Image(systemName: viewModel.selectedGroupID == group.id ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(viewModel.selectedGroupID == group.id ? Color.accent : .secondary)
+                            } label: {
+                                HStack(alignment: .center, spacing: 10) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        groupTitle(for: group)
+                                        groupTokenIcons(for: group)
+                                    }
+                                    Spacer(minLength: 8)
+                                    Image(systemName: viewModel.selectedGroupID == group.id ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(viewModel.selectedGroupID == group.id ? Color.accent : .secondary)
+                                        .frame(width: 22, height: 22)
+                                }
+                                .rowContainer()
                             }
-                            .rowContainer()
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
+                .frame(maxHeight: 180)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardContainer(padding: 14)
+    }
+
+    private func groupTitle(for group: ScreenTimeGroup) -> some View {
+        HStack(spacing: 6) {
+            Text(group.displayName)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            Text("\(group.selectionCount)/9")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .fixedSize()
+        }
+    }
+
+    @ViewBuilder
+    private func groupTokenIcons(for group: ScreenTimeGroup) -> some View {
+        if group.selectionCount == 0 {
+            Text("항목 없음")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 4) {
+                ForEach(
+                    group.selection.applicationTokens.sorted(by: tokenSort),
+                    id: \.self
+                ) { token in
+                    Label(token)
+                        .labelStyle(.iconOnly)
+                        .scaleEffect(0.95)
+                        .frame(width: 20, height: 20)
+                }
+                ForEach(
+                    group.selection.webDomainTokens.sorted(by: tokenSort),
+                    id: \.self
+                ) { token in
+                    Label(token)
+                        .labelStyle(.iconOnly)
+                        .scaleEffect(0.95)
+                        .frame(width: 20, height: 20)
+                }
+            }
+        }
+    }
+
+    private func tokenSort<T: Encodable>(_ lhs: T, _ rhs: T) -> Bool {
+        ((try? JSONEncoder().encode(lhs)) ?? Data())
+            .lexicographicallyPrecedes((try? JSONEncoder().encode(rhs)) ?? Data())
     }
 
     @ViewBuilder
