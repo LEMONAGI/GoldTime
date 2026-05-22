@@ -51,9 +51,7 @@ struct LockOptionsView: View {
 
                 optionButton(
                     title: "1분만 더 쓰기",
-                    subtitle: viewModel.oneMinuteRemaining > 0
-                        ? Text("무료").foregroundColor(.green) + Text(" · 오늘 \(viewModel.oneMinuteRemaining)번 남음")
-                        : Text("오늘은 더 사용할 수 없어요").foregroundColor(.red.opacity(0.8)),
+                    subtitle: oneMinuteSubtitle,
                     background: viewModel.canExtendOneMinute ? Color.accent : Color.gray.opacity(0.3),
                     foreground: viewModel.canExtendOneMinute ? .black : .gray,
                     enabled: viewModel.canExtendOneMinute,
@@ -62,8 +60,7 @@ struct LockOptionsView: View {
 
                 optionButton(
                     title: "광고 보고 15분 더 쓰기",
-                    subtitle: viewModel.selectedGroupName.map { Text("광고 1회").foregroundColor(.red) + Text(" · \($0) 15분 연장") }
-                        ?? Text("풀 그룹을 먼저 고르세요").foregroundColor(.orange),
+                    subtitle: adSubtitle,
                     background: viewModel.canExtendWithAd ? Color.accent : Color.gray.opacity(0.3),
                     foreground: viewModel.canExtendWithAd ? .black : .gray,
                     enabled: viewModel.canExtendWithAd,
@@ -111,6 +108,28 @@ struct LockOptionsView: View {
             )
         }
         .interactiveDismissDisabled()
+    }
+
+    private var oneMinuteSubtitle: Text {
+        if viewModel.oneMinuteRemaining > 0 {
+            var str = AttributedString("무료")
+            str.swiftUI.foregroundColor = .green
+            str += AttributedString(" · 오늘 \(viewModel.oneMinuteRemaining)번 남음")
+            return Text(str)
+        } else {
+            return Text("오늘은 더 사용할 수 없어요").foregroundColor(.red.opacity(0.8))
+        }
+    }
+
+    private var adSubtitle: Text {
+        if let name = viewModel.selectedGroupName {
+            var str = AttributedString("광고 1회")
+            str.swiftUI.foregroundColor = .red
+            str += AttributedString(" · \(name) 15분 연장")
+            return Text(str)
+        } else {
+            return Text("풀 그룹을 먼저 고르세요").foregroundColor(.orange)
+        }
     }
 
     @ViewBuilder

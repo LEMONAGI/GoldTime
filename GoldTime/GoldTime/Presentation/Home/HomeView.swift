@@ -126,14 +126,23 @@ struct HomeView: View {
     @ViewBuilder
     private var billSummaryText: some View {
         if viewModel.hasBillCost {
-            Text("광고 ")
-            + Text("\(viewModel.todayStats.adWatchCount)개").foregroundStyle(Color.accent)
-            + Text(". 추가 사용 ")
-            + Text(goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds)).foregroundStyle(Color.accent)
-            + Text(".")
+            Text(billSummaryAttributed)
         } else {
             Text(viewModel.billSummaryLine)
         }
+    }
+
+    private var billSummaryAttributed: AttributedString {
+        var str = AttributedString("광고 ")
+        var countPart = AttributedString("\(viewModel.todayStats.adWatchCount)개")
+        countPart.swiftUI.foregroundColor = Color.accent
+        str += countPart
+        str += AttributedString(". 추가 사용 ")
+        var durationPart = AttributedString(goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds))
+        durationPart.swiftUI.foregroundColor = Color.accent
+        str += durationPart
+        str += AttributedString(".")
+        return str
     }
 
     private var currentStatusSection: some View {
