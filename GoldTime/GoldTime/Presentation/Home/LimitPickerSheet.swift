@@ -20,8 +20,8 @@ struct LimitPickerSheet: View {
                     .fontWeight(.semibold)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 16)
-
+            .padding(.bottom, 20)
+            
             HStack(spacing: 0) {
                 Picker("시간", selection: $hours) {
                     ForEach(0..<24, id: \.self) { h in
@@ -41,5 +41,6 @@ struct LimitPickerSheet: View {
             }
             .frame(height: 216)
         }
+        .tint(Color.accent)
     }
 }

@@ -119,7 +119,8 @@ struct ContentView: View {
                 },
                 onCancel: { viewModel.setLimitPickerPresented(false) }
             )
-            .presentationDetents([.height(320)])
+            .presentationDetents([.height(300)])
+            .presentationDragIndicator(.visible)
         }
         .onChange(of: viewModel.isPickerPresented) { _, newValue in
             viewModel.handlePickerPresentationChange(isPresented: newValue)
