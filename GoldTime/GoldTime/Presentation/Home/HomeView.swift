@@ -246,8 +246,8 @@ struct HomeView: View {
 
                     HStack(spacing: 8) {
                         GroupStatusBadge(title: viewModel.statusTitle(for: group), tint: viewModel.statusTint(for: group))
+                        if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
                         TimelineView(.periodic(from: .now, by: 60)) { _ in
-                            if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
                                 GroupStatusBadge(title: remainingLabel, tint: .blue)
                             }
                         }
@@ -255,9 +255,6 @@ struct HomeView: View {
                             title: "항목 \(group.appCount)/\(viewModel.maxAppsPerGroup)",
                             tint: group.appCount >= 8 ? .orange : .secondary
                         )
-                        if viewModel.groupHasDuplicateApps(group) {
-                            GroupStatusBadge(title: "중복된 항목 있음", tint: .blue)
-                        }
                     }
                 }
 
@@ -272,24 +269,26 @@ struct HomeView: View {
                 .buttonStyle(.plain)
             }
 
-            Button {
-                onPresentLimitPicker(group)
-            } label: {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("일일 한도")
-                            .font(.subheadline.weight(.semibold))
-                        Text(viewModel.limitLabel(group.dailyLimitMinutes))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
+            HStack(alignment: .center, spacing: 0) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("일일 한도")
+                        .font(.subheadline.weight(.semibold))
+                    Text(viewModel.limitLabel(group.dailyLimitMinutes))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                Spacer()
+                Button {
+                    onPresentLimitPicker(group)
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 18)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
             if viewModel.lockedGroupIDs.contains(group.id) {
                 Button {
@@ -326,18 +325,30 @@ struct HomeView: View {
                             .foregroundStyle(.secondary)
                     }
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 0) {
-                            ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
+                        HStack(spacing: 6) {
+                            ForEach(
+                                group.selection.applicationTokens.sorted {
+                                    ((try? JSONEncoder().encode($0)) ?? Data())
+                                        .lexicographicallyPrecedes((try? JSONEncoder().encode($1)) ?? Data())
+                                },
+                                id: \.self
+                            ) { token in
                                 Label(token)
                                     .labelStyle(.iconOnly)
                                     .scaleEffect(1.3)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 28, height: 28)
                             }
-                            ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
+                            ForEach(
+                                group.selection.webDomainTokens.sorted {
+                                    ((try? JSONEncoder().encode($0)) ?? Data())
+                                        .lexicographicallyPrecedes((try? JSONEncoder().encode($1)) ?? Data())
+                                },
+                                id: \.self
+                            ) { token in
                                 Label(token)
                                     .labelStyle(.iconOnly)
                                     .scaleEffect(1.3)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 28, height: 28)
                             }
                         }
                     }
