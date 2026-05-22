@@ -20,73 +20,36 @@ struct LockOptionsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 8) {
-                Text("💰").font(.system(size: 56))
-                Text("시간이 금이다")
-                    .font(.title.bold())
-                Text(viewModel.headerMessage)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.top, 32)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 18) {
+                header
 
-            groupContext
+                groupContext
 
-            Spacer()
+                optionStack
 
-            VStack(spacing: 12) {
-                optionButton(
-                    title: "그만 쓰기",
-                    subtitle: Text("광고 없이 종료").foregroundColor(.green),
-                    background: Color.gray.opacity(0.2),
-                    foreground: .primary,
-                    enabled: true,
-                    action: {
-                        if viewModel.tapWalkAway() {
-                            dismiss()
-                        }
+                if let infoMessage = viewModel.infoMessage {
+                    Text(infoMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 2)
+                }
+
+                if viewModel.canRetryRelockRegistration {
+                    Button("다시 시도") {
+                        viewModel.retryRelockRegistration()
                     }
-                )
-
-                optionButton(
-                    title: "1분만 더 쓰기",
-                    subtitle: oneMinuteSubtitle,
-                    background: viewModel.canExtendOneMinute ? Color.accent : Color.gray.opacity(0.3),
-                    foreground: viewModel.canExtendOneMinute ? .black : .gray,
-                    enabled: viewModel.canExtendOneMinute,
-                    action: viewModel.tapOneMinute
-                )
-
-                optionButton(
-                    title: "광고 보고 15분 더 쓰기",
-                    subtitle: adSubtitle,
-                    background: viewModel.canExtendWithAd ? Color.accent : Color.gray.opacity(0.3),
-                    foreground: viewModel.canExtendWithAd ? .black : .gray,
-                    enabled: viewModel.canExtendWithAd,
-                    action: viewModel.startAdFlow
-                )
+                    .buttonStyle(.bordered)
+                    .padding(.top, 2)
+                }
             }
             .padding(.horizontal, 20)
-
-            if let infoMessage = viewModel.infoMessage {
-                Text(infoMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-            }
-
-            if viewModel.canRetryRelockRegistration {
-                Button("다시 시도") {
-                    viewModel.retryRelockRegistration()
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Spacer()
+            .padding(.top, 28)
+            .padding(.bottom, 32)
         }
+        .background(Color(.systemGroupedBackground))
         .onAppear {
             viewModel.onAppear(initialGroupID: initialGroupID)
         }
@@ -108,6 +71,87 @@ struct LockOptionsView: View {
             )
         }
         .interactiveDismissDisabled()
+    }
+
+    private var header: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(Color.accent)
+                .frame(width: 64, height: 64)
+                .background(Color.accent.opacity(0.14))
+                .clipShape(Circle())
+
+            VStack(spacing: 6) {
+                Text("한도 끝났어요")
+                    .font(.title2.bold())
+                Text(viewModel.headerMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var optionStack: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("선택")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            walkAwayButton
+
+            VStack(spacing: 10) {
+                extensionOptionButton(
+                    systemName: "timer",
+                    title: "1분만 더 쓰기",
+                    subtitle: oneMinuteSubtitle,
+                    enabled: viewModel.canExtendOneMinute,
+                    action: viewModel.tapOneMinute
+                )
+
+                extensionOptionButton(
+                    systemName: "play.rectangle",
+                    title: "광고 보고 15분 더 쓰기",
+                    subtitle: adSubtitle,
+                    enabled: viewModel.canExtendWithAd,
+                    action: viewModel.startAdFlow
+                )
+            }
+        }
+    }
+
+    private var walkAwayButton: some View {
+        Button {
+            if viewModel.tapWalkAway() {
+                dismiss()
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "power")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 28, height: 28)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("그만 쓰기")
+                        .font(.subheadline.weight(.semibold))
+                    Text("광고 없이 종료")
+                        .font(.footnote)
+                        .foregroundStyle(.black.opacity(0.72))
+                }
+
+                Spacer(minLength: 8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            .padding(.horizontal, 14)
+            .background(Color.accent)
+            .foregroundStyle(.black)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("그만 쓰기, 광고 없이 종료")
     }
 
     private var oneMinuteSubtitle: Text {
@@ -134,24 +178,31 @@ struct LockOptionsView: View {
 
     @ViewBuilder
     private var groupContext: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             if viewModel.lockedGroups.isEmpty {
                 Text("잠긴 그룹을 찾지 못했어요.")
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                 Text("앱을 다시 열어보거나, GoldTime에서 모니터링 상태를 확인해주세요.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else if viewModel.lockedGroups.count == 1, let group = viewModel.lockedGroups.first {
-                Text(group.displayName)
-                    .font(.headline)
-                Text("이 그룹만 한 번 연장할 수 있어요.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: "rectangle.3.group")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(group.displayName)
+                            .font(.subheadline.weight(.semibold))
+                        Text("이 그룹만 한 번 연장할 수 있어요.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             } else {
                 Text("잠긴 그룹이 여러 개예요")
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                 Text("한 번에 한 그룹만 연장합니다.")
-                    .font(.subheadline)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
 
                 VStack(spacing: 8) {
@@ -183,34 +234,47 @@ struct LockOptionsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardContainer()
-        .padding(.horizontal, 20)
+        .cardContainer(padding: 14)
     }
 
     @ViewBuilder
-    private func optionButton(
+    private func extensionOptionButton(
+        systemName: String,
         title: String,
         subtitle: Text,
-        background: Color,
-        foreground: Color,
         enabled: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                subtitle
-                    .font(.subheadline)
-                    .opacity(0.8)
-                    .multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+                Image(systemName: systemName)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(enabled ? Color.accent : .secondary)
+                    .frame(width: 28, height: 28)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    subtitle
+                        .font(.footnote)
+                        .opacity(0.86)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: 8)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(background)
-            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            .padding(.horizontal, 14)
+            .background(Color(.secondarySystemGroupedBackground))
+            .foregroundStyle(enabled ? Color.primary : Color.secondary)
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.primary.opacity(enabled ? 0.08 : 0.04))
+            }
         }
         .disabled(!enabled)
+        .buttonStyle(.plain)
+        .opacity(enabled ? 1 : 0.58)
     }
 }
