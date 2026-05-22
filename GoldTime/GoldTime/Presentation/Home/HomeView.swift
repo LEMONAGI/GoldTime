@@ -301,45 +301,53 @@ struct HomeView: View {
                 .buttonStyle(GoldTimeButtonStyle(background: Color.red.opacity(0.12), foreground: .red))
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Button {
-                        onPresentPicker(group)
-                    } label: {
-                        Label("제한 항목 선택", systemImage: "square.grid.2x2")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
-                }
-
-                selectedTokenList(for: group)
-            }
+            selectedTokenList(for: group, onEdit: { onPresentPicker(group) })
         }
         .cardContainer()
     }
 
     @ViewBuilder
-    private func selectedTokenList(for group: ScreenTimeGroup) -> some View {
+    private func selectedTokenList(for group: ScreenTimeGroup, onEdit: @escaping () -> Void) -> some View {
         if group.selectionCount == 0 {
-            Text("선택된 항목 없음")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .rowContainer()
+            Button(action: onEdit) {
+                Label("제한 항목 선택", systemImage: "square.grid.2x2")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
         } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
-                        Label(token)
-                            .labelStyle(.iconOnly)
-                            .frame(width: 32, height: 32)
-                            .clipShape(RoundedRectangle(cornerRadius: 7))
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("제한 항목")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color(.tertiarySystemGroupedBackground))
+                        .clipShape(Capsule())
+                    Spacer()
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 36, height: 36)
                     }
-                    ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
-                        Label(token)
-                            .labelStyle(.iconOnly)
-                            .frame(width: 32, height: 32)
-                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                    .buttonStyle(.plain)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
+                            Label(token)
+                                .labelStyle(.iconOnly)
+                                .scaleEffect(1.3)
+                                .frame(width: 36, height: 36)
+                                
+                        }
+                        ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
+                            Label(token)
+                                .labelStyle(.iconOnly)
+                                .scaleEffect(1.3)
+                                .frame(width: 36, height: 36)
+                        }
                     }
                 }
             }
