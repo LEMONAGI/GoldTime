@@ -51,6 +51,7 @@ final class ContentViewModel {
     var weeklyStats: [DailyStats]
     var previousWeekStats: [DailyStats]
     var adFreeStreakDays: Int
+    var maxAdFreeStreakDays: Int
     var lockedGroupIDs: Set<UUID> = []
     var overrideGroupIDs: Set<UUID> = []
     var validGroupIDs: Set<UUID> = []
@@ -103,6 +104,7 @@ final class ContentViewModel {
         weeklyStats = statsRepo.lastSevenDayStats()
         previousWeekStats = statsRepo.previousSevenDayStats()
         adFreeStreakDays = 0
+        maxAdFreeStreakDays = 0
 
         authorizationObservation = self.authorizeUseCase.observeAuthorizationChanges { [weak self] isAuthorized in
             self?.isAuthorized = isAuthorized
@@ -110,7 +112,10 @@ final class ContentViewModel {
 
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let state = await self.authorizeUseCase.notificationState()
+            async let isAuth = self.authorizeUseCase.settledIsAuthorized()
+            async let notifState = self.authorizeUseCase.notificationState()
+            let (authorized, state) = await (isAuth, notifState)
+            self.isAuthorized = authorized
             self.isNotificationAuthorized = [NotificationPermissionState.authorized, .provisional, .ephemeral].contains(state)
             self.isCheckingPermissions = false
         }
@@ -279,6 +284,7 @@ final class ContentViewModel {
         weeklyStats = state.weeklyStats
         previousWeekStats = state.previousWeekStats
         adFreeStreakDays = state.adFreeStreakDays
+        maxAdFreeStreakDays = state.maxAdFreeStreakDays
         isMonitoring = state.isDailyMonitoringEnabled
         lockedGroupIDs = state.lockedGroupIDs
         overrideGroupIDs = state.overrideGroupIDs

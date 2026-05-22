@@ -14,18 +14,18 @@ struct StatsView: View {
         todayStats: SharedStore.DailyStats,
         weeklyStats: [SharedStore.DailyStats],
         previousWeekStats: [SharedStore.DailyStats],
-        oneMinuteRemaining: Int,
         isMonitoring: Bool,
-        adFreeStreakDays: Int
+        adFreeStreakDays: Int,
+        maxAdFreeStreakDays: Int
     ) {
         viewModel = StatsViewModel(
             groups: groups,
             todayStats: todayStats,
             weeklyStats: weeklyStats,
             previousWeekStats: previousWeekStats,
-            oneMinuteRemaining: oneMinuteRemaining,
             isMonitoring: isMonitoring,
-            adFreeStreakDays: adFreeStreakDays
+            adFreeStreakDays: adFreeStreakDays,
+            maxAdFreeStreakDays: maxAdFreeStreakDays
         )
     }
 
@@ -49,43 +49,33 @@ struct StatsView: View {
     }
 
     private var metricGrid: some View {
-        LazyVGrid(columns: metricColumns, spacing: 12) {
-            DashboardMetricCard(
-                title: "광고 없는 연속 일수",
-                value: "\(viewModel.adFreeStreakDays)일",
-                caption: viewModel.adFreeStreakDays == 0 ? "오늘 광고를 봤어요" : "광고 없이 연속",
-                systemName: "flame.fill",
-                tint: .orange,
+        VStack(spacing: 12) {
+            StreakCard(
+                current: viewModel.adFreeStreakDays,
+                best: viewModel.maxAdFreeStreakDays,
                 sentiment: viewModel.streakSentiment
             )
+            LazyVGrid(columns: metricColumns, spacing: 12) {
+                DashboardMetricCard(
+                    title: "추가 사용",
+                    value: goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds),
+                    caption: viewModel.todayDeltaCaption,
+                    systemName: "clock.fill",
+                    tint: .purple,
+                    trend: viewModel.todayTrend,
+                    sentiment: viewModel.todaySentiment
+                )
 
-            DashboardMetricCard(
-                title: "남은 1분",
-                value: "\(viewModel.oneMinuteRemaining)회",
-                caption: "오늘 무료 연장 잔여",
-                systemName: "plus.forwardslash.minus",
-                tint: .blue
-            )
-
-            DashboardMetricCard(
-                title: "추가 사용",
-                value: goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds),
-                caption: viewModel.todayDeltaCaption,
-                systemName: "clock.fill",
-                tint: .purple,
-                trend: viewModel.todayTrend,
-                sentiment: viewModel.todaySentiment
-            )
-
-            DashboardMetricCard(
-                title: "이번 주 추가 사용",
-                value: goldTimeDurationText(seconds: viewModel.weeklyAdUnlockedSeconds),
-                caption: viewModel.weeklyDeltaCaption,
-                systemName: "calendar.badge.clock",
-                tint: .purple,
-                trend: viewModel.weeklyTrend,
-                sentiment: viewModel.weeklySentiment
-            )
+                DashboardMetricCard(
+                    title: "이번 주 추가 사용",
+                    value: goldTimeDurationText(seconds: viewModel.weeklyAdUnlockedSeconds),
+                    caption: viewModel.weeklyDeltaCaption,
+                    systemName: "calendar.badge.clock",
+                    tint: .purple,
+                    trend: viewModel.weeklyTrend,
+                    sentiment: viewModel.weeklySentiment
+                )
+            }
         }
     }
 

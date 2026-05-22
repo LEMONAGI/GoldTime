@@ -16,9 +16,9 @@ struct StatsViewModel {
     let todayStats: SharedStore.DailyStats
     let weeklyStats: [SharedStore.DailyStats]
     let previousWeekStats: [SharedStore.DailyStats]
-    let oneMinuteRemaining: Int
     let isMonitoring: Bool
     let adFreeStreakDays: Int
+    let maxAdFreeStreakDays: Int
 
     // weeklyStats: [today-6, today-5, ..., today-1, today] (index 5 = yesterday, index 6 = today)
     var yesterdayAdUnlockedSeconds: Int {

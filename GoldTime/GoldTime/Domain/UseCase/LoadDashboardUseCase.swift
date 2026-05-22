@@ -10,6 +10,7 @@ struct DashboardState {
     let weeklyStats: [DailyStats]
     let previousWeekStats: [DailyStats]
     let adFreeStreakDays: Int
+    let maxAdFreeStreakDays: Int
     let isDailyMonitoringEnabled: Bool
     let lockedGroupIDs: Set<UUID>
     let overrideGroupIDs: Set<UUID>
@@ -52,11 +53,30 @@ final class LoadDashboardUseCase {
             weeklyStats: statsRepository.lastSevenDayStats(),
             previousWeekStats: statsRepository.previousSevenDayStats(),
             adFreeStreakDays: calculateAdFreeStreak(),
+            maxAdFreeStreakDays: calculateMaxAdFreeStreak(),
             isDailyMonitoringEnabled: screenTimeRepository.isDailyMonitoringEnabled,
             lockedGroupIDs: Set(shieldRepository.lockedGroups().map(\.id)),
             overrideGroupIDs: Set(shieldRepository.groupsInOverride().map(\.id)),
             validGroupIDs: Set(validGroups.map(\.id))
         )
+    }
+
+    func calculateMaxAdFreeStreak() -> Int {
+        guard let firstDate = statsRepository.oldestStatDate else { return 0 }
+        let daysSinceOldest = Calendar.current.dateComponents([.day], from: firstDate, to: Date()).day ?? 0
+        let stats = statsRepository.lastNDayStats(daysSinceOldest + 1)
+        var maxStreak = 0
+        var currentStreak = 0
+        for dailyStat in stats {
+            guard dailyStat.date >= firstDate else { continue }
+            if dailyStat.adWatchCount == 0 {
+                currentStreak += 1
+                maxStreak = max(maxStreak, currentStreak)
+            } else {
+                currentStreak = 0
+            }
+        }
+        return maxStreak
     }
 
     func calculateAdFreeStreak() -> Int {
