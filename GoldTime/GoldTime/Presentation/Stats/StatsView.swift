@@ -55,7 +55,8 @@ struct StatsView: View {
                 value: "\(viewModel.adFreeStreakDays)일",
                 caption: viewModel.adFreeStreakDays == 0 ? "오늘 광고를 봤어요" : "광고 없이 연속",
                 systemName: "flame.fill",
-                tint: .orange
+                tint: .orange,
+                sentiment: viewModel.streakSentiment
             )
 
             DashboardMetricCard(
@@ -70,9 +71,10 @@ struct StatsView: View {
                 title: "추가 사용",
                 value: goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds),
                 caption: viewModel.todayDeltaCaption,
-                systemName: "play.rectangle.fill",
-                tint: .orange,
-                trend: viewModel.todayTrend
+                systemName: "clock.fill",
+                tint: .purple,
+                trend: viewModel.todayTrend,
+                sentiment: viewModel.todaySentiment
             )
 
             DashboardMetricCard(
@@ -81,7 +83,8 @@ struct StatsView: View {
                 caption: viewModel.weeklyDeltaCaption,
                 systemName: "calendar.badge.clock",
                 tint: .purple,
-                trend: viewModel.weeklyTrend
+                trend: viewModel.weeklyTrend,
+                sentiment: viewModel.weeklySentiment
             )
         }
     }

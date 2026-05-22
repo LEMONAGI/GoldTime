@@ -75,4 +75,24 @@ struct StatsViewModel {
         if weeklyDelta < 0 { return .down }
         return .flat
     }
+
+    var streakSentiment: CardSentiment {
+        adFreeStreakDays > 0 ? .positive : .negative
+    }
+
+    var todaySentiment: CardSentiment? {
+        switch todayTrend {
+        case .up: .negative
+        case .down: .positive
+        default: nil
+        }
+    }
+
+    var weeklySentiment: CardSentiment? {
+        switch weeklyTrend {
+        case .up: .negative
+        case .down: .positive
+        default: nil
+        }
+    }
 }
