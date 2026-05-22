@@ -5,6 +5,12 @@
 
 import Foundation
 
+enum TrendDirection {
+    case up
+    case down
+    case flat
+}
+
 struct StatsViewModel {
     let groups: [SharedStore.ScreenTimeGroup]
     let todayStats: SharedStore.DailyStats
@@ -51,7 +57,22 @@ struct StatsViewModel {
         return weeklyDelta < 0 ? "지난 주보다 \(text) 적어요" : "지난 주보다 \(text) 많아요"
     }
 
-    var hasWeeklyAdUnlocked: Bool {
-        weeklyStats.contains { $0.adUnlockedSeconds > 0 }
+    var weeklyMaxMinutes: Int {
+        weeklyStats.map { $0.adUnlockedSeconds / 60 }.max() ?? 0
+    }
+
+    var todayTrend: TrendDirection? {
+        let hasAnyData = yesterdayAdUnlockedSeconds > 0 || todayStats.adUnlockedSeconds > 0
+        guard hasAnyData else { return nil }
+        if todayVsYesterdayDelta > 0 { return .up }
+        if todayVsYesterdayDelta < 0 { return .down }
+        return .flat
+    }
+
+    var weeklyTrend: TrendDirection? {
+        guard previousWeekAdUnlockedSeconds > 0 else { return nil }
+        if weeklyDelta > 0 { return .up }
+        if weeklyDelta < 0 { return .down }
+        return .flat
     }
 }
