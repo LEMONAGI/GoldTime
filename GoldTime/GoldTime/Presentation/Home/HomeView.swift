@@ -191,7 +191,7 @@ struct HomeView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
                         .foregroundStyle(Color.accent)
-                    Text("그룹당 앱과 웹 사이트 합쳐 \(viewModel.maxAppsPerGroup)개까지 · 카테고리는 앱으로 펼쳐 저장해요 · 같은 앱은 여러 그룹에 넣을 수 있어요.")
+                    Text("그룹당 \(viewModel.maxAppsPerGroup)개 항목까지 · 같은 항목을 여러 그룹에 포함시킬 수 있어요.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -223,7 +223,7 @@ struct HomeView: View {
                 .foregroundStyle(Color.accent)
             Text("아직 그룹이 없어요.")
                 .font(.headline)
-            Text("그룹을 만들고 앱을 담으면, 그룹별로 다른 일일 한도를 걸 수 있어요.")
+            Text("그룹을 만들고 항목을 선택하면, 그룹별로 다른 일일 한도를 걸 수 있어요.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -252,11 +252,11 @@ struct HomeView: View {
                             }
                         }
                         GroupStatusBadge(
-                            title: "앱 \(group.appCount)/\(viewModel.maxAppsPerGroup)",
+                            title: "항목 \(group.appCount)/\(viewModel.maxAppsPerGroup)",
                             tint: group.appCount >= 8 ? .orange : .secondary
                         )
                         if viewModel.groupHasDuplicateApps(group) {
-                            GroupStatusBadge(title: "중복 포함 앱 있음", tint: .blue)
+                            GroupStatusBadge(title: "중복된 항목 있음", tint: .blue)
                         }
                     }
                 }
@@ -306,15 +306,11 @@ struct HomeView: View {
                     Button {
                         onPresentPicker(group)
                     } label: {
-                        Label("앱/웹사이트 선택", systemImage: "square.grid.2x2")
+                        Label("제한 항목 선택", systemImage: "square.grid.2x2")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
                 }
-
-                Text("카테고리는 앱으로 펼쳐 저장하고, 웹 사이트는 사파리에서 사용하는 것만 가능해요.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
 
                 selectedTokenList(for: group)
             }
@@ -331,18 +327,20 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .rowContainer()
         } else {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
-                    Label(token)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
-                    Label(token)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
+                        Label(token)
+                            .labelStyle(.iconOnly)
+                            .frame(width: 32, height: 32)
+                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                    }
+                    ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
+                        Label(token)
+                            .labelStyle(.iconOnly)
+                            .frame(width: 32, height: 32)
+                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                    }
                 }
             }
             .rowContainer()
