@@ -225,8 +225,8 @@ struct HomeView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .cardContainer(padding: 20)
         .frame(maxWidth: .infinity)
+        .cardContainer(padding: 20)
     }
 
     private func groupCard(_ group: ScreenTimeGroup) -> some View {
