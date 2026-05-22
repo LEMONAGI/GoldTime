@@ -155,6 +155,27 @@ struct ViewModelTests {
         #expect(viewModel.alertMessage?.title == "그룹 제한")
     }
 
+    @Test func contentViewModelUsesCategoryExpandingPickerSelection() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+        )
+
+        #expect(viewModel.pickerSelection.includeEntireCategory)
+
+        viewModel.presentPicker(for: group)
+
+        #expect(viewModel.pickerSelection.includeEntireCategory)
+        #expect(viewModel.pickerGroupID == group.id)
+        #expect(viewModel.isPickerPresented)
+    }
+
     @Test func contentViewModelCommitsLimitPickerSelection() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
         let groupRepo = FakeGroupRepository()
@@ -182,6 +203,44 @@ struct ViewModelTests {
     }
 
     // MARK: - HomeViewModel
+
+    @Test func appPickerWarningsAllowCategories() {
+        let warnings = AppPickerSheetViewModel.warnings(
+            for: AppPickerSheetViewModel.SelectionSummary(
+                appCount: SharedStore.maxAppsPerGroup,
+                hasCategory: true,
+                hasWeb: false
+            )
+        )
+
+        #expect(warnings.isEmpty)
+    }
+
+    @Test func appPickerWarningsRejectWebDomains() {
+        let warnings = AppPickerSheetViewModel.warnings(
+            for: AppPickerSheetViewModel.SelectionSummary(
+                appCount: 1,
+                hasCategory: false,
+                hasWeb: true
+            )
+        )
+
+        #expect(warnings == ["웹사이트는 아직 지원하지 않아요. 앱만 선택해주세요."])
+    }
+
+    @Test func appPickerWarningsCountCategoryExpandedApps() {
+        let warnings = AppPickerSheetViewModel.warnings(
+            for: AppPickerSheetViewModel.SelectionSummary(
+                appCount: SharedStore.maxAppsPerGroup + 1,
+                hasCategory: true,
+                hasWeb: false
+            )
+        )
+
+        #expect(warnings.count == 1)
+        #expect(warnings[0].contains("카테고리에 포함된 앱도 앱 개수에 포함돼요"))
+        #expect(warnings[0].contains("10/9"))
+    }
 
     @Test func homeViewModelDescribesShieldAndOverrideStates() {
         let lockedGroup = SharedStore.ScreenTimeGroup(name: "게임")

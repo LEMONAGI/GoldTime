@@ -184,7 +184,7 @@ enum ScreenTimeManager {
     ) -> [SharedStore.ScreenTimeGroup] {
         Array(groups.prefix(SharedStore.maxGroupCount)).map { group in
             var sanitized = group
-            sanitized.selection = group.selection.appOnly
+            sanitized.selection = group.selection.appTokenSelection
             return sanitized
         }
     }

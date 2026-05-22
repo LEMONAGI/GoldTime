@@ -51,7 +51,7 @@ enum SharedStore {
         ) {
             self.id = id
             self.name = name
-            self.selection = selection.appOnly
+            self.selection = selection.appTokenSelection
             self.dailyLimitMinutes = dailyLimitMinutes
         }
 
@@ -175,7 +175,7 @@ enum SharedStore {
         set {
             let groups = Array(newValue.prefix(maxGroupCount)).map { group in
                 var sanitized = group
-                sanitized.selection = group.selection.appOnly
+                sanitized.selection = group.selection.appTokenSelection
                 return sanitized
             }
             let data = try? JSONEncoder().encode(groups)
@@ -651,8 +651,8 @@ enum SharedStore {
 }
 
 extension FamilyActivitySelection {
-    var appOnly: FamilyActivitySelection {
-        var selection = FamilyActivitySelection()
+    var appTokenSelection: FamilyActivitySelection {
+        var selection = FamilyActivitySelection(includeEntireCategory: true)
         selection.applicationTokens = applicationTokens
         return selection
     }

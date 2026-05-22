@@ -46,7 +46,7 @@ struct AppPickerSheet: View {
                     .disabled(!viewModel.warnings.isEmpty)
                 }
             }
-            .navigationTitle("앱 선택")
+            .navigationTitle("앱/카테고리 선택")
             .navigationBarTitleDisplayMode(.inline)
         }
     }

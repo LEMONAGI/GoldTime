@@ -28,7 +28,7 @@ final class ContentViewModel {
     var selectedTab = GoldTimeTab.home
     var isAuthorized: Bool
     var groups: [ScreenTimeGroup] = []
-    var pickerSelection = FamilyActivitySelection()
+    var pickerSelection = FamilyActivitySelection(includeEntireCategory: true)
     var pickerGroupID: UUID?
     var isPickerPresented = false
     var isMonitoring = false
@@ -172,7 +172,7 @@ final class ContentViewModel {
 
     func presentPicker(for group: ScreenTimeGroup) {
         pickerGroupID = group.id
-        pickerSelection = group.selection
+        pickerSelection = group.selection.appTokenSelection
         isPickerPresented = true
     }
 
