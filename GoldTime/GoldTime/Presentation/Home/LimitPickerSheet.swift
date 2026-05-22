@@ -41,6 +41,5 @@ struct LimitPickerSheet: View {
             }
             .frame(height: 216)
         }
-        .tint(Color.accent)
     }
 }
