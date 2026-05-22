@@ -32,7 +32,7 @@ struct DashboardMetricCard: View {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(value)
                         .font(.title3.weight(.bold))
                         .foregroundStyle(valueColor)
@@ -40,7 +40,7 @@ struct DashboardMetricCard: View {
                         .minimumScaleFactor(0.75)
                     if let trend, trend != .flat {
                         Image(systemName: trend == .up ? "arrow.up.right" : "arrow.down.right")
-                            .font(.title3.weight(.bold))
+                            .font(.body.weight(.bold))
                             .foregroundStyle(trend == .up ? Color.red : Color.green)
                     }
                 }
@@ -52,12 +52,7 @@ struct DashboardMetricCard: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
-        .background {
-            Color(.secondarySystemGroupedBackground)
-            if let sentiment {
-                (sentiment == .positive ? Color.green : Color.red).opacity(0.08)
-            }
-        }
+        .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
