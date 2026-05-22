@@ -6,6 +6,7 @@ struct DashboardMetricCard: View {
     let caption: String
     let systemName: String
     let tint: Color
+    var trend: TrendDirection? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -18,11 +19,18 @@ struct DashboardMetricCard: View {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(value)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    if let trend, trend != .flat {
+                        Image(systemName: trend == .up ? "arrow.up.right" : "arrow.down.right")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(trend == .up ? Color.red : Color.green)
+                    }
+                }
                 Text(caption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
