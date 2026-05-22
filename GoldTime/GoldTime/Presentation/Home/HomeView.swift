@@ -109,18 +109,15 @@ struct HomeView: View {
                 BillPill(title: "1분 연장", value: "\(viewModel.todayStats.oneMinuteUsedCount)회")
                 BillPill(title: "시간을 아낀 선택", value: "\(viewModel.todayStats.walkAwayCount)회")
             }
-
-            Text("한도 넘긴 뒤의 선택만 기록합니다.")
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.55))
         }
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color("gray100"))
+        .background(viewModel.hasBillCost ? Color.accent.opacity(0.06) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(alignment: .leading) {
             if viewModel.hasBillCost {
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 20)
                     .strokeBorder(Color.accent.opacity(0.5), lineWidth: 1.5)
             }
         }
