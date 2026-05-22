@@ -244,7 +244,7 @@ struct HomeView: View {
                     HStack(spacing: 8) {
                         GroupStatusBadge(title: viewModel.statusTitle(for: group), tint: viewModel.statusTint(for: group))
                         if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
-                        TimelineView(.periodic(from: .now, by: 60)) { _ in
+                            TimelineView(.periodic(from: .now, by: 60)) { _ in
                                 GroupStatusBadge(title: remainingLabel, tint: .blue)
                             }
                         }
@@ -265,6 +265,8 @@ struct HomeView: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            Divider()
 
             HStack(alignment: .center, spacing: 0) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -317,7 +319,7 @@ struct HomeView: View {
                         Text("제한 항목")
                             .font(.subheadline.weight(.semibold))
                         Spacer()
-                        Image(systemName: "pencil")
+                        Image(systemName: "square.grid.2x2")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
