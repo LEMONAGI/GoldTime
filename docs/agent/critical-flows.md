@@ -25,12 +25,12 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 ## Daily Monitoring 흐름
 
 1. 메인 앱이 FamilyControls 권한을 요청합니다.
-2. 사용자가 앱 그룹을 만들고 각 그룹에 앱과 일일 한도를 선택합니다. v1은 앱만 지원하고 카테고리/웹은 저장하지 않습니다.
+2. 사용자가 앱 그룹을 만들고 각 그룹에 앱 또는 Safari 웹사이트와 일일 한도를 선택합니다. 카테고리는 앱으로 펼쳐 저장하고, 웹사이트는 Safari에서 사용하는 것만 지원합니다.
 3. 그룹 저장, 앱 시작, active 복귀 시 `ScreenTimeManager.syncDailyMonitoring(groups:)`(`Core/ScreenTime/ScreenTimeManager.swift`)가 그룹 목록을 저장하고 유효한 그룹만 `.daily` 모니터링에 자동 적용합니다. 메인 앱에서는 `ScreenTimeRepositoryImpl` → `SyncProtectionUseCase`를 통해 호출됩니다.
-4. 유효한 그룹은 앱 1개 이상, 일일 한도 1분 이상, 앱-only, 그룹당 앱 제한 이내인 그룹입니다. 설정이 덜 끝난 그룹은 저장하지만 `.daily` 이벤트에서는 제외합니다.
+4. 유효한 그룹은 앱 또는 웹사이트 1개 이상, 일일 한도 1분 이상, 앱+웹사이트 합산 그룹당 제한 이내인 그룹입니다. 설정이 덜 끝난 그룹은 저장하지만 `.daily` 이벤트에서는 제외합니다.
 5. `.daily` activity 안에 `dailyLimit.<groupID>` 이벤트가 유효 그룹별로 등록됩니다.
 6. `DeviceActivityMonitorExtension.eventDidReachThreshold`가 해당 그룹 id를 `SharedStore.shieldedGroupIDs`에 추가합니다.
-7. Extension이 Shield hit을 기록하고 잠긴 그룹들의 앱 token union을 Shield로 적용합니다. override 중인 그룹은 union에서 제외합니다.
+7. Extension이 Shield hit을 기록하고 잠긴 그룹들의 앱 token union과 웹사이트 token union을 Shield로 적용합니다. override 중인 그룹은 union에서 제외합니다.
 8. 메인 앱은 열릴 때나 active 상태가 될 때 공유 Shield 상태를 읽고 모니터링 등록을 다시 동기화합니다.
 9. 같은 날짜의 foreground 자동 동기화와 `.daily` 재등록은 기존 `shieldedGroupIDs`를 지우면 안 됩니다. 잠금 상태 초기화는 실제 날짜가 바뀌었거나 전체 보호 초기화를 명시 실행했을 때만 허용합니다.
 
@@ -55,7 +55,7 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 ## 1분 연장 흐름
 
 1. 사용자가 Shield 경로에서 GoldTime을 열고 1분 연장을 선택합니다.
-2. `LockOptionsView`가 Shield에서 들어온 앱 token으로 잠긴 후보 그룹을 찾고, 필요하면 사용자가 한 그룹을 고릅니다.
+2. `LockOptionsView`가 Shield에서 들어온 앱 token 또는 웹사이트 token으로 잠긴 후보 그룹을 찾고, 필요하면 사용자가 한 그룹을 고릅니다.
 3. `LockOptionsView`가 `ScreenTimeManager.consumeOneMinute(for:)`를 호출합니다.
 4. `ScreenTimeManager`가 필요하면 카운터를 리셋하고, `SharedStore.oneMinuteDailyLimit`을 확인한 뒤 사용 횟수와 통계를 기록하고 해당 그룹만 override 처리합니다.
 5. `releaseShield(forSeconds:groupID:)`는 `override.<groupID>` 일회성 모니터링을 시작하고, 다른 잠긴 그룹은 Shield union에 유지합니다.
@@ -75,7 +75,7 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 2. `ShieldConfigurationExtension`이 Shield UI 문구와 버튼을 구성합니다.
 3. `ShieldActionExtension`이 버튼 탭을 처리합니다.
 4. Extension에서는 앱을 직접 열 수 없으므로, "GoldTime 가기" 경로는 open request와 앱 token을 기록하고 로컬 알림을 예약합니다.
-5. 메인 앱은 open request를 비우고 필요한 경우 `LockOptionsView`를 보여줍니다. `LockOptionsView`는 앱 token이 속한 잠긴 그룹을 연장 후보로 표시합니다.
+5. 메인 앱은 open request를 비우고 필요한 경우 `LockOptionsView`를 보여줍니다. `LockOptionsView`는 앱 token 또는 웹사이트 token이 속한 잠긴 그룹을 연장 후보로 표시합니다.
 
 ## 일일 리셋 흐름
 

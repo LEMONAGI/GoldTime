@@ -18,12 +18,17 @@ struct AppPickerSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if !viewModel.warnings.isEmpty {
+                if !viewModel.warnings.isEmpty || !viewModel.notices.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(viewModel.warnings, id: \.self) { warning in
                             Label(warning, systemImage: "exclamationmark.circle.fill")
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(.red)
+                        }
+                        ForEach(viewModel.notices, id: \.self) { notice in
+                            Label(notice, systemImage: "info.circle.fill")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -46,7 +51,7 @@ struct AppPickerSheet: View {
                     .disabled(!viewModel.warnings.isEmpty)
                 }
             }
-            .navigationTitle("앱/카테고리 선택")
+            .navigationTitle("앱/웹사이트 선택")
             .navigationBarTitleDisplayMode(.inline)
         }
     }

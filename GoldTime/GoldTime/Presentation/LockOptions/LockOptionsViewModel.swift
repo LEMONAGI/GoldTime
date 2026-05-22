@@ -32,6 +32,7 @@ final class LockOptionsViewModel {
     }
 
     private var requestedApplicationToken: ApplicationToken?
+    private var requestedWebDomainToken: WebDomainToken?
     private var pendingAdRewardGroupID: UUID?
     private var pendingRetry: (groupID: UUID, source: ExtensionSource)?
     private var retryTask: Task<Void, Never>?
@@ -141,6 +142,7 @@ final class LockOptionsViewModel {
     private func refreshLockedGroups() {
         let state = extendGroupUseCase.refreshState()
         requestedApplicationToken = state.requestedToken
+        requestedWebDomainToken = state.requestedWebDomainToken
         lockedGroups = state.lockedGroups
 
         if lockedGroups.count == 1 {
@@ -174,7 +176,8 @@ final class LockOptionsViewModel {
             oneMinuteRemaining = extendGroupUseCase.currentOneMinuteRemaining()
             lockedGroups = extendGroupUseCase.lockedGroupsAfterExtension(
                 result: result,
-                requestedToken: requestedApplicationToken
+                requestedToken: requestedApplicationToken,
+                requestedWebDomainToken: requestedWebDomainToken
             )
             if let selectedGroupID,
                !lockedGroups.contains(where: { $0.id == selectedGroupID }) {
@@ -244,7 +247,17 @@ final class LockOptionsViewModel {
         if let token = requestedApplicationToken {
             let remaining = extendGroupUseCase.lockedGroupsAfterExtension(
                 result: result,
-                requestedToken: token
+                requestedToken: token,
+                requestedWebDomainToken: nil
+            )
+            if let remainingGroup = remaining.first {
+                message += "\n\(remainingGroup.displayName)는 아직 잠겨 있어요."
+            }
+        } else if let requestedWebDomainToken {
+            let remaining = extendGroupUseCase.lockedGroupsAfterExtension(
+                result: result,
+                requestedToken: nil,
+                requestedWebDomainToken: requestedWebDomainToken
             )
             if let remainingGroup = remaining.first {
                 message += "\n\(remainingGroup.displayName)는 아직 잠겨 있어요."

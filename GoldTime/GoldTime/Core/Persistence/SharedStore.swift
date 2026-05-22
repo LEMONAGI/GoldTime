@@ -27,6 +27,7 @@ enum SharedStore {
         static let overrideUntilByGroupID = "overrideUntilByGroupID"
         static let overrideDiagnostics = "overrideDiagnostics"
         static let lastRequestedUnlockApplicationToken = "lastRequestedUnlockApplicationToken"
+        static let lastRequestedUnlockWebDomainToken = "lastRequestedUnlockWebDomainToken"
         static let shieldOpenRequestStartedAt = "shieldOpenRequestStartedAt"
         static let dailyProtectionStateDate = "dailyProtectionStateDate"
         static let dailyStatsByDate = "dailyStatsByDate"
@@ -51,7 +52,7 @@ enum SharedStore {
         ) {
             self.id = id
             self.name = name
-            self.selection = selection.appTokenSelection
+            self.selection = selection.supportedTokenSelection
             self.dailyLimitMinutes = dailyLimitMinutes
         }
 
@@ -59,8 +60,16 @@ enum SharedStore {
             selection.applicationTokens.count
         }
 
+        var webDomainCount: Int {
+            selection.webDomainTokens.count
+        }
+
+        var selectionCount: Int {
+            appCount + webDomainCount
+        }
+
         var hasNonAppTokens: Bool {
-            !selection.categoryTokens.isEmpty || !selection.webDomainTokens.isEmpty
+            !selection.categoryTokens.isEmpty
         }
 
         var displayName: String {
@@ -175,7 +184,7 @@ enum SharedStore {
         set {
             let groups = Array(newValue.prefix(maxGroupCount)).map { group in
                 var sanitized = group
-                sanitized.selection = group.selection.appTokenSelection
+                sanitized.selection = group.selection.supportedTokenSelection
                 return sanitized
             }
             let data = try? JSONEncoder().encode(groups)
@@ -292,6 +301,7 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.overrideUntilByGroupID)
         defaults.removeObject(forKey: Key.overrideDiagnostics)
         defaults.removeObject(forKey: Key.lastRequestedUnlockApplicationToken)
+        defaults.removeObject(forKey: Key.lastRequestedUnlockWebDomainToken)
         defaults.removeObject(forKey: Key.isShieldActive)
         defaults.removeObject(forKey: Key.isDailyMonitoringEnabled)
         defaults.removeObject(forKey: Key.oneMinuteUsedToday)
@@ -382,8 +392,26 @@ enum SharedStore {
         }
     }
 
-    static func clearLastRequestedUnlockApplicationToken() {
+    static var lastRequestedUnlockWebDomainToken: WebDomainToken? {
+        get {
+            guard let data = defaults.data(forKey: Key.lastRequestedUnlockWebDomainToken) else {
+                return nil
+            }
+            return try? JSONDecoder().decode(WebDomainToken.self, from: data)
+        }
+        set {
+            guard let newValue else {
+                defaults.removeObject(forKey: Key.lastRequestedUnlockWebDomainToken)
+                return
+            }
+            let data = try? JSONEncoder().encode(newValue)
+            defaults.set(data, forKey: Key.lastRequestedUnlockWebDomainToken)
+        }
+    }
+
+    static func clearLastRequestedUnlockTokens() {
         defaults.removeObject(forKey: Key.lastRequestedUnlockApplicationToken)
+        defaults.removeObject(forKey: Key.lastRequestedUnlockWebDomainToken)
     }
 
     static func setOverride(until date: Date, for groupID: UUID) {
@@ -522,7 +550,7 @@ enum SharedStore {
         oneMinuteUsedToday = 0
         oneMinuteCounterDate = now
         clearAllShieldState()
-        clearLastRequestedUnlockApplicationToken()
+        clearLastRequestedUnlockTokens()
         clearShieldOpenRequest()
         return true
     }
@@ -589,9 +617,21 @@ enum SharedStore {
         }
     }
 
+    static func lockedGroups(containing token: WebDomainToken, now: Date = Date()) -> [ScreenTimeGroup] {
+        lockedGroups(now: now).filter { group in
+            group.selection.webDomainTokens.contains(token)
+        }
+    }
+
     static func shieldApplicationTokens(now: Date = Date()) -> Set<ApplicationToken> {
         lockedGroups(now: now).reduce(into: Set<ApplicationToken>()) { result, group in
             result.formUnion(group.selection.applicationTokens)
+        }
+    }
+
+    static func shieldWebDomainTokens(now: Date = Date()) -> Set<WebDomainToken> {
+        lockedGroups(now: now).reduce(into: Set<WebDomainToken>()) { result, group in
+            result.formUnion(group.selection.webDomainTokens)
         }
     }
 
@@ -651,9 +691,10 @@ enum SharedStore {
 }
 
 extension FamilyActivitySelection {
-    var appTokenSelection: FamilyActivitySelection {
+    var supportedTokenSelection: FamilyActivitySelection {
         var selection = FamilyActivitySelection(includeEntireCategory: true)
         selection.applicationTokens = applicationTokens
+        selection.webDomainTokens = webDomainTokens
         return selection
     }
 }

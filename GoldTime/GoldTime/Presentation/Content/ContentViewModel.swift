@@ -172,7 +172,7 @@ final class ContentViewModel {
 
     func presentPicker(for group: ScreenTimeGroup) {
         pickerGroupID = group.id
-        pickerSelection = group.selection.appTokenSelection
+        pickerSelection = group.selection.supportedTokenSelection
         isPickerPresented = true
     }
 

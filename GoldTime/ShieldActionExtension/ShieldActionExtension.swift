@@ -12,12 +12,16 @@ class ShieldActionExtension: ShieldActionDelegate {
         static let suiteName = "group.com.goldtime.shared"
         static let startedAtKey = "shieldOpenRequestStartedAt"
         static let applicationTokenKey = "lastRequestedUnlockApplicationToken"
+        static let webDomainTokenKey = "lastRequestedUnlockWebDomainToken"
 
         static var defaults: UserDefaults {
             UserDefaults(suiteName: suiteName) ?? .standard
         }
 
-        static func markStarted(applicationToken: ApplicationToken?) {
+        static func markStarted(
+            applicationToken: ApplicationToken?,
+            webDomainToken: WebDomainToken?
+        ) {
             defaults.set(Date(), forKey: startedAtKey)
             if let applicationToken,
                let data = try? JSONEncoder().encode(applicationToken) {
@@ -25,11 +29,18 @@ class ShieldActionExtension: ShieldActionDelegate {
             } else {
                 defaults.removeObject(forKey: applicationTokenKey)
             }
+            if let webDomainToken,
+               let data = try? JSONEncoder().encode(webDomainToken) {
+                defaults.set(data, forKey: webDomainTokenKey)
+            } else {
+                defaults.removeObject(forKey: webDomainTokenKey)
+            }
         }
 
         static func clear() {
             defaults.removeObject(forKey: startedAtKey)
             defaults.removeObject(forKey: applicationTokenKey)
+            defaults.removeObject(forKey: webDomainTokenKey)
         }
     }
 
@@ -115,7 +126,12 @@ class ShieldActionExtension: ShieldActionDelegate {
         for application: ApplicationToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        respond(to: action, applicationToken: application, completionHandler: completionHandler)
+        respond(
+            to: action,
+            applicationToken: application,
+            webDomainToken: nil,
+            completionHandler: completionHandler
+        )
     }
 
     override func handle(
@@ -123,7 +139,12 @@ class ShieldActionExtension: ShieldActionDelegate {
         for webDomain: WebDomainToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        respond(to: action, applicationToken: nil, completionHandler: completionHandler)
+        respond(
+            to: action,
+            applicationToken: nil,
+            webDomainToken: webDomain,
+            completionHandler: completionHandler
+        )
     }
 
     override func handle(
@@ -131,12 +152,18 @@ class ShieldActionExtension: ShieldActionDelegate {
         for category: ActivityCategoryToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        respond(to: action, applicationToken: nil, completionHandler: completionHandler)
+        respond(
+            to: action,
+            applicationToken: nil,
+            webDomainToken: nil,
+            completionHandler: completionHandler
+        )
     }
 
     private func respond(
         to action: ShieldAction,
         applicationToken: ApplicationToken?,
+        webDomainToken: WebDomainToken?,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
         switch action {
@@ -147,7 +174,10 @@ class ShieldActionExtension: ShieldActionDelegate {
             completionHandler(.close)
         case .secondaryButtonPressed:
             // "GoldTime 가기" — 알림으로 진입 유도 (익스텐션에서 UIApplication.open 불가)
-            OpenRequestStore.markStarted(applicationToken: applicationToken)
+            OpenRequestStore.markStarted(
+                applicationToken: applicationToken,
+                webDomainToken: webDomainToken
+            )
             scheduleOpenAppNotification()
             completionHandler(.defer)
         case .firstSecondarySubmenuItemPressed,

@@ -148,7 +148,7 @@ struct LockOptionsView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(group.displayName)
                                         .font(.subheadline.weight(.semibold))
-                                    Text("앱 \(group.appCount)/\(viewModel.maxAppsPerGroup) · \(group.dailyLimitMinutes)분 한도")
+                                    Text("항목 \(group.selectionCount)/\(viewModel.maxAppsPerGroup) · \(group.dailyLimitMinutes)분 한도")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

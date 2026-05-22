@@ -69,10 +69,10 @@ struct HomeViewModel {
             return count > 1 ? "\(count)개 유효 그룹에 한도를 적용 중이에요" : "유효한 그룹에 한도를 적용 중이에요"
         }
         if groups.isEmpty {
-            return "그룹을 만들고 앱을 담으면 바로 적용돼요"
+            return "그룹을 만들고 앱이나 웹 사이트를 담으면 바로 적용돼요"
         }
         if validMonitoringGroups.isEmpty {
-            return "앱과 한도가 설정된 그룹이 필요해요"
+            return "앱 또는 웹 사이트와 한도가 설정된 그룹이 필요해요"
         }
         return "자동 적용을 준비하고 있어요"
     }
@@ -99,7 +99,7 @@ struct HomeViewModel {
         }
 
         if validMonitoringGroups.isEmpty {
-            return "아직 적용할 수 있는 그룹이 없어요. 앱을 하나 이상 담고 한도를 정해주세요."
+            return "아직 적용할 수 있는 그룹이 없어요. 앱이나 웹 사이트를 하나 이상 담고 한도를 정해주세요."
         }
 
         return "\(invalidCount)개 그룹은 설정이 덜 끝나서 자동 적용에서 제외됐어요."

@@ -87,7 +87,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     @discardableResult
     private func applyShieldFromGroups() -> Int {
         let applicationTokens = SharedStore.shieldApplicationTokens()
-        guard !applicationTokens.isEmpty else {
+        let webDomainTokens = SharedStore.shieldWebDomainTokens()
+        let tokenCount = applicationTokens.count + webDomainTokens.count
+        guard tokenCount > 0 else {
             store.shield.applications = nil
             store.shield.applicationCategories = nil
             store.shield.webDomains = nil
@@ -99,15 +101,15 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             return 0
         }
 
-        store.shield.applications = applicationTokens
+        store.shield.applications = applicationTokens.isEmpty ? nil : applicationTokens
         store.shield.applicationCategories = nil
-        store.shield.webDomains = nil
+        store.shield.webDomains = webDomainTokens.isEmpty ? nil : webDomainTokens
         SharedStore.isShieldActive = true
         SharedStore.recordOverrideReapply(
-            tokenCount: applicationTokens.count,
+            tokenCount: tokenCount,
             message: "applied shield from locked groups"
         )
-        return applicationTokens.count
+        return tokenCount
     }
 
     private func clearSystemShield() {

@@ -191,7 +191,7 @@ struct HomeView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
                         .foregroundStyle(Color.accent)
-                    Text("그룹당 앱 \(viewModel.maxAppsPerGroup)개까지 · 카테고리에 포함된 앱도 앱 개수에 포함돼요 · 같은 앱은 여러 그룹에 넣을 수 있어요.")
+                    Text("그룹당 앱과 웹 사이트 합쳐 \(viewModel.maxAppsPerGroup)개까지 · 카테고리는 앱으로 펼쳐 저장해요 · 같은 앱은 여러 그룹에 넣을 수 있어요.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -306,26 +306,26 @@ struct HomeView: View {
                     Button {
                         onPresentPicker(group)
                     } label: {
-                        Label("앱/카테고리 선택", systemImage: "square.grid.2x2")
+                        Label("앱/웹사이트 선택", systemImage: "square.grid.2x2")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
                 }
 
-                Text("카테고리는 앱으로 펼쳐 저장하고, 웹사이트는 아직 제외")
+                Text("카테고리는 앱으로 펼쳐 저장하고, 웹 사이트는 사파리에서 사용하는 것만 가능해요.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                appTokenList(for: group)
+                selectedTokenList(for: group)
             }
         }
         .cardContainer()
     }
 
     @ViewBuilder
-    private func appTokenList(for group: ScreenTimeGroup) -> some View {
-        if group.selection.applicationTokens.isEmpty {
-            Text("선택된 앱 없음")
+    private func selectedTokenList(for group: ScreenTimeGroup) -> some View {
+        if group.selectionCount == 0 {
+            Text("선택된 항목 없음")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -333,6 +333,12 @@ struct HomeView: View {
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(group.selection.applicationTokens), id: \.self) { token in
+                    Label(token)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                ForEach(Array(group.selection.webDomainTokens), id: \.self) { token in
                     Label(token)
                         .font(.subheadline)
                         .lineLimit(1)

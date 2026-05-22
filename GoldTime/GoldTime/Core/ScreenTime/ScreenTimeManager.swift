@@ -184,7 +184,7 @@ enum ScreenTimeManager {
     ) -> [SharedStore.ScreenTimeGroup] {
         Array(groups.prefix(SharedStore.maxGroupCount)).map { group in
             var sanitized = group
-            sanitized.selection = group.selection.appTokenSelection
+            sanitized.selection = group.selection.supportedTokenSelection
             return sanitized
         }
     }
@@ -204,7 +204,7 @@ enum ScreenTimeManager {
                     DeviceActivityEvent(
                         applications: group.selection.applicationTokens,
                         categories: [],
-                        webDomains: [],
+                        webDomains: group.selection.webDomainTokens,
                         threshold: DateComponents(minute: group.dailyLimitMinutes)
                     )
                 )
@@ -228,14 +228,15 @@ enum ScreenTimeManager {
 
     static func applyShield() {
         let applicationTokens = SharedStore.shieldApplicationTokens()
-        guard !applicationTokens.isEmpty else {
+        let webDomainTokens = SharedStore.shieldWebDomainTokens()
+        guard !applicationTokens.isEmpty || !webDomainTokens.isEmpty else {
             clearShield()
             return
         }
 
-        store.shield.applications = applicationTokens
+        store.shield.applications = applicationTokens.isEmpty ? nil : applicationTokens
         store.shield.applicationCategories = nil
-        store.shield.webDomains = nil
+        store.shield.webDomains = webDomainTokens.isEmpty ? nil : webDomainTokens
         SharedStore.isShieldActive = true
     }
 
@@ -469,6 +470,7 @@ extension SharedStore.ScreenTimeGroup {
             id: id,
             name: displayName,
             appTokens: selection.applicationTokens,
+            webDomainTokenCount: selection.webDomainTokens.count,
             hasNonAppTokens: hasNonAppTokens,
             dailyLimitMinutes: dailyLimitMinutes
         )

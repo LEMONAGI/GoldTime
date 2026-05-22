@@ -6,6 +6,7 @@ struct LockedGroupsState {
     let lockedGroups: [ScreenTimeGroup]
     let oneMinuteRemaining: Int
     let requestedToken: ApplicationToken?
+    let requestedWebDomainToken: WebDomainToken?
 }
 
 final class ExtendGroupUseCase {
@@ -23,10 +24,13 @@ final class ExtendGroupUseCase {
     func refreshState() -> LockedGroupsState {
         screenTimeRepository.reapplyShieldIfOverrideExpired()
         let token = shieldRepository.lastRequestedUnlockApplicationToken
+        let webDomainToken = shieldRepository.lastRequestedUnlockWebDomainToken
 
         var locked: [ScreenTimeGroup]
         if let token {
             locked = shieldRepository.lockedGroups(containing: token)
+        } else if let webDomainToken {
+            locked = shieldRepository.lockedGroups(containing: webDomainToken)
         } else {
             locked = []
         }
@@ -35,13 +39,14 @@ final class ExtendGroupUseCase {
             locked = shieldRepository.lockedGroups()
         }
 
-        shieldRepository.clearLastRequestedUnlockApplicationToken()
+        shieldRepository.clearLastRequestedUnlockTokens()
         shieldRepository.clearShieldOpenRequest()
 
         return LockedGroupsState(
             lockedGroups: locked,
             oneMinuteRemaining: shieldRepository.oneMinuteRemaining,
-            requestedToken: token
+            requestedToken: token,
+            requestedWebDomainToken: webDomainToken
         )
     }
 
@@ -61,10 +66,14 @@ final class ExtendGroupUseCase {
 
     func lockedGroupsAfterExtension(
         result: GroupExtensionResult,
-        requestedToken: ApplicationToken?
+        requestedToken: ApplicationToken?,
+        requestedWebDomainToken: WebDomainToken?
     ) -> [ScreenTimeGroup] {
         if let token = requestedToken {
             return shieldRepository.lockedGroups(containing: token)
+        }
+        if let requestedWebDomainToken {
+            return shieldRepository.lockedGroups(containing: requestedWebDomainToken)
         }
         return result.remainingLockedGroups
     }

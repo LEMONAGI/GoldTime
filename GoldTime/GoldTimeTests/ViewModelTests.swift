@@ -208,37 +208,45 @@ struct ViewModelTests {
         let warnings = AppPickerSheetViewModel.warnings(
             for: AppPickerSheetViewModel.SelectionSummary(
                 appCount: SharedStore.maxAppsPerGroup,
-                hasCategory: true,
-                hasWeb: false
+                webDomainCount: 0,
+                hasCategory: true
             )
         )
 
         #expect(warnings.isEmpty)
     }
 
-    @Test func appPickerWarningsRejectWebDomains() {
+    @Test func appPickerWarningsAllowWebDomains() {
         let warnings = AppPickerSheetViewModel.warnings(
             for: AppPickerSheetViewModel.SelectionSummary(
                 appCount: 1,
-                hasCategory: false,
-                hasWeb: true
+                webDomainCount: 1,
+                hasCategory: false
+            )
+        )
+        let notices = AppPickerSheetViewModel.notices(
+            for: AppPickerSheetViewModel.SelectionSummary(
+                appCount: 1,
+                webDomainCount: 1,
+                hasCategory: false
             )
         )
 
-        #expect(warnings == ["웹사이트는 아직 지원하지 않아요. 앱만 선택해주세요."])
+        #expect(warnings.isEmpty)
+        #expect(notices == ["웹 사이트는 사파리에서 사용하는 것만 가능해요."])
     }
 
-    @Test func appPickerWarningsCountCategoryExpandedApps() {
+    @Test func appPickerWarningsCountAppsAndWebDomains() {
         let warnings = AppPickerSheetViewModel.warnings(
             for: AppPickerSheetViewModel.SelectionSummary(
-                appCount: SharedStore.maxAppsPerGroup + 1,
-                hasCategory: true,
-                hasWeb: false
+                appCount: SharedStore.maxAppsPerGroup,
+                webDomainCount: 1,
+                hasCategory: true
             )
         )
 
         #expect(warnings.count == 1)
-        #expect(warnings[0].contains("카테고리에 포함된 앱도 앱 개수에 포함돼요"))
+        #expect(warnings[0].contains("앱과 웹 사이트를 합쳐"))
         #expect(warnings[0].contains("10/9"))
     }
 
@@ -671,6 +679,7 @@ private final class FakeShieldRepository: ShieldRepository {
     var oneMinuteRemainingValue = 5
     var oneMinuteRemaining: Int { oneMinuteRemainingValue }
     var lastRequestedUnlockApplicationToken: ApplicationToken?
+    var lastRequestedUnlockWebDomainToken: WebDomainToken?
     var lockedGroupsValue: [ScreenTimeGroup] = []
     var groupsInOverrideValue: [ScreenTimeGroup] = []
     var pendingShieldOpenRequest = false
@@ -678,9 +687,13 @@ private final class FakeShieldRepository: ShieldRepository {
 
     func lockedGroups() -> [ScreenTimeGroup] { lockedGroupsValue }
     func lockedGroups(containing token: ApplicationToken) -> [ScreenTimeGroup] { lockedGroupsValue }
+    func lockedGroups(containing token: WebDomainToken) -> [ScreenTimeGroup] { lockedGroupsValue }
     func groupsInOverride() -> [ScreenTimeGroup] { groupsInOverrideValue }
     func hasPendingShieldOpenRequest() -> Bool { pendingShieldOpenRequest }
-    func clearLastRequestedUnlockApplicationToken() { lastRequestedUnlockApplicationToken = nil }
+    func clearLastRequestedUnlockTokens() {
+        lastRequestedUnlockApplicationToken = nil
+        lastRequestedUnlockWebDomainToken = nil
+    }
     func clearShieldOpenRequest() { pendingShieldOpenRequest = false }
     func recordWalkAway() { recordWalkAwayCallCount += 1 }
 }
@@ -722,7 +735,7 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     func resetProtectionState() throws {}
 
     func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] {
-        groups.filter { !$0.selection.applicationTokens.isEmpty || $0.dailyLimitMinutes >= 0 }
+        groups.filter { $0.selectionCount > 0 && $0.dailyLimitMinutes >= 0 }
     }
 
     func extendGroup(

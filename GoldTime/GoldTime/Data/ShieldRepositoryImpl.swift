@@ -10,12 +10,19 @@ struct ShieldRepositoryImpl: ShieldRepository {
     var lastRequestedUnlockApplicationToken: ApplicationToken? {
         SharedStore.lastRequestedUnlockApplicationToken
     }
+    var lastRequestedUnlockWebDomainToken: WebDomainToken? {
+        SharedStore.lastRequestedUnlockWebDomainToken
+    }
 
     func lockedGroups() -> [ScreenTimeGroup] {
         SharedStore.lockedGroups()
     }
 
     func lockedGroups(containing token: ApplicationToken) -> [ScreenTimeGroup] {
+        SharedStore.lockedGroups(containing: token)
+    }
+
+    func lockedGroups(containing token: WebDomainToken) -> [ScreenTimeGroup] {
         SharedStore.lockedGroups(containing: token)
     }
 
@@ -27,8 +34,8 @@ struct ShieldRepositoryImpl: ShieldRepository {
         SharedStore.hasPendingShieldOpenRequest()
     }
 
-    func clearLastRequestedUnlockApplicationToken() {
-        SharedStore.clearLastRequestedUnlockApplicationToken()
+    func clearLastRequestedUnlockTokens() {
+        SharedStore.clearLastRequestedUnlockTokens()
     }
 
     func clearShieldOpenRequest() {

@@ -9,21 +9,29 @@ import Foundation
 struct AppPickerSheetViewModel {
     struct SelectionSummary {
         let appCount: Int
+        let webDomainCount: Int
         let hasCategory: Bool
-        let hasWeb: Bool
 
-        init(appCount: Int, hasCategory: Bool, hasWeb: Bool) {
+        init(appCount: Int, webDomainCount: Int, hasCategory: Bool) {
             self.appCount = appCount
+            self.webDomainCount = webDomainCount
             self.hasCategory = hasCategory
-            self.hasWeb = hasWeb
         }
 
         init(selection: FamilyActivitySelection) {
             self.init(
                 appCount: selection.applicationTokens.count,
-                hasCategory: !selection.categoryTokens.isEmpty,
-                hasWeb: !selection.webDomainTokens.isEmpty
+                webDomainCount: selection.webDomainTokens.count,
+                hasCategory: !selection.categoryTokens.isEmpty
             )
+        }
+
+        var selectionCount: Int {
+            appCount + webDomainCount
+        }
+
+        var hasWeb: Bool {
+            webDomainCount > 0
         }
     }
 
@@ -37,14 +45,23 @@ struct AppPickerSheetViewModel {
         Self.warnings(for: SelectionSummary(selection: selection))
     }
 
+    var notices: [String] {
+        Self.notices(for: SelectionSummary(selection: selection))
+    }
+
     static func warnings(for summary: SelectionSummary) -> [String] {
         var list: [String] = []
-        if summary.hasWeb {
-            list.append("웹사이트는 아직 지원하지 않아요. 앱만 선택해주세요.")
-        }
-        let count = summary.appCount
+        let count = summary.selectionCount
         if count > SharedStore.maxAppsPerGroup {
-            list.append("카테고리에 포함된 앱도 앱 개수에 포함돼요. \(SharedStore.maxAppsPerGroup)개 이하로 선택해주세요 (\(count)/\(SharedStore.maxAppsPerGroup))")
+            list.append("앱과 웹 사이트를 합쳐 \(SharedStore.maxAppsPerGroup)개 이하로 선택해주세요 (\(count)/\(SharedStore.maxAppsPerGroup))")
+        }
+        return list
+    }
+
+    static func notices(for summary: SelectionSummary) -> [String] {
+        var list: [String] = []
+        if summary.hasWeb {
+            list.append("웹 사이트는 사파리에서 사용하는 것만 가능해요.")
         }
         return list
     }

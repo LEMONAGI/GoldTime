@@ -46,7 +46,7 @@ final class ManageGroupsUseCase {
 
     func updateSelection(id: UUID, selection: FamilyActivitySelection, in groups: inout [ScreenTimeGroup]) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
-        groups[index].selection = selection.appTokenSelection
+        groups[index].selection = selection.supportedTokenSelection
     }
 
     func currentGroups() -> [ScreenTimeGroup] {

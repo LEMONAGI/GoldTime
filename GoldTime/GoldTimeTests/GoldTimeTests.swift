@@ -88,10 +88,36 @@ struct GoldTimeTests {
             )
         ]
 
-        #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: groups) == .groupHasTooManyApps("게임"))
+        #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: groups) == .groupHasTooManySelections("게임"))
     }
 
-    @Test func groupPolicyRejectsNonAppTokens() {
+    @Test func groupPolicyAllowsWebDomainOnlyGroup() {
+        let groups = [
+            ScreenTimeGroupPolicy.GroupSnapshot<String>(
+                name: "뉴스",
+                appTokens: [],
+                webDomainTokenCount: 1,
+                dailyLimitMinutes: 10
+            )
+        ]
+
+        #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: groups) == nil)
+    }
+
+    @Test func groupPolicyCountsAppsAndWebDomainsTogether() {
+        let groups = [
+            ScreenTimeGroupPolicy.GroupSnapshot(
+                name: "혼합",
+                appTokens: Set((0..<SharedStore.maxAppsPerGroup).map { "app-\($0)" }),
+                webDomainTokenCount: 1,
+                dailyLimitMinutes: 10
+            )
+        ]
+
+        #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: groups) == .groupHasTooManySelections("혼합"))
+    }
+
+    @Test func groupPolicyRejectsUnsupportedTokens() {
         let groups = [
             ScreenTimeGroupPolicy.GroupSnapshot(
                 name: "SNS",
@@ -132,7 +158,7 @@ struct GoldTimeTests {
             )
         ]
 
-        #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: groups) == .groupHasNoApps("빈 그룹"))
+        #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: groups) == .groupHasNoSelection("빈 그룹"))
     }
 
     @Test func shieldUnionLimitIsDefensiveEvenWhenPerGroupLimitDiffers() {
@@ -646,11 +672,14 @@ struct GoldTimeTests {
         defer { SharedStore.clearGroupStateForTesting() }
 
         SharedStore.defaults.set(Data([1, 2, 3]), forKey: "lastRequestedUnlockApplicationToken")
+        SharedStore.defaults.set(Data([4, 5, 6]), forKey: "lastRequestedUnlockWebDomainToken")
         #expect(SharedStore.defaults.data(forKey: "lastRequestedUnlockApplicationToken") != nil)
+        #expect(SharedStore.defaults.data(forKey: "lastRequestedUnlockWebDomainToken") != nil)
 
-        SharedStore.clearLastRequestedUnlockApplicationToken()
+        SharedStore.clearLastRequestedUnlockTokens()
 
         #expect(SharedStore.defaults.data(forKey: "lastRequestedUnlockApplicationToken") == nil)
+        #expect(SharedStore.defaults.data(forKey: "lastRequestedUnlockWebDomainToken") == nil)
     }
 
     @Test func oneMinuteCounterIsSharedAcrossGroups() {

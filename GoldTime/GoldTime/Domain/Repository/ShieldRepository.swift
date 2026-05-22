@@ -8,12 +8,14 @@ protocol ShieldRepository {
     var overrideUntilByGroupID: [UUID: Date] { get }
     var oneMinuteRemaining: Int { get }
     var lastRequestedUnlockApplicationToken: ApplicationToken? { get }
+    var lastRequestedUnlockWebDomainToken: WebDomainToken? { get }
 
     func lockedGroups() -> [ScreenTimeGroup]
     func lockedGroups(containing token: ApplicationToken) -> [ScreenTimeGroup]
+    func lockedGroups(containing token: WebDomainToken) -> [ScreenTimeGroup]
     func groupsInOverride() -> [ScreenTimeGroup]
     func hasPendingShieldOpenRequest() -> Bool
-    func clearLastRequestedUnlockApplicationToken()
+    func clearLastRequestedUnlockTokens()
     func clearShieldOpenRequest()
     func recordWalkAway()
 }
