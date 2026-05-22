@@ -182,8 +182,8 @@ struct LockOptionsView: View {
                 }
             }
         }
-        .cardContainer()
         .frame(maxWidth: .infinity, alignment: .leading)
+        .cardContainer()
         .padding(.horizontal, 20)
     }
 
