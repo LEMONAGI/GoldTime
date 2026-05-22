@@ -37,6 +37,7 @@ GoldTime은 메인 iOS 앱 1개와 Screen Time 관련 extension 3개로 구성�
 | 그룹 유효성 규칙 | Domain | `Domain/Policy/ScreenTimeGroupPolicy.swift` | 그룹 앱 수 / 한도 / 토큰 타입 판단 |
 | Repository 구현체 | Data | `Data/` | Core 서비스 호출, Core ↔ Domain 타입 매핑 |
 | 홈 대시보드 | Presentation | `Presentation/Home/HomeView.swift`, `HomeViewModel.swift` | 홈 상태, 그룹 카드, 통계, 보호 상태 |
+| 통계 화면 | Presentation | `Presentation/Stats/StatsView.swift`, `StatsViewModel.swift`, `EmptyChartState.swift` | 스트릭·어제 비교·주간 비교·차트 |
 | 온보딩 | Presentation | `Presentation/Onboarding/OnboardingView.swift` | 권한 요청, 최초 설정 |
 | 잠금 선택지 | Presentation | `Presentation/LockOptions/LockOptionsView.swift` | 1분 연장, 광고 해제, 참기 선택지 |
 | 광고 화면 | Presentation | `Presentation/RewardedAd/RewardedAdView.swift` | 보상형 광고 표시 래퍼와 fallback UI |
@@ -58,6 +59,7 @@ GoldTime은 메인 iOS 앱 1개와 Screen Time 관련 extension 3개로 구성�
 
 - UI 문구 또는 레이아웃: 문구/톤은 `docs/agent/product-context.md`, 구현/색상/공용 컴포넌트는 `docs/agent/ui-design-system.md`를 읽고 대상 `Presentation/{화면}/XxxView.swift` 확인.
 - 대시보드 통계: `Core/Persistence/SharedStore.swift`, `Presentation/Home/HomeView.swift`, `Domain/UseCase/LoadDashboardUseCase.swift` 확인.
+- 통계 화면 (이력·추세): `Presentation/Stats/StatsView.swift`, `StatsViewModel.swift`, `Domain/Repository/StatsRepository.swift`, `Data/StatsRepositoryImpl.swift` 확인. 스트릭 계산은 `Domain/UseCase/LoadDashboardUseCase.swift`의 `calculateAdFreeStreak()` 참고.
 - 1분 연장 동작: `critical-flows.md`, `Core/ScreenTime/ScreenTimeManager.swift`, `Presentation/LockOptions/LockOptionsView.swift`, `Domain/UseCase/ExtendGroupUseCase.swift`, `DeviceActivityMonitorExtension.swift` 확인.
 - 광고 해제: `critical-flows.md`, `Core/Ads/RewardedAdService.swift`, `Presentation/RewardedAd/RewardedAdView.swift`, `Domain/UseCase/ExtendGroupUseCase.swift` 확인.
 - Shield 화면 또는 버튼: Shield extension 파일들과 `critical-flows.md` 확인.

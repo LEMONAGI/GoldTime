@@ -41,10 +41,11 @@ struct AppPickerSheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("취소") { dismiss() }
+                    Button(role: .cancel) { dismiss() }
+                        .tint(.gray100)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("완료") {
+                    Button(role: .confirm) {
                         onCommit()
                         dismiss()
                     }
