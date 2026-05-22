@@ -12,11 +12,15 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        Form {
-            permissionsSection
-            notificationsSection
-            troubleshootingSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                generalCard
+                troubleshootingCard
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("설정")
         .navigationBarTitleDisplayMode(.large)
         .task {
@@ -31,54 +35,84 @@ struct SettingsView: View {
         }
     }
 
-    private var permissionsSection: some View {
-        Section("권한") {
-            if viewModel.isScreenTimeAuthorized {
-                settingsRow(
-                    title: "스크린 타임 권한",
-                    subtitle: "허용됨",
-                    systemName: "checkmark.circle.fill",
-                    tint: .green
-                )
-            } else {
-                Button {
-                    guard !viewModel.isRequestingScreenTimeAuthorization else { return }
-                    Task { await viewModel.requestScreenTimeAuthorization() }
-                } label: {
+    private var generalCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "일반", systemName: "gearshape")
+            VStack(spacing: 0) {
+                if viewModel.isScreenTimeAuthorized {
                     settingsRow(
                         title: "스크린 타임 권한",
-                        subtitle: "확인이 필요해요",
-                        systemName: "exclamationmark.circle.fill",
-                        tint: .orange,
-                        showsProgress: viewModel.isRequestingScreenTimeAuthorization,
-                        showsChevron: true
+                        subtitle: "허용됨",
+                        systemName: "checkmark.circle.fill",
+                        tint: .green
                     )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                } else {
+                    Button {
+                        guard !viewModel.isRequestingScreenTimeAuthorization else { return }
+                        Task { await viewModel.requestScreenTimeAuthorization() }
+                    } label: {
+                        settingsRow(
+                            title: "스크린 타임 권한",
+                            subtitle: "확인이 필요해요",
+                            systemName: "exclamationmark.circle.fill",
+                            tint: .orange,
+                            showsProgress: viewModel.isRequestingScreenTimeAuthorization,
+                            showsChevron: true
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+
+                Divider().padding(.horizontal, 20)
+
+                if viewModel.notificationPermissionState == .notDetermined {
+                    Button {
+                        guard !viewModel.isRequestingNotificationAuthorization else { return }
+                        Task { await viewModel.requestNotificationAuthorization() }
+                    } label: {
+                        notificationRow(showsChevron: true)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+                } else if viewModel.notificationPermissionState == .denied {
+                    Button {
+                        openAppSettings()
+                    } label: {
+                        notificationRow(showsChevron: true)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    notificationRow()
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                }
             }
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
         }
     }
 
-    private var notificationsSection: some View {
-        Section("알림") {
-            if viewModel.notificationPermissionState == .notDetermined {
-                Button {
-                    guard !viewModel.isRequestingNotificationAuthorization else { return }
-                    Task { await viewModel.requestNotificationAuthorization() }
-                } label: {
-                    notificationRow(showsChevron: true)
-                }
-                .buttonStyle(.plain)
-            } else if viewModel.notificationPermissionState == .denied {
-                Button {
-                    openAppSettings()
-                } label: {
-                    notificationRow(showsChevron: true)
-                }
-                .buttonStyle(.plain)
-            } else {
-                notificationRow()
+    private var troubleshootingCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "문제 해결", systemName: "wrench.and.screwdriver")
+            Button(role: .destructive) {
+                onRequestResetProtection()
+            } label: {
+                actionRow(
+                    title: "전체 보호 초기화",
+                    subtitle: "그룹 설정은 유지하고 현재 잠금과 모니터링만 다시 맞춤",
+                    systemName: "arrow.clockwise"
+                )
             }
+            .buttonStyle(.plain)
+            .cardContainer()
         }
     }
 
@@ -91,21 +125,6 @@ struct SettingsView: View {
             showsProgress: viewModel.isRequestingNotificationAuthorization,
             showsChevron: showsChevron
         )
-    }
-
-    private var troubleshootingSection: some View {
-        Section("문제 해결") {
-            Button(role: .destructive) {
-                onRequestResetProtection()
-            } label: {
-                actionRow(
-                    title: "전체 보호 초기화",
-                    subtitle: "그룹 설정은 유지하고 현재 잠금과 모니터링만 다시 맞춤",
-                    systemName: "arrow.clockwise"
-                )
-            }
-            .buttonStyle(.plain)
-        }
     }
 
     private func actionRow(title: String, subtitle: String, systemName: String) -> some View {
@@ -161,40 +180,28 @@ struct SettingsView: View {
 
     private var notificationSubtitle: String {
         switch viewModel.notificationPermissionState {
-        case .notDetermined:
-            "권한 요청 전"
-        case .authorized:
-            "허용됨"
-        case .denied:
-            "iOS 설정에서 꺼져 있어요"
-        case .provisional:
-            "임시 허용됨"
-        case .ephemeral:
-            "일시 허용됨"
-        case .unknown:
-            "상태 확인 필요"
+        case .notDetermined: "권한 요청 전"
+        case .authorized: "허용됨"
+        case .denied: "iOS 설정에서 꺼져 있어요"
+        case .provisional: "임시 허용됨"
+        case .ephemeral: "일시 허용됨"
+        case .unknown: "상태 확인 필요"
         }
     }
 
     private var notificationIconName: String {
         switch viewModel.notificationPermissionState {
-        case .authorized, .provisional, .ephemeral:
-            "bell.badge.fill"
-        case .denied:
-            "bell.slash.fill"
-        case .notDetermined, .unknown:
-            "bell"
+        case .authorized, .provisional, .ephemeral: "bell.badge.fill"
+        case .denied: "bell.slash.fill"
+        case .notDetermined, .unknown: "bell"
         }
     }
 
     private var notificationTint: Color {
         switch viewModel.notificationPermissionState {
-        case .authorized, .provisional, .ephemeral:
-            .green
-        case .denied:
-            .orange
-        case .notDetermined, .unknown:
-            Color.accent
+        case .authorized, .provisional, .ephemeral: .green
+        case .denied: .orange
+        case .notDetermined, .unknown: Color.accent
         }
     }
 
