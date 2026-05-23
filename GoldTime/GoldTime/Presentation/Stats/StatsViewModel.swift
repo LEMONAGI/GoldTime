@@ -22,15 +22,15 @@ struct StatsViewModel {
 
     // weeklyStats: [today-6, today-5, ..., today-1, today] (index 5 = yesterday, index 6 = today)
     var yesterdayAdUnlockedSeconds: Int {
-        weeklyStats.count >= 6 ? weeklyStats[5].adUnlockedSeconds : 0
+        weeklyStats.count >= 6 ? weeklyStats[5].totalUnlockedSeconds : 0
     }
 
     var todayVsYesterdayDelta: Int {
-        todayStats.adUnlockedSeconds - yesterdayAdUnlockedSeconds
+        todayStats.totalUnlockedSeconds - yesterdayAdUnlockedSeconds
     }
 
     var todayDeltaCaption: String {
-        let hasAnyData = yesterdayAdUnlockedSeconds > 0 || todayStats.adUnlockedSeconds > 0
+        let hasAnyData = yesterdayAdUnlockedSeconds > 0 || todayStats.totalUnlockedSeconds > 0
         guard hasAnyData else { return "어제도 오늘도 없어요" }
         let d = todayVsYesterdayDelta
         if d == 0 { return "어제와 같아요" }
@@ -39,11 +39,11 @@ struct StatsViewModel {
     }
 
     var weeklyAdUnlockedSeconds: Int {
-        weeklyStats.reduce(0) { $0 + $1.adUnlockedSeconds }
+        weeklyStats.reduce(0) { $0 + $1.totalUnlockedSeconds }
     }
 
     var previousWeekAdUnlockedSeconds: Int {
-        previousWeekStats.reduce(0) { $0 + $1.adUnlockedSeconds }
+        previousWeekStats.reduce(0) { $0 + $1.totalUnlockedSeconds }
     }
 
     var weeklyDelta: Int {
@@ -58,11 +58,11 @@ struct StatsViewModel {
     }
 
     var weeklyMaxMinutes: Int {
-        weeklyStats.map { $0.adUnlockedSeconds / 60 }.max() ?? 0
+        weeklyStats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
     }
 
     var todayTrend: TrendDirection? {
-        let hasAnyData = yesterdayAdUnlockedSeconds > 0 || todayStats.adUnlockedSeconds > 0
+        let hasAnyData = yesterdayAdUnlockedSeconds > 0 || todayStats.totalUnlockedSeconds > 0
         guard hasAnyData else { return nil }
         if todayVsYesterdayDelta > 0 { return .up }
         if todayVsYesterdayDelta < 0 { return .down }

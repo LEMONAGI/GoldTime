@@ -58,10 +58,10 @@ struct StatsView: View {
             LazyVGrid(columns: metricColumns, spacing: 12) {
                 DashboardMetricCard(
                     title: "추가 사용",
-                    value: goldTimeDurationText(seconds: viewModel.todayStats.adUnlockedSeconds),
+                    value: goldTimeDurationText(seconds: viewModel.todayStats.totalUnlockedSeconds),
                     caption: viewModel.todayDeltaCaption,
                     systemName: "clock.fill",
-                    tint: .purple,
+                    tint: .blue,
                     trend: viewModel.todayTrend,
                     sentiment: viewModel.todaySentiment
                 )
@@ -71,7 +71,7 @@ struct StatsView: View {
                     value: goldTimeDurationText(seconds: viewModel.weeklyAdUnlockedSeconds),
                     caption: viewModel.weeklyDeltaCaption,
                     systemName: "calendar.badge.clock",
-                    tint: .purple,
+                    tint: .blue,
                     trend: viewModel.weeklyTrend,
                     sentiment: viewModel.weeklySentiment
                 )
@@ -87,7 +87,7 @@ struct StatsView: View {
                 Chart(viewModel.weeklyStats) { stat in
                     BarMark(
                         x: .value("날짜", stat.date, unit: .day),
-                        y: .value("추가 사용", stat.adUnlockedSeconds / 60)
+                        y: .value("추가 사용", stat.totalUnlockedSeconds / 60)
                     )
                     .foregroundStyle(Color.accent)
                 }
