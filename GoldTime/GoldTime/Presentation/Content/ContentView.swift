@@ -60,6 +60,7 @@ struct ContentView: View {
                     todayStats: viewModel.todayStats,
                     weeklyStats: viewModel.weeklyStats,
                     previousWeekStats: viewModel.previousWeekStats,
+                    monthlyStats: viewModel.monthlyStats,
                     isMonitoring: viewModel.isMonitoring,
                     adFreeStreakDays: viewModel.adFreeStreakDays,
                     maxAdFreeStreakDays: viewModel.maxAdFreeStreakDays

@@ -14,6 +14,7 @@ struct StatsView: View {
         todayStats: SharedStore.DailyStats,
         weeklyStats: [SharedStore.DailyStats],
         previousWeekStats: [SharedStore.DailyStats],
+        monthlyStats: [SharedStore.DailyStats],
         isMonitoring: Bool,
         adFreeStreakDays: Int,
         maxAdFreeStreakDays: Int
@@ -23,6 +24,7 @@ struct StatsView: View {
             todayStats: todayStats,
             weeklyStats: weeklyStats,
             previousWeekStats: previousWeekStats,
+            monthlyStats: monthlyStats,
             isMonitoring: isMonitoring,
             adFreeStreakDays: adFreeStreakDays,
             maxAdFreeStreakDays: maxAdFreeStreakDays
@@ -39,6 +41,7 @@ struct StatsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 metricGrid
                 weeklySection
+                monthlySection
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -61,7 +64,7 @@ struct StatsView: View {
                     value: goldTimeDurationText(seconds: viewModel.todayStats.totalUnlockedSeconds),
                     caption: viewModel.todayDeltaCaption,
                     systemName: "clock.fill",
-                    tint: .blue,
+                    tint: .cyan,
                     trend: viewModel.todayTrend,
                     sentiment: viewModel.todaySentiment
                 )
@@ -71,7 +74,7 @@ struct StatsView: View {
                     value: goldTimeDurationText(seconds: viewModel.weeklyAdUnlockedSeconds),
                     caption: viewModel.weeklyDeltaCaption,
                     systemName: "calendar.badge.clock",
-                    tint: .blue,
+                    tint: .cyan,
                     trend: viewModel.weeklyTrend,
                     sentiment: viewModel.weeklySentiment
                 )
@@ -103,12 +106,50 @@ struct StatsView: View {
                 .chartYScale(domain: 0...max(5, viewModel.weeklyMaxMinutes))
                 .frame(height: 180)
                 .padding(.top, 8)
-                
+
                 HStack {
                     Text("최근 7일 평균")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Text(goldTimeDurationText(seconds: viewModel.weeklyAverageSeconds))
+                        .fontWeight(.bold)
+                }
+                .font(.subheadline)
+            }
+            .cardContainer()
+        }
+    }
+
+    private var monthlySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "한 달간 추가 사용", systemName: "chart.bar.xaxis")
+
+            VStack(alignment: .leading, spacing: 12) {
+                Chart(viewModel.monthlyStats) { stat in
+                    BarMark(
+                        x: .value("날짜", stat.date, unit: .day),
+                        y: .value("추가 사용", stat.totalUnlockedSeconds / 60)
+                    )
+                    .foregroundStyle(Color.accent)
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 7)) {
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading)
+                }
+                .chartYScale(domain: 0...max(5, viewModel.monthlyMaxMinutes))
+                .frame(height: 180)
+                .padding(.top, 8)
+
+                HStack {
+                    Text("최근 30일 평균")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(goldTimeDurationText(seconds: viewModel.monthlyAverageSeconds))
                         .fontWeight(.bold)
                 }
                 .font(.subheadline)

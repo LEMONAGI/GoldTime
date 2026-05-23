@@ -377,6 +377,7 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 300),
             weeklyStats: weekly,
             previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
+            monthlyStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 30),
             isMonitoring: true,
             adFreeStreakDays: 0,
             maxAdFreeStreakDays: 7
@@ -393,6 +394,7 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 600),
             weeklyStats: weekly,
             previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
+            monthlyStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 30),
             isMonitoring: true,
             adFreeStreakDays: 0,
             maxAdFreeStreakDays: 7
@@ -408,6 +410,7 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: weekly[6].dateKey, adUnlockedSeconds: 0),
             weeklyStats: weekly,
             previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
+            monthlyStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 30),
             isMonitoring: false,
             adFreeStreakDays: 0,
             maxAdFreeStreakDays: 7
@@ -424,6 +427,7 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: thisWeek[6].dateKey),
             weeklyStats: thisWeek,
             previousWeekStats: prevWeek,
+            monthlyStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 30),
             isMonitoring: true,
             adFreeStreakDays: 0,
             maxAdFreeStreakDays: 7
@@ -441,6 +445,7 @@ struct ViewModelTests {
             todayStats: SharedStore.DailyStats(dateKey: "2026-05-20"),
             weeklyStats: makeWeeklyStats(),
             previousWeekStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 7),
+            monthlyStats: Array(repeating: SharedStore.DailyStats(dateKey: ""), count: 30),
             isMonitoring: true,
             adFreeStreakDays: 0,
             maxAdFreeStreakDays: 7

@@ -16,6 +16,7 @@ struct StatsViewModel {
     let todayStats: SharedStore.DailyStats
     let weeklyStats: [SharedStore.DailyStats]
     let previousWeekStats: [SharedStore.DailyStats]
+    let monthlyStats: [SharedStore.DailyStats]
     let isMonitoring: Bool
     let adFreeStreakDays: Int
     let maxAdFreeStreakDays: Int
@@ -64,6 +65,15 @@ struct StatsViewModel {
 
     var weeklyMaxMinutes: Int {
         weeklyStats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
+    }
+
+    var monthlyAverageSeconds: Int {
+        guard !monthlyStats.isEmpty else { return 0 }
+        return monthlyStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / monthlyStats.count
+    }
+
+    var monthlyMaxMinutes: Int {
+        monthlyStats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
     }
 
     var todayTrend: TrendDirection? {

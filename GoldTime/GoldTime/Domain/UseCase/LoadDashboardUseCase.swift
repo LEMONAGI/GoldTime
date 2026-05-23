@@ -9,6 +9,7 @@ struct DashboardState {
     let todayStats: DailyStats
     let weeklyStats: [DailyStats]
     let previousWeekStats: [DailyStats]
+    let monthlyStats: [DailyStats]
     let adFreeStreakDays: Int
     let maxAdFreeStreakDays: Int
     let isDailyMonitoringEnabled: Bool
@@ -52,6 +53,7 @@ final class LoadDashboardUseCase {
             todayStats: statsRepository.todayStats,
             weeklyStats: statsRepository.lastSevenDayStats(),
             previousWeekStats: statsRepository.previousSevenDayStats(),
+            monthlyStats: statsRepository.lastNDayStats(30),
             adFreeStreakDays: calculateAdFreeStreak(),
             maxAdFreeStreakDays: calculateMaxAdFreeStreak(),
             isDailyMonitoringEnabled: screenTimeRepository.isDailyMonitoringEnabled,

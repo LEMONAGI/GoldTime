@@ -50,6 +50,7 @@ final class ContentViewModel {
     var todayStats: DailyStats
     var weeklyStats: [DailyStats]
     var previousWeekStats: [DailyStats]
+    var monthlyStats: [DailyStats]
     var adFreeStreakDays: Int
     var maxAdFreeStreakDays: Int
     var lockedGroupIDs: Set<UUID> = []
@@ -103,6 +104,7 @@ final class ContentViewModel {
         todayStats = statsRepo.todayStats
         weeklyStats = statsRepo.lastSevenDayStats()
         previousWeekStats = statsRepo.previousSevenDayStats()
+        monthlyStats = statsRepo.lastNDayStats(30)
         adFreeStreakDays = 0
         maxAdFreeStreakDays = 0
 
@@ -281,6 +283,7 @@ final class ContentViewModel {
         todayStats = state.todayStats
         weeklyStats = state.weeklyStats
         previousWeekStats = state.previousWeekStats
+        monthlyStats = state.monthlyStats
         adFreeStreakDays = state.adFreeStreakDays
         maxAdFreeStreakDays = state.maxAdFreeStreakDays
         isMonitoring = state.isDailyMonitoringEnabled
