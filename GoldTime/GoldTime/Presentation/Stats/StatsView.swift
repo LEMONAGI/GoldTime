@@ -105,10 +105,10 @@ struct StatsView: View {
                 .padding(.top, 8)
                 
                 HStack {
-                    Text("최근 7일 합계")
+                    Text("최근 7일 평균")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(goldTimeDurationText(seconds: viewModel.weeklyAdUnlockedSeconds))
+                    Text(goldTimeDurationText(seconds: viewModel.weeklyAverageSeconds))
                         .fontWeight(.bold)
                 }
                 .font(.subheadline)

@@ -57,6 +57,11 @@ struct StatsViewModel {
         return weeklyDelta < 0 ? "지난 주보다 \(text) 적어요" : "지난 주보다 \(text) 많아요"
     }
 
+    var weeklyAverageSeconds: Int {
+        guard !weeklyStats.isEmpty else { return 0 }
+        return weeklyStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / weeklyStats.count
+    }
+
     var weeklyMaxMinutes: Int {
         weeklyStats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
     }
