@@ -76,6 +76,7 @@ struct HomeView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("GoldTime")
         .navigationBarTitleDisplayMode(.large)

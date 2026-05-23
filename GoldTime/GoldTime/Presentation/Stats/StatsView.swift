@@ -46,6 +46,7 @@ struct StatsView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("통계")
         .navigationBarTitleDisplayMode(.large)

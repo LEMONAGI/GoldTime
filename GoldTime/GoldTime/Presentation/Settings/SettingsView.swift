@@ -21,6 +21,7 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("설정")
         .navigationBarTitleDisplayMode(.large)
@@ -132,7 +133,7 @@ struct SettingsView: View {
 
     private func actionRow(title: String, subtitle: String, systemName: String, showsProgress: Bool = false) -> some View {
         HStack(spacing: 12) {
-            IconTile(systemName: systemName, tint: Color.accent)
+            IconTile(systemName: systemName, tint: Color.red)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
