@@ -328,9 +328,89 @@ struct ViewModelTests {
         )
 
         #expect(viewModel.billTotalText == "+18분")
-        #expect(viewModel.billComment == "계산서 나왔어요.")
+        #expect(viewModel.billComment == "이제 눈 뜨고 봐야겠는데요.")
         #expect(viewModel.oneMinuteRemaining == 1)
         #expect(viewModel.oneMinuteDailyLimit == 5)
+    }
+
+    @Test func homeViewModelBillCommentTier1Under15Min() {
+        let viewModel = HomeViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(
+                dateKey: "2026-05-18",
+                adUnlockedSeconds: 60
+            ),
+            isMonitoring: false,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil
+        )
+        #expect(viewModel.billComment == "이 정도면 살짝 눈 감아드릴 수 있어요.")
+    }
+
+    @Test func homeViewModelBillCommentTier2Under30Min() {
+        let viewModel = HomeViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(
+                dateKey: "2026-05-18",
+                adUnlockedSeconds: 900
+            ),
+            isMonitoring: false,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil
+        )
+        #expect(viewModel.billComment == "이제 눈 뜨고 봐야겠는데요.")
+    }
+
+    @Test func homeViewModelBillCommentTier3Under60Min() {
+        let viewModel = HomeViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(
+                dateKey: "2026-05-18",
+                adUnlockedSeconds: 1800
+            ),
+            isMonitoring: false,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil
+        )
+        #expect(viewModel.billComment == "제법 하시는데요. 청구서 두께가 느껴지시죠?")
+    }
+
+    @Test func homeViewModelBillCommentTier4Under90Min() {
+        let viewModel = HomeViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(
+                dateKey: "2026-05-18",
+                adUnlockedSeconds: 3600
+            ),
+            isMonitoring: false,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil
+        )
+        #expect(viewModel.billComment == "슬슬 기분이 좋아지는데요. 제가요.")
+    }
+
+    @Test func homeViewModelBillCommentTier5Over90Min() {
+        let viewModel = HomeViewModel(
+            groups: [],
+            todayStats: SharedStore.DailyStats(
+                dateKey: "2026-05-18",
+                adUnlockedSeconds: 5400
+            ),
+            isMonitoring: false,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil
+        )
+        #expect(viewModel.billComment == "좋은 날입니다. 이번엔 저한테요.")
     }
 
     @Test func homeViewModelBillZeroStateIgnoresWalkAwayCount() {
