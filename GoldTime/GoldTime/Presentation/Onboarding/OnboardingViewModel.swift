@@ -48,7 +48,7 @@ final class OnboardingViewModel {
             errorMessage = nil
             currentStep = .notificationPermission
         } catch {
-            errorMessage = "권한이 필요해요. 설정에서 스크린타임 권한을 허용해주세요."
+            errorMessage = "스크린타임 권한이 필요해요. 다시 한 번 버튼을 눌러 권한을 허용해주세요."
         }
     }
 
