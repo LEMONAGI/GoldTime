@@ -13,6 +13,8 @@ struct ContentView: View {
     @Binding var showLockOptions: Bool
 
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @AppStorage("weekStartDay", store: UserDefaults(suiteName: SharedStore.suiteName))
+    private var weekStartDay: Int = 2
 
     var body: some View {
         if viewModel.isCheckingPermissions {
@@ -116,6 +118,9 @@ struct ContentView: View {
         }
         .onChange(of: showLockOptions) { _, newValue in
             if !newValue { viewModel.refreshDashboardState() }
+        }
+        .onChange(of: weekStartDay) { _, _ in
+            viewModel.refreshDashboardState()
         }
         .onReceive(refreshTimer) { _ in
             viewModel.refreshDashboardState()

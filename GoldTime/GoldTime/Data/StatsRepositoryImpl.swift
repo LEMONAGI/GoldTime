@@ -7,5 +7,6 @@ struct StatsRepositoryImpl: StatsRepository {
     func lastSevenDayStats() -> [DailyStats] { SharedStore.lastSevenDayStats() }
     func previousSevenDayStats() -> [DailyStats] { SharedStore.previousSevenDayStats() }
     func lastNDayStats(_ n: Int) -> [DailyStats] { SharedStore.lastNDayStats(n) }
+    func statsForCalendarWeek(weekOffset: Int) -> [DailyStats] { SharedStore.statsForCalendarWeek(weekOffset: weekOffset) }
     var oldestStatDate: Date? { SharedStore.oldestStatDate }
 }

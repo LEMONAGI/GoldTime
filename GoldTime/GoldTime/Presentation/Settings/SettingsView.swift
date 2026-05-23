@@ -95,6 +95,12 @@ struct SettingsView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                 }
+
+                Divider().padding(.horizontal, 20)
+
+                weekStartDayRow
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
             }
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -118,6 +124,23 @@ struct SettingsView: View {
             .disabled(isReconnecting)
             .cardContainer()
         }
+    }
+
+    private var weekStartDayRow: some View {
+        HStack(spacing: 12) {
+            IconTile(systemName: "calendar", tint: Color.accent)
+            Text("주 시작 요일")
+                .font(.subheadline.weight(.semibold))
+            Spacer(minLength: 8)
+            Picker("", selection: $viewModel.weekStartDay) {
+                Text("월요일").tag(2)
+                Text("일요일").tag(1)
+            }
+            .pickerStyle(.menu)
+            .tint(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 
     private func notificationRow(showsChevron: Bool = false) -> some View {

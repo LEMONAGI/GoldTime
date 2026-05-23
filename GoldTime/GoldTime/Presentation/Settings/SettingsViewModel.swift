@@ -23,6 +23,9 @@ final class SettingsViewModel {
     var isRequestingScreenTimeAuthorization = false
     var isRequestingNotificationAuthorization = false
     var alertMessage: SettingsAlertMessage?
+    var weekStartDay: Int = SharedStore.weekStartDay {
+        didSet { SharedStore.weekStartDay = weekStartDay }
+    }
 
     private let manageSettingsUseCase: ManageSettingsUseCase
 

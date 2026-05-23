@@ -31,6 +31,16 @@ enum SharedStore {
         static let shieldOpenRequestStartedAt = "shieldOpenRequestStartedAt"
         static let dailyProtectionStateDate = "dailyProtectionStateDate"
         static let dailyStatsByDate = "dailyStatsByDate"
+        static let weekStartDay = "weekStartDay"
+    }
+
+    // 1 = 일요일, 2 = 월요일 (Calendar.firstWeekday 기준), 기본값: 2 (월요일)
+    static var weekStartDay: Int {
+        get {
+            let v = defaults.integer(forKey: Key.weekStartDay)
+            return v == 0 ? 2 : v
+        }
+        set { defaults.set(newValue, forKey: Key.weekStartDay) }
     }
 
     static let estimatedWonPerAd = 100
@@ -267,9 +277,9 @@ enum SharedStore {
         Array(dailyStatsByDate.values)
     }
 
-    static func calendarWeekRange(weekOffset: Int) -> (start: Date, end: Date) {
+    static func calendarWeekRange(weekOffset: Int, firstWeekday: Int = SharedStore.weekStartDay) -> (start: Date, end: Date) {
         var cal = Calendar(identifier: .gregorian)
-        cal.firstWeekday = 2
+        cal.firstWeekday = firstWeekday
         let todayStart = cal.startOfDay(for: Date())
         let comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: todayStart)
         let thisWeekStart = cal.date(from: comps) ?? todayStart
@@ -278,10 +288,10 @@ enum SharedStore {
         return (weekStart, weekEnd)
     }
 
-    static func statsForCalendarWeek(weekOffset: Int) -> [DailyStats] {
+    static func statsForCalendarWeek(weekOffset: Int, firstWeekday: Int = SharedStore.weekStartDay) -> [DailyStats] {
         var cal = Calendar(identifier: .gregorian)
-        cal.firstWeekday = 2
-        let (start, _) = calendarWeekRange(weekOffset: weekOffset)
+        cal.firstWeekday = firstWeekday
+        let (start, _) = calendarWeekRange(weekOffset: weekOffset, firstWeekday: firstWeekday)
         let dict = dailyStatsByDate
         return (0..<7).map { dayOffset in
             let date = cal.date(byAdding: .day, value: dayOffset, to: start) ?? start
