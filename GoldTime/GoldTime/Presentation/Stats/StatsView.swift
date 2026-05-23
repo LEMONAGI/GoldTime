@@ -161,7 +161,7 @@ private struct WeeklyGraphSection: View {
                     .chartXAxis {
                         AxisMarks(values: stats.map(\.date)) {
                             AxisGridLine()
-                            AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                            AxisValueLabel(format: .dateTime.weekday(.narrow).locale(Locale(identifier: "ko_KR")))
                         }
                     }
                     .chartYAxis {
