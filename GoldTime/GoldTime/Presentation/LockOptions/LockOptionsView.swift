@@ -65,7 +65,7 @@ struct LockOptionsView: View {
             Alert(
                 title: Text(alert.title),
                 message: Text(alert.message),
-                dismissButton: .default(Text("확인")) {
+                dismissButton: .default(Text("사용 시작")) {
                     dismiss()
                 }
             )
