@@ -62,6 +62,7 @@ GoldTime은 스크린타임 한도를 넘기면 Shield 흐름과 보상형 광�
 | 큰 작업 분해, step 상태, 병렬 판단 | `docs/agent/task-harness.md` |
 | 문구, 톤앤매너, UX 판단 | `docs/agent/product-context.md` |
 | iOS UI/HIG, 기본 컴포넌트, 공용 컴포넌트, Asset Color | `docs/agent/ui-design-system.md` |
+| 앱 아이콘 시안, AppIcon light/dark/tinted 방향, 이미지 생성 프롬프트 | `docs/agent/app-icon-brief.md` |
 | 기획 모호성, 경쟁 앱 참고, GoldTime다움 판단 | `docs/agent/competitive-research.md` |
 
 ## 수정 전 확인

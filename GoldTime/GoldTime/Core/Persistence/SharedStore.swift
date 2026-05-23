@@ -263,6 +263,53 @@ enum SharedStore {
         return dateKeyFormatter.date(from: minKey)
     }
 
+    static func calendarWeekRange(weekOffset: Int) -> (start: Date, end: Date) {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        let todayStart = cal.startOfDay(for: Date())
+        let comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: todayStart)
+        let thisWeekStart = cal.date(from: comps) ?? todayStart
+        let weekStart = cal.date(byAdding: .weekOfYear, value: weekOffset, to: thisWeekStart) ?? thisWeekStart
+        let weekEnd = cal.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+        return (weekStart, weekEnd)
+    }
+
+    static func statsForCalendarWeek(weekOffset: Int) -> [DailyStats] {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        let (start, _) = calendarWeekRange(weekOffset: weekOffset)
+        let dict = dailyStatsByDate
+        return (0..<7).map { dayOffset in
+            let date = cal.date(byAdding: .day, value: dayOffset, to: start) ?? start
+            let key = dateKey(for: date)
+            return dict[key] ?? DailyStats(dateKey: key)
+        }
+    }
+
+    static func calendarMonthRange(monthOffset: Int) -> (start: Date, end: Date) {
+        let cal = Calendar.current
+        var comps = cal.dateComponents([.year, .month], from: Date())
+        comps.month = (comps.month ?? 1) + monthOffset
+        let monthStart = cal.date(from: comps) ?? Date()
+        var nextComps = cal.dateComponents([.year, .month], from: monthStart)
+        nextComps.month = (nextComps.month ?? 1) + 1
+        let nextMonthStart = cal.date(from: nextComps) ?? monthStart
+        let monthEnd = cal.date(byAdding: .day, value: -1, to: nextMonthStart) ?? monthStart
+        return (monthStart, monthEnd)
+    }
+
+    static func statsForCalendarMonth(monthOffset: Int) -> [DailyStats] {
+        let cal = Calendar.current
+        let (start, end) = calendarMonthRange(monthOffset: monthOffset)
+        let dayCount = (cal.dateComponents([.day], from: start, to: end).day ?? 29) + 1
+        let dict = dailyStatsByDate
+        return (0..<dayCount).map { dayOffset in
+            let date = cal.date(byAdding: .day, value: dayOffset, to: start) ?? start
+            let key = dateKey(for: date)
+            return dict[key] ?? DailyStats(dateKey: key)
+        }
+    }
+
     static func recordAdUnlock(seconds: Int) {
         updateStatsForToday { stats in
             stats.adWatchCount += 1

@@ -83,35 +83,106 @@ struct StatsView: View {
     }
 
     private var weeklySection: some View {
+        WeeklyGraphSection()
+    }
+
+    private var monthlySection: some View {
+        MonthlyGraphSection()
+    }
+}
+
+private struct WeeklyGraphSection: View {
+    @State private var weekOffset = 0
+
+    private var weekRange: (start: Date, end: Date) {
+        SharedStore.calendarWeekRange(weekOffset: weekOffset)
+    }
+
+    private var stats: [SharedStore.DailyStats] {
+        SharedStore.statsForCalendarWeek(weekOffset: weekOffset)
+    }
+
+    private var navigationLabel: String {
+        guard weekOffset != 0 else { return "이번 주" }
+        let (start, end) = weekRange
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "ko_KR")
+        fmt.dateFormat = "M/d"
+        return "\(fmt.string(from: start)) - \(fmt.string(from: end))"
+    }
+
+    private var averageSeconds: Int {
+        guard !stats.isEmpty else { return 0 }
+        return stats.reduce(0) { $0 + $1.totalUnlockedSeconds } / stats.count
+    }
+
+    private var maxMinutes: Int {
+        stats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
+    }
+
+    private var hasData: Bool {
+        stats.contains { $0.totalUnlockedSeconds > 0 }
+    }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "7일간 추가 사용", systemName: "chart.bar.xaxis")
+            SectionHeader(title: "주간 기록", systemName: "chart.bar.xaxis")
 
             VStack(alignment: .leading, spacing: 12) {
-                Chart(viewModel.weeklyStats) { stat in
-                    BarMark(
-                        x: .value("날짜", stat.date, unit: .day),
-                        y: .value("추가 사용", stat.totalUnlockedSeconds / 60)
-                    )
-                    .foregroundStyle(Color.accent)
-                }
-                .chartXAxis {
-                    AxisMarks(values: .stride(by: .day)) {
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                HStack {
+                    Button { weekOffset -= 1 } label: {
+                        Image(systemName: "chevron.left").fontWeight(.semibold)
+                    }
+                    Spacer()
+                    Text(navigationLabel)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Group {
+                        if weekOffset < 0 {
+                            Button { weekOffset += 1 } label: {
+                                Image(systemName: "chevron.right").fontWeight(.semibold)
+                            }
+                        } else {
+                            Image(systemName: "chevron.right").fontWeight(.semibold).hidden()
+                        }
                     }
                 }
-                .chartYAxis {
-                    AxisMarks(position: .leading)
+                .foregroundStyle(.primary)
+
+                ZStack {
+                    Chart(stats) { stat in
+                        BarMark(
+                            x: .value("날짜", stat.date, unit: .day),
+                            y: .value("추가 사용", stat.totalUnlockedSeconds / 60)
+                        )
+                        .foregroundStyle(Color.accent)
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: stats.map(\.date)) {
+                            AxisGridLine()
+                            AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading)
+                    }
+                    .chartYScale(domain: 0...max(5, maxMinutes))
+
+                    if !hasData {
+                        Text("기록 없음")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .chartYScale(domain: 0...max(5, viewModel.weeklyMaxMinutes))
                 .frame(height: 180)
                 .padding(.top, 8)
 
                 HStack {
-                    Text("최근 7일 평균")
+                    Text("일일 평균")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(goldTimeDurationText(seconds: viewModel.weeklyAverageSeconds))
+                    Text(goldTimeDurationText(seconds: averageSeconds))
                         .fontWeight(.bold)
                 }
                 .font(.subheadline)
@@ -119,37 +190,100 @@ struct StatsView: View {
             .cardContainer()
         }
     }
+}
 
-    private var monthlySection: some View {
+private struct MonthlyGraphSection: View {
+    @State private var monthOffset = 0
+
+    private var monthRange: (start: Date, end: Date) {
+        SharedStore.calendarMonthRange(monthOffset: monthOffset)
+    }
+
+    private var stats: [SharedStore.DailyStats] {
+        SharedStore.statsForCalendarMonth(monthOffset: monthOffset)
+    }
+
+    private var navigationLabel: String {
+        guard monthOffset != 0 else { return "이번 달" }
+        let (start, _) = monthRange
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "ko_KR")
+        fmt.dateFormat = "yyyy년 M월"
+        return fmt.string(from: start)
+    }
+
+    private var averageSeconds: Int {
+        guard !stats.isEmpty else { return 0 }
+        return stats.reduce(0) { $0 + $1.totalUnlockedSeconds } / stats.count
+    }
+
+    private var maxMinutes: Int {
+        stats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
+    }
+
+    private var hasData: Bool {
+        stats.contains { $0.totalUnlockedSeconds > 0 }
+    }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "한 달간 추가 사용", systemName: "chart.bar.xaxis")
+            SectionHeader(title: "월간 기록", systemName: "chart.bar.xaxis")
 
             VStack(alignment: .leading, spacing: 12) {
-                Chart(viewModel.monthlyStats) { stat in
-                    BarMark(
-                        x: .value("날짜", stat.date, unit: .day),
-                        y: .value("추가 사용", stat.totalUnlockedSeconds / 60)
-                    )
-                    .foregroundStyle(Color.accent)
-                }
-                .chartXAxis {
-                    AxisMarks(values: .stride(by: .day, count: 7)) {
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                HStack {
+                    Button { monthOffset -= 1 } label: {
+                        Image(systemName: "chevron.left").fontWeight(.semibold)
+                    }
+                    Spacer()
+                    Text(navigationLabel)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Group {
+                        if monthOffset < 0 {
+                            Button { monthOffset += 1 } label: {
+                                Image(systemName: "chevron.right").fontWeight(.semibold)
+                            }
+                        } else {
+                            Image(systemName: "chevron.right").fontWeight(.semibold).hidden()
+                        }
                     }
                 }
-                .chartYAxis {
-                    AxisMarks(position: .leading)
+                .foregroundStyle(.primary)
+
+                ZStack {
+                    Chart(stats) { stat in
+                        BarMark(
+                            x: .value("날짜", stat.date, unit: .day),
+                            y: .value("추가 사용", stat.totalUnlockedSeconds / 60)
+                        )
+                        .foregroundStyle(Color.accent)
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: .stride(by: .day, count: 7)) {
+                            AxisGridLine()
+                            AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading)
+                    }
+                    .chartYScale(domain: 0...max(5, maxMinutes))
+
+                    if !hasData {
+                        Text("기록 없음")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .chartYScale(domain: 0...max(5, viewModel.monthlyMaxMinutes))
                 .frame(height: 180)
                 .padding(.top, 8)
 
                 HStack {
-                    Text("최근 30일 평균")
+                    Text("일일 평균")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(goldTimeDurationText(seconds: viewModel.monthlyAverageSeconds))
+                    Text(goldTimeDurationText(seconds: averageSeconds))
                         .fontWeight(.bold)
                 }
                 .font(.subheadline)
