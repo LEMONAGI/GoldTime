@@ -61,6 +61,8 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 timeBillHero
+                    .padding(.bottom, 20)
+                
                 managementSection
                 
                 if let successMessage = viewModel.successMessage {
@@ -96,7 +98,7 @@ struct HomeView: View {
             
             VStack(alignment: .center, spacing: 4) {
                 Text(viewModel.billTotalText)
-                    .font(.system(size: 52, weight: .heavy, design: .rounded))
+                    .font(.system(size: 52, weight: .heavy))
                     .foregroundStyle(viewModel.hasBillCost ? Color.accent : .white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
