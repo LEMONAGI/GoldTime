@@ -456,9 +456,26 @@ struct ViewModelTests {
 
     // MARK: - LoadDashboardUseCase streak
 
-    @Test func adFreeStreakIsZeroWhenOldestStatDateNil() {
+    @Test func adFreeStreakIsOneOnFirstInstallWithNoAds() {
         let statsRepo = FakeStatsRepository()
         statsRepo.oldestStatDateValue = nil
+        // nDayStatsValue 기본값 [] → 오늘 광고 없음 → 1일
+        let useCase = LoadDashboardUseCase(
+            shieldRepository: FakeShieldRepository(),
+            statsRepository: statsRepo,
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+
+        #expect(useCase.calculateAdFreeStreak() == 1)
+        #expect(useCase.calculateMaxAdFreeStreak() == 1)
+    }
+
+    @Test func adFreeStreakIsZeroOnFirstInstallWhenTodayHasAd() {
+        let statsRepo = FakeStatsRepository()
+        statsRepo.oldestStatDateValue = nil
+        statsRepo.nDayStatsValue = [
+            SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: Date()), adWatchCount: 1)
+        ]
         let useCase = LoadDashboardUseCase(
             shieldRepository: FakeShieldRepository(),
             statsRepository: statsRepo,
@@ -466,6 +483,7 @@ struct ViewModelTests {
         )
 
         #expect(useCase.calculateAdFreeStreak() == 0)
+        #expect(useCase.calculateMaxAdFreeStreak() == 0)
     }
 
     @Test func adFreeStreakIsZeroWhenTodayHasAd() {

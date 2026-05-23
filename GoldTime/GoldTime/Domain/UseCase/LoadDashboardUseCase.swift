@@ -64,7 +64,10 @@ final class LoadDashboardUseCase {
     }
 
     func calculateMaxAdFreeStreak() -> Int {
-        guard let firstDate = statsRepository.oldestStatDate else { return 0 }
+        guard let firstDate = statsRepository.oldestStatDate else {
+            let todayAdCount = statsRepository.lastNDayStats(1).first?.adWatchCount ?? 0
+            return todayAdCount == 0 ? 1 : 0
+        }
         let daysSinceOldest = Calendar.current.dateComponents([.day], from: firstDate, to: Date()).day ?? 0
         let stats = statsRepository.lastNDayStats(daysSinceOldest + 1)
         var maxStreak = 0
@@ -82,7 +85,10 @@ final class LoadDashboardUseCase {
     }
 
     func calculateAdFreeStreak() -> Int {
-        guard let firstDate = statsRepository.oldestStatDate else { return 0 }
+        guard let firstDate = statsRepository.oldestStatDate else {
+            let todayAdCount = statsRepository.lastNDayStats(1).first?.adWatchCount ?? 0
+            return todayAdCount == 0 ? 1 : 0
+        }
         let stats = statsRepository.lastNDayStats(30)
         var streak = 0
         for dailyStat in stats.reversed() {
