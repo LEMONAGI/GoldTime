@@ -13,6 +13,10 @@ struct StreakCard: View {
         }
     }
 
+    private var bestColor: Color {
+        current > 0 && current >= best ? .green : .primary
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -44,7 +48,7 @@ struct StreakCard: View {
                             .foregroundStyle(.secondary)
                         Text("\(best)일")
                             .font(.title3.weight(.bold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(bestColor)
                         Text("역대 최장 기록")
                             .font(.caption)
                             .foregroundStyle(.secondary)
