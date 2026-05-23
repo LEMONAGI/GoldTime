@@ -268,9 +268,11 @@ struct HomeView: View {
                     
                     HStack(spacing: 8) {
                         GroupStatusBadge(title: viewModel.statusTitle(for: group), tint: viewModel.statusTint(for: group))
-                        if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
+                        if viewModel.overrideGroupIDs.contains(group.id) {
                             TimelineView(.periodic(from: .now, by: 60)) { _ in
-                                GroupStatusBadge(title: remainingLabel, tint: .blue)
+                                if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
+                                    GroupStatusBadge(title: remainingLabel, tint: .blue)
+                                }
                             }
                         }
                         GroupStatusBadge(
