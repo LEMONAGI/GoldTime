@@ -534,6 +534,59 @@ struct ViewModelTests {
         #expect(viewModel.weeklyDeltaCaption == "지난 주 기록 없음")
     }
 
+    // MARK: - averageUnlockedSeconds
+
+    @Test func averageUnlockedSecondsExcludesFutureDays() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        // 7일치 stats: 과거 5일(각 60s) + 미래 2일(0s)
+        let stats: [SharedStore.DailyStats] = (0..<7).map { offset in
+            let date = cal.date(byAdding: .day, value: offset - 4, to: today)!
+            let key = SharedStore.dateKey(for: date)
+            let isFuture = date > today
+            return SharedStore.DailyStats(dateKey: key, adUnlockedSeconds: isFuture ? 0 : 60)
+        }
+        // 기대: 60s (= 300 / 5), 버그 시: 42s (= 300 / 7)
+        #expect(averageUnlockedSeconds(from: stats, today: today) == 60)
+    }
+
+    @Test func averageUnlockedSecondsExcludesPreInstallDays() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let oldest = cal.date(byAdding: .day, value: -3, to: today)!
+        // 7일치 stats: 설치 이후 4일(각 60s) + 설치 이전 3일(0s)
+        let stats: [SharedStore.DailyStats] = (0..<7).map { offset in
+            let date = cal.date(byAdding: .day, value: offset - 6, to: today)!
+            let key = SharedStore.dateKey(for: date)
+            let isBeforeInstall = date < oldest
+            return SharedStore.DailyStats(dateKey: key, adUnlockedSeconds: isBeforeInstall ? 0 : 60)
+        }
+        // 기대: 60s (= 240 / 4), 버그 시: 34s (= 240 / 7)
+        #expect(averageUnlockedSeconds(from: stats, today: today, oldest: oldest) == 60)
+    }
+
+    @Test func averageUnlockedSecondsWithFixedWeekExcludesFutureDays() {
+        // 월요일 시작 주를 고정 날짜로 만들어 검증
+        // 월(60s), 화(60s), 수(60s) → today = 수요일, 목~일(0s) = 미래
+        let cal = Calendar.current
+        let fixedMonday = cal.date(from: DateComponents(year: 2026, month: 5, day: 18))! // 2026-05-18 월요일
+        let fixedWednesday = cal.date(byAdding: .day, value: 2, to: fixedMonday)! // 수요일 = today
+        let stats: [SharedStore.DailyStats] = (0..<7).map { offset in
+            let date = cal.date(byAdding: .day, value: offset, to: fixedMonday)!
+            let key = SharedStore.dateKey(for: date)
+            let isFuture = date > fixedWednesday
+            return SharedStore.DailyStats(dateKey: key, adUnlockedSeconds: isFuture ? 0 : 60)
+        }
+        // 기대: 60s (= 180 / 3), 버그 시: 25s (= 180 / 7)
+        #expect(averageUnlockedSeconds(from: stats, today: fixedWednesday) == 60)
+    }
+
+    @Test func averageUnlockedSecondsReturnsZeroWhenNoRelevantData() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let emptyStats: [SharedStore.DailyStats] = []
+        #expect(averageUnlockedSeconds(from: emptyStats, today: today) == 0)
+    }
+
     // MARK: - LoadDashboardUseCase streak
 
     @Test func adFreeStreakIsOneOnFirstInstallWithNoAds() {
@@ -967,6 +1020,9 @@ private final class FakeStatsRepository: StatsRepository {
     func lastSevenDayStats() -> [DailyStats] { weeklyStatsValue }
     func previousSevenDayStats() -> [DailyStats] { previousWeekStatsValue }
     func lastNDayStats(_ n: Int) -> [DailyStats] { Array(nDayStatsValue.prefix(n)) }
+    func statsForCalendarWeek(weekOffset: Int) -> [DailyStats] {
+        weekOffset == 0 ? weeklyStatsValue : previousWeekStatsValue
+    }
     var oldestStatDate: Date? { oldestStatDateValue }
 }
 

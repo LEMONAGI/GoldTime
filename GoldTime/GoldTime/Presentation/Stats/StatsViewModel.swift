@@ -5,6 +5,17 @@
 
 import Foundation
 
+func averageUnlockedSeconds(
+    from stats: [SharedStore.DailyStats],
+    today: Date = Calendar.current.startOfDay(for: Date()),
+    oldest: Date? = nil
+) -> Int {
+    let floor: Date = oldest ?? .distantPast
+    let relevant = stats.filter { $0.date >= floor && $0.date <= today }
+    guard !relevant.isEmpty else { return 0 }
+    return relevant.reduce(0) { $0 + $1.totalUnlockedSeconds } / relevant.count
+}
+
 enum TrendDirection {
     case up
     case down
@@ -21,9 +32,12 @@ struct StatsViewModel {
     let adFreeStreakDays: Int
     let maxAdFreeStreakDays: Int
 
-    // weeklyStats: [today-6, today-5, ..., today-1, today] (index 5 = yesterday, index 6 = today)
+    // weeklyStats: 현재 달력 주(월 or 일 시작)의 7일 통계, 순서 = 주 시작일부터
     var yesterdayAdUnlockedSeconds: Int {
-        weeklyStats.count >= 6 ? weeklyStats[5].totalUnlockedSeconds : 0
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        let key = fmt.string(from: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date())
+        return weeklyStats.first(where: { $0.dateKey == key })?.totalUnlockedSeconds ?? 0
     }
 
     var todayVsYesterdayDelta: Int {
@@ -59,8 +73,7 @@ struct StatsViewModel {
     }
 
     var weeklyAverageSeconds: Int {
-        guard !weeklyStats.isEmpty else { return 0 }
-        return weeklyStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / weeklyStats.count
+        averageUnlockedSeconds(from: weeklyStats, oldest: SharedStore.oldestStatDate)
     }
 
     var weeklyMaxMinutes: Int {
@@ -68,8 +81,7 @@ struct StatsViewModel {
     }
 
     var monthlyAverageSeconds: Int {
-        guard !monthlyStats.isEmpty else { return 0 }
-        return monthlyStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / monthlyStats.count
+        averageUnlockedSeconds(from: monthlyStats, oldest: SharedStore.oldestStatDate)
     }
 
     var monthlyMaxMinutes: Int {

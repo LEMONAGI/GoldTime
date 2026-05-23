@@ -94,13 +94,15 @@ struct StatsView: View {
 
 private struct WeeklyGraphSection: View {
     @State private var weekOffset = 0
+    @AppStorage("weekStartDay", store: UserDefaults(suiteName: SharedStore.suiteName))
+    private var weekStartDay: Int = 2
 
     private var weekRange: (start: Date, end: Date) {
-        SharedStore.calendarWeekRange(weekOffset: weekOffset)
+        SharedStore.calendarWeekRange(weekOffset: weekOffset, firstWeekday: weekStartDay)
     }
 
     private var stats: [SharedStore.DailyStats] {
-        SharedStore.statsForCalendarWeek(weekOffset: weekOffset)
+        SharedStore.statsForCalendarWeek(weekOffset: weekOffset, firstWeekday: weekStartDay)
     }
 
     private var navigationLabel: String {
@@ -113,8 +115,7 @@ private struct WeeklyGraphSection: View {
     }
 
     private var averageSeconds: Int {
-        guard !stats.isEmpty else { return 0 }
-        return stats.reduce(0) { $0 + $1.totalUnlockedSeconds } / stats.count
+        averageUnlockedSeconds(from: stats, oldest: SharedStore.oldestStatDate)
     }
 
     private var maxMinutes: Int {
@@ -127,8 +128,7 @@ private struct WeeklyGraphSection: View {
 
     private var comparisonAverageSeconds: Int {
         let monthStats = SharedStore.statsForCalendarMonth(monthOffset: 0)
-        guard !monthStats.isEmpty else { return 0 }
-        return monthStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / monthStats.count
+        return averageUnlockedSeconds(from: monthStats, oldest: SharedStore.oldestStatDate)
     }
 
     private var comparisonLabel: String { "이번 달 평균" }
@@ -264,8 +264,7 @@ private struct MonthlyGraphSection: View {
     }
 
     private var averageSeconds: Int {
-        guard !stats.isEmpty else { return 0 }
-        return stats.reduce(0) { $0 + $1.totalUnlockedSeconds } / stats.count
+        averageUnlockedSeconds(from: stats, oldest: SharedStore.oldestStatDate)
     }
 
     private var maxMinutes: Int {
