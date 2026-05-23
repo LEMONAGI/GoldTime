@@ -60,6 +60,14 @@ final class ContentViewModel {
     var unlockSheetGroupID: UUID? = nil
     var isUnlockSheetPresented = false
 
+    var isAdGateConfirmPresented = false
+    var isAdGatePresented = false
+    var adGateFallbackLabel: String = ""
+    var adGateConfirmButtonLabel: String = ""
+    private var adGatePendingAction: (() -> Void)? = nil
+
+    var deleteConfirmGroupID: UUID? = nil
+
     private let manageGroupsUseCase: ManageGroupsUseCase
     private let syncProtectionUseCase: SyncProtectionUseCase
     private let loadDashboardUseCase: LoadDashboardUseCase
@@ -217,6 +225,55 @@ final class ContentViewModel {
         guard let id = limitPickerGroupID else { return }
         updateGroupLimit(id, minutes: limitPickerHours * 60 + limitPickerMinutes)
         limitPickerGroupID = nil
+    }
+
+    func requestPickerPresentation(for group: ScreenTimeGroup) {
+        guard lockedGroupIDs.contains(group.id) else {
+            presentPicker(for: group)
+            return
+        }
+        adGatePendingAction = { [weak self] in self?.presentPicker(for: group) }
+        adGateFallbackLabel = "그래도 편집하기"
+        adGateConfirmButtonLabel = "광고 보고 편집하기"
+        isAdGateConfirmPresented = true
+    }
+
+    func requestDeleteGroup(_ id: UUID) {
+        guard lockedGroupIDs.contains(id) else {
+            deleteConfirmGroupID = id
+            return
+        }
+        adGatePendingAction = { [weak self] in self?.deleteGroup(id) }
+        adGateFallbackLabel = "그래도 삭제하기"
+        adGateConfirmButtonLabel = "광고 보고 삭제하기"
+        isAdGateConfirmPresented = true
+    }
+
+    func confirmDelete() {
+        guard let id = deleteConfirmGroupID else { return }
+        deleteConfirmGroupID = nil
+        deleteGroup(id)
+    }
+
+    func confirmAdGate() {
+        isAdGateConfirmPresented = false
+        isAdGatePresented = true
+    }
+
+    func cancelAdGateConfirm() {
+        adGatePendingAction = nil
+        isAdGateConfirmPresented = false
+    }
+
+    func adGateCompleted() {
+        adGatePendingAction?()
+        adGatePendingAction = nil
+        isAdGatePresented = false
+    }
+
+    func adGateCancelled() {
+        adGatePendingAction = nil
+        isAdGatePresented = false
     }
 
     func presentUnlockSheet(groupID: UUID) {

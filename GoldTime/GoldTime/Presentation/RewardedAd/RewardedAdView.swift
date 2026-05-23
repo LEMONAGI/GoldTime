@@ -11,7 +11,14 @@ struct RewardedAdView: View {
 
     @State private var viewController: UIViewController?
 
-    init(onComplete: @escaping () -> Void, onCancel: @escaping () -> Void) {
+    private let fallbackLabel: String
+
+    init(
+        fallbackLabel: String = "그래도 15분 사용하기",
+        onComplete: @escaping () -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.fallbackLabel = fallbackLabel
         _viewModel = State(initialValue: RewardedAdViewModel(
             onComplete: onComplete,
             onCancel: onCancel
@@ -56,7 +63,7 @@ struct RewardedAdView: View {
             Text("네트워크 상태를 확인해 주세요").foregroundStyle(.white.opacity(0.7))
             Spacer()
             VStack(spacing: 12) {
-                Button("그래도 15분 사용하기") { viewModel.completeFallback() }
+                Button(fallbackLabel) { viewModel.completeFallback() }
                     .frame(maxWidth: .infinity)
                     .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 12))
                 Button("취소", role: .cancel) { viewModel.cancel() }

@@ -42,9 +42,9 @@ struct ContentView: View {
                     validGroupIDs: viewModel.validGroupIDs,
                     overrideUntilByGroupID: viewModel.overrideUntilByGroupID,
                     onAddGroup: viewModel.addGroup,
-                    onDeleteGroup: viewModel.deleteGroup,
+                    onDeleteGroup: viewModel.requestDeleteGroup,
                     onUpdateGroupName: viewModel.updateGroupName,
-                    onPresentPicker: viewModel.presentPicker,
+                    onPresentPicker: viewModel.requestPickerPresentation,
                     onPresentLimitPicker: viewModel.presentLimitPicker,
                     onUnlockGroup: viewModel.presentUnlockSheet
                 )
