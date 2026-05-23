@@ -98,8 +98,8 @@ struct HomeView: View {
             
             VStack(alignment: .center, spacing: 4) {
                 Text(viewModel.billTotalText)
-                    .font(.system(size: 52, weight: .heavy))
-                    .foregroundStyle(viewModel.hasBillCost ? Color.accent : .white)
+                    .font(.system(size: 70, weight: .heavy))
+                    .foregroundStyle(Color.accent)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                 
@@ -114,7 +114,7 @@ struct HomeView: View {
             Spacer().frame(height: 18)
             
             VStack(spacing: 10) {
-                billRow("광고", "\(viewModel.todayStats.adWatchCount)개", accent: viewModel.hasBillCost)
+                billRow("광고", "\(viewModel.todayStats.adWatchCount)개", accent: true)
                 billRow(
                     "남은 1분 연장",
                     "\(viewModel.oneMinuteRemaining)/\(viewModel.oneMinuteDailyLimit)"
@@ -124,13 +124,11 @@ struct HomeView: View {
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color("gray100"))
-        .background(viewModel.hasBillCost ? Color.accent.opacity(0.06) : Color.clear)
+        .background(Color.accent.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(alignment: .leading) {
-            if viewModel.hasBillCost {
-                RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(Color.accent.opacity(0.5), lineWidth: 1.5)
-            }
+        .overlay {
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(Color.accent.opacity(0.5), lineWidth: 1.5)
         }
     }
     
