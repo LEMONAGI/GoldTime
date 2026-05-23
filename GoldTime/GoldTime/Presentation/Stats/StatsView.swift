@@ -125,6 +125,24 @@ private struct WeeklyGraphSection: View {
         stats.contains { $0.totalUnlockedSeconds > 0 }
     }
 
+    private var comparisonAverageSeconds: Int {
+        let monthStats = SharedStore.statsForCalendarMonth(monthOffset: 0)
+        guard !monthStats.isEmpty else { return 0 }
+        return monthStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / monthStats.count
+    }
+
+    private var comparisonLabel: String { "이번 달 평균" }
+    private var comparisonDelta: Int { averageSeconds - comparisonAverageSeconds }
+
+    private var shouldShowComparison: Bool {
+        comparisonAverageSeconds > 0 && comparisonDelta != 0
+    }
+
+    private var comparisonCaption: String {
+        let text = goldTimeDurationText(seconds: abs(comparisonDelta))
+        return comparisonDelta > 0 ? "이번 달 평균보다 \(text) 많아요" : "이번 달 평균보다 \(text) 적어요"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "주간 기록", systemName: "chart.bar.xaxis")
@@ -178,13 +196,45 @@ private struct WeeklyGraphSection: View {
                 }
                 .frame(height: 180)
                 .padding(.top, 8)
-
-                HStack {
-                    Text("일일 평균")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(goldTimeDurationText(seconds: averageSeconds))
-                        .fontWeight(.bold)
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("주간 평균")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                                Text(goldTimeDurationText(seconds: averageSeconds))
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(
+                                        shouldShowComparison
+                                            ? (comparisonDelta > 0 ? Color.red : Color.green)
+                                            : Color.primary
+                                    )
+                                if shouldShowComparison {
+                                    Image(systemName: comparisonDelta > 0 ? "arrow.up" : "arrow.down")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(comparisonDelta > 0 ? Color.red : Color.green)
+                                }
+                            }
+                        }
+                        if comparisonAverageSeconds > 0 {
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(comparisonLabel)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(goldTimeDurationText(seconds: comparisonAverageSeconds))
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    if shouldShowComparison {
+                        Text(comparisonCaption)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .font(.subheadline)
             }
@@ -224,6 +274,24 @@ private struct MonthlyGraphSection: View {
 
     private var hasData: Bool {
         stats.contains { $0.totalUnlockedSeconds > 0 }
+    }
+
+    private var comparisonAverageSeconds: Int {
+        let all = SharedStore.allDailyStats
+        guard !all.isEmpty else { return 0 }
+        return all.reduce(0) { $0 + $1.totalUnlockedSeconds } / all.count
+    }
+
+    private var comparisonLabel: String { "전체 평균" }
+    private var comparisonDelta: Int { averageSeconds - comparisonAverageSeconds }
+
+    private var shouldShowComparison: Bool {
+        SharedStore.allDailyStats.count > stats.count && comparisonDelta != 0
+    }
+
+    private var comparisonCaption: String {
+        let text = goldTimeDurationText(seconds: abs(comparisonDelta))
+        return comparisonDelta > 0 ? "전체 평균보다 \(text) 많아요" : "전체 평균보다 \(text) 적어요"
     }
 
     var body: some View {
@@ -279,17 +347,91 @@ private struct MonthlyGraphSection: View {
                 }
                 .frame(height: 180)
                 .padding(.top, 8)
-
-                HStack {
-                    Text("일일 평균")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(goldTimeDurationText(seconds: averageSeconds))
-                        .fontWeight(.bold)
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("월간 평균")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                                Text(goldTimeDurationText(seconds: averageSeconds))
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(
+                                        shouldShowComparison
+                                            ? (comparisonDelta > 0 ? Color.red : Color.green)
+                                            : Color.primary
+                                    )
+                                if shouldShowComparison {
+                                    Image(systemName: comparisonDelta > 0 ? "arrow.up" : "arrow.down")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(comparisonDelta > 0 ? Color.red : Color.green)
+                                }
+                            }
+                        }
+                        if comparisonAverageSeconds > 0 {
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(comparisonLabel)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(goldTimeDurationText(seconds: comparisonAverageSeconds))
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    if shouldShowComparison {
+                        Text(comparisonCaption)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .font(.subheadline)
             }
             .cardContainer()
         }
     }
+}
+
+#if DEBUG
+private func makePreviewStats(daysAgo: Int, minutes: Int) -> SharedStore.DailyStats {
+    let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date())!
+    return SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: date), adUnlockedSeconds: minutes * 60)
+}
+
+private func makeStatsView(allMock: [SharedStore.DailyStats]) -> some View {
+    let today = SharedStore.dateKey(for: Date())
+    let todayStats = allMock.first { $0.dateKey == today }
+        ?? SharedStore.DailyStats(dateKey: today)
+    return NavigationStack {
+        StatsView(
+            groups: [],
+            todayStats: todayStats,
+            weeklyStats: Array(allMock.prefix(min(7, allMock.count))),
+            previousWeekStats: allMock.count >= 14 ? Array(allMock[7..<14]) : [],
+            monthlyStats: Array(allMock.prefix(min(30, allMock.count))),
+            isMonitoring: true,
+            adFreeStreakDays: 3,
+            maxAdFreeStreakDays: 7
+        )
+    }
+}
+#endif
+
+#Preview("평균보다 많음 ↗") {
+    let all = (0..<60).map { makePreviewStats(daysAgo: $0, minutes: $0 < 7 ? 20 : ($0 < 30 ? 10 : 5)) }
+    SharedStore.seedForPreview(all)
+    return makeStatsView(allMock: all)
+}
+
+#Preview("평균보다 적음 ↙") {
+    let all = (0..<60).map { makePreviewStats(daysAgo: $0, minutes: $0 < 7 ? 3 : ($0 < 30 ? 10 : 15)) }
+    SharedStore.seedForPreview(all)
+    return makeStatsView(allMock: all)
+}
+
+#Preview("데이터 없음") {
+    SharedStore.seedForPreview([])
+    return makeStatsView(allMock: [])
 }

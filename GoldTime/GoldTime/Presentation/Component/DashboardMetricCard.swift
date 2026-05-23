@@ -39,7 +39,7 @@ struct DashboardMetricCard: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                     if let trend, trend != .flat {
-                        Image(systemName: trend == .up ? "arrow.up.right" : "arrow.down.right")
+                        Image(systemName: trend == .up ? "arrow.up" : "arrow.down")
                             .font(.body.weight(.bold))
                             .foregroundStyle(trend == .up ? Color.red : Color.green)
                     }

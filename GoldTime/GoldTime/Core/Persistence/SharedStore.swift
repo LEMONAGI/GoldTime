@@ -263,6 +263,10 @@ enum SharedStore {
         return dateKeyFormatter.date(from: minKey)
     }
 
+    static var allDailyStats: [DailyStats] {
+        Array(dailyStatsByDate.values)
+    }
+
     static func calendarWeekRange(weekOffset: Int) -> (start: Date, end: Date) {
         var cal = Calendar(identifier: .gregorian)
         cal.firstWeekday = 2
@@ -354,6 +358,12 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.oneMinuteUsedToday)
         defaults.removeObject(forKey: Key.oneMinuteCounterDate)
         defaults.removeObject(forKey: Key.dailyProtectionStateDate)
+    }
+
+    static func seedForPreview(_ stats: [DailyStats]) {
+        var dict: [String: DailyStats] = [:]
+        for stat in stats { dict[stat.dateKey] = stat }
+        dailyStatsByDate = dict
     }
     #endif
 

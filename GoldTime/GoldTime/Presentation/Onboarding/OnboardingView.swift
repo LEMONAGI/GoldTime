@@ -32,7 +32,7 @@ struct OnboardingView: View {
     private var introView: some View {
         OnboardingStepView(
             step: 0,
-            icon: "💰",
+            icon: "hourglass",
             title: "시간이 금이다",
             description: "한도를 넘기면 선택한 앱이 잠기고,\n더 쓰려면 광고를 봐야 해요.\n조금 불편하게 만들어두겠습니다.",
             errorMessage: nil,
@@ -46,7 +46,7 @@ struct OnboardingView: View {
     private var screenTimeView: some View {
         OnboardingStepView(
             step: 1,
-            icon: "🔒",
+            icon: "lock.fill",
             title: "스크린타임 권한",
             description: "앱 사용 시간을 추적하고\n한도를 초과하면 앱을 잠그기 위해\n스크린타임 접근 권한이 필요해요.",
             permissionType: .screenTime,
@@ -61,7 +61,7 @@ struct OnboardingView: View {
     private var notificationView: some View {
         OnboardingStepView(
             step: 2,
-            icon: "🔔",
+            icon: "bell.fill",
             title: "알림 권한",
             description: "한도에 가까워지면 알림으로 알려드려요.\n알림을 허용해야 앱을 사용할 수 있어요.",
             permissionType: .notification,
@@ -77,7 +77,7 @@ struct OnboardingView: View {
     private var completionView: some View {
         OnboardingStepView(
             step: 3,
-            icon: "✅",
+            icon: "checkmark.circle.fill",
             title: "준비 완료!",
             description: "이제 시간의 가치를 느껴보세요.",
             errorMessage: nil,
@@ -164,8 +164,9 @@ private struct OnboardingStepView: View {
             Circle()
                 .fill(Color.accent.opacity(0.15))
                 .frame(width: 100, height: 100)
-            Text(icon)
-                .font(.system(size: 52))
+            Image(systemName: icon)
+                .font(.system(size: 44))
+                .foregroundStyle(Color.accent)
         }
     }
 }
