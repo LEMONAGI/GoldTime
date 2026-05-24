@@ -152,6 +152,113 @@ struct ViewModelTests {
         #expect(viewModel.alertMessage?.title == "스크린 타임 권한 필요")
     }
 
+    // MARK: - Ad Gate
+
+    @Test func adGateSkippedForUnlockedGroup() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+        )
+        viewModel.groups = [group]
+
+        viewModel.requestPickerPresentation(for: group)
+
+        #expect(!viewModel.isAdGatePresented)
+        #expect(viewModel.isPickerPresented)
+    }
+
+    @Test func adGateOpenedForLockedGroupEdit() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+        )
+        viewModel.groups = [group]
+        viewModel.lockedGroupIDs = [group.id]
+
+        viewModel.requestPickerPresentation(for: group)
+
+        #expect(viewModel.isAdGatePresented)
+        #expect(viewModel.adGateFallbackLabel == "그래도 편집하기")
+        #expect(!viewModel.isPickerPresented)
+    }
+
+    @Test func adGateOpenedForLockedGroupDelete() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+        )
+        viewModel.lockedGroupIDs = [group.id]
+
+        viewModel.requestDeleteGroup(group.id)
+
+        #expect(viewModel.isAdGatePresented)
+        #expect(viewModel.adGateFallbackLabel == "그래도 삭제하기")
+    }
+
+    @Test func adGateCompletedRunsPendingActionOnce() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+        )
+        viewModel.groups = [group]
+        viewModel.lockedGroupIDs = [group.id]
+        viewModel.requestPickerPresentation(for: group)
+
+        viewModel.adGateCompleted()
+        viewModel.adGateCompleted()
+
+        #expect(!viewModel.isAdGatePresented)
+        #expect(viewModel.isPickerPresented)
+        #expect(viewModel.pickerGroupID == group.id)
+    }
+
+    @Test func adGateCancelledClearsPendingAction() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+        )
+        viewModel.groups = [group]
+        viewModel.lockedGroupIDs = [group.id]
+        viewModel.requestPickerPresentation(for: group)
+
+        viewModel.adGateCancelled()
+
+        #expect(!viewModel.isAdGatePresented)
+        #expect(!viewModel.isPickerPresented)
+    }
+
     @Test func contentViewModelAddsGroupAndPersistsWithoutSync() {
         let groupRepo = FakeGroupRepository()
         let screenTimeRepo = FakeScreenTimeRepository()
@@ -510,6 +617,31 @@ struct ViewModelTests {
         )
 
         #expect(viewModel.todayDeltaCaption == "어제도 오늘도 없어요")
+    }
+
+    @Test func statsViewModelTodayDeltaCorrectAcrossWeekBoundary() {
+        let cal = Calendar.current
+        let sundayKey = DailyStats.dateKey(
+            for: cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date()))!
+        )
+        let mondayKey = DailyStats.dateKey(for: cal.startOfDay(for: Date()))
+
+        var prevWeek = Array(repeating: DailyStats(dateKey: ""), count: 7)
+        prevWeek[6] = DailyStats(dateKey: sundayKey, adUnlockedSeconds: 2700) // 45분
+
+        var thisWeek = Array(repeating: DailyStats(dateKey: ""), count: 7)
+        thisWeek[0] = DailyStats(dateKey: mondayKey, adUnlockedSeconds: 60) // 1분
+
+        let report = StatsReport(
+            todayStats: DailyStats(dateKey: mondayKey, adUnlockedSeconds: 60),
+            weeklyStats: thisWeek,
+            previousWeekStats: prevWeek,
+            monthlyStats: [],
+            oldestStatDate: nil
+        )
+
+        #expect(report.yesterdayUnlockedSeconds == 2700)
+        #expect(report.todayDelta == 60 - 2700)
     }
 
     @Test func statsViewModelWeeklyDeltaCaptionLess() {
@@ -1163,6 +1295,8 @@ private final class FakeNotificationRepository: NotificationRepository {
         authorizationStateValue = requestAuthorizationResult
         return requestAuthorizationResult
     }
+
+    func scheduleWeeklyStatsNotification(weekStartDay: Int) {}
 }
 
 @MainActor

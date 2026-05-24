@@ -10,7 +10,7 @@ struct StatsReport {
 
     var yesterdayUnlockedSeconds: Int {
         let key = DailyStats.dateKey(for: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date())
-        return weeklyStats.first(where: { $0.dateKey == key })?.totalUnlockedSeconds ?? 0
+        return (weeklyStats + previousWeekStats).first(where: { $0.dateKey == key })?.totalUnlockedSeconds ?? 0
     }
 
     var todayDelta: Int {
