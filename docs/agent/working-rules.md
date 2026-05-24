@@ -64,13 +64,14 @@ High-risk 작업은 직렬로 처리하고 명시적인 검증 메모를 남깁�
 
 ## 검증 명령
 
-로컬 Xcode 상태에 따라 가능한 검증을 선택합니다.
+빌드와 테스트는 기본적으로 Xcode MCP 툴을 사용합니다.
 
-- Scheme 확인: `xcodebuild -list -project GoldTime/GoldTime.xcodeproj`
-- 앱 build: `xcodebuild -project GoldTime/GoldTime.xcodeproj -scheme GoldTime build`
-- 테스트: `xcodebuild test -project GoldTime/GoldTime.xcodeproj -scheme GoldTime`
+- 앱 build: `mcp__xcode__BuildProject`
+- 전체 테스트: `mcp__xcode__RunAllTests`
+- 특정 테스트: `mcp__xcode__RunSomeTests`
+- 빌드 로그 확인: `mcp__xcode__GetBuildLog`
 
-Xcode가 제한된 cache에 쓰려 하거나 signing/simulator service 문제로 실패하면, 실패 원인을 기록하고 static review 또는 집중 테스트를 대체 확인으로 사용합니다.
+Xcode MCP가 실패하면 실패 원인을 기록하고 static review 또는 집중 테스트를 대체 확인으로 사용합니다. `xcodebuild` CLI는 Xcode MCP를 사용할 수 없을 때만 fallback으로 사용합니다.
 
 ## 완료 보고
 

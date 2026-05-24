@@ -109,7 +109,7 @@ Screen Time / Shield / FamilyControls / AdMob 실제 표시처럼 테스트 코�
 
 ```text
 검증:
-- 실행: xcodebuild test ...
+- 실행: mcp__xcode__RunAllTests (또는 mcp__xcode__RunSomeTests)
 - 결과: 통과
 
 실기기에서 확인할 것:
