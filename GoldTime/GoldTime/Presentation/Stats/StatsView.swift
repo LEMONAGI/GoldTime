@@ -180,7 +180,7 @@ private struct WeeklyGraphSection: View {
                     .chartYScale(domain: 0...max(5, maxMinutes))
 
                     if !hasData {
-                        Text("기록 없음")
+                        Text("추가 사용 기록 없음")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -330,7 +330,7 @@ private struct MonthlyGraphSection: View {
                     .chartYScale(domain: 0...max(5, maxMinutes))
 
                     if !hasData {
-                        Text("기록 없음")
+                        Text("추가 사용 기록 없음")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

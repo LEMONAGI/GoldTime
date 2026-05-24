@@ -121,11 +121,11 @@ struct HomeViewModel {
         switch todayStats.totalUnlockedSeconds {
         case 0:
             return "좋은 날입니다. 저한텐 아니고요."
-        case 1..<900:
+        case 1..<1800:
             return "이 정도면 살짝 눈 감아드릴 수 있어요."
-        case 900..<1800:
+        case 1800..<2700:
             return "이제 눈 뜨고 봐야겠는데요."
-        case 1800..<3600:
+        case 2700..<3600:
             return "제법 하시는데요. 청구서 두께가 느껴지시죠?"
         case 3600..<5400:
             return "슬슬 기분이 좋아지는데요. 제가요."
