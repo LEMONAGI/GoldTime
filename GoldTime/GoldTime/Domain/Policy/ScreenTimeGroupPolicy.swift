@@ -8,6 +8,11 @@
 import Foundation
 
 enum ScreenTimeGroupPolicy {
+    static let maxGroupCount = 5
+    static let maxAppsPerGroup = 9
+    static let maxShieldApplicationCount = 49
+    static let oneMinuteDailyLimit = 5
+
     enum InvalidReason: Equatable {
         case tooManyGroups
         case groupHasNoSelection(String)
@@ -65,9 +70,9 @@ enum ScreenTimeGroupPolicy {
 
     static func firstInvalidReason<Token>(
         for groups: [GroupSnapshot<Token>],
-        maxGroups: Int = SharedStore.maxGroupCount,
-        maxAppsPerGroup: Int = SharedStore.maxAppsPerGroup,
-        maxShieldApplications: Int = SharedStore.maxShieldApplicationCount
+        maxGroups: Int = ScreenTimeGroupPolicy.maxGroupCount,
+        maxAppsPerGroup: Int = ScreenTimeGroupPolicy.maxAppsPerGroup,
+        maxShieldApplications: Int = ScreenTimeGroupPolicy.maxShieldApplicationCount
     ) -> InvalidReason? {
         if groups.count > maxGroups {
             return .tooManyGroups
@@ -99,7 +104,7 @@ enum ScreenTimeGroupPolicy {
 
     static func invalidReason<Token>(
         for group: GroupSnapshot<Token>,
-        maxAppsPerGroup: Int = SharedStore.maxAppsPerGroup
+        maxAppsPerGroup: Int = ScreenTimeGroupPolicy.maxAppsPerGroup
     ) -> InvalidReason? {
         if group.selectionCount == 0 {
             return .groupHasNoSelection(group.name)
@@ -122,7 +127,7 @@ enum ScreenTimeGroupPolicy {
 
     static func monitoringEligibleGroups<Token>(
         from groups: [GroupSnapshot<Token>],
-        maxAppsPerGroup: Int = SharedStore.maxAppsPerGroup
+        maxAppsPerGroup: Int = ScreenTimeGroupPolicy.maxAppsPerGroup
     ) -> [GroupSnapshot<Token>] {
         groups.filter { group in
             invalidReason(for: group, maxAppsPerGroup: maxAppsPerGroup) == nil

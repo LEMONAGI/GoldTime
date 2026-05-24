@@ -10,21 +10,15 @@ struct StatsView: View {
     let viewModel: StatsViewModel
 
     init(
-        groups: [SharedStore.ScreenTimeGroup],
-        todayStats: SharedStore.DailyStats,
-        weeklyStats: [SharedStore.DailyStats],
-        previousWeekStats: [SharedStore.DailyStats],
-        monthlyStats: [SharedStore.DailyStats],
+        groups: [ScreenTimeGroup],
+        statsReport: StatsReport,
         isMonitoring: Bool,
         adFreeStreakDays: Int,
         maxAdFreeStreakDays: Int
     ) {
         viewModel = StatsViewModel(
             groups: groups,
-            todayStats: todayStats,
-            weeklyStats: weeklyStats,
-            previousWeekStats: previousWeekStats,
-            monthlyStats: monthlyStats,
+            statsReport: statsReport,
             isMonitoring: isMonitoring,
             adFreeStreakDays: adFreeStreakDays,
             maxAdFreeStreakDays: maxAdFreeStreakDays
@@ -62,21 +56,21 @@ struct StatsView: View {
             LazyVGrid(columns: metricColumns, spacing: 12) {
                 DashboardMetricCard(
                     title: "추가 사용",
-                    value: goldTimeDurationText(seconds: viewModel.todayStats.totalUnlockedSeconds),
+                    value: goldTimeDurationText(seconds: viewModel.statsReport.todayStats.totalUnlockedSeconds),
                     caption: viewModel.todayDeltaCaption,
                     systemName: "clock.fill",
                     tint: .cyan,
-                    trend: viewModel.todayTrend,
+                    trend: viewModel.statsReport.todayTrend,
                     sentiment: viewModel.todaySentiment
                 )
 
                 DashboardMetricCard(
                     title: "이번 주 추가 사용",
-                    value: goldTimeDurationText(seconds: viewModel.weeklyAdUnlockedSeconds),
+                    value: goldTimeDurationText(seconds: viewModel.statsReport.weeklyUnlockedSeconds),
                     caption: viewModel.weeklyDeltaCaption,
                     systemName: "calendar.badge.clock",
                     tint: .cyan,
-                    trend: viewModel.weeklyTrend,
+                    trend: viewModel.statsReport.weeklyTrend,
                     sentiment: viewModel.weeklySentiment
                 )
             }
@@ -84,38 +78,36 @@ struct StatsView: View {
     }
 
     private var weeklySection: some View {
-        WeeklyGraphSection()
+        WeeklyGraphSection(viewModel: viewModel)
     }
 
     private var monthlySection: some View {
-        MonthlyGraphSection()
+        MonthlyGraphSection(viewModel: viewModel)
     }
 }
 
 private struct WeeklyGraphSection: View {
+    let viewModel: StatsViewModel
     @State private var weekOffset = 0
-    @AppStorage("weekStartDay", store: UserDefaults(suiteName: SharedStore.suiteName))
-    private var weekStartDay: Int = 2
 
-    private var weekRange: (start: Date, end: Date) {
-        SharedStore.calendarWeekRange(weekOffset: weekOffset, firstWeekday: weekStartDay)
+    private var weekRange: (start: Date, end: Date)? {
+        viewModel.calendarWeekRange(offset: weekOffset)
     }
 
-    private var stats: [SharedStore.DailyStats] {
-        SharedStore.statsForCalendarWeek(weekOffset: weekOffset, firstWeekday: weekStartDay)
+    private var stats: [DailyStats] {
+        viewModel.weeklyStats(offset: weekOffset)
     }
 
     private var navigationLabel: String {
-        guard weekOffset != 0 else { return "이번 주" }
-        let (start, end) = weekRange
+        guard weekOffset != 0, let range = weekRange else { return "이번 주" }
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "ko_KR")
         fmt.dateFormat = "M/d"
-        return "\(fmt.string(from: start)) - \(fmt.string(from: end))"
+        return "\(fmt.string(from: range.start)) - \(fmt.string(from: range.end))"
     }
 
     private var averageSeconds: Int {
-        averageUnlockedSeconds(from: stats, oldest: SharedStore.oldestStatDate)
+        viewModel.averageSeconds(for: stats)
     }
 
     private var maxMinutes: Int {
@@ -127,8 +119,7 @@ private struct WeeklyGraphSection: View {
     }
 
     private var comparisonAverageSeconds: Int {
-        let monthStats = SharedStore.statsForCalendarMonth(monthOffset: 0)
-        return averageUnlockedSeconds(from: monthStats, oldest: SharedStore.oldestStatDate)
+        viewModel.averageSeconds(for: viewModel.monthlyStats(offset: 0))
     }
 
     private var comparisonLabel: String { "이번 달 평균" }
@@ -244,27 +235,27 @@ private struct WeeklyGraphSection: View {
 }
 
 private struct MonthlyGraphSection: View {
+    let viewModel: StatsViewModel
     @State private var monthOffset = 0
 
-    private var monthRange: (start: Date, end: Date) {
-        SharedStore.calendarMonthRange(monthOffset: monthOffset)
+    private var monthRange: (start: Date, end: Date)? {
+        viewModel.calendarMonthRange(offset: monthOffset)
     }
 
-    private var stats: [SharedStore.DailyStats] {
-        SharedStore.statsForCalendarMonth(monthOffset: monthOffset)
+    private var stats: [DailyStats] {
+        viewModel.monthlyStats(offset: monthOffset)
     }
 
     private var navigationLabel: String {
-        guard monthOffset != 0 else { return "이번 달" }
-        let (start, _) = monthRange
+        guard monthOffset != 0, let range = monthRange else { return "이번 달" }
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "ko_KR")
         fmt.dateFormat = "yyyy년 M월"
-        return fmt.string(from: start)
+        return fmt.string(from: range.start)
     }
 
     private var averageSeconds: Int {
-        averageUnlockedSeconds(from: stats, oldest: SharedStore.oldestStatDate)
+        viewModel.averageSeconds(for: stats)
     }
 
     private var maxMinutes: Int {
@@ -276,7 +267,7 @@ private struct MonthlyGraphSection: View {
     }
 
     private var comparisonAverageSeconds: Int {
-        let all = SharedStore.allDailyStats
+        let all = viewModel.allDailyStats()
         guard !all.isEmpty else { return 0 }
         return all.reduce(0) { $0 + $1.totalUnlockedSeconds } / all.count
     }
@@ -285,7 +276,7 @@ private struct MonthlyGraphSection: View {
     private var comparisonDelta: Int { averageSeconds - comparisonAverageSeconds }
 
     private var shouldShowComparison: Bool {
-        SharedStore.allDailyStats.count > stats.count && comparisonDelta != 0
+        viewModel.allDailyStats().count > stats.count && comparisonDelta != 0
     }
 
     private var comparisonCaption: String {
@@ -394,22 +385,38 @@ private struct MonthlyGraphSection: View {
 }
 
 #if DEBUG
-private func makePreviewStats(daysAgo: Int, minutes: Int) -> SharedStore.DailyStats {
-    let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date())!
-    return SharedStore.DailyStats(dateKey: SharedStore.dateKey(for: date), adUnlockedSeconds: minutes * 60)
+private extension DailyStats {
+    func toSharedStore() -> SharedStore.DailyStats {
+        SharedStore.DailyStats(
+            dateKey: dateKey,
+            adWatchCount: adWatchCount,
+            adUnlockedSeconds: adUnlockedSeconds,
+            oneMinuteUsedCount: oneMinuteUsedCount,
+            shieldHitCount: shieldHitCount,
+            walkAwayCount: walkAwayCount
+        )
+    }
 }
 
-private func makeStatsView(allMock: [SharedStore.DailyStats]) -> some View {
-    let today = SharedStore.dateKey(for: Date())
-    let todayStats = allMock.first { $0.dateKey == today }
-        ?? SharedStore.DailyStats(dateKey: today)
+private func makePreviewStats(daysAgo: Int, minutes: Int) -> DailyStats {
+    let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date())!
+    return DailyStats(dateKey: DailyStats.dateKey(for: date), adUnlockedSeconds: minutes * 60)
+}
+
+private func makeStatsView(allMock: [DailyStats]) -> some View {
+    let today = DailyStats.dateKey(for: Date())
+    let todayStats = allMock.first { $0.dateKey == today } ?? DailyStats(dateKey: today)
+    let statsReport = StatsReport(
+        todayStats: todayStats,
+        weeklyStats: Array(allMock.prefix(min(7, allMock.count))),
+        previousWeekStats: allMock.count >= 14 ? Array(allMock[7..<14]) : [],
+        monthlyStats: Array(allMock.prefix(min(30, allMock.count))),
+        oldestStatDate: allMock.last?.date
+    )
     return NavigationStack {
         StatsView(
             groups: [],
-            todayStats: todayStats,
-            weeklyStats: Array(allMock.prefix(min(7, allMock.count))),
-            previousWeekStats: allMock.count >= 14 ? Array(allMock[7..<14]) : [],
-            monthlyStats: Array(allMock.prefix(min(30, allMock.count))),
+            statsReport: statsReport,
             isMonitoring: true,
             adFreeStreakDays: 3,
             maxAdFreeStreakDays: 7
@@ -420,13 +427,13 @@ private func makeStatsView(allMock: [SharedStore.DailyStats]) -> some View {
 
 #Preview("평균보다 많음 ↗") {
     let all = (0..<60).map { makePreviewStats(daysAgo: $0, minutes: $0 < 7 ? 20 : ($0 < 30 ? 10 : 5)) }
-    SharedStore.seedForPreview(all)
+    SharedStore.seedForPreview(all.map { $0.toSharedStore() })
     return makeStatsView(allMock: all)
 }
 
 #Preview("평균보다 적음 ↙") {
     let all = (0..<60).map { makePreviewStats(daysAgo: $0, minutes: $0 < 7 ? 3 : ($0 < 30 ? 10 : 15)) }
-    SharedStore.seedForPreview(all)
+    SharedStore.seedForPreview(all.map { $0.toSharedStore() })
     return makeStatsView(allMock: all)
 }
 

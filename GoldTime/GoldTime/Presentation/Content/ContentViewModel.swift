@@ -46,11 +46,10 @@ final class ContentViewModel {
 
     var isShieldActive: Bool
     var oneMinuteRemaining: Int
+    var oneMinuteDailyLimit: Int
     var shieldOverrideUntil: Date?
     var todayStats: DailyStats
-    var weeklyStats: [DailyStats]
-    var previousWeekStats: [DailyStats]
-    var monthlyStats: [DailyStats]
+    var statsReport: StatsReport
     var adFreeStreakDays: Int
     var maxAdFreeStreakDays: Int
     var lockedGroupIDs: Set<UUID> = []
@@ -108,11 +107,17 @@ final class ContentViewModel {
         isAuthorized = self.authorizeUseCase.isAuthorized
         isShieldActive = shieldRepo.isShieldActive
         oneMinuteRemaining = shieldRepo.oneMinuteRemaining
+        oneMinuteDailyLimit = ScreenTimeGroupPolicy.oneMinuteDailyLimit
         shieldOverrideUntil = shieldRepo.currentShieldOverrideUntil
-        todayStats = statsRepo.todayStats
-        weeklyStats = statsRepo.lastSevenDayStats()
-        previousWeekStats = statsRepo.previousSevenDayStats()
-        monthlyStats = statsRepo.lastNDayStats(30)
+        let initialTodayStats = statsRepo.todayStats
+        todayStats = initialTodayStats
+        statsReport = StatsReport(
+            todayStats: initialTodayStats,
+            weeklyStats: statsRepo.statsForCalendarWeek(weekOffset: 0),
+            previousWeekStats: statsRepo.statsForCalendarWeek(weekOffset: -1),
+            monthlyStats: statsRepo.lastNDayStats(30),
+            oldestStatDate: statsRepo.oldestStatDate
+        )
         adFreeStreakDays = 0
         maxAdFreeStreakDays = 0
 
@@ -336,11 +341,10 @@ final class ContentViewModel {
     private func applyDashboardState(_ state: DashboardState) {
         isShieldActive = state.isShieldActive
         oneMinuteRemaining = state.oneMinuteRemaining
+        oneMinuteDailyLimit = state.oneMinuteDailyLimit
         shieldOverrideUntil = state.shieldOverrideUntil
         todayStats = state.todayStats
-        weeklyStats = state.weeklyStats
-        previousWeekStats = state.previousWeekStats
-        monthlyStats = state.monthlyStats
+        statsReport = state.statsReport
         adFreeStreakDays = state.adFreeStreakDays
         maxAdFreeStreakDays = state.maxAdFreeStreakDays
         isMonitoring = state.isDailyMonitoringEnabled

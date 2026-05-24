@@ -19,6 +19,8 @@ struct HomeViewModel {
     let overrideGroupIDs: Set<UUID>
     let validGroupIDs: Set<UUID>
     let overrideUntilByGroupID: [UUID: Date]
+    let oneMinuteRemaining: Int
+    let oneMinuteDailyLimit: Int
 
     init(
         groups: [ScreenTimeGroup],
@@ -31,7 +33,9 @@ struct HomeViewModel {
         lockedGroupIDs: Set<UUID> = [],
         overrideGroupIDs: Set<UUID> = [],
         validGroupIDs: Set<UUID> = [],
-        overrideUntilByGroupID: [UUID: Date] = [:]
+        overrideUntilByGroupID: [UUID: Date] = [:],
+        oneMinuteRemaining: Int = 0,
+        oneMinuteDailyLimit: Int = ScreenTimeGroupPolicy.oneMinuteDailyLimit
     ) {
         self.groups = groups
         self.todayStats = todayStats
@@ -44,10 +48,12 @@ struct HomeViewModel {
         self.overrideGroupIDs = overrideGroupIDs
         self.validGroupIDs = validGroupIDs
         self.overrideUntilByGroupID = overrideUntilByGroupID
+        self.oneMinuteRemaining = oneMinuteRemaining
+        self.oneMinuteDailyLimit = oneMinuteDailyLimit
     }
 
-    var maxGroupCount: Int { SharedStore.maxGroupCount }
-    var maxAppsPerGroup: Int { SharedStore.maxAppsPerGroup }
+    var maxGroupCount: Int { ScreenTimeGroupPolicy.maxGroupCount }
+    var maxAppsPerGroup: Int { ScreenTimeGroupPolicy.maxAppsPerGroup }
     var isAtGroupLimit: Bool { groups.count >= maxGroupCount }
 
     var protectionStatusTitle: String {
@@ -109,14 +115,6 @@ struct HomeViewModel {
         let total = todayStats.totalUnlockedSeconds
         guard total > 0 else { return "0분" }
         return "+\(goldTimeDurationText(seconds: total))"
-    }
-
-    var oneMinuteRemaining: Int {
-        SharedStore.oneMinuteRemaining
-    }
-
-    var oneMinuteDailyLimit: Int {
-        SharedStore.oneMinuteDailyLimit
     }
 
     var billComment: String {

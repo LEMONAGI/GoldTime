@@ -43,6 +43,8 @@ struct ContentView: View {
                     overrideGroupIDs: viewModel.overrideGroupIDs,
                     validGroupIDs: viewModel.validGroupIDs,
                     overrideUntilByGroupID: viewModel.overrideUntilByGroupID,
+                    oneMinuteRemaining: viewModel.oneMinuteRemaining,
+                    oneMinuteDailyLimit: viewModel.oneMinuteDailyLimit,
                     onAddGroup: viewModel.addGroup,
                     onDeleteGroup: viewModel.requestDeleteGroup,
                     onUpdateGroupName: viewModel.updateGroupName,
@@ -59,10 +61,7 @@ struct ContentView: View {
             NavigationStack {
                 StatsView(
                     groups: viewModel.groups,
-                    todayStats: viewModel.todayStats,
-                    weeklyStats: viewModel.weeklyStats,
-                    previousWeekStats: viewModel.previousWeekStats,
-                    monthlyStats: viewModel.monthlyStats,
+                    statsReport: viewModel.statsReport,
                     isMonitoring: viewModel.isMonitoring,
                     adFreeStreakDays: viewModel.adFreeStreakDays,
                     maxAdFreeStreakDays: viewModel.maxAdFreeStreakDays

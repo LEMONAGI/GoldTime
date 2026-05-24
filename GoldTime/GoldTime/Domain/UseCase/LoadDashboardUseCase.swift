@@ -4,12 +4,11 @@ import Foundation
 struct DashboardState {
     let isShieldActive: Bool
     let oneMinuteRemaining: Int
+    let oneMinuteDailyLimit: Int
     let shieldOverrideUntil: Date?
     let overrideUntilByGroupID: [UUID: Date]
     let todayStats: DailyStats
-    let weeklyStats: [DailyStats]
-    let previousWeekStats: [DailyStats]
-    let monthlyStats: [DailyStats]
+    let statsReport: StatsReport
     let adFreeStreakDays: Int
     let maxAdFreeStreakDays: Int
     let isDailyMonitoringEnabled: Bool
@@ -45,15 +44,22 @@ final class LoadDashboardUseCase {
 
     private func buildState(groups: [ScreenTimeGroup]) -> DashboardState {
         let validGroups = screenTimeRepository.validDailyMonitoringGroups(from: groups)
-        return DashboardState(
-            isShieldActive: shieldRepository.isShieldActive,
-            oneMinuteRemaining: shieldRepository.oneMinuteRemaining,
-            shieldOverrideUntil: shieldRepository.currentShieldOverrideUntil,
-            overrideUntilByGroupID: shieldRepository.overrideUntilByGroupID,
-            todayStats: statsRepository.todayStats,
+        let todayStats = statsRepository.todayStats
+        let statsReport = StatsReport(
+            todayStats: todayStats,
             weeklyStats: statsRepository.statsForCalendarWeek(weekOffset: 0),
             previousWeekStats: statsRepository.statsForCalendarWeek(weekOffset: -1),
             monthlyStats: statsRepository.lastNDayStats(30),
+            oldestStatDate: statsRepository.oldestStatDate
+        )
+        return DashboardState(
+            isShieldActive: shieldRepository.isShieldActive,
+            oneMinuteRemaining: shieldRepository.oneMinuteRemaining,
+            oneMinuteDailyLimit: ScreenTimeGroupPolicy.oneMinuteDailyLimit,
+            shieldOverrideUntil: shieldRepository.currentShieldOverrideUntil,
+            overrideUntilByGroupID: shieldRepository.overrideUntilByGroupID,
+            todayStats: todayStats,
+            statsReport: statsReport,
             adFreeStreakDays: calculateAdFreeStreak(),
             maxAdFreeStreakDays: calculateMaxAdFreeStreak(),
             isDailyMonitoringEnabled: screenTimeRepository.isDailyMonitoringEnabled,

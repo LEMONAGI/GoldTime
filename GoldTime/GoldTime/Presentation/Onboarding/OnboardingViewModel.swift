@@ -45,9 +45,14 @@ final class OnboardingViewModel {
         defer { isRequesting = false }
         do {
             try await authorizeUseCase.requestScreenTime()
+        } catch {
+            errorMessage = "스크린타임 권한이 필요해요. 다시 한 번 버튼을 눌러 권한을 허용해주세요."
+            return
+        }
+        if authorizeUseCase.isAuthorized {
             errorMessage = nil
             currentStep = .notificationPermission
-        } catch {
+        } else {
             errorMessage = "스크린타임 권한이 필요해요. 다시 한 번 버튼을 눌러 권한을 허용해주세요."
         }
     }
