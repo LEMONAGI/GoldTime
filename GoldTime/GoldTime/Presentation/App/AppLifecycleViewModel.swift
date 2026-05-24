@@ -45,6 +45,7 @@ final class AppLifecycleViewModel {
         authorizeUseCase.refresh()
         syncProtectionRulesIfAuthorized()
         refreshLockOptionsPresentation()
+        MonitoringBackgroundTask.scheduleNext()
     }
 
     func refreshLockOptionsPresentation() {

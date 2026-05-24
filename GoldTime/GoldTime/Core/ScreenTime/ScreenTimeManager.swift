@@ -206,7 +206,6 @@ enum ScreenTimeManager {
             }
         )
 
-        center.stopMonitoring([.daily])
         try center.startMonitoring(.daily, during: schedule, events: events)
     }
 

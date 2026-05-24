@@ -3,6 +3,7 @@
 //  GoldTime
 //
 
+import BackgroundTasks
 import SwiftData
 import SwiftUI
 
@@ -11,12 +12,22 @@ struct GoldTimeApp: App {
     @State private var appLifecycle = AppLifecycleViewModel()
     @State private var contentViewModel = ContentViewModel()
     @State private var settingsViewModel = SettingsViewModel()
-    
+
     @Environment(\.scenePhase) private var scenePhase
-    
+
     init() {
         RewardedAdService.configure()
         RewardedAdService.shared.loadAd()
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: MonitoringBackgroundTask.identifier,
+            using: nil
+        ) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            MonitoringBackgroundTask.handle(refreshTask)
+        }
     }
     
     var body: some Scene {
