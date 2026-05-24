@@ -82,7 +82,7 @@ GoldTime은 스크린타임 한도를 넘기면 Shield 흐름과 보상형 광�
 ## 검증 원칙
 
 - 순수 로직: 테스트를 먼저 추가하거나 기존 테스트를 먼저 조정합니다.
-- 일반 앱 변경: 가능하면 Xcode MCP(`mcp__xcode__BuildProject`)로 build를 실행합니다.
+- 빌드와 테스트는 반드시 Xcode MCP 툴을 사용합니다. 사용 전 `mcp__xcode__XcodeListWindows`로 tabIdentifier를 먼저 확인합니다. `xcodebuild` CLI는 MCP를 쓸 수 없을 때만 fallback입니다. 자세한 사용법은 `docs/agent/working-rules.md`의 "검증 명령" 섹션을 확인합니다.
 - FamilyControls, DeviceActivity, Shield, 알림: 구현 전 검증 시나리오를 먼저 쓰고, 시뮬레이터만으로 완료 처리하지 않습니다.
 - 테스트 코드로 대체할 수 없는 실기기 확인 항목이 남으면 완료 보고에 사용자 체크리스트로 적습니다.
 - 로컬 캐시, signing, simulator, sandbox 문제로 명령이 실패하면 정확한 한계와 대체 확인 방법을 기록합니다.

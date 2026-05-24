@@ -64,14 +64,25 @@ High-risk 작업은 직렬로 처리하고 명시적인 검증 메모를 남깁�
 
 ## 검증 명령
 
-빌드와 테스트는 기본적으로 Xcode MCP 툴을 사용합니다.
+빌드와 테스트는 반드시 Xcode MCP 툴을 사용합니다. `xcodebuild` CLI는 MCP를 쓸 수 없는 경우에만 fallback입니다.
 
-- 앱 build: `mcp__xcode__BuildProject`
-- 전체 테스트: `mcp__xcode__RunAllTests`
-- 특정 테스트: `mcp__xcode__RunSomeTests`
-- 빌드 로그 확인: `mcp__xcode__GetBuildLog`
+### 사용 순서
 
-Xcode MCP가 실패하면 실패 원인을 기록하고 static review 또는 집중 테스트를 대체 확인으로 사용합니다. `xcodebuild` CLI는 Xcode MCP를 사용할 수 없을 때만 fallback으로 사용합니다.
+1. **tabIdentifier 확인** — 모든 MCP 툴 호출 전 먼저 실행합니다.
+   ```
+   mcp__xcode__XcodeListWindows
+   ```
+   결과에서 GoldTime 프로젝트의 `tabIdentifier`를 가져옵니다 (예: `windowtab2`).
+
+2. **빌드**: `mcp__xcode__BuildProject`
+3. **전체 테스트**: `mcp__xcode__RunAllTests`
+4. **특정 테스트**: `mcp__xcode__RunSomeTests`
+   - `targetName`: 테스트 타겟 이름 (예: `GoldTimeTests`)
+   - `testIdentifier`: `GetTestList`로 확인한 식별자 (예: `ViewModelTests/statsViewModelTodayDeltaCorrectAcrossWeekBoundary()`)
+5. **빌드 로그 확인**: `mcp__xcode__GetBuildLog`
+6. **사용 가능한 테스트 목록**: `mcp__xcode__GetTestList`
+
+MCP 툴이 연결 오류로 실패하면 `/mcp` 명령으로 재연결하고 재시도합니다. 재연결 후에도 실패하면 실패 원인을 기록하고 `xcodebuild` CLI를 fallback으로 사용합니다.
 
 ## 완료 보고
 
