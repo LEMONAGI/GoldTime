@@ -10,6 +10,10 @@ struct NotificationRepositoryImpl: NotificationRepository {
     func requestAuthorizationIfNeeded() async -> NotificationPermissionState {
         await NotificationService.requestAuthorizationIfNeeded().permissionState
     }
+
+    func scheduleWeeklyStatsNotification(weekStartDay: Int) {
+        NotificationService.scheduleWeeklyStatsNotification(weekStartDay: weekStartDay)
+    }
 }
 
 private extension UNAuthorizationStatus {

@@ -14,17 +14,21 @@ final class AppLifecycleViewModel {
     private let authorizeUseCase: AuthorizeUseCase
     private let syncProtectionUseCase: SyncProtectionUseCase
     private let shieldRepository: any ShieldRepository
+    private let notificationRepository: any NotificationRepository
 
     init(
         authorizeUseCase: AuthorizeUseCase? = nil,
         syncProtectionUseCase: SyncProtectionUseCase? = nil,
-        shieldRepository: (any ShieldRepository)? = nil
+        shieldRepository: (any ShieldRepository)? = nil,
+        notificationRepository: (any NotificationRepository)? = nil
     ) {
         let resolvedShield = shieldRepository ?? ShieldRepositoryImpl()
+        let resolvedNotification = notificationRepository ?? NotificationRepositoryImpl()
         self.shieldRepository = resolvedShield
+        self.notificationRepository = resolvedNotification
         self.authorizeUseCase = authorizeUseCase ?? AuthorizeUseCase(
             authRepository: AuthorizationRepositoryImpl(),
-            notificationRepository: NotificationRepositoryImpl()
+            notificationRepository: resolvedNotification
         )
         self.syncProtectionUseCase = syncProtectionUseCase ?? SyncProtectionUseCase(
             groupRepository: GroupRepositoryImpl(),
@@ -46,6 +50,7 @@ final class AppLifecycleViewModel {
         syncProtectionRulesIfAuthorized()
         refreshLockOptionsPresentation()
         MonitoringBackgroundTask.scheduleNext()
+        notificationRepository.scheduleWeeklyStatsNotification(weekStartDay: SharedStore.weekStartDay)
     }
 
     func refreshLockOptionsPresentation() {
