@@ -59,13 +59,9 @@ final class ContentViewModel {
     var unlockSheetGroupID: UUID? = nil
     var isUnlockSheetPresented = false
 
-    var isAdGateConfirmPresented = false
     var isAdGatePresented = false
     var adGateFallbackLabel: String = ""
-    var adGateConfirmButtonLabel: String = ""
     private var adGatePendingAction: (() -> Void)? = nil
-
-    var deleteConfirmGroupID: UUID? = nil
 
     private let manageGroupsUseCase: ManageGroupsUseCase
     private let syncProtectionUseCase: SyncProtectionUseCase
@@ -239,35 +235,17 @@ final class ContentViewModel {
         }
         adGatePendingAction = { [weak self] in self?.presentPicker(for: group) }
         adGateFallbackLabel = "그래도 편집하기"
-        adGateConfirmButtonLabel = "광고 보고 편집하기"
-        isAdGateConfirmPresented = true
+        isAdGatePresented = true
     }
 
     func requestDeleteGroup(_ id: UUID) {
         guard lockedGroupIDs.contains(id) else {
-            deleteConfirmGroupID = id
+            deleteGroup(id)
             return
         }
         adGatePendingAction = { [weak self] in self?.deleteGroup(id) }
         adGateFallbackLabel = "그래도 삭제하기"
-        adGateConfirmButtonLabel = "광고 보고 삭제하기"
-        isAdGateConfirmPresented = true
-    }
-
-    func confirmDelete() {
-        guard let id = deleteConfirmGroupID else { return }
-        deleteConfirmGroupID = nil
-        deleteGroup(id)
-    }
-
-    func confirmAdGate() {
-        isAdGateConfirmPresented = false
         isAdGatePresented = true
-    }
-
-    func cancelAdGateConfirm() {
-        adGatePendingAction = nil
-        isAdGateConfirmPresented = false
     }
 
     func adGateCompleted() {

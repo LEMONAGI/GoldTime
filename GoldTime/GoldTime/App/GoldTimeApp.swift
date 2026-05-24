@@ -43,39 +43,12 @@ struct GoldTimeApp: App {
             .sheet(isPresented: $contentViewModel.isUnlockSheetPresented) {
                 LockOptionsView(initialGroupID: contentViewModel.unlockSheetGroupID)
             }
-            .confirmationDialog(
-                "잠긴 그룹",
-                isPresented: $contentViewModel.isAdGateConfirmPresented
-            ) {
-                Button(contentViewModel.adGateConfirmButtonLabel) {
-                    contentViewModel.confirmAdGate()
-                }
-                Button("취소", role: .cancel) {
-                    contentViewModel.cancelAdGateConfirm()
-                }
-            } message: {
-                Text("잠겨있는 그룹은 광고를 통해 제한 항목 편집 또는 삭제할 수 있어요.")
-            }
             .sheet(isPresented: $contentViewModel.isAdGatePresented) {
                 RewardedAdView(
                     fallbackLabel: contentViewModel.adGateFallbackLabel,
                     onComplete: contentViewModel.adGateCompleted,
                     onCancel: contentViewModel.adGateCancelled
                 )
-            }
-            .confirmationDialog(
-                "그룹 삭제",
-                isPresented: Binding(
-                    get: { contentViewModel.deleteConfirmGroupID != nil },
-                    set: { if !$0 { contentViewModel.deleteConfirmGroupID = nil } }
-                )
-            ) {
-                Button("삭제", role: .destructive) {
-                    contentViewModel.confirmDelete()
-                }
-                Button("취소", role: .cancel) {}
-            } message: {
-                Text("그룹을 삭제하면 되돌릴 수 없어요.")
             }
             .onChange(of: contentViewModel.isUnlockSheetPresented) { _, newValue in
                 if !newValue {
