@@ -81,7 +81,7 @@ struct GroupCardView: View {
                     }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("우회 방지를 위해, 잠겨 있는 그룹은 광고를 본 뒤 제한 항목을 편집하거나 삭제할 수 있어요.")
+                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 제한 항목을 편집하거나 삭제할 수 있어요.")
                 }
             }
 
@@ -126,7 +126,7 @@ struct GroupCardView: View {
                     }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("우회 방지를 위해, 잠겨 있는 그룹은 광고를 본 뒤 제한 항목을 편집하거나 삭제할 수 있어요.")
+                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 제한 항목을 편집하거나 삭제할 수 있어요.")
                 }
         }
         .cardContainer()
