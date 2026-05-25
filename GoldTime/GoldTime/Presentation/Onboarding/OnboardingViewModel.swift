@@ -10,6 +10,7 @@ enum OnboardingStep {
     case intro
     case screenTimePermission
     case notificationPermission
+    case trackingPermission
     case completion
 }
 
@@ -63,10 +64,17 @@ final class OnboardingViewModel {
         let state = await authorizeUseCase.requestNotification()
         if [NotificationPermissionState.authorized, .provisional, .ephemeral].contains(state) {
             errorMessage = nil
-            currentStep = .completion
+            currentStep = .trackingPermission
         } else {
             errorMessage = "알림을 허용해야 앱을 시작할 수 있어요. iOS 설정 > GoldTime에서 알림을 켜주세요."
         }
+    }
+
+    func requestTracking() async {
+        isRequesting = true
+        defer { isRequesting = false }
+        await ConsentService.shared.requestConsentAndInitialize()
+        currentStep = .completion
     }
 
     func complete() {

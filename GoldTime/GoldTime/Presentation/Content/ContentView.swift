@@ -24,6 +24,7 @@ struct ContentView: View {
             OnboardingView(startStep: startStep, onAuthorized: viewModel.refreshAuthorization)
         } else {
             content
+                .withConsentFlow()
                 .onAppear(perform: viewModel.loadState)
         }
     }

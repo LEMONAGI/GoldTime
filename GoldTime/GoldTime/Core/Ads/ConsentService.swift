@@ -17,14 +17,19 @@ final class ConsentService {
 
     /// UMP 동의 → ATT → MobileAds.start() 순서를 보장하는 전체 흐름.
     /// 동의 거부, 네트워크 없음 등 어떤 경우에도 MobileAds.start()까지 완료한다.
-    func requestConsentAndInitialize(from viewController: UIViewController) async {
-        await requestUMPConsent(from: viewController)
+    func requestConsentAndInitialize() async {
         await requestATTIfNeeded()
         await startMobileAds()
         isAdSdkReady = true
+        RewardedAdService.shared.loadAd()
     }
 
     // MARK: - Private
+
+    private func findPresentingViewController() -> UIViewController {
+        let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene
+        return scene?.keyWindow?.rootViewController ?? UIViewController()
+    }
 
     private func requestUMPConsent(from viewController: UIViewController) async {
         let params = RequestParameters()

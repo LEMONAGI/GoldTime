@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-private enum OnboardingPermissionType { case screenTime, notification }
+private enum OnboardingPermissionType { case screenTime, notification, tracking }
 
 struct OnboardingView: View {
     @State private var viewModel: OnboardingViewModel
@@ -24,6 +24,8 @@ struct OnboardingView: View {
             screenTimeView
         case .notificationPermission:
             notificationView
+        case .trackingPermission:
+            trackingView
         case .completion:
             completionView
         }
@@ -74,9 +76,24 @@ struct OnboardingView: View {
         }
     }
 
-    private var completionView: some View {
+    private var trackingView: some View {
         OnboardingStepView(
             step: 3,
+            icon: "hand.raised.fill",
+            title: "맞춤 광고 허용",
+            description: "GoldTime은 무료입니다.\n광고 추적을 허용하면 더 관련성 높은 광고가 표시돼요.\n거부해도 광고는 계속 표시됩니다.",
+            permissionType: .tracking,
+            errorMessage: nil,
+            buttonTitle: viewModel.isRequesting ? "요청 중..." : "계속하기",
+            isLoading: viewModel.isRequesting
+        ) {
+            Task { await viewModel.requestTracking() }
+        }
+    }
+
+    private var completionView: some View {
+        OnboardingStepView(
+            step: 4,
             icon: "checkmark.circle.fill",
             title: "준비 완료!",
             description: "이제 시간의 가치를 느껴보세요.",
@@ -175,7 +192,7 @@ private struct OnboardingStepView: View {
 
 private struct StepDotIndicator: View {
     let currentStep: Int
-    private let totalSteps = 4
+    private let totalSteps = 5
 
     var body: some View {
         HStack(spacing: 6) {
@@ -197,6 +214,7 @@ private struct PermissionPreviewCard: View {
         switch type {
         case .screenTime: "스크린타임 접근 허용"
         case .notification: "알림을 보내도 됩니까?"
+        case .tracking: "\"GoldTime\"이 추적을 요청합니다"
         }
     }
 
@@ -204,6 +222,7 @@ private struct PermissionPreviewCard: View {
         switch type {
         case .screenTime: "앱 사용 시간을 추적하고 한도를 관리합니다."
         case .notification: "GoldTime이 알림을 보내드립니다."
+        case .tracking: "앱과 웹에서의 활동이 맞춤형 광고에 사용될 수 있습니다."
         }
     }
 
@@ -213,6 +232,8 @@ private struct PermissionPreviewCard: View {
             screenTimeCard
         case .notification:
             notificationCard
+        case .tracking:
+            trackingCard
         }
     }
 
@@ -226,6 +247,12 @@ private struct PermissionPreviewCard: View {
         Label("'시간 지정 요약에서 허용'이 아닌 '허용'을 선택해야 즉시 알림을 받을 수 있어요", systemImage: "exclamationmark.circle.fill")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.red)
+    }
+
+    private var trackingNote: some View {
+        Label("거부해도 광고는 표시되며 앱 이용에 제한이 없어요", systemImage: "info.circle.fill")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
     }
 
     private var screenTimeCard: some View {
@@ -317,6 +344,41 @@ private struct PermissionPreviewCard: View {
             .cardContainer(padding: 16)
 
             notificationNote
+        }
+    }
+
+    private var trackingCard: some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 10) {
+                Text(dialogTitle)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                Text(dialogMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                VStack(spacing: 6) {
+                    Text("추적 허용")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.accent.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    Text("앱에서 추적 금지")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(.tertiarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .padding(.top, 4)
+            }
+            .cardContainer(padding: 16)
+
+            trackingNote
         }
     }
 }
