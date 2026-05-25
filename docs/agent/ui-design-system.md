@@ -46,9 +46,7 @@ Apple 기준 문서:
 
 ## 공용 컴포넌트
 
-공용으로 쓰일 수 있는 UI는 `GoldTime/GoldTime/Views/Component/`에 둡니다.
-
-폴더가 아직 없으면 공용 컴포넌트를 처음 추가하는 작업에서 생성합니다.
+공용으로 쓰일 수 있는 UI는 `GoldTime/GoldTime/Presentation/Component/`에 둡니다.
 
 컴포넌트화 기준:
 
@@ -63,14 +61,17 @@ Apple 기준 문서:
 - 재사용 가능성이 낮습니다.
 - 분리하면 props가 과하게 늘어 오히려 읽기 어렵습니다.
 
-공용 컴포넌트 후보:
+구현된 공용 컴포넌트:
 
-- metric card.
-- section header.
-- action button style.
-- status badge.
-- empty state.
-- icon tile.
+- `CardContainerModifier`: 카드 컨테이너 스타일. `.cardContainer()`, `.rowContainer()` ViewModifier로 사용.
+- `DashboardMetricCard`: 제목, 값, 캡션, 아이콘, 트렌드 방향을 표시하는 메트릭 카드.
+- `GoldTimeButtonStyle`: 배경색, 텍스트색, cornerRadius를 주입하는 버튼 스타일.
+- `GoldTimeFormatters`: `goldTimeDurationText(seconds:)` 전역 함수. 초 → "N분", "N시간 N분" 등 포맷팅.
+- `IconTile`: 32x32 아이콘 타일 (배경 opacity 적용).
+- `SectionHeader`: 아이콘 + 텍스트 HStack 섹션 헤더.
+- `StatusBadge`: 아이콘 + 텍스트 조합 배지.
+- `GroupStatusBadge`: 텍스트만으로 구성된 그룹 상태 배지.
+- `StreakCard`: 현재/최대 연속 일수를 비교 표시하는 카드.
 
 공용 컴포넌트는 GoldTime의 농담보다 iOS 사용성, 상태 표현, 재사용성을 우선합니다.
 

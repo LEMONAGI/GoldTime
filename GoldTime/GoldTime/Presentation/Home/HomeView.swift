@@ -82,6 +82,8 @@ struct HomeView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
+        .navigationTitle("홈")
+        .navigationBarTitleDisplayMode(.large)
     }
     
     private var timeBillHero: some View {

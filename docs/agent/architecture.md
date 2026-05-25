@@ -43,7 +43,8 @@ Presentation ──→ Domain ←── Data ──→ Core
 |---|---|
 | import | `Foundation`만. `ManagedSettings`는 `ShieldRepository.swift`에서만 예외 허용 |
 | FamilyControls | `typealias` 선언 파일에서만 허용. 나머지 Domain 파일에서 직접 import 금지 |
-| Core 참조 | `SharedStore`, `ScreenTimeManager`, `AuthorizationService` 직접 참조 금지 |
+| Core 참조 | `ScreenTimeManager`, `AuthorizationService` 직접 참조 금지 |
+| Core 참조 예외 (기술 부채) | `Domain/Model/ScreenTimeGroup.swift`에서 `typealias ScreenTimeGroup = SharedStore.ScreenTimeGroup`으로 SharedStore 타입을 재노출 중. `ManageGroupsUseCase`에서 `SharedStore.maxGroupCount` 상수를 직접 참조 중. 향후 Domain 독립 타입으로 분리 예정. |
 | 구현체 | Repository 프로토콜만 선언. 구현체(`Impl`)는 Domain에 없음 |
 | UseCase 패턴 | `final class UseCase`, Repository를 생성자에서 `any RepositoryProtocol`로 주입 |
 | 상태 관리 | `@Observable`, `@Published` 사용 금지. 순수 값 타입 / 참조 타입 |
@@ -55,6 +56,7 @@ Presentation ──→ Domain ←── Data ──→ Core
 | import | Apple Framework 직접 import 허용 (`FamilyControls`, `DeviceActivity`, `ManagedSettings`, `UserNotifications`, `GoogleMobileAds`) |
 | 의존 | 다른 레이어에 의존하지 않음 |
 | 싱글톤 | `shared` 패턴 허용 (`AuthorizationService.shared`, `RewardedAdService.shared`) |
+| @Observable | Data와 달리 Core 서비스는 `@Observable` 허용. `AuthorizationService`, `RewardedAdService`가 `@Observable`로 선언되어 Data/Presentation에서 바인딩 가능 |
 | SharedStore | App Group UserDefaults 직접 읽기/쓰기 담당 |
 
 ### Data
@@ -78,10 +80,11 @@ private extension ScreenTimeManager.ExtensionSource {
 
 | 항목 | 규칙 |
 |---|---|
-| ViewModel import | `Foundation`만. `import FamilyControls`는 `AppPickerSheet` 등 FamilyActivityPicker 직접 사용 화면에서만 예외 |
+| ViewModel import | `Foundation`만. `import FamilyControls`는 `AppPickerSheet` 등 FamilyActivityPicker 직접 사용 화면에서만 예외. `import ManagedSettings`는 `LockOptionsViewModel`에서 그룹 토큰 타입 참조를 위해 예외 허용 |
 | ViewModel 패턴 | `@MainActor @Observable final class XxxViewModel` |
-| DI | UseCase를 생성자에서 `XxxUseCase? = nil`로 받음. nil이면 내부에서 기본 구현 생성 |
-| Core 참조 금지 | `ScreenTimeManager`, `AuthorizationService`, `SharedStore` 직접 접근 금지 |
+| DI | UseCase를 생성자에서 `XxxUseCase? = nil`로 받음. nil이면 내부에서 `RepositoryImpl`을 생성하고 UseCase에 주입하여 기본 구현 생성 |
+| Core 참조 금지 | `ScreenTimeManager`, `AuthorizationService` 직접 접근 금지 |
+| SharedStore 예외 (기술 부채) | `SharedStore.weekStartDay`는 `SettingsViewModel`·`AppLifecycleViewModel`에서 직접 읽기/쓰기 중. `SharedStore.suiteName`은 `ContentView` `@AppStorage` store로 사용 중. `SharedStore.max*` 상수는 `AppPickerSheetViewModel`·`LockOptionsViewModel`에서 직접 참조 중. 향후 Repository/UseCase 인터페이스로 이동 예정. |
 | View 패턴 | `@Bindable var viewModel: XxxViewModel` (소유는 GoldTimeApp 또는 상위 View) |
 | 순수 struct VM | `HomeViewModel`, `StatsViewModel`처럼 계산만 하는 VM은 struct 허용 |
 
@@ -114,7 +117,7 @@ private extension ScreenTimeManager.ExtensionSource {
 ## 레이어 경계 위반 — 하지 말 것
 
 ```swift
-// ❌ Presentation에서 Core 직접 접근
+// ❌ Presentation에서 Core 서비스 직접 접근
 class SomeViewModel {
     func foo() { ScreenTimeManager.shared.syncDailyMonitoring(...) }
 }
@@ -127,14 +130,28 @@ final class LoadDashboardUseCase { ... }
 @Observable
 final class GroupRepositoryImpl { ... }
 
-// ❌ Presentation에서 FamilyControls 직접 import (AppPickerSheet 제외)
-import FamilyControls  // in LockOptionsViewModel.swift
+// ❌ Presentation에서 FamilyControls 직접 import (AppPickerSheet·LockOptionsViewModel 제외)
+import FamilyControls  // in SomeOtherViewModel.swift
 
-// ❌ Domain에서 Core 타입 직접 사용
+// ❌ Domain UseCase에서 Core 서비스 메서드 직접 호출
 final class ManageGroupsUseCase {
-    func foo() { ScreenTimeManager.shared.xxx() }  // Core 직접 참조
+    func foo() { ScreenTimeManager.shared.xxx() }  // Core 서비스 직접 참조
 }
 ```
+
+---
+
+## Extension 타겟 구조
+
+GoldTime은 메인 앱 외에 세 개의 Screen Time Extension 타겟을 포함합니다.
+
+| 타겟 폴더 | 역할 |
+|---|---|
+| `DeviceActivityMonitorExtension/` | DeviceActivity interval/threshold callback에서 Shield 적용·해제, 일일 상태 정리 담당 |
+| `ShieldConfigurationExtension/` | 시스템 Shield 화면에 표시할 문구와 버튼 구성 담당 |
+| `ShieldActionExtension/` | Shield 화면 버튼 액션 처리 및 앱 복귀 요청 기록 담당 |
+
+Extension은 메인 앱 API에 직접 의존하지 않습니다. `SharedStore` (App Group UserDefaults)를 통해 메인 앱과 상태를 공유하고, 알림으로 이벤트를 전달합니다. Extension 코드를 수정할 때는 App Group key와 Codable 저장 구조의 하위 호환을 반드시 유지합니다.
 
 ---
 
