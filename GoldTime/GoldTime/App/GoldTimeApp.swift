@@ -16,8 +16,6 @@ struct GoldTimeApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        RewardedAdService.configure()
-        RewardedAdService.shared.loadAd()
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: MonitoringBackgroundTask.identifier,
             using: nil
@@ -69,6 +67,7 @@ struct GoldTimeApp: App {
             }
             .tint(Color.accent)
             .preferredColorScheme(.dark)
+            .withConsentFlow()
         }
     }
 }

@@ -23,7 +23,7 @@ final class RewardedAdService: NSObject {
     private override init() { super.init() }
 
     static func configure() {
-        MobileAds.shared.start(completionHandler: nil)
+        // MobileAds.start()는 ConsentService.requestConsentAndInitialize()에서 호출됨
     }
 
     func loadAd() {

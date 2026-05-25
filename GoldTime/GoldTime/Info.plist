@@ -6,6 +6,10 @@
 	<array>
 		<string>com.goldtime.monitoring-reconnect</string>
 	</array>
+	<key>GADDelayAppMeasurementInit</key>
+	<true/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>앱을 무료로 유지하기 위해 맞춤형 광고에 사용됩니다.</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>SKAdNetworkItems</key>

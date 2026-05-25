@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		DF3F1ECF2FAF1BB8006A0FA4 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = DF3F1ECE2FAF1BB8006A0FA4 /* GoogleMobileAds */; };
+		DF3F1ED12FAF1BB8006A0FA4 /* GoogleUserMessagingPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = DF3F1ED02FAF1BB8006A0FA4 /* GoogleUserMessagingPlatform */; };
 		DF869C632FA508430038364B /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF869C622FA508430038364B /* DeviceActivity.framework */; };
 		DF869C6B2FA508440038364B /* DeviceActivityMonitorExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DF869C602FA508430038364B /* DeviceActivityMonitorExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DF869C792FA5098A0038364B /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF869C782FA5098A0038364B /* ManagedSettings.framework */; };
@@ -173,6 +174,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DF3F1ECF2FAF1BB8006A0FA4 /* GoogleMobileAds in Frameworks */,
+				DF3F1ED12FAF1BB8006A0FA4 /* GoogleUserMessagingPlatform in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -280,6 +282,7 @@
 			name = GoldTime;
 			packageProductDependencies = (
 				DF3F1ECE2FAF1BB8006A0FA4 /* GoogleMobileAds */,
+				DF3F1ED02FAF1BB8006A0FA4 /* GoogleUserMessagingPlatform */,
 			);
 			productName = GoldTime;
 			productReference = DF86977A2FA4FDB30038364B /* GoldTime.app */;
@@ -1106,6 +1109,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = DF3F1ECD2FAF1BB8006A0FA4 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
 			productName = GoogleMobileAds;
+		};
+		DF3F1ED02FAF1BB8006A0FA4 /* GoogleUserMessagingPlatform */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DF3F1ECD2FAF1BB8006A0FA4 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleUserMessagingPlatform;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
