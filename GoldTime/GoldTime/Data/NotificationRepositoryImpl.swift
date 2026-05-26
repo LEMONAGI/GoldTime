@@ -14,6 +14,10 @@ struct NotificationRepositoryImpl: NotificationRepository {
     func scheduleWeeklyStatsNotification(weekStartDay: Int) {
         NotificationService.scheduleWeeklyStatsNotification(weekStartDay: weekStartDay)
     }
+
+    func scheduleDailyMorningNotification(extraMinutes: Int) {
+        NotificationService.scheduleDailyMorningNotification(extraMinutes: extraMinutes)
+    }
 }
 
 private extension UNAuthorizationStatus {

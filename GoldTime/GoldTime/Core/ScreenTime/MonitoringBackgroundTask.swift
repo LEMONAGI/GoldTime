@@ -17,6 +17,10 @@ enum MonitoringBackgroundTask {
             task.setTaskCompleted(success: false)
         }
 
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        let extraMinutes = SharedStore.stats(for: yesterday).totalUnlockedSeconds / 60
+        NotificationService.scheduleDailyMorningNotification(extraMinutes: extraMinutes)
+
         if SharedStore.isDailyMonitoringEnabled {
             try? ScreenTimeManager.syncDailyMonitoring(groups: SharedStore.screenTimeGroups)
         }

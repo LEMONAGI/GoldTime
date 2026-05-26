@@ -11,6 +11,7 @@ import UserNotifications
 enum NotificationService {
     static let openAppCategory = "GOLDTIME_OPEN"
     static let weeklyStatsIdentifier = "com.goldtime.weeklyStats"
+    static let dailyMorningIdentifier = "com.goldtime.dailyMorning"
 
     static func authorizationStatus() async -> UNAuthorizationStatus {
         let center = UNUserNotificationCenter.current()
@@ -43,6 +44,40 @@ enum NotificationService {
             trigger: trigger
         )
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
+    /// 자정 배경 작업에서 호출. 어제 추가 사용 분량에 따라 다음 날 오전 9시 알림 예약.
+    static func scheduleDailyMorningNotification(extraMinutes: Int) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [dailyMorningIdentifier])
+
+        let content = UNMutableNotificationContent()
+        content.sound = .default
+
+        switch extraMinutes {
+        case 0:
+            content.title = "어제 한도 내 사용."
+            content.body = "좋은 하루였어요. 저한텐 아니고요."
+        case 1...5:
+            content.title = "어제 \(extraMinutes)분 초과."
+            content.body = "이 정도면 살짝 눈 감아드릴게요."
+        case 6...15:
+            content.title = "어제 \(extraMinutes)분 초과."
+            content.body = "시간이 금이라는 거 기억하시죠."
+        case 16...30:
+            content.title = "어제 \(extraMinutes)분 초과."
+            content.body = "어제 청구서가 좀 두꺼웠어요."
+        default:
+            content.title = "어제 \(extraMinutes)분 초과."
+            content.body = "이 정도면 저를 위해 노력하신 거죠?"
+        }
+
+        var components = DateComponents()
+        components.hour = 9
+        components.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: dailyMorningIdentifier, content: content, trigger: trigger)
+        center.add(request, withCompletionHandler: nil)
     }
 
     /// 주 마지막 날 저녁(20:00)에 주간 통계 알림 예약. 매주 반복, 중복 방지를 위해 기존 요청 먼저 제거.

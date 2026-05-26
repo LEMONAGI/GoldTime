@@ -266,22 +266,38 @@ private struct MonthlyGraphSection: View {
         stats.contains { $0.totalUnlockedSeconds > 0 }
     }
 
-    private var comparisonAverageSeconds: Int {
-        let all = viewModel.allDailyStats()
-        guard !all.isEmpty else { return 0 }
-        return all.reduce(0) { $0 + $1.totalUnlockedSeconds } / all.count
+    private var displayYear: Int {
+        let cal = Calendar.current
+        if let start = monthRange?.start {
+            return cal.component(.year, from: start)
+        }
+        return cal.component(.year, from: Date())
     }
 
-    private var comparisonLabel: String { "전체 평균" }
+    private var comparisonAverageSeconds: Int {
+        let cal = Calendar.current
+        let year = displayYear
+        let yearStats = viewModel.allDailyStats().filter {
+            cal.component(.year, from: $0.date) == year
+        }
+        guard !yearStats.isEmpty else { return 0 }
+        return yearStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / yearStats.count
+    }
+
+    private var comparisonLabel: String {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        return displayYear == currentYear ? "올해 평균" : "\(displayYear)년 평균"
+    }
+
     private var comparisonDelta: Int { averageSeconds - comparisonAverageSeconds }
 
     private var shouldShowComparison: Bool {
-        viewModel.allDailyStats().count > stats.count && comparisonDelta != 0
+        comparisonAverageSeconds > 0 && comparisonDelta != 0
     }
 
     private var comparisonCaption: String {
         let text = goldTimeDurationText(seconds: abs(comparisonDelta))
-        return comparisonDelta > 0 ? "전체 평균보다 \(text) 많아요" : "전체 평균보다 \(text) 적어요"
+        return comparisonDelta > 0 ? "\(comparisonLabel)보다 \(text) 많아요" : "\(comparisonLabel)보다 \(text) 적어요"
     }
 
     var body: some View {
