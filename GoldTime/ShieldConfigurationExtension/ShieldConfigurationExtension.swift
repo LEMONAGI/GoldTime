@@ -73,7 +73,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "알림이 오지 않는다면 다시 알림 보내기를 누르거나, 방해금지 모드를 확인하세요.",
+                text: "알림이 오지 않는다면\n다시 알림 보내기를 누르거나,\n방해금지 모드를 확인하세요.",
                 color: UIColor.white.withAlphaComponent(0.72)
             ),
             primaryButtonLabel: ShieldConfiguration.Label(

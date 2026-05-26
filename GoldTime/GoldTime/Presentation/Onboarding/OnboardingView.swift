@@ -36,7 +36,7 @@ struct OnboardingView: View {
             step: 0,
             icon: "hourglass",
             title: "시간이 금이다",
-            description: "한도를 넘기면 선택한 앱이 잠기고,\n더 쓰려면 광고를 봐야 해요.\n조금 불편하게 만들어두겠습니다.",
+            description: "스스로 정한 한도를 넘기면 선택한 앱이 잠기고,\n더 쓰려면 광고로 시간을 구매해야 합니다.\n당신이 시간의 소중함을 느낄 수 있도록,\n한도를 넘기는 순간을 의식하게 만들겠습니다.",
             errorMessage: nil,
             buttonTitle: "시작하기",
             isLoading: false
@@ -167,7 +167,7 @@ private struct OnboardingStepView: View {
                         Text(buttonTitle)
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 12))
+                    .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 16))
                     .disabled(isLoading)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 32)

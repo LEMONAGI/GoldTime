@@ -3,7 +3,7 @@ import SwiftUI
 struct GoldTimeButtonStyle: ButtonStyle {
     let background: Color
     let foreground: Color
-    var cornerRadius: CGFloat = 14
+    var cornerRadius: CGFloat = 16
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
