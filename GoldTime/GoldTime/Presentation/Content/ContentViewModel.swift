@@ -208,8 +208,9 @@ final class ContentViewModel {
     }
 
     func presentLimitPicker(for group: ScreenTimeGroup) {
-        limitPickerHours = group.dailyLimitMinutes / 60
-        let rawMinutes = group.dailyLimitMinutes % 60
+        let clamped = min(group.dailyLimitMinutes, 6 * 60 + 55)
+        limitPickerHours = clamped / 60
+        let rawMinutes = clamped % 60
         limitPickerMinutes = (rawMinutes / 5) * 5
         limitPickerGroupID = group.id
     }

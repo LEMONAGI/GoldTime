@@ -24,7 +24,7 @@ struct LimitPickerSheet: View {
             
             HStack(spacing: 0) {
                 Picker("시간", selection: $hours) {
-                    ForEach(0..<24, id: \.self) { h in
+                    ForEach(0..<7, id: \.self) { h in
                         Text("\(h)시간").tag(h)
                     }
                 }
