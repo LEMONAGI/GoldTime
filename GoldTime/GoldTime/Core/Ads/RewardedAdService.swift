@@ -14,17 +14,12 @@ final class RewardedAdService: NSObject {
     private(set) var loadState: LoadState = .idle
 
     private var rewardedAd: RewardedAd?
-    // 출시 전 실제 Ad Unit ID로 교체
-    private let adUnitID = "ca-app-pub-3940256099942544/1712485313"
+    private let adUnitID = "ca-app-pub-7549186146059648/5256297341"
 
     private var dismissCallback: ((_ didEarnReward: Bool) -> Void)?
     private var didEarnReward = false
 
     private override init() { super.init() }
-
-    static func configure() {
-        // MobileAds.start()는 ConsentService.requestConsentAndInitialize()에서 호출됨
-    }
 
     func loadAd() {
         guard case .idle = loadState else { return }

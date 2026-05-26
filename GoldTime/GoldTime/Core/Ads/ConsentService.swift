@@ -58,6 +58,9 @@ final class ConsentService {
     }
 
     private func startMobileAds() async {
+        #if DEBUG
+        MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["b5ed086b1fad2b5c424eb682be84e562"]
+        #endif
         await withCheckedContinuation { continuation in
             MobileAds.shared.start { _ in continuation.resume() }
         }
