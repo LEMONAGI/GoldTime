@@ -1,8 +1,48 @@
 {
   "fill" : {
-    "solid" : "display-p3:0.96633,0.80774,0.26783,1.00000"
+    "solid" : "display-p3:0.17255,0.17255,0.18039,1.00000"
   },
   "groups" : [
+    {
+      "layers" : [
+        {
+          "hidden" : true,
+          "image-name" : "Group 1597880435_3.png",
+          "name" : "Group 1597880435_3",
+          "opacity" : 0.5,
+          "position" : {
+            "scale" : 0.5,
+            "translation-in-points" : [
+              -10.30859375,
+              0
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "glass" : true,
+          "hidden" : true,
+          "image-name" : "Group 1597880435_1.png",
+          "name" : "Group 1597880435_1",
+          "opacity" : 0.5,
+          "position" : {
+            "scale" : 0.5,
+            "translation-in-points" : [
+              -10.30859375,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
     {
       "layers" : [
         {
@@ -30,10 +70,25 @@
           }
         },
         {
+          "blend-mode" : "normal",
+          "glass" : true,
+          "hidden" : true,
           "image-name" : "Group 1597880435_1.png",
           "name" : "Group 1597880435_1",
+          "opacity" : 1,
           "position" : {
             "scale" : 0.5,
+            "translation-in-points" : [
+              -10.30859375,
+              0
+            ]
+          }
+        },
+        {
+          "image-name" : "Group 1597880435_3.png",
+          "name" : "Group 1597880435_3",
+          "position" : {
+            "scale" : 0.47,
             "translation-in-points" : [
               -10.30859375,
               0
