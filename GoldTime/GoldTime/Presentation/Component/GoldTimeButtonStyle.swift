@@ -9,6 +9,7 @@ struct GoldTimeButtonStyle: ButtonStyle {
         configuration.label
             .font(.headline)
             .padding(.vertical, 14)
+            .padding(.horizontal, 20)
             .foregroundStyle(foreground)
             .background(background.opacity(configuration.isPressed ? 0.82 : 1))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))

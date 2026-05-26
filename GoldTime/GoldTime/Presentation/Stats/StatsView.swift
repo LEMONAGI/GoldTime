@@ -110,8 +110,8 @@ private struct WeeklyGraphSection: View {
         viewModel.averageSeconds(for: stats)
     }
 
-    private var maxMinutes: Int {
-        stats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
+    private var maxMinutes: Double {
+        stats.map { Double($0.totalUnlockedSeconds) / 60.0 }.max() ?? 0
     }
 
     private var hasData: Bool {
@@ -162,11 +162,13 @@ private struct WeeklyGraphSection: View {
 
                 ZStack {
                     Chart(stats) { stat in
+                        let minutes = Double(stat.totalUnlockedSeconds) / 60.0
                         BarMark(
                             x: .value("날짜", stat.date, unit: .day),
-                            y: .value("추가 사용", stat.totalUnlockedSeconds / 60)
+                            y: .value("추가 사용", minutes > 0 ? minutes : 0.2)
                         )
-                        .foregroundStyle(Color.accent)
+                        .cornerRadius(4)
+                        .foregroundStyle(minutes > 0 ? Color.accent : Color.accent.opacity(0.3))
                     }
                     .chartXAxis {
                         AxisMarks(values: stats.map(\.date)) {
@@ -177,7 +179,7 @@ private struct WeeklyGraphSection: View {
                     .chartYAxis {
                         AxisMarks(position: .leading)
                     }
-                    .chartYScale(domain: 0...max(5, maxMinutes))
+                    .chartYScale(domain: 0...max(5.0, maxMinutes))
 
                     if !hasData {
                         Text("추가 사용 기록 없음")
@@ -258,8 +260,8 @@ private struct MonthlyGraphSection: View {
         viewModel.averageSeconds(for: stats)
     }
 
-    private var maxMinutes: Int {
-        stats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
+    private var maxMinutes: Double {
+        stats.map { Double($0.totalUnlockedSeconds) / 60.0 }.max() ?? 0
     }
 
     private var hasData: Bool {
@@ -328,11 +330,13 @@ private struct MonthlyGraphSection: View {
 
                 ZStack {
                     Chart(stats) { stat in
+                        let minutes = Double(stat.totalUnlockedSeconds) / 60.0
                         BarMark(
                             x: .value("날짜", stat.date, unit: .day),
-                            y: .value("추가 사용", stat.totalUnlockedSeconds / 60)
+                            y: .value("추가 사용", minutes > 0 ? minutes : 0.2)
                         )
-                        .foregroundStyle(Color.accent)
+                        .cornerRadius(4)
+                        .foregroundStyle(minutes > 0 ? Color.accent : Color.accent.opacity(0.3))
                     }
                     .chartXAxis {
                         AxisMarks(values: .stride(by: .day, count: 7)) {
@@ -343,7 +347,7 @@ private struct MonthlyGraphSection: View {
                     .chartYAxis {
                         AxisMarks(position: .leading)
                     }
-                    .chartYScale(domain: 0...max(5, maxMinutes))
+                    .chartYScale(domain: 0...max(5.0, maxMinutes))
 
                     if !hasData {
                         Text("추가 사용 기록 없음")
@@ -439,8 +443,6 @@ private func makeStatsView(allMock: [DailyStats]) -> some View {
         )
     }
 }
-#endif
-
 #Preview("평균보다 많음 ↗") {
     let all = (0..<60).map { makePreviewStats(daysAgo: $0, minutes: $0 < 7 ? 20 : ($0 < 30 ? 10 : 5)) }
     SharedStore.seedForPreview(all.map { $0.toSharedStore() })
@@ -457,3 +459,4 @@ private func makeStatsView(allMock: [DailyStats]) -> some View {
     SharedStore.seedForPreview([])
     return makeStatsView(allMock: [])
 }
+#endif
