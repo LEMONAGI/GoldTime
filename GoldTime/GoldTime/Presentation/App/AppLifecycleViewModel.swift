@@ -10,6 +10,7 @@ import Foundation
 @Observable
 final class AppLifecycleViewModel {
     var showLockOptions = false
+    var pendingGroupID: UUID?
 
     private let authorizeUseCase: AuthorizeUseCase
     private let syncProtectionUseCase: SyncProtectionUseCase
@@ -55,6 +56,11 @@ final class AppLifecycleViewModel {
     func refreshLockOptionsPresentation() {
         syncProtectionUseCase.prepareForAppActivation()
         if shieldRepository.hasPendingShieldOpenRequest() {
+            if let token = shieldRepository.lastRequestedUnlockApplicationToken {
+                pendingGroupID = shieldRepository.lockedGroups(containing: token).first?.id
+            } else if let webToken = shieldRepository.lastRequestedUnlockWebDomainToken {
+                pendingGroupID = shieldRepository.lockedGroups(containing: webToken).first?.id
+            }
             showLockOptions = true
         }
     }

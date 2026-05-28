@@ -35,8 +35,10 @@ struct GoldTimeApp: App {
                 settingsViewModel: settingsViewModel,
                 showLockOptions: $appLifecycle.showLockOptions
             )
-            .sheet(isPresented: $appLifecycle.showLockOptions) {
-                LockOptionsView()
+            .sheet(isPresented: $appLifecycle.showLockOptions, onDismiss: {
+                appLifecycle.pendingGroupID = nil
+            }) {
+                LockOptionsView(initialGroupID: appLifecycle.pendingGroupID)
             }
             .sheet(isPresented: $contentViewModel.isUnlockSheetPresented) {
                 LockOptionsView(initialGroupID: contentViewModel.unlockSheetGroupID)
