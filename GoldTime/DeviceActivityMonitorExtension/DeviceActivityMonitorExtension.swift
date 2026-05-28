@@ -11,10 +11,13 @@ import ManagedSettings
 extension DeviceActivityName {
     static let daily = Self("daily")
 
+    /// 옛 형식(`daily.<UUID>`)과 새 형식(`daily.<UUID>.<gen>`) 모두 인식.
     var dailyGroupID: UUID? {
         let prefix = "daily."
         guard rawValue.hasPrefix(prefix), rawValue != "daily" else { return nil }
-        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+        let body = String(rawValue.dropFirst(prefix.count))
+        let firstSegment = body.split(separator: ".").first.map(String.init) ?? body
+        return UUID(uuidString: firstSegment)
     }
 
     var overrideGroupID: UUID? {

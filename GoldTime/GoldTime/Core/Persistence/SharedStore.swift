@@ -34,6 +34,7 @@ enum SharedStore {
         static let weekStartDay = "weekStartDay"
         static let usedTimeByGroupID = "usedTimeByGroupID"
         static let lastRegisteredGroupsByID = "lastRegisteredGroupsByID"
+        static let lastRegisteredGenerationByID = "lastRegisteredGenerationByID"
     }
 
     // 1 = 일요일, 2 = 월요일 (Calendar.firstWeekday 기준), 기본값: 2 (월요일)
@@ -372,6 +373,7 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.dailyProtectionStateDate)
         defaults.removeObject(forKey: Key.usedTimeByGroupID)
         defaults.removeObject(forKey: Key.lastRegisteredGroupsByID)
+        defaults.removeObject(forKey: Key.lastRegisteredGenerationByID)
     }
 
     static func seedForPreview(_ stats: [DailyStats]) {
@@ -656,6 +658,25 @@ enum SharedStore {
     static func clearAllUsedTime() {
         defaults.removeObject(forKey: Key.usedTimeByGroupID)
         lastRegisteredGroupsByID = nil
+        lastRegisteredGenerationByID = [:]
+    }
+
+    static var lastRegisteredGenerationByID: [UUID: Int] {
+        get {
+            guard let data = defaults.data(forKey: Key.lastRegisteredGenerationByID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+            return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, value) }
+            })
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) })
+            guard let data = try? JSONEncoder().encode(raw) else {
+                defaults.removeObject(forKey: Key.lastRegisteredGenerationByID)
+                return
+            }
+            defaults.set(data, forKey: Key.lastRegisteredGenerationByID)
+        }
     }
 
     @discardableResult

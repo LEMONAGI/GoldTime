@@ -13,14 +13,18 @@ import ManagedSettings
 extension DeviceActivityName {
     static let daily = Self("daily")
 
-    nonisolated static func dailyGroup(for groupID: UUID) -> Self {
-        Self("daily.\(groupID.uuidString)")
+    /// `daily.<UUID>.<generation>` 형식. 재시작 시 generation을 +1 해서 시스템 카운터를 분리한다.
+    nonisolated static func dailyGroup(for groupID: UUID, generation: Int) -> Self {
+        Self("daily.\(groupID.uuidString).\(generation)")
     }
 
+    /// 옛 형식(`daily.<UUID>`)과 새 형식(`daily.<UUID>.<gen>`) 모두 인식.
     var dailyGroupID: UUID? {
         let prefix = "daily."
         guard rawValue.hasPrefix(prefix), rawValue != "daily" else { return nil }
-        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+        let body = String(rawValue.dropFirst(prefix.count))
+        let firstSegment = body.split(separator: ".").first.map(String.init) ?? body
+        return UUID(uuidString: firstSegment)
     }
 
     nonisolated static func override(for groupID: UUID) -> Self {
@@ -131,6 +135,7 @@ enum ScreenTimeManager {
         SharedStore.screenTimeGroups = sanitizedGroups
         SharedStore.clearAllShieldState()
         SharedStore.clearAllUsedTime()
+        center.stopMonitoring()
         do {
             try registerAllGroups(sanitizedGroups)
             SharedStore.isDailyMonitoringEnabled = true
@@ -152,14 +157,20 @@ enum ScreenTimeManager {
             .map(DeviceActivityName.override(for:))
         let registeredGroupIDs: Set<UUID> = SharedStore.lastRegisteredGroupsByID
             .map { Set($0.keys) } ?? []
+        var generationByID = SharedStore.lastRegisteredGenerationByID
         let staleGroupActivities = registeredGroupIDs
             .subtracting(validGroupIDs)
-            .map(DeviceActivityName.dailyGroup(for:))
+            .map { groupID -> DeviceActivityName in
+                .dailyGroup(for: groupID, generation: generationByID[groupID] ?? 0)
+            }
 
         SharedStore.screenTimeGroups = sanitizedGroups
         let activitiesToStop = staleOverrideActivities + staleGroupActivities
         if !activitiesToStop.isEmpty {
             center.stopMonitoring(activitiesToStop)
+        }
+        for staleID in registeredGroupIDs.subtracting(validGroupIDs) {
+            generationByID.removeValue(forKey: staleID)
         }
         SharedStore.pruneShieldState(keepingGroupIDs: validGroupIDs)
 
@@ -170,6 +181,7 @@ enum ScreenTimeManager {
             store.shield.webDomains = nil
             SharedStore.isDailyMonitoringEnabled = false
             SharedStore.clearAllShieldState()
+            SharedStore.lastRegisteredGenerationByID = [:]
             return
         }
 
@@ -182,20 +194,25 @@ enum ScreenTimeManager {
             let last = lastRegistered[group.id]
             guard last != group else { continue }
 
-            let activity = DeviceActivityName.dailyGroup(for: group.id)
+            let currentGen = generationByID[group.id] ?? 0
             let usedMinutes = SharedStore.usedTimeByGroupID[group.id] ?? 0
             let wasLocked = SharedStore.shieldedGroupIDs.contains(group.id)
             let needsMonitoringRestart = last == nil || last!.selection != group.selection || wasLocked
 
             if usedMinutes >= group.dailyLimitMinutes {
-                center.stopMonitoring([activity])
+                center.stopMonitoring([.dailyGroup(for: group.id, generation: currentGen)])
                 SharedStore.markGroupShielded(group.id)
                 newRegistered[group.id] = group
             } else if needsMonitoringRestart {
-                center.stopMonitoring([activity])
+                // 같은 activity name으로 재시작하면 DeviceActivity의 schedule-interval 누적 카운터가
+                // 그대로 유지되어 1분 만에 잠기는 버그가 발생한다. 새 generation으로 등록해 시스템
+                // 카운터를 분리한다.
+                center.stopMonitoring([.dailyGroup(for: group.id, generation: currentGen)])
                 SharedStore.unmarkGroupShielded(group.id)
+                let nextGen = (last == nil) ? currentGen : currentGen + 1
                 do {
-                    try registerGroup(group)
+                    try registerGroup(group, generation: nextGen)
+                    generationByID[group.id] = nextGen
                     newRegistered[group.id] = group
                 } catch {
                     firstError = firstError ?? error
@@ -209,6 +226,7 @@ enum ScreenTimeManager {
         }
 
         SharedStore.lastRegisteredGroupsByID = newRegistered
+        SharedStore.lastRegisteredGenerationByID = generationByID
         SharedStore.isDailyMonitoringEnabled = true
         applyShield()
 
@@ -226,6 +244,7 @@ enum ScreenTimeManager {
     static func reconnectMonitoring() throws {
         center.stopMonitoring()
         SharedStore.lastRegisteredGroupsByID = nil
+        SharedStore.lastRegisteredGenerationByID = [:]
         try syncDailyMonitoring(groups: SharedStore.screenTimeGroups)
     }
 
@@ -249,8 +268,11 @@ enum ScreenTimeManager {
         }
     }
 
-    // 그룹당 독립 daily.<groupID> 활동으로 1분 tick 이벤트 등록
-    private static func registerGroup(_ group: SharedStore.ScreenTimeGroup) throws {
+    // 그룹당 독립 daily.<groupID>.<generation> 활동으로 1분 tick 이벤트 등록
+    private static func registerGroup(
+        _ group: SharedStore.ScreenTimeGroup,
+        generation: Int
+    ) throws {
         let event = DeviceActivityEvent(
             applications: group.selection.applicationTokens,
             categories: [],
@@ -258,7 +280,7 @@ enum ScreenTimeManager {
             threshold: DateComponents(minute: 1)
         )
         try center.startMonitoring(
-            .dailyGroup(for: group.id),
+            .dailyGroup(for: group.id, generation: generation),
             during: dailySchedule,
             events: [.tick(for: group.id): event]
         )
@@ -266,11 +288,14 @@ enum ScreenTimeManager {
 
     private static func registerAllGroups(_ groups: [SharedStore.ScreenTimeGroup]) throws {
         var newRegistered: [UUID: SharedStore.ScreenTimeGroup] = [:]
+        var generationByID: [UUID: Int] = [:]
         for group in groups {
-            try registerGroup(group)
+            try registerGroup(group, generation: 0)
             newRegistered[group.id] = group
+            generationByID[group.id] = 0
         }
         SharedStore.lastRegisteredGroupsByID = newRegistered
+        SharedStore.lastRegisteredGenerationByID = generationByID
     }
 
     static func stopAllMonitoring() {
@@ -281,6 +306,7 @@ enum ScreenTimeManager {
         SharedStore.isDailyMonitoringEnabled = false
         SharedStore.clearAllShieldState()
         SharedStore.lastRegisteredGroupsByID = nil
+        SharedStore.lastRegisteredGenerationByID = [:]
     }
 
     // MARK: - 쉴드 제어
