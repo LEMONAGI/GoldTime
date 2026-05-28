@@ -188,16 +188,13 @@ struct LockOptionsView: View {
                     .foregroundStyle(.secondary)
             } else if viewModel.lockedGroups.count == 1, let group = viewModel.lockedGroups.first {
                 HStack(alignment: .center, spacing: 10) {
-                    Image(systemName: "rectangle.3.group")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.accent)
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 6) {
                         groupTitle(for: group)
-                        Text("이 그룹만 한 번 연장할 수 있어요.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        groupTokenIcons(for: group)
                     }
+                    Spacer(minLength: 8)
                 }
+                .rowContainer()
             } else {
                 Text("잠긴 그룹이 여러 개예요")
                     .font(.subheadline.weight(.semibold))
