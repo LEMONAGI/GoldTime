@@ -29,6 +29,7 @@ struct HomeView: View {
         overrideGroupIDs: Set<UUID> = [],
         validGroupIDs: Set<UUID> = [],
         overrideUntilByGroupID: [UUID: Date] = [:],
+        usedTimeByGroupID: [UUID: Int] = [:],
         oneMinuteRemaining: Int = 0,
         oneMinuteDailyLimit: Int = ScreenTimeGroupPolicy.oneMinuteDailyLimit,
         onAddGroup: @escaping () -> Void,
@@ -50,6 +51,7 @@ struct HomeView: View {
             overrideGroupIDs: overrideGroupIDs,
             validGroupIDs: validGroupIDs,
             overrideUntilByGroupID: overrideUntilByGroupID,
+            usedTimeByGroupID: usedTimeByGroupID,
             oneMinuteRemaining: oneMinuteRemaining,
             oneMinuteDailyLimit: oneMinuteDailyLimit
         )

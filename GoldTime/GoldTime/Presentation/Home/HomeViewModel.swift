@@ -19,6 +19,7 @@ struct HomeViewModel {
     let overrideGroupIDs: Set<UUID>
     let validGroupIDs: Set<UUID>
     let overrideUntilByGroupID: [UUID: Date]
+    let usedTimeByGroupID: [UUID: Int]
     let oneMinuteRemaining: Int
     let oneMinuteDailyLimit: Int
 
@@ -34,6 +35,7 @@ struct HomeViewModel {
         overrideGroupIDs: Set<UUID> = [],
         validGroupIDs: Set<UUID> = [],
         overrideUntilByGroupID: [UUID: Date] = [:],
+        usedTimeByGroupID: [UUID: Int] = [:],
         oneMinuteRemaining: Int = 0,
         oneMinuteDailyLimit: Int = ScreenTimeGroupPolicy.oneMinuteDailyLimit
     ) {
@@ -48,6 +50,7 @@ struct HomeViewModel {
         self.overrideGroupIDs = overrideGroupIDs
         self.validGroupIDs = validGroupIDs
         self.overrideUntilByGroupID = overrideUntilByGroupID
+        self.usedTimeByGroupID = usedTimeByGroupID
         self.oneMinuteRemaining = oneMinuteRemaining
         self.oneMinuteDailyLimit = oneMinuteDailyLimit
     }
@@ -182,6 +185,16 @@ struct HomeViewModel {
         default:
             return .secondary
         }
+    }
+
+    func remainingBeforeLockLabel(for group: ScreenTimeGroup) -> String? {
+        guard validGroupIDs.contains(group.id),
+              !lockedGroupIDs.contains(group.id),
+              !overrideGroupIDs.contains(group.id) else { return nil }
+        let used = usedTimeByGroupID[group.id] ?? 0
+        let remaining = group.dailyLimitMinutes - used
+        guard remaining > 0 else { return nil }
+        return "\(remaining)분 뒤 잠금"
     }
 
     func overrideRemainingLabel(for group: ScreenTimeGroup) -> String? {

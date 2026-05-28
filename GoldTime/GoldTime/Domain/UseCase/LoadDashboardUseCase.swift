@@ -7,6 +7,7 @@ struct DashboardState {
     let oneMinuteDailyLimit: Int
     let shieldOverrideUntil: Date?
     let overrideUntilByGroupID: [UUID: Date]
+    let usedTimeByGroupID: [UUID: Int]
     let todayStats: DailyStats
     let statsReport: StatsReport
     let adFreeStreakDays: Int
@@ -58,6 +59,7 @@ final class LoadDashboardUseCase {
             oneMinuteDailyLimit: ScreenTimeGroupPolicy.oneMinuteDailyLimit,
             shieldOverrideUntil: shieldRepository.currentShieldOverrideUntil,
             overrideUntilByGroupID: shieldRepository.overrideUntilByGroupID,
+            usedTimeByGroupID: shieldRepository.usedTimeByGroupID,
             todayStats: todayStats,
             statsReport: statsReport,
             adFreeStreakDays: calculateAdFreeStreak(),

@@ -46,13 +46,14 @@ struct ContentView: View {
                     overrideGroupIDs: viewModel.overrideGroupIDs,
                     validGroupIDs: viewModel.validGroupIDs,
                     overrideUntilByGroupID: viewModel.overrideUntilByGroupID,
+                    usedTimeByGroupID: viewModel.usedTimeByGroupID,
                     oneMinuteRemaining: viewModel.oneMinuteRemaining,
                     oneMinuteDailyLimit: viewModel.oneMinuteDailyLimit,
                     onAddGroup: viewModel.addGroup,
                     onDeleteGroup: viewModel.requestDeleteGroup,
                     onUpdateGroupName: viewModel.updateGroupName,
                     onPresentPicker: viewModel.requestPickerPresentation,
-                    onPresentLimitPicker: viewModel.presentLimitPicker,
+                    onPresentLimitPicker: viewModel.requestLimitPickerPresentation,
                     onUnlockGroup: viewModel.presentUnlockSheet
                 )
             }

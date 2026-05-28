@@ -16,6 +16,7 @@ struct GroupCardView: View {
     let onUnlockGroup: (UUID) -> Void
 
     @State private var isShowingEditConfirm = false
+    @State private var isShowingLimitConfirm = false
     @State private var isShowingDeleteConfirm = false
     @State private var isShowingDeleteRegularConfirm = false
 
@@ -46,6 +47,9 @@ struct GroupCardView: View {
                                     GroupStatusBadge(title: remainingLabel, tint: .blue)
                                 }
                             }
+                        }
+                        if let lockLabel = viewModel.remainingBeforeLockLabel(for: group) {
+                            GroupStatusBadge(title: lockLabel, tint: .green)
                         }
                         GroupStatusBadge(
                             title: "항목 \(group.appCount)/\(viewModel.maxAppsPerGroup)",
@@ -81,14 +85,14 @@ struct GroupCardView: View {
                     }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 제한 항목을 편집하거나 삭제할 수 있어요.")
+                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
                 }
             }
 
             Divider()
 
             Button {
-                onPresentLimitPicker(group)
+                if isLocked { isShowingLimitConfirm = true } else { onPresentLimitPicker(group) }
             } label: {
                 HStack(alignment: .center, spacing: 0) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -108,6 +112,14 @@ struct GroupCardView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .confirmationDialog("잠긴 그룹", isPresented: $isShowingLimitConfirm) {
+                Button("광고 보고 변경하기") {
+                    onPresentLimitPicker(group)
+                }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
+            }
 
             if isLocked {
                 Button {
@@ -126,7 +138,7 @@ struct GroupCardView: View {
                     }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 제한 항목을 편집하거나 삭제할 수 있어요.")
+                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
                 }
         }
         .cardContainer()

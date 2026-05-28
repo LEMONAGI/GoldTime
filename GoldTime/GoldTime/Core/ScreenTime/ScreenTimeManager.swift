@@ -183,11 +183,18 @@ enum ScreenTimeManager {
 
             let activity = DeviceActivityName.dailyGroup(for: group.id)
             center.stopMonitoring([activity])
-            do {
-                try registerGroup(group)
-                newRegistered[group.id] = group
-            } catch {
-                firstError = firstError ?? error
+
+            let usedMinutes = SharedStore.usedTimeByGroupID[group.id] ?? 0
+            if usedMinutes >= group.dailyLimitMinutes {
+                SharedStore.markGroupShielded(group.id)
+            } else {
+                SharedStore.unmarkGroupShielded(group.id)
+                do {
+                    try registerGroup(group)
+                    newRegistered[group.id] = group
+                } catch {
+                    firstError = firstError ?? error
+                }
             }
         }
 

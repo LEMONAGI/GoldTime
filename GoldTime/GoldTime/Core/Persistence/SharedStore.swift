@@ -707,6 +707,12 @@ enum SharedStore {
         shieldedGroupIDs = ids
     }
 
+    static func unmarkGroupShielded(_ groupID: UUID) {
+        var ids = shieldedGroupIDs
+        ids.remove(groupID)
+        shieldedGroupIDs = ids
+    }
+
     @discardableResult
     static func clearExpiredOverrides(now: Date = Date()) -> Bool {
         let overrides = overrideUntilByGroupID
