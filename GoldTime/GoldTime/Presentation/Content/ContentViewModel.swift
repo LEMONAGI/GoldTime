@@ -173,6 +173,7 @@ final class ContentViewModel {
     func loadState() {
         refreshAuthorization()
         markInitialHomeEntryIfReady()
+        ReviewRequestService.requestIfEligible()
         syncProtectionUseCase.prepareForAppActivation()
         groups = manageGroupsUseCase.currentGroups()
         if isAuthorized {
