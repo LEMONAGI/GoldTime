@@ -24,10 +24,15 @@ struct GroupCardView: View {
         viewModel.lockedGroupIDs.contains(group.id)
     }
 
+    private var selectionCountText: String {
+        "\(group.selectionCount)/\(viewModel.maxAppsPerGroup)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 0) {
                 IconTile(systemName: "app.badge", tint: Color.accent)
+                    .padding(.trailing, 12)
 
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("그룹명", text: Binding(
@@ -51,14 +56,10 @@ struct GroupCardView: View {
                         if let lockLabel = viewModel.remainingBeforeLockLabel(for: group) {
                             GroupStatusBadge(title: lockLabel, tint: .green)
                         }
-                        GroupStatusBadge(
-                            title: "항목 \(group.appCount)/\(viewModel.maxAppsPerGroup)",
-                            tint: group.appCount >= 8 ? .orange : .secondary
-                        )
                     }
                 }
 
-                Spacer(minLength: 8)
+                Spacer()
 
                 Button(role: .destructive) {
                     if isLocked {
@@ -150,8 +151,16 @@ struct GroupCardView: View {
             Button {
                 if isLocked { isShowingEditConfirm = true } else { onPresentPicker(group) }
             } label: {
-                Label("제한 항목 선택", systemImage: "square.grid.2x2")
-                    .frame(maxWidth: .infinity)
+                HStack(spacing: 6) {
+                    Image(systemName: "square.grid.2x2")
+                    Text("제한 항목 선택")
+                    Text(selectionCountText)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
         } else {
@@ -160,8 +169,14 @@ struct GroupCardView: View {
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("제한 항목")
-                            .font(.subheadline.weight(.semibold))
+                        HStack(spacing: 6) {
+                            Text("제한 항목")
+                                .font(.subheadline.weight(.semibold))
+                            Text(selectionCountText)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .lineLimit(1)
                         Spacer()
                         Image(systemName: "square.grid.2x2")
                             .font(.footnote.weight(.semibold))

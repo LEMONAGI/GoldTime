@@ -194,7 +194,13 @@ struct HomeViewModel {
         let used = usedTimeByGroupID[group.id] ?? 0
         let remaining = group.dailyLimitMinutes - used
         guard remaining > 0 else { return nil }
-        return "\(remaining)분 뒤 잠금"
+        let h = remaining / 60
+        let m = remaining % 60
+        if h > 0 {
+            return "\(h)시간 \(m)분 뒤 잠금"
+        } else {
+            return "\(m)분 뒤 잠금"
+        }
     }
 
     func overrideRemainingLabel(for group: ScreenTimeGroup) -> String? {
@@ -215,9 +221,9 @@ struct HomeViewModel {
         let h = minutes / 60
         let m = minutes % 60
         if h > 0 {
-            return "\(h)시간 \(m)분 넘기면 이 그룹만 잠겨요"
+            return "\(h)시간 \(m)분 넘기면 이 그룹이 잠겨요"
         } else {
-            return "\(m)분 넘기면 이 그룹만 잠겨요"
+            return "\(m)분 넘기면 이 그룹이 잠겨요"
         }
     }
 
