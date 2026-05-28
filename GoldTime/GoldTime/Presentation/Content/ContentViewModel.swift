@@ -66,6 +66,7 @@ final class ContentViewModel {
     var overrideGroupIDs: Set<UUID> = []
     var validGroupIDs: Set<UUID> = []
     var overrideUntilByGroupID: [UUID: Date] = [:]
+    var usedTimeByGroupID: [UUID: Int] = [:]
     var unlockSheetGroupID: UUID? = nil
     var isUnlockSheetPresented = false
 
@@ -115,6 +116,7 @@ final class ContentViewModel {
 
         isAuthorized = self.authorizeUseCase.isAuthorized
         hasCompletedInitialHomeEntry = userDefaults.bool(forKey: Self.hasCompletedInitialHomeEntryKey)
+        usedTimeByGroupID = shieldRepo.usedTimeByGroupID
         isShieldActive = shieldRepo.isShieldActive
         oneMinuteRemaining = shieldRepo.oneMinuteRemaining
         oneMinuteDailyLimit = ScreenTimeGroupPolicy.oneMinuteDailyLimit
@@ -280,6 +282,16 @@ final class ContentViewModel {
         isAdGatePresented = true
     }
 
+    func requestLimitPickerPresentation(for group: ScreenTimeGroup) {
+        guard lockedGroupIDs.contains(group.id) else {
+            presentLimitPicker(for: group)
+            return
+        }
+        adGatePendingAction = { [weak self] in self?.presentLimitPicker(for: group) }
+        adGateFallbackLabel = "그래도 변경하기"
+        isAdGatePresented = true
+    }
+
     func requestDeleteGroup(_ id: UUID) {
         guard lockedGroupIDs.contains(id) else {
             deleteGroup(id)
@@ -372,6 +384,7 @@ final class ContentViewModel {
         overrideGroupIDs = state.overrideGroupIDs
         validGroupIDs = state.validGroupIDs
         overrideUntilByGroupID = state.overrideUntilByGroupID
+        usedTimeByGroupID = state.usedTimeByGroupID
     }
 
     private func applyScreenTimeAuthorization(_ authorized: Bool) {

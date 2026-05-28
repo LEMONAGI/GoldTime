@@ -13,14 +13,30 @@ import ManagedSettings
 extension DeviceActivityName {
     static let daily = Self("daily")
 
+    nonisolated static func dailyGroup(for groupID: UUID) -> Self {
+        Self("daily.\(groupID.uuidString)")
+    }
+
+    var dailyGroupID: UUID? {
+        let prefix = "daily."
+        guard rawValue.hasPrefix(prefix), rawValue != "daily" else { return nil }
+        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+    }
+
     nonisolated static func override(for groupID: UUID) -> Self {
         Self("override.\(groupID.uuidString)")
     }
 }
 
 extension DeviceActivityEvent.Name {
-    nonisolated static func dailyLimit(for groupID: UUID) -> Self {
-        Self("dailyLimit.\(groupID.uuidString)")
+    nonisolated static func tick(for groupID: UUID) -> Self {
+        Self("tick.\(groupID.uuidString)")
+    }
+
+    var tickGroupID: UUID? {
+        let prefix = "tick."
+        guard rawValue.hasPrefix(prefix) else { return nil }
+        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
     }
 }
 
@@ -97,6 +113,14 @@ enum ScreenTimeManager {
 
     // MARK: - 일일 모니터링 동기화
 
+    private static var dailySchedule: DeviceActivitySchedule {
+        DeviceActivitySchedule(
+            intervalStart: DateComponents(hour: 0, minute: 0),
+            intervalEnd: DateComponents(hour: 23, minute: 59),
+            repeats: true
+        )
+    }
+
     static func startDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
         let sanitizedGroups = sanitized(groups)
 
@@ -106,8 +130,9 @@ enum ScreenTimeManager {
 
         SharedStore.screenTimeGroups = sanitizedGroups
         SharedStore.clearAllShieldState()
+        SharedStore.clearAllUsedTime()
         do {
-            try registerDailyMonitoring(groups: sanitizedGroups)
+            try registerAllGroups(sanitizedGroups)
             SharedStore.isDailyMonitoringEnabled = true
         } catch {
             SharedStore.isDailyMonitoringEnabled = false
@@ -121,13 +146,20 @@ enum ScreenTimeManager {
         let sanitizedGroups = sanitized(groups)
         let validGroups = validDailyMonitoringGroups(from: sanitizedGroups)
         let validGroupIDs = Set(validGroups.map(\.id))
+
         let staleOverrideActivities = SharedStore.overrideUntilByGroupID.keys
             .filter { !validGroupIDs.contains($0) }
             .map(DeviceActivityName.override(for:))
+        let registeredGroupIDs: Set<UUID> = SharedStore.lastRegisteredGroupsByID
+            .map { Set($0.keys) } ?? []
+        let staleGroupActivities = registeredGroupIDs
+            .subtracting(validGroupIDs)
+            .map(DeviceActivityName.dailyGroup(for:))
 
         SharedStore.screenTimeGroups = sanitizedGroups
-        if !staleOverrideActivities.isEmpty {
-            center.stopMonitoring(staleOverrideActivities)
+        let activitiesToStop = staleOverrideActivities + staleGroupActivities
+        if !activitiesToStop.isEmpty {
+            center.stopMonitoring(activitiesToStop)
         }
         SharedStore.pruneShieldState(keepingGroupIDs: validGroupIDs)
 
@@ -141,14 +173,46 @@ enum ScreenTimeManager {
             return
         }
 
-        do {
-            try registerDailyMonitoring(groups: validGroups)
-            SharedStore.isDailyMonitoringEnabled = true
-            applyShield()
-        } catch {
-            SharedStore.isDailyMonitoringEnabled = false
-            throw error
+        // 그룹별 변경 감지: 변경된 그룹만 재시작 (usedTime은 SharedStore에 보존)
+        let lastRegistered = SharedStore.lastRegisteredGroupsByID ?? [:]
+        var newRegistered = lastRegistered.filter { validGroupIDs.contains($0.key) }
+        var firstError: Error?
+
+        for group in validGroups {
+            let last = lastRegistered[group.id]
+            guard last != group else { continue }
+
+            let activity = DeviceActivityName.dailyGroup(for: group.id)
+            let usedMinutes = SharedStore.usedTimeByGroupID[group.id] ?? 0
+            let wasLocked = SharedStore.shieldedGroupIDs.contains(group.id)
+            let needsMonitoringRestart = last == nil || last!.selection != group.selection || wasLocked
+
+            if usedMinutes >= group.dailyLimitMinutes {
+                center.stopMonitoring([activity])
+                SharedStore.markGroupShielded(group.id)
+                newRegistered[group.id] = group
+            } else if needsMonitoringRestart {
+                center.stopMonitoring([activity])
+                SharedStore.unmarkGroupShielded(group.id)
+                do {
+                    try registerGroup(group)
+                    newRegistered[group.id] = group
+                } catch {
+                    firstError = firstError ?? error
+                }
+            } else {
+                // 이름·한도만 변경: DeviceActivity 재시작 없이 등록 정보만 갱신
+                // extension이 SharedStore.group(id:)를 동적으로 읽으므로 변경된 한도가 반영됨
+                SharedStore.unmarkGroupShielded(group.id)
+                newRegistered[group.id] = group
+            }
         }
+
+        SharedStore.lastRegisteredGroupsByID = newRegistered
+        SharedStore.isDailyMonitoringEnabled = true
+        applyShield()
+
+        if let error = firstError { throw error }
     }
 
     static func validDailyMonitoringGroups(
@@ -161,6 +225,7 @@ enum ScreenTimeManager {
 
     static func reconnectMonitoring() throws {
         center.stopMonitoring()
+        SharedStore.lastRegisteredGroupsByID = nil
         try syncDailyMonitoring(groups: SharedStore.screenTimeGroups)
     }
 
@@ -184,29 +249,28 @@ enum ScreenTimeManager {
         }
     }
 
-    private static func registerDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
-        // 자정~자정 일일 스케줄
-        let schedule = DeviceActivitySchedule(
-            intervalStart: DateComponents(hour: 0, minute: 0),
-            intervalEnd: DateComponents(hour: 23, minute: 59),
-            repeats: true
+    // 그룹당 독립 daily.<groupID> 활동으로 1분 tick 이벤트 등록
+    private static func registerGroup(_ group: SharedStore.ScreenTimeGroup) throws {
+        let event = DeviceActivityEvent(
+            applications: group.selection.applicationTokens,
+            categories: [],
+            webDomains: group.selection.webDomainTokens,
+            threshold: DateComponents(minute: 1)
         )
-
-        let events = Dictionary(
-            uniqueKeysWithValues: groups.map { group in
-                (
-                    DeviceActivityEvent.Name.dailyLimit(for: group.id),
-                    DeviceActivityEvent(
-                        applications: group.selection.applicationTokens,
-                        categories: [],
-                        webDomains: group.selection.webDomainTokens,
-                        threshold: DateComponents(minute: group.dailyLimitMinutes)
-                    )
-                )
-            }
+        try center.startMonitoring(
+            .dailyGroup(for: group.id),
+            during: dailySchedule,
+            events: [.tick(for: group.id): event]
         )
+    }
 
-        try center.startMonitoring(.daily, during: schedule, events: events)
+    private static func registerAllGroups(_ groups: [SharedStore.ScreenTimeGroup]) throws {
+        var newRegistered: [UUID: SharedStore.ScreenTimeGroup] = [:]
+        for group in groups {
+            try registerGroup(group)
+            newRegistered[group.id] = group
+        }
+        SharedStore.lastRegisteredGroupsByID = newRegistered
     }
 
     static func stopAllMonitoring() {
@@ -216,6 +280,7 @@ enum ScreenTimeManager {
         store.shield.webDomains = nil
         SharedStore.isDailyMonitoringEnabled = false
         SharedStore.clearAllShieldState()
+        SharedStore.lastRegisteredGroupsByID = nil
     }
 
     // MARK: - 쉴드 제어

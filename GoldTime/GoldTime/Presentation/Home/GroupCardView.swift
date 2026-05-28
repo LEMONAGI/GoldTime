@@ -16,6 +16,7 @@ struct GroupCardView: View {
     let onUnlockGroup: (UUID) -> Void
 
     @State private var isShowingEditConfirm = false
+    @State private var isShowingLimitConfirm = false
     @State private var isShowingDeleteConfirm = false
     @State private var isShowingDeleteRegularConfirm = false
 
@@ -23,10 +24,15 @@ struct GroupCardView: View {
         viewModel.lockedGroupIDs.contains(group.id)
     }
 
+    private var selectionCountText: String {
+        "\(group.selectionCount)/\(viewModel.maxAppsPerGroup)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 0) {
                 IconTile(systemName: "app.badge", tint: Color.accent)
+                    .padding(.trailing, 12)
 
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("그룹명", text: Binding(
@@ -47,14 +53,13 @@ struct GroupCardView: View {
                                 }
                             }
                         }
-                        GroupStatusBadge(
-                            title: "항목 \(group.appCount)/\(viewModel.maxAppsPerGroup)",
-                            tint: group.appCount >= 8 ? .orange : .secondary
-                        )
+                        if let lockLabel = viewModel.remainingBeforeLockLabel(for: group) {
+                            GroupStatusBadge(title: lockLabel, tint: .green)
+                        }
                     }
                 }
 
-                Spacer(minLength: 8)
+                Spacer()
 
                 Button(role: .destructive) {
                     if isLocked {
@@ -81,14 +86,14 @@ struct GroupCardView: View {
                     }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 제한 항목을 편집하거나 삭제할 수 있어요.")
+                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
                 }
             }
 
             Divider()
 
             Button {
-                onPresentLimitPicker(group)
+                if isLocked { isShowingLimitConfirm = true } else { onPresentLimitPicker(group) }
             } label: {
                 HStack(alignment: .center, spacing: 0) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -108,6 +113,14 @@ struct GroupCardView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .confirmationDialog("잠긴 그룹", isPresented: $isShowingLimitConfirm) {
+                Button("광고 보고 변경하기") {
+                    onPresentLimitPicker(group)
+                }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
+            }
 
             if isLocked {
                 Button {
@@ -126,7 +139,7 @@ struct GroupCardView: View {
                     }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 제한 항목을 편집하거나 삭제할 수 있어요.")
+                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
                 }
         }
         .cardContainer()
@@ -138,8 +151,16 @@ struct GroupCardView: View {
             Button {
                 if isLocked { isShowingEditConfirm = true } else { onPresentPicker(group) }
             } label: {
-                Label("제한 항목 선택", systemImage: "square.grid.2x2")
-                    .frame(maxWidth: .infinity)
+                HStack(spacing: 6) {
+                    Image(systemName: "square.grid.2x2")
+                    Text("제한 항목 선택")
+                    Text(selectionCountText)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
         } else {
@@ -148,8 +169,14 @@ struct GroupCardView: View {
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("제한 항목")
-                            .font(.subheadline.weight(.semibold))
+                        HStack(spacing: 6) {
+                            Text("제한 항목")
+                                .font(.subheadline.weight(.semibold))
+                            Text(selectionCountText)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .lineLimit(1)
                         Spacer()
                         Image(systemName: "square.grid.2x2")
                             .font(.footnote.weight(.semibold))

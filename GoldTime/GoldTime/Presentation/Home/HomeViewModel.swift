@@ -19,6 +19,7 @@ struct HomeViewModel {
     let overrideGroupIDs: Set<UUID>
     let validGroupIDs: Set<UUID>
     let overrideUntilByGroupID: [UUID: Date]
+    let usedTimeByGroupID: [UUID: Int]
     let oneMinuteRemaining: Int
     let oneMinuteDailyLimit: Int
 
@@ -34,6 +35,7 @@ struct HomeViewModel {
         overrideGroupIDs: Set<UUID> = [],
         validGroupIDs: Set<UUID> = [],
         overrideUntilByGroupID: [UUID: Date] = [:],
+        usedTimeByGroupID: [UUID: Int] = [:],
         oneMinuteRemaining: Int = 0,
         oneMinuteDailyLimit: Int = ScreenTimeGroupPolicy.oneMinuteDailyLimit
     ) {
@@ -48,6 +50,7 @@ struct HomeViewModel {
         self.overrideGroupIDs = overrideGroupIDs
         self.validGroupIDs = validGroupIDs
         self.overrideUntilByGroupID = overrideUntilByGroupID
+        self.usedTimeByGroupID = usedTimeByGroupID
         self.oneMinuteRemaining = oneMinuteRemaining
         self.oneMinuteDailyLimit = oneMinuteDailyLimit
     }
@@ -184,6 +187,22 @@ struct HomeViewModel {
         }
     }
 
+    func remainingBeforeLockLabel(for group: ScreenTimeGroup) -> String? {
+        guard validGroupIDs.contains(group.id),
+              !lockedGroupIDs.contains(group.id),
+              !overrideGroupIDs.contains(group.id) else { return nil }
+        let used = usedTimeByGroupID[group.id] ?? 0
+        let remaining = group.dailyLimitMinutes - used
+        guard remaining > 0 else { return nil }
+        let h = remaining / 60
+        let m = remaining % 60
+        if h > 0 {
+            return "\(h)시간 \(m)분 뒤 잠금"
+        } else {
+            return "\(m)분 뒤 잠금"
+        }
+    }
+
     func overrideRemainingLabel(for group: ScreenTimeGroup) -> String? {
         guard let until = overrideUntilByGroupID[group.id] else { return nil }
         let seconds = until.timeIntervalSinceNow
@@ -202,9 +221,9 @@ struct HomeViewModel {
         let h = minutes / 60
         let m = minutes % 60
         if h > 0 {
-            return "\(h)시간 \(m)분 넘기면 이 그룹만 잠겨요"
+            return "\(h)시간 \(m)분 넘기면 이 그룹이 잠겨요"
         } else {
-            return "\(m)분 넘기면 이 그룹만 잠겨요"
+            return "\(m)분 넘기면 이 그룹이 잠겨요"
         }
     }
 

@@ -6,6 +6,7 @@ protocol ShieldRepository {
     var isShieldActive: Bool { get }
     var currentShieldOverrideUntil: Date? { get }
     var overrideUntilByGroupID: [UUID: Date] { get }
+    var usedTimeByGroupID: [UUID: Int] { get }
     var oneMinuteRemaining: Int { get }
     var lastRequestedUnlockApplicationToken: ApplicationToken? { get }
     var lastRequestedUnlockWebDomainToken: WebDomainToken? { get }
