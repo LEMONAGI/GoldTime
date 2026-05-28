@@ -547,7 +547,7 @@ struct ViewModelTests {
         )
 
         #expect(viewModel.billTotalText == "+18분")
-        #expect(viewModel.billComment == "이제 눈 뜨고 봐야겠는데요.")
+        #expect(viewModel.billComment == "계산서 나왔어요. 확인해보실래요?")
         #expect(viewModel.oneMinuteRemaining == 1)
         #expect(viewModel.oneMinuteDailyLimit == 5)
     }
@@ -581,7 +581,7 @@ struct ViewModelTests {
             successMessage: nil,
             errorMessage: nil
         )
-        #expect(viewModel.billComment == "이제 눈 뜨고 봐야겠는데요.")
+        #expect(viewModel.billComment == "계산서 나왔어요. 확인해보실래요?")
     }
 
     @Test func homeViewModelBillCommentTier3Under60Min() {

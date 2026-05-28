@@ -179,15 +179,20 @@ enum ScreenTimeManager {
         var firstError: Error?
 
         for group in validGroups {
-            guard lastRegistered[group.id] != group else { continue }
+            let last = lastRegistered[group.id]
+            guard last != group else { continue }
 
             let activity = DeviceActivityName.dailyGroup(for: group.id)
-            center.stopMonitoring([activity])
-
             let usedMinutes = SharedStore.usedTimeByGroupID[group.id] ?? 0
+            let wasLocked = SharedStore.shieldedGroupIDs.contains(group.id)
+            let needsMonitoringRestart = last == nil || last!.selection != group.selection || wasLocked
+
             if usedMinutes >= group.dailyLimitMinutes {
+                center.stopMonitoring([activity])
                 SharedStore.markGroupShielded(group.id)
-            } else {
+                newRegistered[group.id] = group
+            } else if needsMonitoringRestart {
+                center.stopMonitoring([activity])
                 SharedStore.unmarkGroupShielded(group.id)
                 do {
                     try registerGroup(group)
@@ -195,6 +200,11 @@ enum ScreenTimeManager {
                 } catch {
                     firstError = firstError ?? error
                 }
+            } else {
+                // 이름·한도만 변경: DeviceActivity 재시작 없이 등록 정보만 갱신
+                // extension이 SharedStore.group(id:)를 동적으로 읽으므로 변경된 한도가 반영됨
+                SharedStore.unmarkGroupShielded(group.id)
+                newRegistered[group.id] = group
             }
         }
 
