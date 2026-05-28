@@ -17,8 +17,6 @@ final class AuthorizeUseCase {
 
     func refresh() { authRepository.refresh() }
 
-    func settledIsAuthorized() async -> Bool { await authRepository.settledIsAuthorized() }
-
     func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
         authRepository.observeAuthorizationChanges(handler)
     }

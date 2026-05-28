@@ -19,9 +19,11 @@ struct ContentView: View {
     var body: some View {
         if viewModel.isCheckingPermissions {
             Color(.systemBackground).ignoresSafeArea()
-        } else if !viewModel.isFullyAuthorized {
+        } else if viewModel.shouldShowInitialOnboarding {
             let startStep: OnboardingStep = viewModel.isAuthorized ? .notificationPermission : .intro
             OnboardingView(startStep: startStep, onAuthorized: viewModel.refreshAuthorization)
+        } else if viewModel.shouldShowNotificationOnboarding {
+            OnboardingView(startStep: .notificationPermission, onAuthorized: viewModel.refreshAuthorization)
         } else {
             content
                 .withConsentFlow()
@@ -91,6 +93,15 @@ struct ContentView: View {
                 viewModel.commitPickerSelection()
             }
         }
+        .fullScreenCover(isPresented: $viewModel.isScreenTimeRecoveryPresented) {
+            ScreenTimeAuthorizationRecoveryView(
+                isRequesting: viewModel.isRequestingScreenTimeAuthorization,
+                errorMessage: viewModel.screenTimeRecoveryErrorMessage
+            ) {
+                Task { await viewModel.requestScreenTimeAuthorizationOnEntry() }
+            }
+            .interactiveDismissDisabled()
+        }
         .alert(item: $viewModel.alertMessage) { alert in
             Alert(
                 title: Text(alert.title),
@@ -124,6 +135,64 @@ struct ContentView: View {
         }
         .onReceive(refreshTimer) { _ in
             viewModel.refreshDashboardState()
+        }
+    }
+}
+
+private struct ScreenTimeAuthorizationRecoveryView: View {
+    let isRequesting: Bool
+    let errorMessage: String?
+    let onRequest: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color(.systemGroupedBackground).ignoresSafeArea()
+
+            VStack(spacing: 28) {
+                Spacer()
+
+                VStack(spacing: 20) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.accent.opacity(0.15))
+                            .frame(width: 100, height: 100)
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(Color.accent)
+                    }
+
+                    VStack(spacing: 12) {
+                        Text("스크린타임 권한이 필요해요")
+                            .font(.largeTitle.bold())
+                            .multilineTextAlignment(.center)
+                        Text("GoldTime이 앱 한도를 적용하려면 스크린타임 접근 권한을 다시 허용해야 해요.")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+
+                Spacer()
+
+                VStack(spacing: 12) {
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    Button(action: onRequest) {
+                        Text(isRequesting ? "요청 중..." : "스크린타임 허용하기")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 16))
+                    .disabled(isRequesting)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 32)
+            }
+            .padding(.horizontal, 24)
         }
     }
 }

@@ -23,7 +23,6 @@ final class ManageSettingsUseCase {
 
     func requestScreenTimeAuthorization() async throws -> Bool {
         try await authRepository.request()
-        authRepository.refresh()
         return authRepository.isAuthorized
     }
 

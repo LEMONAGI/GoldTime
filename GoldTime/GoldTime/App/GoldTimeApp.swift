@@ -63,6 +63,7 @@ struct GoldTimeApp: App {
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
                     appLifecycle.appDidBecomeActive()
+                    Task { await contentViewModel.requestScreenTimeAuthorizationOnEntry() }
                 }
             }
             .tint(Color.accent)

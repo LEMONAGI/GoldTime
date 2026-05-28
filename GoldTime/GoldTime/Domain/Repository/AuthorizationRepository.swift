@@ -26,6 +26,5 @@ protocol AuthorizationRepository {
     var isAuthorized: Bool { get }
     func refresh()
     func request() async throws
-    func settledIsAuthorized() async -> Bool
     func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation
 }

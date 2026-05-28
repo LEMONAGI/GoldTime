@@ -25,11 +25,18 @@ struct GoldTimeAlertMessage: Identifiable, Equatable {
 @MainActor
 @Observable
 final class ContentViewModel {
+    private static let hasCompletedInitialHomeEntryKey = "hasCompletedInitialHomeEntry"
+
     var selectedTab = GoldTimeTab.home
     var isAuthorized: Bool
     var isNotificationAuthorized: Bool = false
     var isCheckingPermissions: Bool = true
     var isFullyAuthorized: Bool { isAuthorized && isNotificationAuthorized }
+    var hasCompletedInitialHomeEntry: Bool
+    var shouldShowInitialOnboarding: Bool { !hasCompletedInitialHomeEntry && !isFullyAuthorized }
+    var shouldShowNotificationOnboarding: Bool {
+        hasCompletedInitialHomeEntry && isAuthorized && !isNotificationAuthorized
+    }
     var groups: [ScreenTimeGroup] = []
     var pickerSelection = FamilyActivitySelection(includeEntireCategory: true)
     var pickerGroupID: UUID?
@@ -39,6 +46,9 @@ final class ContentViewModel {
     var successMessage: String?
     var alertMessage: GoldTimeAlertMessage?
     var isReconnecting = false
+    var isScreenTimeRecoveryPresented = false
+    var isRequestingScreenTimeAuthorization = false
+    var screenTimeRecoveryErrorMessage: String?
 
     var limitPickerGroupID: UUID?
     var limitPickerHours = 0
@@ -67,13 +77,15 @@ final class ContentViewModel {
     private let syncProtectionUseCase: SyncProtectionUseCase
     private let loadDashboardUseCase: LoadDashboardUseCase
     private let authorizeUseCase: AuthorizeUseCase
+    private let userDefaults: UserDefaults
     private var authorizationObservation: AuthorizationObservation?
 
     init(
         manageGroupsUseCase: ManageGroupsUseCase? = nil,
         syncProtectionUseCase: SyncProtectionUseCase? = nil,
         loadDashboardUseCase: LoadDashboardUseCase? = nil,
-        authorizeUseCase: AuthorizeUseCase? = nil
+        authorizeUseCase: AuthorizeUseCase? = nil,
+        userDefaults: UserDefaults = .standard
     ) {
         let groupRepo = GroupRepositoryImpl()
         let shieldRepo = ShieldRepositoryImpl()
@@ -99,8 +111,10 @@ final class ContentViewModel {
             authRepository: authRepo,
             notificationRepository: notifRepo
         )
+        self.userDefaults = userDefaults
 
         isAuthorized = self.authorizeUseCase.isAuthorized
+        hasCompletedInitialHomeEntry = userDefaults.bool(forKey: Self.hasCompletedInitialHomeEntryKey)
         isShieldActive = shieldRepo.isShieldActive
         oneMinuteRemaining = shieldRepo.oneMinuteRemaining
         oneMinuteDailyLimit = ScreenTimeGroupPolicy.oneMinuteDailyLimit
@@ -118,16 +132,17 @@ final class ContentViewModel {
         maxAdFreeStreakDays = 0
 
         authorizationObservation = self.authorizeUseCase.observeAuthorizationChanges { [weak self] isAuthorized in
-            self?.isAuthorized = isAuthorized
+            self?.applyScreenTimeAuthorization(isAuthorized)
         }
 
         Task { @MainActor [weak self] in
             guard let self else { return }
-            async let isAuth = self.authorizeUseCase.settledIsAuthorized()
-            async let notifState = self.authorizeUseCase.notificationState()
-            let (authorized, state) = await (isAuth, notifState)
-            self.isAuthorized = authorized
+            self.authorizeUseCase.refresh()
+            let authorized = self.authorizeUseCase.isAuthorized
+            let state = await self.authorizeUseCase.notificationState()
+            self.applyScreenTimeAuthorization(authorized)
             self.isNotificationAuthorized = [NotificationPermissionState.authorized, .provisional, .ephemeral].contains(state)
+            self.markInitialHomeEntryIfReady()
             self.isCheckingPermissions = false
         }
     }
@@ -144,19 +159,45 @@ final class ContentViewModel {
 
     func refreshAuthorization() {
         authorizeUseCase.refresh()
-        isAuthorized = authorizeUseCase.isAuthorized
+        applyScreenTimeAuthorization(authorizeUseCase.isAuthorized)
         Task { @MainActor [weak self] in
             guard let self else { return }
             let state = await self.authorizeUseCase.notificationState()
             self.isNotificationAuthorized = [NotificationPermissionState.authorized, .provisional, .ephemeral].contains(state)
+            self.markInitialHomeEntryIfReady()
         }
     }
 
     func loadState() {
         refreshAuthorization()
+        markInitialHomeEntryIfReady()
         syncProtectionUseCase.prepareForAppActivation()
         groups = manageGroupsUseCase.currentGroups()
-        syncProtectionRules()
+        if isAuthorized {
+            syncProtectionRules()
+        } else {
+            refreshDashboardState()
+        }
+        Task { await requestScreenTimeAuthorizationOnEntry() }
+    }
+
+    func requestScreenTimeAuthorizationOnEntry() async {
+        guard hasCompletedInitialHomeEntry, !isRequestingScreenTimeAuthorization else { return }
+
+        isRequestingScreenTimeAuthorization = true
+        defer { isRequestingScreenTimeAuthorization = false }
+
+        do {
+            try await authorizeUseCase.requestScreenTime()
+            applyScreenTimeAuthorization(true)
+            markInitialHomeEntryIfReady()
+            groups = manageGroupsUseCase.currentGroups()
+            syncProtectionRules()
+        } catch {
+            applyScreenTimeAuthorization(false)
+            screenTimeRecoveryErrorMessage = "스크린타임 권한을 다시 허용해야 앱 한도를 적용할 수 있어요."
+            refreshDashboardState()
+        }
     }
 
     func refreshDashboardState() {
@@ -331,5 +372,21 @@ final class ContentViewModel {
         overrideGroupIDs = state.overrideGroupIDs
         validGroupIDs = state.validGroupIDs
         overrideUntilByGroupID = state.overrideUntilByGroupID
+    }
+
+    private func applyScreenTimeAuthorization(_ authorized: Bool) {
+        isAuthorized = authorized
+        if authorized {
+            isScreenTimeRecoveryPresented = false
+            screenTimeRecoveryErrorMessage = nil
+        } else if hasCompletedInitialHomeEntry {
+            isScreenTimeRecoveryPresented = true
+        }
+    }
+
+    private func markInitialHomeEntryIfReady() {
+        guard isFullyAuthorized, !hasCompletedInitialHomeEntry else { return }
+        hasCompletedInitialHomeEntry = true
+        userDefaults.set(true, forKey: Self.hasCompletedInitialHomeEntryKey)
     }
 }

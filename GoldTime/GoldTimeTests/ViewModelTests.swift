@@ -19,7 +19,8 @@ struct ViewModelTests {
         let viewModel = ContentViewModel(
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
 
         #expect(viewModel.isAuthorized)
@@ -33,7 +34,8 @@ struct ViewModelTests {
             authorizeUseCase: AuthorizeUseCase(
                 authRepository: authRepo,
                 notificationRepository: FakeNotificationRepository()
-            )
+            ),
+            userDefaults: makeUserDefaults()
         )
 
         authRepo.setAuthorized(true)
@@ -50,7 +52,8 @@ struct ViewModelTests {
             authorizeUseCase: AuthorizeUseCase(
                 authRepository: FakeAuthorizationRepository(isAuthorized: true),
                 notificationRepository: notifRepo
-            )
+            ),
+            userDefaults: makeUserDefaults()
         )
         while viewModel.isCheckingPermissions {
             try await Task.sleep(for: .milliseconds(1))
@@ -70,7 +73,8 @@ struct ViewModelTests {
             authorizeUseCase: AuthorizeUseCase(
                 authRepository: FakeAuthorizationRepository(isAuthorized: true),
                 notificationRepository: notifRepo
-            )
+            ),
+            userDefaults: makeUserDefaults()
         )
         while viewModel.isCheckingPermissions {
             try await Task.sleep(for: .milliseconds(1))
@@ -79,6 +83,104 @@ struct ViewModelTests {
         #expect(viewModel.isAuthorized)
         #expect(viewModel.isNotificationAuthorized)
         #expect(viewModel.isFullyAuthorized)
+        #expect(viewModel.hasCompletedInitialHomeEntry)
+    }
+
+    @Test func contentViewModelKeepsFirstUserInOnboardingWhenScreenTimeMissing() async throws {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .authorized
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: false),
+                notificationRepository: notifRepo
+            ),
+            userDefaults: makeUserDefaults()
+        )
+        while viewModel.isCheckingPermissions {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+
+        #expect(viewModel.shouldShowInitialOnboarding)
+        #expect(!viewModel.isScreenTimeRecoveryPresented)
+    }
+
+    @Test func contentViewModelShowsRecoveryAfterStartedUserLosesScreenTime() async throws {
+        let defaults = makeUserDefaults(hasCompletedInitialHomeEntry: true)
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        authRepo.requestError = TestAuthorizationError.denied
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .authorized
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: notifRepo
+            ),
+            userDefaults: defaults
+        )
+        while viewModel.isCheckingPermissions {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+
+        await viewModel.requestScreenTimeAuthorizationOnEntry()
+
+        #expect(authRepo.requestCallCount == 1)
+        #expect(!viewModel.shouldShowInitialOnboarding)
+        #expect(viewModel.isScreenTimeRecoveryPresented)
+    }
+
+    @Test func contentViewModelDismissesRecoveryWhenScreenTimeRequestSucceeds() async throws {
+        let defaults = makeUserDefaults(hasCompletedInitialHomeEntry: true)
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        authRepo.requestResultIsAuthorized = true
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .authorized
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: notifRepo
+            ),
+            userDefaults: defaults
+        )
+        while viewModel.isCheckingPermissions {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+
+        await viewModel.requestScreenTimeAuthorizationOnEntry()
+
+        #expect(authRepo.requestCallCount == 1)
+        #expect(viewModel.isAuthorized)
+        #expect(!viewModel.isScreenTimeRecoveryPresented)
+    }
+
+    @Test func contentViewModelRequestsScreenTimeOnHomeLoadForStartedUser() async throws {
+        let defaults = makeUserDefaults(hasCompletedInitialHomeEntry: true)
+        let authRepo = FakeAuthorizationRepository(isAuthorized: true)
+        authRepo.requestResultIsAuthorized = true
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .authorized
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: notifRepo
+            ),
+            userDefaults: defaults
+        )
+        while viewModel.isCheckingPermissions {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+
+        viewModel.loadState()
+        try await Task.sleep(for: .milliseconds(10))
+
+        #expect(authRepo.requestCallCount == 1)
     }
 
     // MARK: - SettingsViewModel
@@ -163,7 +265,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
         viewModel.groups = [group]
 
@@ -182,7 +285,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
         viewModel.groups = [group]
         viewModel.lockedGroupIDs = [group.id]
@@ -203,7 +307,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
         viewModel.lockedGroupIDs = [group.id]
 
@@ -224,7 +329,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
         viewModel.groups = [group]
         viewModel.lockedGroupIDs = [group.id]
@@ -247,7 +353,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
         viewModel.groups = [group]
         viewModel.lockedGroupIDs = [group.id]
@@ -269,7 +376,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
 
         viewModel.addGroup()
@@ -292,7 +400,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
         viewModel.groups = groupRepo.screenTimeGroups
 
@@ -311,7 +420,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
 
         #expect(viewModel.pickerSelection.includeEntireCategory)
@@ -335,7 +445,8 @@ struct ViewModelTests {
             ),
             syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true)
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
         )
         viewModel.groups = [group]
 
@@ -1066,6 +1177,14 @@ struct ViewModelTests {
 
     // MARK: - Helpers
 
+    private func makeUserDefaults(hasCompletedInitialHomeEntry: Bool = false) -> UserDefaults {
+        let suiteName = "GoldTimeTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults.set(hasCompletedInitialHomeEntry, forKey: "hasCompletedInitialHomeEntry")
+        return defaults
+    }
+
     private func makeSyncProtectionUseCase(
         screenTimeRepo: FakeScreenTimeRepository? = nil
     ) -> SyncProtectionUseCase {
@@ -1142,6 +1261,10 @@ struct AppLifecycleViewModelTests {
 }
 
 // MARK: - Fake Repositories
+
+private enum TestAuthorizationError: Error {
+    case denied
+}
 
 @MainActor
 private final class FakeGroupRepository: GroupRepository {
@@ -1244,6 +1367,7 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
 private final class FakeAuthorizationRepository: AuthorizationRepository {
     var isAuthorized: Bool
     var requestResultIsAuthorized: Bool
+    var requestError: Error?
     private(set) var requestCallCount = 0
     private var authorizationChangeHandlers: [UUID: AuthorizationChangeHandler] = [:]
 
@@ -1256,11 +1380,10 @@ private final class FakeAuthorizationRepository: AuthorizationRepository {
 
     func request() async throws {
         requestCallCount += 1
+        if let requestError {
+            throw requestError
+        }
         setAuthorized(requestResultIsAuthorized)
-    }
-
-    func settledIsAuthorized() async -> Bool {
-        isAuthorized
     }
 
     func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
@@ -1297,6 +1420,8 @@ private final class FakeNotificationRepository: NotificationRepository {
     }
 
     func scheduleWeeklyStatsNotification(weekStartDay: Int) {}
+
+    func scheduleDailyMorningNotification(extraMinutes: Int) {}
 }
 
 @MainActor
