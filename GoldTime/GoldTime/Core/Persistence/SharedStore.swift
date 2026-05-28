@@ -32,6 +32,8 @@ enum SharedStore {
         static let dailyProtectionStateDate = "dailyProtectionStateDate"
         static let dailyStatsByDate = "dailyStatsByDate"
         static let weekStartDay = "weekStartDay"
+        static let usedTimeByGroupID = "usedTimeByGroupID"
+        static let lastRegisteredGroupsByID = "lastRegisteredGroupsByID"
     }
 
     // 1 = 일요일, 2 = 월요일 (Calendar.firstWeekday 기준), 기본값: 2 (월요일)
@@ -368,6 +370,8 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.oneMinuteUsedToday)
         defaults.removeObject(forKey: Key.oneMinuteCounterDate)
         defaults.removeObject(forKey: Key.dailyProtectionStateDate)
+        defaults.removeObject(forKey: Key.usedTimeByGroupID)
+        defaults.removeObject(forKey: Key.lastRegisteredGroupsByID)
     }
 
     static func seedForPreview(_ stats: [DailyStats]) {
@@ -599,6 +603,61 @@ enum SharedStore {
         isShieldActive = false
     }
 
+    // MARK: - 릴레이 경과 시간 추적
+
+    static var usedTimeByGroupID: [UUID: Int] {
+        get {
+            guard let data = defaults.data(forKey: Key.usedTimeByGroupID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+            return Dictionary(
+                uniqueKeysWithValues: raw.compactMap { key, value in
+                    guard let id = UUID(uuidString: key) else { return nil }
+                    return (id, value)
+                }
+            )
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) })
+            let data = try? JSONEncoder().encode(raw)
+            defaults.set(data, forKey: Key.usedTimeByGroupID)
+        }
+    }
+
+    @discardableResult
+    static func incrementAndGetUsedTime(for groupID: UUID) -> Int {
+        var map = usedTimeByGroupID
+        let next = (map[groupID] ?? 0) + 1
+        map[groupID] = next
+        usedTimeByGroupID = map
+        return next
+    }
+
+    static var lastRegisteredGroupsByID: [UUID: ScreenTimeGroup]? {
+        get {
+            guard let data = defaults.data(forKey: Key.lastRegisteredGroupsByID) else { return nil }
+            let raw = (try? JSONDecoder().decode([String: ScreenTimeGroup].self, from: data)) ?? [:]
+            let pairs = raw.compactMap { key, value -> (UUID, ScreenTimeGroup)? in
+                guard let id = UUID(uuidString: key) else { return nil }
+                return (id, value)
+            }
+            return pairs.isEmpty ? nil : Dictionary(uniqueKeysWithValues: pairs)
+        }
+        set {
+            guard let newValue else {
+                defaults.removeObject(forKey: Key.lastRegisteredGroupsByID)
+                return
+            }
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) })
+            let data = try? JSONEncoder().encode(raw)
+            defaults.set(data, forKey: Key.lastRegisteredGroupsByID)
+        }
+    }
+
+    static func clearAllUsedTime() {
+        defaults.removeObject(forKey: Key.usedTimeByGroupID)
+        lastRegisteredGroupsByID = nil
+    }
+
     @discardableResult
     static func resetDailyProtectionStateIfNeeded(now: Date = Date()) -> Bool {
         let fallbackDate = oneMinuteCounterDate == .distantPast ? nil : oneMinuteCounterDate
@@ -619,6 +678,7 @@ enum SharedStore {
         clearAllShieldState()
         clearLastRequestedUnlockTokens()
         clearShieldOpenRequest()
+        clearAllUsedTime()
         return true
     }
 
