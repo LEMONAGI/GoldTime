@@ -50,7 +50,6 @@ final class AppLifecycleViewModel {
         syncProtectionRulesIfAuthorized()
         refreshLockOptionsPresentation()
         MonitoringBackgroundTask.scheduleNext()
-        notificationRepository.scheduleWeeklyStatsNotification(weekStartDay: SharedStore.weekStartDay)
     }
 
     func refreshLockOptionsPresentation() {

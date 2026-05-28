@@ -11,10 +11,6 @@ struct NotificationRepositoryImpl: NotificationRepository {
         await NotificationService.requestAuthorizationIfNeeded().permissionState
     }
 
-    func scheduleWeeklyStatsNotification(weekStartDay: Int) {
-        NotificationService.scheduleWeeklyStatsNotification(weekStartDay: weekStartDay)
-    }
-
     func scheduleDailyMorningNotification(extraMinutes: Int) {
         NotificationService.scheduleDailyMorningNotification(extraMinutes: extraMinutes)
     }

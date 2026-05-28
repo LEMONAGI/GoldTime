@@ -47,29 +47,35 @@ enum NotificationService {
     }
 
     /// 자정 배경 작업에서 호출. 어제 추가 사용 분량에 따라 다음 날 오전 9시 알림 예약.
-    static func scheduleDailyMorningNotification(extraMinutes: Int) {
+    /// isWeekStart가 true이면 주간 통계 알림 내용으로 대체한다.
+    static func scheduleDailyMorningNotification(extraMinutes: Int, isWeekStart: Bool = false) {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [dailyMorningIdentifier])
+        center.removePendingNotificationRequests(withIdentifiers: [dailyMorningIdentifier, weeklyStatsIdentifier])
 
         let content = UNMutableNotificationContent()
         content.sound = .default
 
-        switch extraMinutes {
-        case 0:
-            content.title = "어제 한도 내 사용."
-            content.body = "좋은 하루였어요. 저한텐 아니고요."
-        case 1...5:
-            content.title = "어제 \(extraMinutes)분 초과."
-            content.body = "이 정도면 살짝 눈 감아드릴게요."
-        case 6...15:
-            content.title = "어제 \(extraMinutes)분 초과."
-            content.body = "시간이 금이라는 거 기억하시죠."
-        case 16...30:
-            content.title = "어제 \(extraMinutes)분 초과."
-            content.body = "어제 청구서가 좀 두꺼웠어요."
-        default:
-            content.title = "어제 \(extraMinutes)분 초과."
-            content.body = "이 정도면 저를 위해 노력하신 거죠?"
+        if isWeekStart {
+            content.title = "주간 통계가 도착했어요!"
+            content.body = "이번 주 기록을 확인해보세요."
+        } else {
+            switch extraMinutes {
+            case 0:
+                content.title = "어제 한도 내 사용."
+                content.body = "좋은 하루였어요. 저한텐 아니고요."
+            case 1...5:
+                content.title = "어제 \(extraMinutes)분 초과."
+                content.body = "이 정도면 살짝 눈 감아드릴게요."
+            case 6...15:
+                content.title = "어제 \(extraMinutes)분 초과."
+                content.body = "시간이 금이라는 거 기억하시죠."
+            case 16...30:
+                content.title = "어제 \(extraMinutes)분 초과."
+                content.body = "어제 청구서가 좀 두꺼웠어요."
+            default:
+                content.title = "어제 \(extraMinutes)분 초과."
+                content.body = "이 정도면 저를 위해 노력하신 거죠?"
+            }
         }
 
         var components = DateComponents()
@@ -77,28 +83,6 @@ enum NotificationService {
         components.minute = 0
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         let request = UNNotificationRequest(identifier: dailyMorningIdentifier, content: content, trigger: trigger)
-        center.add(request, withCompletionHandler: nil)
-    }
-
-    /// 주 마지막 날 저녁(20:00)에 주간 통계 알림 예약. 매주 반복, 중복 방지를 위해 기존 요청 먼저 제거.
-    static func scheduleWeeklyStatsNotification(weekStartDay: Int) {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [weeklyStatsIdentifier])
-
-        let lastWeekday = weekStartDay == 1 ? 7 : weekStartDay - 1
-
-        let content = UNMutableNotificationContent()
-        content.title = "주간 통계가 도착했어요!"
-        content.body = "이번 주 기록을 확인해보세요."
-        content.sound = .default
-
-        var components = DateComponents()
-        components.weekday = lastWeekday
-        components.hour = 20
-        components.minute = 0
-
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(identifier: weeklyStatsIdentifier, content: content, trigger: trigger)
         center.add(request, withCompletionHandler: nil)
     }
 }
