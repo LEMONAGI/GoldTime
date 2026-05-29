@@ -20,6 +20,8 @@ struct HomeViewModel {
     let validGroupIDs: Set<UUID>
     let overrideUntilByGroupID: [UUID: Date]
     let usedTimeByGroupID: [UUID: Int]
+    let overrideBaselineUsedTimeByGroupID: [UUID: Int]
+    let overrideGrantedMinutesByGroupID: [UUID: Int]
     let oneMinuteRemaining: Int
     let oneMinuteDailyLimit: Int
 
@@ -36,6 +38,8 @@ struct HomeViewModel {
         validGroupIDs: Set<UUID> = [],
         overrideUntilByGroupID: [UUID: Date] = [:],
         usedTimeByGroupID: [UUID: Int] = [:],
+        overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:],
+        overrideGrantedMinutesByGroupID: [UUID: Int] = [:],
         oneMinuteRemaining: Int = 0,
         oneMinuteDailyLimit: Int = ScreenTimeGroupPolicy.oneMinuteDailyLimit
     ) {
@@ -51,6 +55,8 @@ struct HomeViewModel {
         self.validGroupIDs = validGroupIDs
         self.overrideUntilByGroupID = overrideUntilByGroupID
         self.usedTimeByGroupID = usedTimeByGroupID
+        self.overrideBaselineUsedTimeByGroupID = overrideBaselineUsedTimeByGroupID
+        self.overrideGrantedMinutesByGroupID = overrideGrantedMinutesByGroupID
         self.oneMinuteRemaining = oneMinuteRemaining
         self.oneMinuteDailyLimit = oneMinuteDailyLimit
     }
@@ -141,7 +147,7 @@ struct HomeViewModel {
         if isShieldActive {
             return "잠금 중"
         }
-        if let shieldOverrideUntil, shieldOverrideUntil.timeIntervalSinceNow > 0.5 {
+        if !overrideGroupIDs.isEmpty {
             return "연장 중"
         }
         return isMonitoring ? "사용 가능" : "대기 중"
@@ -152,9 +158,20 @@ struct HomeViewModel {
             let count = lockedGroupIDs.count
             return count > 1 ? "\(count)개 그룹이 한도에 닿았어요" : "한도를 넘겼어요"
         }
-        if let shieldOverrideUntil, shieldOverrideUntil.timeIntervalSinceNow > 0.5 {
-            let seconds = max(1, Int(shieldOverrideUntil.timeIntervalSinceNow.rounded(.up)))
-            return "\(goldTimeDurationText(seconds: seconds)) 뒤 재잠금"
+        if !overrideGroupIDs.isEmpty {
+            let shortest = groups
+                .filter { overrideGroupIDs.contains($0.id) }
+                .map { group -> Int in
+                    let baseline = overrideBaselineUsedTimeByGroupID[group.id] ?? 0
+                    let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
+                    let consumed = max(0, (usedTimeByGroupID[group.id] ?? 0) - baseline)
+                    return max(1, granted - consumed)
+                }
+                .min()
+            if let shortest {
+                return "\(shortest)분 남음"
+            }
+            return "연장 중"
         }
         return isMonitoring ? "아직 한도 안쪽" : "설정 필요"
     }
@@ -197,17 +214,19 @@ struct HomeViewModel {
         let h = remaining / 60
         let m = remaining % 60
         if h > 0 {
-            return "\(h)시간 \(m)분 뒤 잠금"
+            return "\(h)시간 \(m)분 남음"
         } else {
-            return "\(m)분 뒤 잠금"
+            return "\(m)분 남음"
         }
     }
 
     func overrideRemainingLabel(for group: ScreenTimeGroup) -> String? {
-        guard let until = overrideUntilByGroupID[group.id] else { return nil }
-        let seconds = until.timeIntervalSinceNow
-        guard seconds > 0.5 else { return nil }
-        return "\(goldTimeDurationText(seconds: Int(seconds.rounded(.up)))) 뒤 재잠금"
+        guard overrideGroupIDs.contains(group.id) else { return nil }
+        let baseline = overrideBaselineUsedTimeByGroupID[group.id] ?? 0
+        let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
+        let consumed = max(0, (usedTimeByGroupID[group.id] ?? 0) - baseline)
+        let remaining = max(1, granted - consumed)
+        return "\(remaining)분 남음"
     }
 
     func groupHasDuplicateApps(_ group: ScreenTimeGroup) -> Bool {
