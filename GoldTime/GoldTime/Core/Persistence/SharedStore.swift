@@ -35,6 +35,9 @@ enum SharedStore {
         static let usedTimeByGroupID = "usedTimeByGroupID"
         static let lastRegisteredGroupsByID = "lastRegisteredGroupsByID"
         static let lastRegisteredGenerationByID = "lastRegisteredGenerationByID"
+        static let usageBasedOverrideGroupIDs = "usageBasedOverrideGroupIDs"
+        static let overrideBaselineUsedTimeByGroupID = "overrideBaselineUsedTimeByGroupID"
+        static let overrideGrantedMinutesByGroupID = "overrideGrantedMinutesByGroupID"
     }
 
     // 1 = 일요일, 2 = 월요일 (Calendar.firstWeekday 기준), 기본값: 2 (월요일)
@@ -374,6 +377,9 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.usedTimeByGroupID)
         defaults.removeObject(forKey: Key.lastRegisteredGroupsByID)
         defaults.removeObject(forKey: Key.lastRegisteredGenerationByID)
+        defaults.removeObject(forKey: Key.usageBasedOverrideGroupIDs)
+        defaults.removeObject(forKey: Key.overrideBaselineUsedTimeByGroupID)
+        defaults.removeObject(forKey: Key.overrideGrantedMinutesByGroupID)
     }
 
     static func seedForPreview(_ stats: [DailyStats]) {
@@ -497,6 +503,89 @@ enum SharedStore {
         var overrides = overrideUntilByGroupID
         overrides.removeValue(forKey: groupID)
         overrideUntilByGroupID = overrides
+        unmarkUsageBasedOverride(groupID)
+        var baselines = overrideBaselineUsedTimeByGroupID
+        baselines.removeValue(forKey: groupID)
+        overrideBaselineUsedTimeByGroupID = baselines
+        var grants = overrideGrantedMinutesByGroupID
+        grants.removeValue(forKey: groupID)
+        overrideGrantedMinutesByGroupID = grants
+    }
+
+    /// override 시작 시점의 누적 사용 분(`usedTimeByGroupID` 스냅샷). UI 잔여 계산에 사용.
+    static var overrideBaselineUsedTimeByGroupID: [UUID: Int] {
+        get {
+            guard let data = defaults.data(forKey: Key.overrideBaselineUsedTimeByGroupID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+            return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, value) }
+            })
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) })
+            guard let data = try? JSONEncoder().encode(raw) else {
+                defaults.removeObject(forKey: Key.overrideBaselineUsedTimeByGroupID)
+                return
+            }
+            defaults.set(data, forKey: Key.overrideBaselineUsedTimeByGroupID)
+        }
+    }
+
+    /// 해당 override에서 부여된 분 (1분 연장은 1, 광고는 15).
+    static var overrideGrantedMinutesByGroupID: [UUID: Int] {
+        get {
+            guard let data = defaults.data(forKey: Key.overrideGrantedMinutesByGroupID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+            return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, value) }
+            })
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) })
+            guard let data = try? JSONEncoder().encode(raw) else {
+                defaults.removeObject(forKey: Key.overrideGrantedMinutesByGroupID)
+                return
+            }
+            defaults.set(data, forKey: Key.overrideGrantedMinutesByGroupID)
+        }
+    }
+
+    static func recordOverrideBaseline(groupID: UUID, baseline: Int, grantedMinutes: Int) {
+        var baselines = overrideBaselineUsedTimeByGroupID
+        baselines[groupID] = baseline
+        overrideBaselineUsedTimeByGroupID = baselines
+        var grants = overrideGrantedMinutesByGroupID
+        grants[groupID] = grantedMinutes
+        overrideGrantedMinutesByGroupID = grants
+    }
+
+    /// 사용량 기반 override 그룹. clearExpiredOverrides가 시간 만료로 정리하지 않도록 보호.
+    static var usageBasedOverrideGroupIDs: Set<UUID> {
+        get {
+            guard let data = defaults.data(forKey: Key.usageBasedOverrideGroupIDs) else { return [] }
+            let raw = (try? JSONDecoder().decode([String].self, from: data)) ?? []
+            return Set(raw.compactMap(UUID.init(uuidString:)))
+        }
+        set {
+            let raw = newValue.map(\.uuidString)
+            guard let data = try? JSONEncoder().encode(raw) else {
+                defaults.removeObject(forKey: Key.usageBasedOverrideGroupIDs)
+                return
+            }
+            defaults.set(data, forKey: Key.usageBasedOverrideGroupIDs)
+        }
+    }
+
+    static func markUsageBasedOverride(_ groupID: UUID) {
+        var ids = usageBasedOverrideGroupIDs
+        ids.insert(groupID)
+        usageBasedOverrideGroupIDs = ids
+    }
+
+    static func unmarkUsageBasedOverride(_ groupID: UUID) {
+        var ids = usageBasedOverrideGroupIDs
+        ids.remove(groupID)
+        usageBasedOverrideGroupIDs = ids
     }
 
     static func recordOverrideRegistration(
@@ -602,6 +691,9 @@ enum SharedStore {
     static func clearAllShieldState() {
         shieldedGroupIDs = []
         overrideUntilByGroupID = [:]
+        usageBasedOverrideGroupIDs = []
+        overrideBaselineUsedTimeByGroupID = [:]
+        overrideGrantedMinutesByGroupID = [:]
         isShieldActive = false
     }
 
@@ -737,7 +829,11 @@ enum SharedStore {
     @discardableResult
     static func clearExpiredOverrides(now: Date = Date()) -> Bool {
         let overrides = overrideUntilByGroupID
-        let activeOverrides = overrides.filter { $0.value > now }
+        let usageBased = usageBasedOverrideGroupIDs
+        // 사용량 기반 override는 시간 만료로 제거하지 않는다 (사용량 threshold 이벤트가 정리).
+        let activeOverrides = overrides.filter { id, until in
+            until > now || usageBased.contains(id)
+        }
         guard activeOverrides.count != overrides.count else {
             return false
         }
@@ -748,7 +844,9 @@ enum SharedStore {
     static func groupsInOverride(now: Date = Date()) -> [ScreenTimeGroup] {
         clearExpiredOverrides(now: now)
         let overrides = overrideUntilByGroupID
+        let usageBased = usageBasedOverrideGroupIDs
         return screenTimeGroups.filter { group in
+            if usageBased.contains(group.id) { return true }
             if let until = overrides[group.id] {
                 return until > now
             }
@@ -760,8 +858,11 @@ enum SharedStore {
         clearExpiredOverrides(now: now)
         let ids = shieldedGroupIDs
         let overrides = overrideUntilByGroupID
+        let usageBased = usageBasedOverrideGroupIDs
         return screenTimeGroups.filter { group in
-            ids.contains(group.id) && (overrides[group.id] ?? .distantPast) <= now
+            guard ids.contains(group.id) else { return false }
+            if usageBased.contains(group.id) { return false }
+            return (overrides[group.id] ?? .distantPast) <= now
         }
     }
 

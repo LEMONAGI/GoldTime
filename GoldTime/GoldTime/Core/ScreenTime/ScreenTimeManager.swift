@@ -37,6 +37,17 @@ extension DeviceActivityEvent.Name {
         Self("tick.\(groupID.uuidString)")
     }
 
+    /// 광고/1분 연장의 사용량 기반 재잠금 이벤트. threshold(N분)에 도달하면 재잠금한다.
+    nonisolated static func usageRelock(for groupID: UUID) -> Self {
+        Self("usageRelock.\(groupID.uuidString)")
+    }
+
+    var usageRelockGroupID: UUID? {
+        let prefix = "usageRelock."
+        guard rawValue.hasPrefix(prefix) else { return nil }
+        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+    }
+
     var tickGroupID: UUID? {
         let prefix = "tick."
         guard rawValue.hasPrefix(prefix) else { return nil }
@@ -402,35 +413,50 @@ enum ScreenTimeManager {
         return calendar.date(byAdding: .second, value: 1, to: base) ?? date
     }
 
-    /// 특정 그룹만 일정 시간 동안 쉴드 해제. 다른 잠긴 그룹은 계속 Shield union에 남긴다.
+    /// 특정 그룹의 쉴드를 해제하고 사용량 기반으로 재잠금한다.
+    /// 그 그룹의 앱을 누적 N분(=seconds/60) 사용하면 즉시 다시 잠긴다.
+    /// 시간이 흘러도 사용하지 않으면 잠기지 않는다 (자정 daily reset 때까지 유지).
     @discardableResult
     static func releaseShield(
         forSeconds seconds: TimeInterval,
         groupID: UUID,
         now: Date = Date()
     ) -> Result<Date, ExtensionFailure> {
+        guard let group = SharedStore.group(id: groupID) else {
+            return .failure(.groupNotFound)
+        }
+
+        let minutes = max(1, Int((seconds / 60.0).rounded(.up)))
         let end = now.addingTimeInterval(seconds)
-        let window = overrideScheduleWindow(now: now, overrideUntil: end)
 
-        let schedule = DeviceActivitySchedule(
-            intervalStart: window.startComponents,
-            intervalEnd: window.endComponents,
-            repeats: false,
-            warningTime: window.warningTimeComponents
+        let event = DeviceActivityEvent(
+            applications: group.selection.applicationTokens,
+            categories: [],
+            webDomains: group.selection.webDomainTokens,
+            threshold: DateComponents(minute: minutes)
         )
-
         let activity = DeviceActivityName.override(for: groupID)
         overrideMonitorRegistrar.stopMonitoring([activity])
         do {
-            try overrideMonitorRegistrar.startMonitoring(activity, during: schedule, events: [:])
+            try overrideMonitorRegistrar.startMonitoring(
+                activity,
+                during: dailySchedule,
+                events: [.usageRelock(for: groupID): event]
+            )
             SharedStore.setOverride(until: end, for: groupID)
+            SharedStore.markUsageBasedOverride(groupID)
+            SharedStore.recordOverrideBaseline(
+                groupID: groupID,
+                baseline: SharedStore.usedTimeByGroupID[groupID] ?? 0,
+                grantedMinutes: minutes
+            )
             applyShield()
             SharedStore.recordOverrideRegistration(
                 activityName: activity.rawValue,
                 groupID: groupID,
                 overrideUntil: end,
                 registeredAt: now,
-                message: "registered override monitor"
+                message: "registered usage-based override monitor (\(minutes)m)"
             )
         } catch {
             SharedStore.recordOverrideRegistration(

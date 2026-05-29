@@ -33,6 +33,12 @@ extension DeviceActivityEvent.Name {
         guard rawValue.hasPrefix(prefix) else { return nil }
         return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
     }
+
+    var usageRelockGroupID: UUID? {
+        let prefix = "usageRelock."
+        guard rawValue.hasPrefix(prefix) else { return nil }
+        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+    }
 }
 
 extension ManagedSettingsStore.Name {
@@ -95,18 +101,26 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     ) {
         super.eventDidReachThreshold(event, activity: activity)
 
+        // 사용량 기반 재잠금 이벤트: 광고/1분 연장 후 그룹의 앱을 누적 N분 사용 시 발동.
+        if let groupID = event.usageRelockGroupID {
+            handleUsageRelock(groupID: groupID, activity: activity)
+            return
+        }
+
         guard let groupID = event.tickGroupID,
               activity.dailyGroupID == groupID,
               let group = SharedStore.group(id: groupID) else { return }
 
         let usedTime = SharedStore.incrementAndGetUsedTime(for: groupID)
+        let isOverrideActive = SharedStore.usageBasedOverrideGroupIDs.contains(groupID)
 
-        if usedTime >= group.dailyLimitMinutes {
+        if usedTime >= group.dailyLimitMinutes && !isOverrideActive {
             SharedStore.recordShieldHit()
             SharedStore.markGroupShielded(groupID)
             applyShieldFromGroups()
         } else {
             // 릴레이: stop + start (최신 selection 반영)
+            // override 활성 시에도 사용량 누적은 계속해야 하므로 relay를 유지한다.
             let nextEvent = DeviceActivityEvent(
                 applications: group.selection.applicationTokens,
                 categories: [],
@@ -121,6 +135,19 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 events: [event: nextEvent]
             )
         }
+    }
+
+    private func handleUsageRelock(groupID: UUID, activity: DeviceActivityName) {
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([activity])
+        SharedStore.clearOverride(for: groupID)
+        SharedStore.markGroupShielded(groupID)
+        SharedStore.recordOverrideIntervalDidEnd(
+            activityName: activity.rawValue,
+            parsedGroupID: groupID,
+            didClearOverride: true
+        )
+        applyShieldFromGroups()
     }
 
     @discardableResult

@@ -8,6 +8,8 @@ struct DashboardState {
     let shieldOverrideUntil: Date?
     let overrideUntilByGroupID: [UUID: Date]
     let usedTimeByGroupID: [UUID: Int]
+    let overrideBaselineUsedTimeByGroupID: [UUID: Int]
+    let overrideGrantedMinutesByGroupID: [UUID: Int]
     let todayStats: DailyStats
     let statsReport: StatsReport
     let adFreeStreakDays: Int
@@ -60,6 +62,8 @@ final class LoadDashboardUseCase {
             shieldOverrideUntil: shieldRepository.currentShieldOverrideUntil,
             overrideUntilByGroupID: shieldRepository.overrideUntilByGroupID,
             usedTimeByGroupID: shieldRepository.usedTimeByGroupID,
+            overrideBaselineUsedTimeByGroupID: shieldRepository.overrideBaselineUsedTimeByGroupID,
+            overrideGrantedMinutesByGroupID: shieldRepository.overrideGrantedMinutesByGroupID,
             todayStats: todayStats,
             statsReport: statsReport,
             adFreeStreakDays: calculateAdFreeStreak(),

@@ -7,6 +7,12 @@ struct ShieldRepositoryImpl: ShieldRepository {
     var currentShieldOverrideUntil: Date? { SharedStore.currentShieldOverrideUntil }
     var overrideUntilByGroupID: [UUID: Date] { SharedStore.overrideUntilByGroupID }
     var usedTimeByGroupID: [UUID: Int] { SharedStore.usedTimeByGroupID }
+    var overrideBaselineUsedTimeByGroupID: [UUID: Int] {
+        SharedStore.overrideBaselineUsedTimeByGroupID
+    }
+    var overrideGrantedMinutesByGroupID: [UUID: Int] {
+        SharedStore.overrideGrantedMinutesByGroupID
+    }
     var oneMinuteRemaining: Int { SharedStore.oneMinuteRemaining }
     var lastRequestedUnlockApplicationToken: ApplicationToken? {
         SharedStore.lastRequestedUnlockApplicationToken
