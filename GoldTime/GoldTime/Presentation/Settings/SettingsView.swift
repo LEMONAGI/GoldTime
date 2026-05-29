@@ -17,6 +17,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 20) {
                 generalCard
                 troubleshootingCard
+                feedbackCard
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -59,7 +60,7 @@ struct SettingsView: View {
                             title: "스크린 타임 권한",
                             subtitle: "확인이 필요해요",
                             systemName: "exclamationmark.circle.fill",
-                            tint: .orange,
+                            tint: .red,
                             showsProgress: viewModel.isRequestingScreenTimeAuthorization,
                             showsChevron: true
                         )
@@ -176,6 +177,7 @@ struct SettingsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 
     private func settingsRow(
@@ -207,6 +209,7 @@ struct SettingsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 
     private var notificationSubtitle: String {
@@ -231,8 +234,82 @@ struct SettingsView: View {
     private var notificationTint: Color {
         switch viewModel.notificationPermissionState {
         case .authorized, .provisional, .ephemeral: .green
-        case .denied: .orange
-        case .notDetermined, .unknown: Color.accent
+        case .denied: .red
+        case .notDetermined, .unknown: .red
+        }
+    }
+
+    private let appStoreID = "6772543300"
+
+    private var feedbackCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "피드백", systemName: "bubble.left.and.bubble.right")
+            VStack(spacing: 0) {
+                Button {
+                    var components = URLComponents()
+                    components.scheme = "mailto"
+                    components.path = "nagi.appstudio@gmail.com"
+                    let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-"
+                    let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "-"
+                    let device = UIDevice.current
+                    let body = "\n\n---\n앱 버전: \(appVersion) (\(buildNumber))\n기기: \(device.model)\niOS: \(device.systemVersion)"
+                    components.queryItems = [
+                        URLQueryItem(name: "subject", value: "GoldTime 피드백"),
+                        URLQueryItem(name: "body", value: body)
+                    ]
+                    if let url = components.url { openURL(url) }
+                } label: {
+                    settingsRow(
+                        title: "이메일로 피드백 보내기",
+                        subtitle: "앱 개선에 도움이 됩니다",
+                        systemName: "envelope.fill",
+                        tint: Color.accent,
+                        showsChevron: true
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                Divider().padding(.horizontal, 20)
+
+                Button {
+                    guard !appStoreID.isEmpty,
+                          let url = URL(string: "https://apps.apple.com/app/id\(appStoreID)?action=write-review")
+                    else { return }
+                    openURL(url)
+                } label: {
+                    settingsRow(
+                        title: "리뷰 작성하기",
+                        subtitle: "앱스토어에서 별점과 리뷰를 남겨주세요",
+                        systemName: "star.fill",
+                        tint: Color.accent,
+                        showsChevron: true
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                Divider().padding(.horizontal, 20)
+
+                ShareLink(
+                    item: URL(string: "https://apps.apple.com/app/id\(appStoreID)") ?? URL(string: "https://apps.apple.com")!
+                ) {
+                    settingsRow(
+                        title: "친구에게 공유하기",
+                        subtitle: "주변에 GoldTime을 알려주세요",
+                        systemName: "square.and.arrow.up",
+                        tint: Color.accent,
+                        showsChevron: true
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
         }
     }
 
