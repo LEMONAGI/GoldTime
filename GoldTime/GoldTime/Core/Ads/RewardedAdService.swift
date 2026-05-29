@@ -14,7 +14,7 @@ final class RewardedAdService: NSObject {
     private(set) var loadState: LoadState = .idle
 
     private var rewardedAd: RewardedAd?
-    private let adUnitID = "ca-app-pub-7549186146059648/5256297341"
+    private let adUnitID = "ca-app-pub-3940256099942544/1712485313"
 
     private var dismissCallback: ((_ didEarnReward: Bool) -> Void)?
     private var didEarnReward = false
@@ -27,7 +27,8 @@ final class RewardedAdService: NSObject {
         RewardedAd.load(with: adUnitID, request: Request()) { [weak self] ad, error in
             DispatchQueue.main.async {
                 guard let self else { return }
-                if error != nil {
+                if let error = error {
+                    print("[AdMob] 광고 로드 실패: \(error.localizedDescription)")
                     self.loadState = .failed
                     self.rewardedAd = nil
                 } else {
