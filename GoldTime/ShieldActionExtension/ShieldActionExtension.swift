@@ -178,8 +178,9 @@ class ShieldActionExtension: ShieldActionDelegate {
                 applicationToken: applicationToken,
                 webDomainToken: webDomainToken
             )
-            scheduleOpenAppNotification()
-            completionHandler(.defer)
+            scheduleOpenAppNotification {
+                completionHandler(.defer)
+            }
         case .firstSecondarySubmenuItemPressed,
              .secondSecondarySubmenuItemPressed,
              .thirdSecondarySubmenuItemPressed:
@@ -189,17 +190,19 @@ class ShieldActionExtension: ShieldActionDelegate {
         }
     }
 
-    private func scheduleOpenAppNotification() {
+    private func scheduleOpenAppNotification(completion: @escaping () -> Void) {
         let content = UNMutableNotificationContent()
         content.title = "한도 끝났어요"
         content.body = "더 쓰려면 GoldTime에서 선택하세요. 지금 나가면 광고 없이 끝납니다."
         content.sound = .default
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
         let request = UNNotificationRequest(
             identifier: "goldtime.open-app",
             content: content,
             trigger: trigger
         )
-        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+        UNUserNotificationCenter.current().add(request) { _ in
+            completion()
+        }
     }
 }
