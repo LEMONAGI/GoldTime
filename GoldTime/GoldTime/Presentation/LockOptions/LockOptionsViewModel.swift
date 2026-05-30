@@ -242,7 +242,7 @@ final class LockOptionsViewModel {
 
     private func completionMessage(for result: GroupExtensionResult) -> String {
         let duration = result.durationSeconds == 60 ? "1분" : "\(result.durationSeconds / 60)분"
-        var message = "\(result.group.displayName)을 \(duration) 연장했어요.\n지금부터 \(duration) 뒤에 다시 잠겨요."
+        var message = "\(result.group.displayName)을 \(duration) 연장했어요.\n\(duration) 더 쓰면 다시 잠겨요."
 
         if let token = requestedApplicationToken {
             let remaining = extendGroupUseCase.lockedGroupsAfterExtension(

@@ -10,6 +10,7 @@ import SwiftUI
 
 struct HomeView: View {
     let viewModel: HomeViewModel
+    var debugTickLog: [String] = []
     let onAddGroup: () -> Void
     let onDeleteGroup: (UUID) -> Void
     let onUpdateGroupName: (UUID, String) -> Void
@@ -32,6 +33,7 @@ struct HomeView: View {
         usedTimeByGroupID: [UUID: Int] = [:],
         overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:],
         overrideGrantedMinutesByGroupID: [UUID: Int] = [:],
+        overrideTickLog: [String] = [],
         oneMinuteRemaining: Int = 0,
         oneMinuteDailyLimit: Int = ScreenTimeGroupPolicy.oneMinuteDailyLimit,
         onAddGroup: @escaping () -> Void,
@@ -59,6 +61,7 @@ struct HomeView: View {
             oneMinuteRemaining: oneMinuteRemaining,
             oneMinuteDailyLimit: oneMinuteDailyLimit
         )
+        self.debugTickLog = overrideTickLog
         self.onAddGroup = onAddGroup
         self.onDeleteGroup = onDeleteGroup
         self.onUpdateGroupName = onUpdateGroupName
@@ -82,6 +85,8 @@ struct HomeView: View {
                 if let errorMessage = viewModel.errorMessage {
                     statusSection(errorMessage, tint: .red, systemName: "exclamationmark.triangle.fill")
                 }
+
+                debugTickLogSection
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -92,6 +97,36 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.large)
     }
     
+    // [임시 진단] override/daily tick 로그 표시
+    @ViewBuilder
+    private var debugTickLogSection: some View {
+        if !debugTickLog.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("DEBUG tick log")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("초기화") {
+                        SharedStore.overrideTickLog = []
+                    }
+                    .font(.caption.weight(.bold))
+                    .buttonStyle(.bordered)
+                }
+                ForEach(Array(debugTickLog.enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
     private var timeBillHero: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {

@@ -69,6 +69,7 @@ final class ContentViewModel {
     var usedTimeByGroupID: [UUID: Int] = [:]
     var overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:]
     var overrideGrantedMinutesByGroupID: [UUID: Int] = [:]
+    var overrideTickLog: [String] = []
     var unlockSheetGroupID: UUID? = nil
     var isUnlockSheetPresented = false
 
@@ -254,7 +255,7 @@ final class ContentViewModel {
     }
 
     func presentLimitPicker(for group: ScreenTimeGroup) {
-        let clamped = min(group.dailyLimitMinutes, 6 * 60 + 55)
+        let clamped = min(group.dailyLimitMinutes, 5 * 60 + 55)
         limitPickerHours = clamped / 60
         let rawMinutes = clamped % 60
         limitPickerMinutes = (rawMinutes / 5) * 5
@@ -390,6 +391,7 @@ final class ContentViewModel {
         usedTimeByGroupID = state.usedTimeByGroupID
         overrideBaselineUsedTimeByGroupID = state.overrideBaselineUsedTimeByGroupID
         overrideGrantedMinutesByGroupID = state.overrideGrantedMinutesByGroupID
+        overrideTickLog = state.overrideTickLog
     }
 
     private func applyScreenTimeAuthorization(_ authorized: Bool) {

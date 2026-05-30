@@ -28,22 +28,40 @@ extension DeviceActivityName {
 }
 
 extension DeviceActivityEvent.Name {
-    var tickGroupID: UUID? {
+    /// `tick.<gid>.<minute>`에서 (groupID, minute) 추출.
+    var tickInfo: (groupID: UUID, minute: Int)? {
         let prefix = "tick."
         guard rawValue.hasPrefix(prefix) else { return nil }
-        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+        let body = rawValue.dropFirst(prefix.count)
+        let parts = body.split(separator: ".")
+        guard parts.count == 2,
+              let groupID = UUID(uuidString: String(parts[0])),
+              let minute = Int(parts[1]) else { return nil }
+        return (groupID, minute)
     }
 
-    var usageRelockGroupID: UUID? {
-        let prefix = "usageRelock."
+    var usageTickInfo: (groupID: UUID, minute: Int)? {
+        let prefix = "usageTick."
         guard rawValue.hasPrefix(prefix) else { return nil }
-        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+        let body = rawValue.dropFirst(prefix.count)
+        let parts = body.split(separator: ".")
+        guard parts.count == 2,
+              let groupID = UUID(uuidString: String(parts[0])),
+              let minute = Int(parts[1]) else { return nil }
+        return (groupID, minute)
     }
 }
 
 extension ManagedSettingsStore.Name {
     static let goldtime = Self("goldtime")
 }
+
+// [임시 진단] HH:mm:ss 포맷터
+private let debugTimeFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "HH:mm:ss"
+    return f
+}()
 
 class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     private var store: ManagedSettingsStore { ManagedSettingsStore(named: .goldtime) }
@@ -55,6 +73,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             repeats: true
         )
     }
+
 
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
@@ -70,7 +89,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
         if activity == .daily || activity.dailyGroupID != nil {
-            // daily 계열은 릴레이에서 처리하므로 무시
+            // daily 계열은 dailySchedule(repeats:true)이 매일 자동 재시작하므로 무시.
             return
         }
         let result = SharedStore.clearOverrideAfterActivityEnd(activityName: activity.rawValue)
@@ -101,43 +120,58 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     ) {
         super.eventDidReachThreshold(event, activity: activity)
 
-        // 사용량 기반 재잠금 이벤트: 광고/1분 연장 후 그룹의 앱을 누적 N분 사용 시 발동.
-        if let groupID = event.usageRelockGroupID {
-            handleUsageRelock(groupID: groupID, activity: activity)
+        // 사용량 기반 override tick: 광고/1분 연장 중 그룹의 앱을 minute분 누적 사용 시 1회 발동.
+        if let info = event.usageTickInfo {
+            handleOverrideTick(groupID: info.groupID, minute: info.minute, activity: activity)
             return
         }
 
-        guard let groupID = event.tickGroupID,
-              activity.dailyGroupID == groupID,
-              let group = SharedStore.group(id: groupID) else { return }
+        // no-relay multi-event: tick.<gid>.<minute>가 등록 시점부터 누적 minute분 사용 시 1회 발화.
+        guard let info = event.tickInfo,
+              activity.dailyGroupID == info.groupID else { return }
+        let groupID = info.groupID
 
-        let usedTime = SharedStore.incrementAndGetUsedTime(for: groupID)
+        // 자정을 넘겨 계속 사용 중인 경우 일일 리셋(usedTime 0) 처리.
+        if SharedStore.resetDailyProtectionStateIfNeeded() {
+            clearSystemShield()
+        }
+
+        guard let group = SharedStore.group(id: groupID) else { return }
+
+        // 틱 분은 baseline(등록 시점 usedTime) 기준 상대값이므로 절대 사용량으로 복원해 올린다(역행 방지).
+        // 한도 변경으로 재등록되어도 baseline이 보존되므로 이미 쓴 분이 유지된다.
+        let baseline = SharedStore.dailyBaselineByGroupID[groupID] ?? 0
+        let usedTime = SharedStore.raiseUsedTime(to: baseline + info.minute, for: groupID)
         let isOverrideActive = SharedStore.usageBasedOverrideGroupIDs.contains(groupID)
+        let willLock = usedTime >= group.dailyLimitMinutes && !isOverrideActive
 
-        if usedTime >= group.dailyLimitMinutes && !isOverrideActive {
+        SharedStore.appendOverrideTickLog(
+            "\(debugTimeFormatter.string(from: Date())) DLY g=\(groupID.uuidString.prefix(8)) b=\(baseline) m=\(info.minute) u=\(usedTime) limit=\(group.dailyLimitMinutes) ovr=\(isOverrideActive) -> \(willLock ? "LOCK" : "tick")"
+        )
+
+        if willLock {
             SharedStore.recordShieldHit()
             SharedStore.markGroupShielded(groupID)
             applyShieldFromGroups()
-        } else {
-            // 릴레이: stop + start (최신 selection 반영)
-            // override 활성 시에도 사용량 누적은 계속해야 하므로 relay를 유지한다.
-            let nextEvent = DeviceActivityEvent(
-                applications: group.selection.applicationTokens,
-                categories: [],
-                webDomains: group.selection.webDomainTokens,
-                threshold: DateComponents(minute: 1)
-            )
-            let center = DeviceActivityCenter()
-            center.stopMonitoring([activity])
-            try? center.startMonitoring(
-                activity,
-                during: dailySchedule,
-                events: [event: nextEvent]
-            )
         }
     }
 
-    private func handleUsageRelock(groupID: UUID, activity: DeviceActivityName) {
+    private func handleOverrideTick(groupID: UUID, minute: Int, activity: DeviceActivityName) {
+        let baseline = SharedStore.overrideBaselineUsedTimeByGroupID[groupID] ?? 0
+        let granted = SharedStore.overrideGrantedMinutesByGroupID[groupID] ?? 1
+
+        // 이 이벤트는 override 시작부터 누적 `minute`분 사용 시 1회 발화한다.
+        // usedTime을 baseline+minute 이상으로만 올려 UI 잔여 시간을 갱신한다 (재등록 없음).
+        let usedTime = SharedStore.raiseUsedTime(to: baseline + minute, for: groupID)
+        let consumed = usedTime - baseline
+
+        SharedStore.appendOverrideTickLog(
+            "\(debugTimeFormatter.string(from: Date())) OVR g=\(groupID.uuidString.prefix(8)) b=\(baseline) grant=\(granted) m=\(minute) u=\(usedTime) c=\(consumed) -> \(minute >= granted ? "RELOCK" : "tick")"
+        )
+
+        guard minute >= granted else { return }
+
+        // 연장분 소진: 재잠금
         let center = DeviceActivityCenter()
         center.stopMonitoring([activity])
         SharedStore.clearOverride(for: groupID)

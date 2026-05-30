@@ -552,6 +552,53 @@ struct ViewModelTests {
         #expect(viewModel.oneMinuteDailyLimit == 5)
     }
 
+    @Test func homeViewModelLockProgressFillsTenSegmentsByUsage() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 60)
+        func progress(used: Int) -> HomeViewModel.SegmentProgress? {
+            HomeViewModel(
+                groups: [group],
+                todayStats: DailyStats(dateKey: "2026-05-30"),
+                isMonitoring: true,
+                isShieldActive: false,
+                shieldOverrideUntil: nil,
+                successMessage: nil,
+                errorMessage: nil,
+                validGroupIDs: [group.id],
+                usedTimeByGroupID: [group.id: used]
+            ).lockProgress(for: group)
+        }
+
+        #expect(progress(used: 0)?.total == 10)
+        #expect(progress(used: 0)?.remaining == 10)
+        #expect(progress(used: 30)?.remaining == 5)   // 30/60 → 5칸
+        #expect(progress(used: 54)?.remaining == 1)   // 6분 남음 → 최소 1칸
+        #expect(progress(used: 60) == nil)            // 소진 → nil(잠금 임박)
+    }
+
+    @Test func homeViewModelOverrideProgressFillsTenSegmentsByUsage() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        func progress(used: Int) -> HomeViewModel.SegmentProgress? {
+            HomeViewModel(
+                groups: [group],
+                todayStats: DailyStats(dateKey: "2026-05-30"),
+                isMonitoring: true,
+                isShieldActive: false,
+                shieldOverrideUntil: nil,
+                successMessage: nil,
+                errorMessage: nil,
+                overrideGroupIDs: [group.id],
+                usedTimeByGroupID: [group.id: used],
+                overrideBaselineUsedTimeByGroupID: [group.id: 30],
+                overrideGrantedMinutesByGroupID: [group.id: 10]
+            ).overrideProgress(for: group)
+        }
+
+        #expect(progress(used: 30)?.total == 10)
+        #expect(progress(used: 30)?.remaining == 10)  // baseline 직후
+        #expect(progress(used: 35)?.remaining == 5)   // 5분 소비 → 5칸
+        #expect(progress(used: 39)?.remaining == 1)   // 1분 남음 → 1칸
+    }
+
     @Test func homeViewModelBillCommentTier1Under15Min() {
         let viewModel = HomeViewModel(
             groups: [],
@@ -1283,6 +1330,7 @@ private final class FakeShieldRepository: ShieldRepository {
     var usedTimeByGroupID: [UUID: Int] = [:]
     var overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:]
     var overrideGrantedMinutesByGroupID: [UUID: Int] = [:]
+    var overrideTickLog: [String] = []
     var oneMinuteRemainingValue = 5
     var oneMinuteRemaining: Int { oneMinuteRemainingValue }
     var lastRequestedUnlockApplicationToken: ApplicationToken?

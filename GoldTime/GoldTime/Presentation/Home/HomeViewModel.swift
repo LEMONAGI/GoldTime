@@ -204,29 +204,51 @@ struct HomeViewModel {
         }
     }
 
-    func remainingBeforeLockLabel(for group: ScreenTimeGroup) -> String? {
+    /// 남은 시간을 10칸 블록 바로 표현하기 위한 진행도. 칸 수는 항상 10 고정.
+    struct SegmentProgress {
+        let total: Int
+        let remaining: Int
+        let accessibilityLabel: String
+    }
+
+    /// 잔여 시간(분)을 10칸 중 몇 칸으로 채울지 계산. 남은 시간이 있으면 최소 1칸 보장.
+    private func segments(remainingMinutes: Int, totalMinutes: Int, total: Int = 10) -> Int {
+        guard totalMinutes > 0 else { return 0 }
+        let raw = (Double(remainingMinutes) / Double(totalMinutes) * Double(total)).rounded()
+        return min(max(Int(raw), 1), total)
+    }
+
+    private func remainingMinutesLabel(_ minutes: Int) -> String {
+        let h = minutes / 60
+        let m = minutes % 60
+        return h > 0 ? "약 \(h)시간 \(m)분 남음" : "약 \(m)분 남음"
+    }
+
+    func lockProgress(for group: ScreenTimeGroup) -> SegmentProgress? {
         guard validGroupIDs.contains(group.id),
               !lockedGroupIDs.contains(group.id),
               !overrideGroupIDs.contains(group.id) else { return nil }
         let used = usedTimeByGroupID[group.id] ?? 0
-        let remaining = group.dailyLimitMinutes - used
-        guard remaining > 0 else { return nil }
-        let h = remaining / 60
-        let m = remaining % 60
-        if h > 0 {
-            return "\(h)시간 \(m)분 남음"
-        } else {
-            return "\(m)분 남음"
-        }
+        let remainingMin = group.dailyLimitMinutes - used
+        guard remainingMin > 0 else { return nil }
+        return SegmentProgress(
+            total: 10,
+            remaining: segments(remainingMinutes: remainingMin, totalMinutes: group.dailyLimitMinutes),
+            accessibilityLabel: remainingMinutesLabel(remainingMin)
+        )
     }
 
-    func overrideRemainingLabel(for group: ScreenTimeGroup) -> String? {
+    func overrideProgress(for group: ScreenTimeGroup) -> SegmentProgress? {
         guard overrideGroupIDs.contains(group.id) else { return nil }
         let baseline = overrideBaselineUsedTimeByGroupID[group.id] ?? 0
         let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
         let consumed = max(0, (usedTimeByGroupID[group.id] ?? 0) - baseline)
-        let remaining = max(1, granted - consumed)
-        return "\(remaining)분 남음"
+        let remainingMin = max(1, granted - consumed)
+        return SegmentProgress(
+            total: 10,
+            remaining: segments(remainingMinutes: remainingMin, totalMinutes: granted),
+            accessibilityLabel: remainingMinutesLabel(remainingMin)
+        )
     }
 
     func groupHasDuplicateApps(_ group: ScreenTimeGroup) -> Bool {

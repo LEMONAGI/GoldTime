@@ -13,6 +13,40 @@ import DeviceActivity
 @MainActor
 struct GoldTimeTests {
 
+    @Test func dailyThresholdMinutesPlacesTenEvenEventsForTenMinuteMultiples() {
+        // 10분 단위 한도는 정확히 10개 이벤트가 limit/10분 간격으로 균등 배치된다.
+        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 10) == Array(1...10))
+        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 20) == [2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
+        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 60) == [6, 12, 18, 24, 30, 36, 42, 48, 54, 60])
+
+        for limit in stride(from: 10, through: 410, by: 10) {
+            let thresholds = ScreenTimeManager.dailyThresholdMinutes(limit: limit)
+            #expect(thresholds.count == 10)
+            #expect(thresholds.last == limit)
+        }
+    }
+
+    @Test func dailyThresholdMinutesHandlesEdgeLimits() {
+        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 0).isEmpty)
+        // 1분 연장(override) 등 maxEvents 이하 한도는 1분 단위 그대로.
+        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 1) == [1])
+        // 한도 변경 시 남은 예산(remaining)으로 재분배: 30분에 15분 쓰고 20분으로 바꾸면 remaining 5.
+        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 5) == [1, 2, 3, 4, 5])
+    }
+
+    @Test func dailyBaselinePersistsAndClearsWithUsedTime() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let groupID = UUID()
+        SharedStore.dailyBaselineByGroupID = [groupID: 15]
+        #expect(SharedStore.dailyBaselineByGroupID[groupID] == 15)
+
+        // 자정 리셋 등에서 호출되는 clearAllUsedTime이 baseline도 함께 초기화해야 한다.
+        SharedStore.clearAllUsedTime()
+        #expect(SharedStore.dailyBaselineByGroupID[groupID] == nil)
+    }
+
     @Test func estimatedRevenueUsesConfiguredAdPrice() {
         let stats = SharedStore.DailyStats(
             dateKey: "2026-05-09",
@@ -371,7 +405,8 @@ struct GoldTimeTests {
         #expect(!SharedStore.isShieldActive)
         #expect(SharedStore.oneMinuteUsedToday == 1)
         #expect(registrar.startCallCount == 1)
-        #expect(registrar.lastSchedule?.warningTime != nil)
+        // usage-based override는 사용량 tick 이벤트로 재잠금하므로 시간 기반 warningTime을 쓰지 않는다.
+        #expect(registrar.lastSchedule?.warningTime == nil)
     }
 
     @Test func adExtensionClearsSingleLockedGroup() {

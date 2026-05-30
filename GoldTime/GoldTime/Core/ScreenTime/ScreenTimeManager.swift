@@ -33,25 +33,40 @@ extension DeviceActivityName {
 }
 
 extension DeviceActivityEvent.Name {
-    nonisolated static func tick(for groupID: UUID) -> Self {
-        Self("tick.\(groupID.uuidString)")
+    /// daily 한도 추적 1회성 이벤트. `tick.<gid>.<minute>` 형식으로 등록 시점부터 누적
+    /// minute분 사용 시 한 번 발화한다 (relay 없음 → iOS 26 즉시발화 regression에 면역).
+    nonisolated static func tick(for groupID: UUID, minute: Int) -> Self {
+        Self("tick.\(groupID.uuidString).\(minute)")
     }
 
-    /// 광고/1분 연장의 사용량 기반 재잠금 이벤트. threshold(N분)에 도달하면 재잠금한다.
-    nonisolated static func usageRelock(for groupID: UUID) -> Self {
-        Self("usageRelock.\(groupID.uuidString)")
+    /// 광고/1분 연장 중 사용량 추적 1회성 이벤트. `usageTick.<gid>.<minute>` 형식으로
+    /// override 시작 시점부터 누적 minute분 사용 시 한 번 발화한다 (relay 없음).
+    nonisolated static func usageTick(for groupID: UUID, minute: Int) -> Self {
+        Self("usageTick.\(groupID.uuidString).\(minute)")
     }
 
-    var usageRelockGroupID: UUID? {
-        let prefix = "usageRelock."
+    /// `usageTick.<gid>.<minute>`에서 (groupID, minute) 추출.
+    var usageTickInfo: (groupID: UUID, minute: Int)? {
+        let prefix = "usageTick."
         guard rawValue.hasPrefix(prefix) else { return nil }
-        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+        let body = rawValue.dropFirst(prefix.count)
+        let parts = body.split(separator: ".")
+        guard parts.count == 2,
+              let groupID = UUID(uuidString: String(parts[0])),
+              let minute = Int(parts[1]) else { return nil }
+        return (groupID, minute)
     }
 
-    var tickGroupID: UUID? {
+    /// `tick.<gid>.<minute>`에서 (groupID, minute) 추출.
+    var tickInfo: (groupID: UUID, minute: Int)? {
         let prefix = "tick."
         guard rawValue.hasPrefix(prefix) else { return nil }
-        return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
+        let body = rawValue.dropFirst(prefix.count)
+        let parts = body.split(separator: ".")
+        guard parts.count == 2,
+              let groupID = UUID(uuidString: String(parts[0])),
+              let minute = Int(parts[1]) else { return nil }
+        return (groupID, minute)
     }
 }
 
@@ -136,6 +151,35 @@ enum ScreenTimeManager {
         )
     }
 
+    /// "지금"부터 오늘 23:59:59까지의 1회성 창. intervalStart가 now라 그 이전 사용량(앱을
+    /// 그룹에 추가하기 전 사용분)은 측정에서 제외된다.
+    nonisolated static func freshDailyWindow(now: Date = Date()) -> DeviceActivitySchedule {
+        let calendar = Calendar.current
+        return DeviceActivitySchedule(
+            intervalStart: calendar.dateComponents([.hour, .minute, .second], from: now),
+            intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
+            repeats: false
+        )
+    }
+
+    /// daily 한도(분)에 대한 1회성 threshold 목록. 한도가 maxEvents 이하면 1,2,…,limit
+    /// (1분 단위), 초과하면 maxEvents개로 균등 분배하되 마지막은 정확히 limit.
+    /// 이벤트를 한 번에 다 등록(no relay)하므로 iOS 26 즉시발화 regression에 면역.
+    /// 한도가 maxEvents의 배수면 정확히 maxEvents개가 limit/maxEvents분 간격으로 균등 배치된다.
+    nonisolated static func dailyThresholdMinutes(limit: Int, maxEvents: Int = 10) -> [Int] {
+        guard limit > 0 else { return [] }
+        if limit <= maxEvents {
+            return Array(1...limit)
+        }
+        var set = Set<Int>()
+        for i in 1...maxEvents {
+            let m = Int((Double(limit) * Double(i) / Double(maxEvents)).rounded())
+            if m >= 1 { set.insert(min(m, limit)) }
+        }
+        set.insert(limit)
+        return set.sorted()
+    }
+
     static func startDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
         let sanitizedGroups = sanitized(groups)
 
@@ -208,7 +252,8 @@ enum ScreenTimeManager {
             let currentGen = generationByID[group.id] ?? 0
             let usedMinutes = SharedStore.usedTimeByGroupID[group.id] ?? 0
             let wasLocked = SharedStore.shieldedGroupIDs.contains(group.id)
-            let needsMonitoringRestart = last == nil || last!.selection != group.selection || wasLocked
+            let limitChanged = last != nil && last!.dailyLimitMinutes != group.dailyLimitMinutes
+            let needsMonitoringRestart = last == nil || last!.selection != group.selection || wasLocked || limitChanged
 
             if usedMinutes >= group.dailyLimitMinutes {
                 center.stopMonitoring([.dailyGroup(for: group.id, generation: currentGen)])
@@ -229,8 +274,8 @@ enum ScreenTimeManager {
                     firstError = firstError ?? error
                 }
             } else {
-                // 이름·한도만 변경: DeviceActivity 재시작 없이 등록 정보만 갱신
-                // extension이 SharedStore.group(id:)를 동적으로 읽으므로 변경된 한도가 반영됨
+                // 이름만 변경(selection·한도 동일): DeviceActivity 재시작 없이 등록 정보만 갱신.
+                // (한도 변경은 limitChanged로 위 restart 분기에서 baseline 재등록됨)
                 SharedStore.unmarkGroupShielded(group.id)
                 newRegistered[group.id] = group
             }
@@ -279,21 +324,37 @@ enum ScreenTimeManager {
         }
     }
 
-    // 그룹당 독립 daily.<groupID>.<generation> 활동으로 1분 tick 이벤트 등록
+    // 그룹당 독립 daily.<groupID>.<generation> 활동.
+    // no-relay multi-event: 남은 예산을 maxEvents개로 나눈 threshold 이벤트를 한 번에 등록.
+    // 재등록을 안 하므로 iOS 26 "즉시발화" regression에 면역 (override와 동일 구조).
+    // freshDailyWindow(intervalStart=now)로 등록 시점부터 카운트하고, baseline(=등록 시점
+    // usedTime)을 깔아 이미 쓴 분을 보존한다. 한도 변경 시 재등록해도 baseline이 보존되므로
+    // 남은 예산만큼만 다시 측정한다. extension은 raiseUsedTime(to: baseline+틱분)으로 복원.
     private static func registerGroup(
         _ group: SharedStore.ScreenTimeGroup,
         generation: Int
     ) throws {
-        let event = DeviceActivityEvent(
-            applications: group.selection.applicationTokens,
-            categories: [],
-            webDomains: group.selection.webDomainTokens,
-            threshold: DateComponents(minute: 1)
-        )
+        let baseline = SharedStore.usedTimeByGroupID[group.id] ?? 0
+        let remaining = group.dailyLimitMinutes - baseline
+        guard remaining > 0 else { return }
+
+        SharedStore.dailyBaselineByGroupID[group.id] = baseline
+        let thresholds = dailyThresholdMinutes(limit: remaining)
+        guard !thresholds.isEmpty else { return }
+
+        var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
+        for minute in thresholds {
+            events[.tick(for: group.id, minute: minute)] = DeviceActivityEvent(
+                applications: group.selection.applicationTokens,
+                categories: [],
+                webDomains: group.selection.webDomainTokens,
+                threshold: DateComponents(minute: minute)
+            )
+        }
         try center.startMonitoring(
             .dailyGroup(for: group.id, generation: generation),
-            during: dailySchedule,
-            events: [.tick(for: group.id): event]
+            during: freshDailyWindow(),
+            events: events
         )
     }
 
@@ -429,19 +490,33 @@ enum ScreenTimeManager {
         let minutes = max(1, Int((seconds / 60.0).rounded(.up)))
         let end = now.addingTimeInterval(seconds)
 
-        let event = DeviceActivityEvent(
-            applications: group.selection.applicationTokens,
-            categories: [],
-            webDomains: group.selection.webDomainTokens,
-            threshold: DateComponents(minute: minutes)
+        // override 시작 시점부터 사용량을 측정하기 위해 "지금"부터 시작하는 새 스케줄을 쓴다.
+        // dailySchedule(자정 시작)을 쓰면 이미 누적된 사용량 때문에 threshold가 즉시 충족돼
+        // relay가 연쇄 발화(runaway)하므로, daily와 동일하게 최대 10개의 1회성 이벤트를 한 번에 등록한다.
+        // 각 이벤트는 딱 한 번만 발화하므로 재등록(relay)이 없어 폭주가 구조적으로 불가능하다.
+        // 분배 마지막 원소가 항상 minutes(=granted)라 마지막 이벤트에서 정확히 재잠금된다.
+        let calendar = Calendar.current
+        let schedule = DeviceActivitySchedule(
+            intervalStart: calendar.dateComponents([.hour, .minute, .second], from: now),
+            intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
+            repeats: false
         )
+        var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
+        for m in dailyThresholdMinutes(limit: minutes, maxEvents: 10) {
+            events[.usageTick(for: groupID, minute: m)] = DeviceActivityEvent(
+                applications: group.selection.applicationTokens,
+                categories: [],
+                webDomains: group.selection.webDomainTokens,
+                threshold: DateComponents(minute: m)
+            )
+        }
         let activity = DeviceActivityName.override(for: groupID)
         overrideMonitorRegistrar.stopMonitoring([activity])
         do {
             try overrideMonitorRegistrar.startMonitoring(
                 activity,
-                during: dailySchedule,
-                events: [.usageRelock(for: groupID): event]
+                during: schedule,
+                events: events
             )
             SharedStore.setOverride(until: end, for: groupID)
             SharedStore.markUsageBasedOverride(groupID)

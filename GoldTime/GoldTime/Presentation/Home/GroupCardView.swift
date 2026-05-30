@@ -41,20 +41,26 @@ struct GroupCardView: View {
                     ))
                     .font(.headline)
 
-                    HStack(spacing: 8) {
-                        GroupStatusBadge(
-                            title: viewModel.statusTitle(for: group),
-                            tint: viewModel.statusTint(for: group)
-                        )
-                        if viewModel.overrideGroupIDs.contains(group.id) {
-                            TimelineView(.periodic(from: .now, by: 60)) { _ in
-                                if let remainingLabel = viewModel.overrideRemainingLabel(for: group) {
-                                    GroupStatusBadge(title: remainingLabel, tint: .blue)
-                                }
-                            }
-                        }
-                        if let lockLabel = viewModel.remainingBeforeLockLabel(for: group) {
-                            GroupStatusBadge(title: lockLabel, tint: .green)
+                    GroupStatusBadge(
+                        title: viewModel.statusTitle(for: group),
+                        tint: viewModel.statusTint(for: group)
+                    )
+
+                    TimelineView(.periodic(from: .now, by: 60)) { _ in
+                        if let progress = viewModel.overrideProgress(for: group) {
+                            SegmentedProgressBar(
+                                remaining: progress.remaining,
+                                total: progress.total,
+                                tint: .blue,
+                                accessibilityText: progress.accessibilityLabel
+                            )
+                        } else if let progress = viewModel.lockProgress(for: group) {
+                            SegmentedProgressBar(
+                                remaining: progress.remaining,
+                                total: progress.total,
+                                tint: .green,
+                                accessibilityText: progress.accessibilityLabel
+                            )
                         }
                     }
                 }

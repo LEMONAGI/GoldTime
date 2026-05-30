@@ -49,6 +49,7 @@ struct ContentView: View {
                     usedTimeByGroupID: viewModel.usedTimeByGroupID,
                     overrideBaselineUsedTimeByGroupID: viewModel.overrideBaselineUsedTimeByGroupID,
                     overrideGrantedMinutesByGroupID: viewModel.overrideGrantedMinutesByGroupID,
+                    overrideTickLog: viewModel.overrideTickLog,
                     oneMinuteRemaining: viewModel.oneMinuteRemaining,
                     oneMinuteDailyLimit: viewModel.oneMinuteDailyLimit,
                     onAddGroup: viewModel.addGroup,

@@ -33,11 +33,13 @@ enum SharedStore {
         static let dailyStatsByDate = "dailyStatsByDate"
         static let weekStartDay = "weekStartDay"
         static let usedTimeByGroupID = "usedTimeByGroupID"
+        static let dailyBaselineByGroupID = "dailyBaselineByGroupID"
         static let lastRegisteredGroupsByID = "lastRegisteredGroupsByID"
         static let lastRegisteredGenerationByID = "lastRegisteredGenerationByID"
         static let usageBasedOverrideGroupIDs = "usageBasedOverrideGroupIDs"
         static let overrideBaselineUsedTimeByGroupID = "overrideBaselineUsedTimeByGroupID"
         static let overrideGrantedMinutesByGroupID = "overrideGrantedMinutesByGroupID"
+        static let overrideTickLog = "overrideTickLog"
     }
 
     // 1 = 일요일, 2 = 월요일 (Calendar.firstWeekday 기준), 기본값: 2 (월요일)
@@ -375,6 +377,7 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.oneMinuteCounterDate)
         defaults.removeObject(forKey: Key.dailyProtectionStateDate)
         defaults.removeObject(forKey: Key.usedTimeByGroupID)
+        defaults.removeObject(forKey: Key.dailyBaselineByGroupID)
         defaults.removeObject(forKey: Key.lastRegisteredGroupsByID)
         defaults.removeObject(forKey: Key.lastRegisteredGenerationByID)
         defaults.removeObject(forKey: Key.usageBasedOverrideGroupIDs)
@@ -550,6 +553,27 @@ enum SharedStore {
         }
     }
 
+    /// daily 모니터 등록 시점의 누적 사용 분(`usedTimeByGroupID` 스냅샷).
+    /// freshDailyWindow는 등록 시점부터 측정하므로, extension은 이 baseline에 상대 틱 분을
+    /// 더해 절대 사용량을 복원한다. 한도 변경 시 재등록해도 이미 쓴 분이 보존된다.
+    static var dailyBaselineByGroupID: [UUID: Int] {
+        get {
+            guard let data = defaults.data(forKey: Key.dailyBaselineByGroupID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+            return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, value) }
+            })
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) })
+            guard let data = try? JSONEncoder().encode(raw) else {
+                defaults.removeObject(forKey: Key.dailyBaselineByGroupID)
+                return
+            }
+            defaults.set(data, forKey: Key.dailyBaselineByGroupID)
+        }
+    }
+
     static func recordOverrideBaseline(groupID: UUID, baseline: Int, grantedMinutes: Int) {
         var baselines = overrideBaselineUsedTimeByGroupID
         baselines[groupID] = baseline
@@ -602,6 +626,23 @@ enum SharedStore {
         diagnostics.overrideUntil = overrideUntil
         diagnostics.registrationMessage = message
         overrideDiagnostics = diagnostics
+    }
+
+    // MARK: - [임시 진단] override tick 로그 (최근 30개)
+
+    static var overrideTickLog: [String] {
+        get {
+            (defaults.array(forKey: Key.overrideTickLog) as? [String]) ?? []
+        }
+        set {
+            defaults.set(Array(newValue.prefix(30)), forKey: Key.overrideTickLog)
+        }
+    }
+
+    static func appendOverrideTickLog(_ line: String) {
+        var log = overrideTickLog
+        log.insert(line, at: 0)
+        overrideTickLog = log
     }
 
     static func recordOverrideIntervalDidStart(
@@ -726,6 +767,16 @@ enum SharedStore {
         return next
     }
 
+    /// usedTime을 지정 값 이상으로만 올린다 (역행 방지). 현재 값을 반환.
+    @discardableResult
+    static func raiseUsedTime(to value: Int, for groupID: UUID) -> Int {
+        var map = usedTimeByGroupID
+        let next = max(map[groupID] ?? 0, value)
+        map[groupID] = next
+        usedTimeByGroupID = map
+        return next
+    }
+
     static var lastRegisteredGroupsByID: [UUID: ScreenTimeGroup]? {
         get {
             guard let data = defaults.data(forKey: Key.lastRegisteredGroupsByID) else { return nil }
@@ -749,8 +800,10 @@ enum SharedStore {
 
     static func clearAllUsedTime() {
         defaults.removeObject(forKey: Key.usedTimeByGroupID)
+        defaults.removeObject(forKey: Key.dailyBaselineByGroupID)
         lastRegisteredGroupsByID = nil
         lastRegisteredGenerationByID = [:]
+        defaults.removeObject(forKey: Key.overrideTickLog)
     }
 
     static var lastRegisteredGenerationByID: [UUID: Int] {
