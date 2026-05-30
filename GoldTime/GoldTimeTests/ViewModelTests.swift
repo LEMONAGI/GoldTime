@@ -599,6 +599,27 @@ struct ViewModelTests {
         #expect(progress(used: 39)?.remaining == 1)   // 1분 남음 → 1칸
     }
 
+    @Test func homeViewModelOneMinuteOverrideShowsSingleCell() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let progress = HomeViewModel(
+            groups: [group],
+            todayStats: DailyStats(dateKey: "2026-05-30"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil,
+            overrideGroupIDs: [group.id],
+            usedTimeByGroupID: [group.id: 30],
+            overrideBaselineUsedTimeByGroupID: [group.id: 30],
+            overrideGrantedMinutesByGroupID: [group.id: 1]
+        ).overrideProgress(for: group)
+
+        // 1분 연장(granted=1)은 1칸 바.
+        #expect(progress?.total == 1)
+        #expect(progress?.remaining == 1)
+    }
+
     @Test func homeViewModelBillCommentTier1Under15Min() {
         let viewModel = HomeViewModel(
             groups: [],

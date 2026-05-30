@@ -181,7 +181,9 @@ struct HomeViewModel {
             return "잠금 중"
         }
         if overrideGroupIDs.contains(group.id) {
-            return "연장 중"
+            // 부여된 분(진행바가 나타내는 총 시간)을 함께 표기. 실시간 갱신 아님.
+            let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
+            return "\(granted)분 연장중"
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return "설정 필요"
@@ -190,18 +192,16 @@ struct HomeViewModel {
     }
 
     func statusTint(for group: ScreenTimeGroup) -> Color {
-        switch statusTitle(for: group) {
-        case "잠금 중":
+        if lockedGroupIDs.contains(group.id) {
             return .red
-        case "연장 중":
-            return .blue
-        case "적용 중", "대기 중":
-            return .green
-        case "설정 필요":
-            return .orange
-        default:
-            return .secondary
         }
+        if overrideGroupIDs.contains(group.id) {
+            return .blue
+        }
+        if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
+            return .orange
+        }
+        return .green   // 적용 중 / 대기 중
     }
 
     /// 남은 시간을 10칸 블록 바로 표현하기 위한 진행도. 칸 수는 항상 10 고정.
@@ -244,9 +244,11 @@ struct HomeViewModel {
         let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
         let consumed = max(0, (usedTimeByGroupID[group.id] ?? 0) - baseline)
         let remainingMin = max(1, granted - consumed)
+        // 칸 수는 분 단위로 끊으므로 granted 기준(최대 10). 1분 연장은 1칸, 광고 15분은 10칸.
+        let cellCount = min(granted, 10)
         return SegmentProgress(
-            total: 10,
-            remaining: segments(remainingMinutes: remainingMin, totalMinutes: granted),
+            total: cellCount,
+            remaining: segments(remainingMinutes: remainingMin, totalMinutes: granted, total: cellCount),
             accessibilityLabel: remainingMinutesLabel(remainingMin)
         )
     }
