@@ -22,6 +22,15 @@ struct GoldTimeAlertMessage: Identifiable, Equatable {
     }
 }
 
+/// 이미 사용한 시간보다 작은 한도로 바꿔 즉시 잠기게 될 때 띄우는 확인 경고.
+struct LimitLockWarning: Identifiable {
+    let id = UUID()
+    let groupID: UUID
+    let groupName: String
+    let minutes: Int
+    let usedMinutes: Int
+}
+
 @MainActor
 @Observable
 final class ContentViewModel {
@@ -45,6 +54,8 @@ final class ContentViewModel {
     var errorMessage: String?
     var successMessage: String?
     var alertMessage: GoldTimeAlertMessage?
+    var pendingLimitLockWarning: LimitLockWarning?
+    private var stagedLimitLockWarning: LimitLockWarning?
     var isReconnecting = false
     var isScreenTimeRecoveryPresented = false
     var isRequestingScreenTimeAuthorization = false
@@ -272,8 +283,44 @@ final class ContentViewModel {
 
     func commitLimitPickerSelection() {
         guard let id = limitPickerGroupID else { return }
-        updateGroupLimit(id, minutes: limitPickerHours * 60 + limitPickerMinutes)
+        let minutes = limitPickerHours * 60 + limitPickerMinutes
+        let used = usedTimeByGroupID[id] ?? 0
+
+        // 이미 사용한 시간보다 작은 한도면 즉시 잠긴다(syncDailyMonitoring의 used >= limit 분기).
+        // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
+        if used > 0 && minutes <= used {
+            let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
+            stagedLimitLockWarning = LimitLockWarning(
+                groupID: id,
+                groupName: name,
+                minutes: minutes,
+                usedMinutes: used
+            )
+            limitPickerGroupID = nil
+            return
+        }
+
+        updateGroupLimit(id, minutes: minutes)
         limitPickerGroupID = nil
+    }
+
+    /// 한도 피커 시트가 닫힌 뒤 호출. 즉시 잠금 경고가 대기 중이면 alert로 띄운다
+    /// (시트 dismiss와 alert를 동시에 표시하면 alert가 누락될 수 있어 순서를 분리).
+    func handleLimitPickerDismiss() {
+        guard let staged = stagedLimitLockWarning else { return }
+        stagedLimitLockWarning = nil
+        pendingLimitLockWarning = staged
+    }
+
+    // warning을 인자로 받는다: .alert(item:)이 버튼 액션 전에 바인딩을 nil로 만들어
+    // 상태에서 다시 읽으면 nil이 되기 때문(early-return 버그 방지).
+    func confirmLimitLockChange(_ warning: LimitLockWarning) {
+        pendingLimitLockWarning = nil
+        updateGroupLimit(warning.groupID, minutes: warning.minutes)
+    }
+
+    func cancelLimitLockChange() {
+        pendingLimitLockWarning = nil
     }
 
     func requestPickerPresentation(for group: ScreenTimeGroup) {

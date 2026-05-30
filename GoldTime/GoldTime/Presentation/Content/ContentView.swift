@@ -116,7 +116,9 @@ struct ContentView: View {
         .sheet(isPresented: Binding(
             get: { viewModel.isLimitPickerPresented },
             set: { viewModel.setLimitPickerPresented($0) }
-        )) {
+        ), onDismiss: {
+            viewModel.handleLimitPickerDismiss()
+        }) {
             LimitPickerSheet(
                 hours: $viewModel.limitPickerHours,
                 minutes: $viewModel.limitPickerMinutes,
@@ -127,6 +129,18 @@ struct ContentView: View {
             )
             .presentationDetents([.height(300)])
             .presentationDragIndicator(.visible)
+        }
+        .alert(item: $viewModel.pendingLimitLockWarning) { warning in
+            Alert(
+                title: Text("한도 변경 확인"),
+                message: Text("이미 \(warning.usedMinutes)분 사용해서, \(warning.minutes)분으로 바꾸면 한도를 ‘\(warning.groupName)’ 그룹이 바로 잠겨요. 변경할까요?"),
+                primaryButton: .destructive(Text("변경")) {
+                    viewModel.confirmLimitLockChange(warning)
+                },
+                secondaryButton: .cancel(Text("취소")) {
+                    viewModel.cancelLimitLockChange()
+                }
+            )
         }
         .onChange(of: viewModel.isPickerPresented) { _, newValue in
             viewModel.handlePickerPresentationChange(isPresented: newValue)

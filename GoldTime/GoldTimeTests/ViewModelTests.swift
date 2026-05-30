@@ -460,6 +460,106 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
+    @Test func limitPickerWarnsAndDefersWhenNewLimitBelowUsedTime() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 20]
+
+        // 20분 사용 중인 그룹에 10분 한도 → 즉시 잠김. 적용하지 말고 경고를 대기시킨다.
+        viewModel.presentLimitPicker(for: group)
+        viewModel.limitPickerHours = 0
+        viewModel.limitPickerMinutes = 10
+        viewModel.commitLimitPickerSelection()
+        viewModel.handleLimitPickerDismiss()
+
+        #expect(viewModel.pendingLimitLockWarning != nil)
+        #expect(viewModel.pendingLimitLockWarning?.minutes == 10)
+        #expect(viewModel.pendingLimitLockWarning?.usedMinutes == 20)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 30)   // 아직 미적용
+        #expect(screenTimeRepo.syncCallCount == 0)
+
+        // 변경 확정 → 적용. (.alert(item:)이 버튼 액션 전 바인딩을 nil로 만드는 상황 재현)
+        let warning = viewModel.pendingLimitLockWarning!
+        viewModel.pendingLimitLockWarning = nil
+        viewModel.confirmLimitLockChange(warning)
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 10)
+        #expect(groupRepo.screenTimeGroups.first?.dailyLimitMinutes == 10)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func limitPickerCancelKeepsOriginalLimit() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 20]
+
+        viewModel.presentLimitPicker(for: group)
+        viewModel.limitPickerHours = 0
+        viewModel.limitPickerMinutes = 10
+        viewModel.commitLimitPickerSelection()
+        viewModel.handleLimitPickerDismiss()
+        viewModel.cancelLimitLockChange()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 30)   // 그대로
+        #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
+    @Test func limitPickerAppliesWithoutWarningWhenAboveUsedTime() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 5]
+
+        // 5분 사용 < 20분 한도 → 경고 없이 즉시 적용.
+        viewModel.presentLimitPicker(for: group)
+        viewModel.limitPickerHours = 0
+        viewModel.limitPickerMinutes = 20
+        viewModel.commitLimitPickerSelection()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 20)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
     // MARK: - HomeViewModel
 
     @Test func appPickerWarningsAllowCategories() {
