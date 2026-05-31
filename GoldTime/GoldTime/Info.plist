@@ -9,7 +9,7 @@
 	<key>GADDelayAppMeasurementInit</key>
 	<true/>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>앱을 무료로 유지하기 위해 맞춤형 광고에 사용됩니다.</string>
+	<string>관련성 높은 광고를 보여주는 데 활용됩니다.</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-7955752005034474~1325273697</string>
 	<key>SKAdNetworkItems</key>
