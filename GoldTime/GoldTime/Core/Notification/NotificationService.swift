@@ -22,10 +22,16 @@ enum NotificationService {
     static func requestAuthorizationIfNeeded() async -> UNAuthorizationStatus {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .notDetermined else {
-            return settings.authorizationStatus
+        switch settings.authorizationStatus {
+        case .notDetermined:
+            _ = try? await center.requestAuthorization(options: [.alert, .sound, .timeSensitive])
+        case .authorized, .provisional:
+            if settings.timeSensitiveSetting == .disabled {
+                _ = try? await center.requestAuthorization(options: [.timeSensitive])
+            }
+        default:
+            break
         }
-        _ = try? await center.requestAuthorization(options: [.alert, .sound])
         return await authorizationStatus()
     }
 
@@ -35,6 +41,7 @@ enum NotificationService {
         content.title = "한도에 도달했어요"
         content.body = "GoldTime을 열어 1분 연장 또는 광고 시청을 선택하세요."
         content.sound = .default
+        content.interruptionLevel = .timeSensitive
         content.categoryIdentifier = openAppCategory
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)

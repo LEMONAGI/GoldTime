@@ -195,11 +195,11 @@ class ShieldActionExtension: ShieldActionDelegate {
         content.title = "한도 끝났어요"
         content.body = "더 쓰려면 GoldTime에서 선택하세요. 지금 나가면 광고 없이 끝납니다."
         content.sound = .default
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
+        content.interruptionLevel = .timeSensitive
         let request = UNNotificationRequest(
             identifier: "goldtime.open-app",
             content: content,
-            trigger: trigger
+            trigger: nil
         )
         UNUserNotificationCenter.current().add(request) { _ in
             completion()
