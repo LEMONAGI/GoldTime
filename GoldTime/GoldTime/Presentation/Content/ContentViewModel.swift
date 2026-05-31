@@ -56,6 +56,7 @@ final class ContentViewModel {
     var alertMessage: GoldTimeAlertMessage?
     var pendingLimitLockWarning: LimitLockWarning?
     private var stagedLimitLockWarning: LimitLockWarning?
+    private var pendingDeletedGroupName: String?
     var isReconnecting = false
     var isScreenTimeRecoveryPresented = false
     var isRequestingScreenTimeAuthorization = false
@@ -344,13 +345,35 @@ final class ContentViewModel {
     }
 
     func requestDeleteGroup(_ id: UUID) {
+        let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
         guard lockedGroupIDs.contains(id) else {
             deleteGroup(id)
+            presentDeletionCompletedAlert(groupName: name)
             return
         }
-        adGatePendingAction = { [weak self] in self?.deleteGroup(id) }
+        adGatePendingAction = { [weak self] in
+            self?.deleteGroup(id)
+            self?.pendingDeletedGroupName = name
+        }
         adGateFallbackLabel = "그래도 삭제하기"
         isAdGatePresented = true
+    }
+
+    /// 광고 게이트 시트가 닫힌 뒤 호출. 삭제 대기 중인 그룹 이름이 있으면 완료 alert를 띄운다
+    /// (시트 dismiss와 alert를 동시에 표시하면 alert가 누락될 수 있어 순서를 분리).
+    func handleAdGateDismiss() {
+        guard let name = pendingDeletedGroupName else { return }
+        pendingDeletedGroupName = nil
+        presentDeletionCompletedAlert(groupName: name)
+    }
+
+    private func presentDeletionCompletedAlert(groupName: String) {
+        let message = GoldTimeAlertMessage(title: "삭제 완료", message: "‘\(groupName)’ 그룹을 삭제했어요.")
+        // confirmationDialog/광고 시트가 닫히는 것과 같은 업데이트 사이클에서 alert를 띄우면
+        // SwiftUI가 표시를 건너뛴다. 다음 런루프로 미뤄 안정적으로 표시한다.
+        Task { @MainActor in
+            self.alertMessage = message
+        }
     }
 
     func adGateCompleted() {

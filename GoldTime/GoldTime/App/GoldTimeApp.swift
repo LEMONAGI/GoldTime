@@ -43,7 +43,9 @@ struct GoldTimeApp: App {
             .sheet(isPresented: $contentViewModel.isUnlockSheetPresented) {
                 LockOptionsView(initialGroupID: contentViewModel.unlockSheetGroupID)
             }
-            .sheet(isPresented: $contentViewModel.isAdGatePresented) {
+            .sheet(isPresented: $contentViewModel.isAdGatePresented, onDismiss: {
+                contentViewModel.handleAdGateDismiss()
+            }) {
                 RewardedAdView(
                     fallbackLabel: contentViewModel.adGateFallbackLabel,
                     onComplete: contentViewModel.adGateCompleted,

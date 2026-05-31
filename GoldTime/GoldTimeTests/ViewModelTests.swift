@@ -318,6 +318,88 @@ struct ViewModelTests {
         #expect(viewModel.adGateFallbackLabel == "그래도 삭제하기")
     }
 
+    @Test func regularGroupDeleteShowsCompletionAlertWithName() async {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.requestDeleteGroup(group.id)
+        // 알럿은 다음 런루프에 설정되므로 대기한다.
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(!viewModel.isAdGatePresented)
+        #expect(viewModel.alertMessage?.title == "삭제 완료")
+        #expect(viewModel.alertMessage?.message.contains("게임") == true)
+    }
+
+    @Test func lockedGroupDeleteShowsCompletionAlertAfterAdGateDismiss() async {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.lockedGroupIDs = [group.id]
+
+        viewModel.requestDeleteGroup(group.id)
+        // 광고 게이트만 열리고 아직 완료 알럿은 없다(시트와 alert 동시 표시 방지).
+        #expect(viewModel.isAdGatePresented)
+        #expect(viewModel.alertMessage == nil)
+
+        viewModel.adGateCompleted()
+        // 시트가 완전히 닫힌 뒤에야 완료 알럿을 띄운다.
+        viewModel.handleAdGateDismiss()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(viewModel.alertMessage?.title == "삭제 완료")
+        #expect(viewModel.alertMessage?.message.contains("게임") == true)
+    }
+
+    @Test func adGateCancelDoesNotShowDeletionAlert() async {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.lockedGroupIDs = [group.id]
+
+        viewModel.requestDeleteGroup(group.id)
+        viewModel.adGateCancelled()
+        viewModel.handleAdGateDismiss()
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(viewModel.alertMessage == nil)
+        #expect(viewModel.groups.contains(where: { $0.id == group.id }))
+    }
+
     @Test func adGateCompletedRunsPendingActionOnce() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
         let groupRepo = FakeGroupRepository()

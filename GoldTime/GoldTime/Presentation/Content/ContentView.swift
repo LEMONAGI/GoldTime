@@ -12,6 +12,35 @@ struct ContentView: View {
     @Bindable var settingsViewModel: SettingsViewModel
     @Binding var showLockOptions: Bool
 
+    // 한 뷰에 .alert(item:)를 여러 개 붙이면 SwiftUI가 하나만 살리고 나머지를 무시한다.
+    // alertMessage(단순 통지)와 pendingLimitLockWarning(2버튼 확인)을 하나의 alert로 합친다.
+    private enum ActiveAlert: Identifiable {
+        case notice(GoldTimeAlertMessage)
+        case limitWarning(LimitLockWarning)
+        var id: String {
+            switch self {
+            case .notice(let m): return "notice-\(m.id)"
+            case .limitWarning(let w): return "warn-\(w.id)"
+            }
+        }
+    }
+
+    private var activeAlert: Binding<ActiveAlert?> {
+        Binding(
+            get: {
+                if let m = viewModel.alertMessage { return .notice(m) }
+                if let w = viewModel.pendingLimitLockWarning { return .limitWarning(w) }
+                return nil
+            },
+            set: { newValue in
+                if newValue == nil {
+                    viewModel.alertMessage = nil
+                    viewModel.pendingLimitLockWarning = nil
+                }
+            }
+        )
+    }
+
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @AppStorage("weekStartDay", store: UserDefaults(suiteName: SharedStore.suiteName))
     private var weekStartDay: Int = 2
@@ -106,13 +135,6 @@ struct ContentView: View {
             }
             .interactiveDismissDisabled()
         }
-        .alert(item: $viewModel.alertMessage) { alert in
-            Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                dismissButton: .default(Text("확인"))
-            )
-        }
         .sheet(isPresented: Binding(
             get: { viewModel.isLimitPickerPresented },
             set: { viewModel.setLimitPickerPresented($0) }
@@ -130,17 +152,26 @@ struct ContentView: View {
             .presentationDetents([.height(300)])
             .presentationDragIndicator(.visible)
         }
-        .alert(item: $viewModel.pendingLimitLockWarning) { warning in
-            Alert(
-                title: Text("한도 변경 확인"),
-                message: Text("이미 \(warning.usedMinutes)분 사용해서, \(warning.minutes)분으로 바꾸면 한도를 ‘\(warning.groupName)’ 그룹이 바로 잠겨요. 변경할까요?"),
-                primaryButton: .destructive(Text("변경")) {
-                    viewModel.confirmLimitLockChange(warning)
-                },
-                secondaryButton: .cancel(Text("취소")) {
-                    viewModel.cancelLimitLockChange()
-                }
-            )
+        .alert(item: activeAlert) { active in
+            switch active {
+            case .notice(let message):
+                Alert(
+                    title: Text(message.title),
+                    message: Text(message.message),
+                    dismissButton: .default(Text("확인"))
+                )
+            case .limitWarning(let warning):
+                Alert(
+                    title: Text("한도 변경 확인"),
+                    message: Text("이미 \(warning.usedMinutes)분 사용해서, \(warning.minutes)분으로 바꾸면 한도를 ‘\(warning.groupName)’ 그룹이 바로 잠겨요. 변경할까요?"),
+                    primaryButton: .destructive(Text("변경")) {
+                        viewModel.confirmLimitLockChange(warning)
+                    },
+                    secondaryButton: .cancel(Text("취소")) {
+                        viewModel.cancelLimitLockChange()
+                    }
+                )
+            }
         }
         .onChange(of: viewModel.isPickerPresented) { _, newValue in
             viewModel.handlePickerPresentationChange(isPresented: newValue)
