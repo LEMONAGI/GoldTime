@@ -103,6 +103,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Core/Persistence/SharedStore.swift,
+				Core/Notification/NotificationService.swift,
 			);
 			target = DF869C5F2FA508430038364B /* DeviceActivityMonitorExtension */;
 		};

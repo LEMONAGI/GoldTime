@@ -53,7 +53,21 @@ enum NotificationService {
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 
-    /// 자정 배경 작업에서 호출. 어제 추가 사용 분량에 따라 다음 날 오전 9시 알림 예약.
+    /// 자정 `DeviceActivityMonitor.intervalDidStart`(주 경로)와 BGTask 폴백에서 호출.
+    /// 오늘 아직 예약하지 않았을 때만, 확정된 어제 사용량으로 동적 문구를 만들어
+    /// 그날 오전 9시 알림을 예약한다. 자정에 끝난 어제 데이터가 이미 확정돼 있으므로
+    /// 발송 직전 생성 없이도 사용량 기반 문구가 정확하다.
+    static func scheduleDailyMorningNotificationIfNeeded(now: Date = Date()) {
+        guard SharedStore.claimMorningNotificationSlot(now: now) else { return }
+
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: now) ?? now
+        let extraMinutes = SharedStore.stats(for: yesterday).totalUnlockedSeconds / 60
+        let isWeekStart = calendar.component(.weekday, from: now) == SharedStore.weekStartDay
+        scheduleDailyMorningNotification(extraMinutes: extraMinutes, isWeekStart: isWeekStart)
+    }
+
+    /// 어제 추가 사용 분량에 따라 다음에 도래하는 오전 9시 알림을 예약한다.
     /// isWeekStart가 true이면 주간 통계 알림 내용으로 대체한다.
     static func scheduleDailyMorningNotification(extraMinutes: Int, isWeekStart: Bool = false) {
         let center = UNUserNotificationCenter.current()

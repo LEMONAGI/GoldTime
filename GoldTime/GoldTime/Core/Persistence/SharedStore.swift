@@ -40,6 +40,25 @@ enum SharedStore {
         static let overrideBaselineUsedTimeByGroupID = "overrideBaselineUsedTimeByGroupID"
         static let overrideGrantedMinutesByGroupID = "overrideGrantedMinutesByGroupID"
         static let overrideTickLog = "overrideTickLog"
+        static let lastMorningNotificationDate = "lastMorningNotificationDate"
+    }
+
+    /// 아침 사용량 알림을 오늘 아직 예약하지 않았다면 true를 반환하고 오늘 날짜를 기록한다.
+    /// 자정 `intervalDidStart`가 그룹 수만큼 중복 호출되고 BGTask 폴백까지 겹쳐도
+    /// 하루 한 번만 실제 예약이 일어나도록 막는 compare-and-set 가드.
+    @discardableResult
+    static func claimMorningNotificationSlot(now: Date = Date()) -> Bool {
+        let todayKey = dateKey(for: now)
+        if defaults.string(forKey: Key.lastMorningNotificationDate) == todayKey {
+            return false
+        }
+        defaults.set(todayKey, forKey: Key.lastMorningNotificationDate)
+        return true
+    }
+
+    /// 테스트/디버그용: 아침 알림 예약 가드를 초기화한다.
+    static func resetMorningNotificationSlot() {
+        defaults.removeObject(forKey: Key.lastMorningNotificationDate)
     }
 
     // 1 = 일요일, 2 = 월요일 (Calendar.firstWeekday 기준), 기본값: 2 (월요일)

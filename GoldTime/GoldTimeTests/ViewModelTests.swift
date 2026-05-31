@@ -1333,7 +1333,7 @@ struct ViewModelTests {
         #expect(viewModel.errorMessage != nil)
     }
 
-    @Test func onboardingViewModelNotificationApprovalMovesToCompletionStep() async {
+    @Test func onboardingViewModelNotificationApprovalMovesToTrackingStep() async {
         let notifRepo = FakeNotificationRepository()
         notifRepo.requestAuthorizationResult = .authorized
         let viewModel = OnboardingViewModel(
@@ -1348,7 +1348,7 @@ struct ViewModelTests {
         await viewModel.requestNotification()
 
         #expect(notifRepo.requestCallCount == 1)
-        #expect(viewModel.currentStep == .completion)
+        #expect(viewModel.currentStep == .trackingPermission)
         #expect(viewModel.errorMessage == nil)
     }
 

@@ -17,12 +17,9 @@ enum MonitoringBackgroundTask {
             task.setTaskCompleted(success: false)
         }
 
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        let extraMinutes = SharedStore.stats(for: yesterday).totalUnlockedSeconds / 60
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-        let tomorrowWeekday = Calendar.current.component(.weekday, from: tomorrow)
-        let isWeekStart = tomorrowWeekday == SharedStore.weekStartDay
-        NotificationService.scheduleDailyMorningNotification(extraMinutes: extraMinutes, isWeekStart: isWeekStart)
+        // 폴백 경로. 주 경로는 자정 `DeviceActivityMonitor.intervalDidStart`이며,
+        // 같은 가드를 공유하므로 그날 이미 예약됐으면 여기선 건너뛴다.
+        NotificationService.scheduleDailyMorningNotificationIfNeeded()
 
         if SharedStore.isDailyMonitoringEnabled {
             try? ScreenTimeManager.syncDailyMonitoring(groups: SharedStore.screenTimeGroups)

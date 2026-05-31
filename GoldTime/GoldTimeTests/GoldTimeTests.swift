@@ -62,6 +62,27 @@ struct GoldTimeTests {
         #expect(stats.walkAwayCount == 4)
     }
 
+    @Test func morningNotificationSlotAllowsOncePerDay() {
+        SharedStore.resetMorningNotificationSlot()
+        defer { SharedStore.resetMorningNotificationSlot() }
+
+        let day1 = Date()
+        let day2 = Calendar.current.date(byAdding: .day, value: 1, to: day1)!
+
+        // 같은 날: 자정 그룹별 중복 호출 + BGTask 폴백이 겹쳐도 첫 호출만 통과한다.
+        #expect(SharedStore.claimMorningNotificationSlot(now: day1) == true)
+        #expect(SharedStore.claimMorningNotificationSlot(now: day1) == false)
+        #expect(SharedStore.claimMorningNotificationSlot(now: day1) == false)
+
+        // 날짜가 바뀌면 다음 날 알림을 위해 다시 통과한다.
+        #expect(SharedStore.claimMorningNotificationSlot(now: day2) == true)
+        #expect(SharedStore.claimMorningNotificationSlot(now: day2) == false)
+
+        // 리셋하면 같은 날도 다시 통과한다.
+        SharedStore.resetMorningNotificationSlot()
+        #expect(SharedStore.claimMorningNotificationSlot(now: day2) == true)
+    }
+
     @Test func recordsTodayDashboardStats() {
         SharedStore.clearDailyStatsForTesting()
         defer { SharedStore.clearDailyStatsForTesting() }

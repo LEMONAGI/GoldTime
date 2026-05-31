@@ -81,6 +81,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             if SharedStore.resetDailyProtectionStateIfNeeded() {
                 clearSystemShield()
             }
+            // 자정에 정확히 도는 콜백. 어제 데이터가 확정된 시점에 오늘 9시 알림을 예약한다.
+            // 그룹 수만큼 호출돼도 SharedStore 가드가 하루 1회만 통과시킨다.
+            NotificationService.scheduleDailyMorningNotificationIfNeeded()
         } else if activity.overrideGroupID != nil {
             SharedStore.recordOverrideIntervalDidStart(activityName: activity.rawValue)
         }
