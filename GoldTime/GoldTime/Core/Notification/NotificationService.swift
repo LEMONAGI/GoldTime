@@ -77,8 +77,8 @@ enum NotificationService {
         content.sound = .default
 
         if isWeekStart {
-            content.title = "주간 통계가 도착했어요!"
-            content.body = "이번 주 기록을 확인해보세요."
+            content.title = "새로운 한 주가 시작됐네요."
+            content.body = "지난 주 기록을 통계에서 확인해보세요."
         } else {
             switch extraMinutes {
             case 0:
