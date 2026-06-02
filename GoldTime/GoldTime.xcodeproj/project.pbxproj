@@ -102,8 +102,8 @@
 		DF869C722FA508D00038364B /* Exceptions for "GoldTime" folder in "DeviceActivityMonitorExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Core/Persistence/SharedStore.swift,
 				Core/Notification/NotificationService.swift,
+				Core/Persistence/SharedStore.swift,
 			);
 			target = DF869C5F2FA508430038364B /* DeviceActivityMonitorExtension */;
 		};

@@ -39,7 +39,6 @@ enum SharedStore {
         static let usageBasedOverrideGroupIDs = "usageBasedOverrideGroupIDs"
         static let overrideBaselineUsedTimeByGroupID = "overrideBaselineUsedTimeByGroupID"
         static let overrideGrantedMinutesByGroupID = "overrideGrantedMinutesByGroupID"
-        static let overrideTickLog = "overrideTickLog"
         static let lastMorningNotificationDate = "lastMorningNotificationDate"
     }
 
@@ -647,23 +646,6 @@ enum SharedStore {
         overrideDiagnostics = diagnostics
     }
 
-    // MARK: - [임시 진단] override tick 로그 (최근 30개)
-
-    static var overrideTickLog: [String] {
-        get {
-            (defaults.array(forKey: Key.overrideTickLog) as? [String]) ?? []
-        }
-        set {
-            defaults.set(Array(newValue.prefix(30)), forKey: Key.overrideTickLog)
-        }
-    }
-
-    static func appendOverrideTickLog(_ line: String) {
-        var log = overrideTickLog
-        log.insert(line, at: 0)
-        overrideTickLog = log
-    }
-
     static func recordOverrideIntervalDidStart(
         activityName: String,
         startedAt: Date = Date()
@@ -822,7 +804,6 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.dailyBaselineByGroupID)
         lastRegisteredGroupsByID = nil
         lastRegisteredGenerationByID = [:]
-        defaults.removeObject(forKey: Key.overrideTickLog)
     }
 
     static var lastRegisteredGenerationByID: [UUID: Int] {

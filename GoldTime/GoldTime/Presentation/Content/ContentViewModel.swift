@@ -81,7 +81,6 @@ final class ContentViewModel {
     var usedTimeByGroupID: [UUID: Int] = [:]
     var overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:]
     var overrideGrantedMinutesByGroupID: [UUID: Int] = [:]
-    var overrideTickLog: [String] = []
     var unlockSheetGroupID: UUID? = nil
     var isUnlockSheetPresented = false
 
@@ -461,7 +460,6 @@ final class ContentViewModel {
         usedTimeByGroupID = state.usedTimeByGroupID
         overrideBaselineUsedTimeByGroupID = state.overrideBaselineUsedTimeByGroupID
         overrideGrantedMinutesByGroupID = state.overrideGrantedMinutesByGroupID
-        overrideTickLog = state.overrideTickLog
     }
 
     private func applyScreenTimeAuthorization(_ authorized: Bool) {

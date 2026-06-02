@@ -56,13 +56,6 @@ extension ManagedSettingsStore.Name {
     static let goldtime = Self("goldtime")
 }
 
-// [임시 진단] HH:mm:ss 포맷터
-private let debugTimeFormatter: DateFormatter = {
-    let f = DateFormatter()
-    f.dateFormat = "HH:mm:ss"
-    return f
-}()
-
 class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     private var store: ManagedSettingsStore { ManagedSettingsStore(named: .goldtime) }
 
@@ -148,10 +141,6 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         let isOverrideActive = SharedStore.usageBasedOverrideGroupIDs.contains(groupID)
         let willLock = usedTime >= group.dailyLimitMinutes && !isOverrideActive
 
-        SharedStore.appendOverrideTickLog(
-            "\(debugTimeFormatter.string(from: Date())) DLY g=\(groupID.uuidString.prefix(8)) b=\(baseline) m=\(info.minute) u=\(usedTime) limit=\(group.dailyLimitMinutes) ovr=\(isOverrideActive) -> \(willLock ? "LOCK" : "tick")"
-        )
-
         if willLock {
             SharedStore.recordShieldHit()
             SharedStore.markGroupShielded(groupID)
@@ -166,11 +155,6 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // 이 이벤트는 override 시작부터 누적 `minute`분 사용 시 1회 발화한다.
         // usedTime을 baseline+minute 이상으로만 올려 UI 잔여 시간을 갱신한다 (재등록 없음).
         let usedTime = SharedStore.raiseUsedTime(to: baseline + minute, for: groupID)
-        let consumed = usedTime - baseline
-
-        SharedStore.appendOverrideTickLog(
-            "\(debugTimeFormatter.string(from: Date())) OVR g=\(groupID.uuidString.prefix(8)) b=\(baseline) grant=\(granted) m=\(minute) u=\(usedTime) c=\(consumed) -> \(minute >= granted ? "RELOCK" : "tick")"
-        )
 
         guard minute >= granted else { return }
 

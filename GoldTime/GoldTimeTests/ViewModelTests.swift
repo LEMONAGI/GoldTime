@@ -1533,7 +1533,6 @@ private final class FakeShieldRepository: ShieldRepository {
     var usedTimeByGroupID: [UUID: Int] = [:]
     var overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:]
     var overrideGrantedMinutesByGroupID: [UUID: Int] = [:]
-    var overrideTickLog: [String] = []
     var oneMinuteRemainingValue = 5
     var oneMinuteRemaining: Int { oneMinuteRemainingValue }
     var lastRequestedUnlockApplicationToken: ApplicationToken?

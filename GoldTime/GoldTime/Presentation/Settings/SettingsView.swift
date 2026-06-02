@@ -40,7 +40,7 @@ struct SettingsView: View {
 
     private var generalCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "일반", systemName: "gearshape")
+            SectionHeader(title: "일반")
             VStack(spacing: 0) {
                 if viewModel.isScreenTimeAuthorized {
                     settingsRow(
@@ -110,7 +110,7 @@ struct SettingsView: View {
 
     private var troubleshootingCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "문제 해결", systemName: "wrench.and.screwdriver")
+            SectionHeader(title: "문제 해결")
             Button {
                 onRequestReconnect()
             } label: {
@@ -243,7 +243,7 @@ struct SettingsView: View {
 
     private var feedbackCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "피드백", systemName: "bubble.left.and.bubble.right")
+            SectionHeader(title: "피드백")
             VStack(spacing: 0) {
                 Button {
                     var components = URLComponents()

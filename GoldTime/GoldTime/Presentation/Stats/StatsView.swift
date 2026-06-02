@@ -136,7 +136,7 @@ private struct WeeklyGraphSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "주간 기록", systemName: "chart.bar.xaxis")
+            SectionHeader(title: "주간 기록")
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -304,7 +304,7 @@ private struct MonthlyGraphSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "월간 기록", systemName: "chart.bar.xaxis")
+            SectionHeader(title: "월간 기록")
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
