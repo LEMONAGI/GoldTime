@@ -113,7 +113,7 @@ struct LockOptionsView: View {
 
                 extensionOptionButton(
                     systemName: "play.rectangle",
-                    title: "광고 보고 15분 더 쓰기",
+                    title: "광고 보고 10분 구매하기",
                     subtitle: adSubtitle,
                     enabled: viewModel.canExtendWithAd,
                     action: viewModel.startAdFlow
@@ -170,7 +170,7 @@ struct LockOptionsView: View {
         if let name = viewModel.selectedGroupName {
             var str = AttributedString("광고 1회")
             str.swiftUI.foregroundColor = .red
-            str += AttributedString(" · \(name) 15분 연장")
+            str += AttributedString(" · \(name) 10분 연장")
             return Text(str)
         } else {
             return Text("풀 그룹을 먼저 고르세요").foregroundColor(.orange)

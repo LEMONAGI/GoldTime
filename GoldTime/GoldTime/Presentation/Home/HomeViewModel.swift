@@ -244,7 +244,7 @@ struct HomeViewModel {
         let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
         let consumed = max(0, (usedTimeByGroupID[group.id] ?? 0) - baseline)
         let remainingMin = max(1, granted - consumed)
-        // 칸 수는 분 단위로 끊으므로 granted 기준(최대 10). 1분 연장은 1칸, 광고 15분은 10칸.
+        // 칸 수는 분 단위로 끊으므로 granted 기준(최대 10). 1분 연장은 1칸, 광고 10분은 10칸.
         let cellCount = min(granted, 10)
         return SegmentProgress(
             total: cellCount,

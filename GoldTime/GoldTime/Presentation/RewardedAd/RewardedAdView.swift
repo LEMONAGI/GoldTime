@@ -14,7 +14,7 @@ struct RewardedAdView: View {
     private let fallbackLabel: String
 
     init(
-        fallbackLabel: String = "그래도 15분 사용하기",
+        fallbackLabel: String = "그래도 10분 사용하기",
         onComplete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {

@@ -66,7 +66,7 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 1. `RewardedAdService`가 AdMob rewarded ad를 로드합니다.
 2. `AdMockView`가 광고 준비 상태를 보고 광고를 표시합니다.
 3. 보상 콜백이 성공하면 앱이 선택된 그룹 id로 `ScreenTimeManager.consumeAdReward(for:)`를 호출합니다.
-4. `consumeAdReward`는 광고 통계를 기록하고 해당 그룹만 15분 동안 override 처리합니다.
+4. `consumeAdReward`는 광고 통계를 기록하고 해당 그룹만 10분 동안 override 처리합니다.
 5. `override.<groupID>` 모니터링 종료 시점에 해당 그룹이 다시 Shield union에 포함되어야 합니다.
 
 ## Shield 복귀 흐름

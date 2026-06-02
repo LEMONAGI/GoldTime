@@ -55,7 +55,7 @@ final class ExtendGroupUseCase {
     }
 
     func extendWithAd(groupID: UUID) -> Result<GroupExtensionResult, ExtensionFailure> {
-        screenTimeRepository.extendGroup(groupID: groupID, duration: 15 * 60, source: .adReward)
+        screenTimeRepository.extendGroup(groupID: groupID, duration: 10 * 60, source: .adReward)
     }
 
     func walkAway(lockedGroups: [ScreenTimeGroup]) {

@@ -183,9 +183,13 @@ final class LockOptionsViewModel {
                !lockedGroups.contains(where: { $0.id == selectedGroupID }) {
                 self.selectedGroupID = lockedGroups.first?.id
             }
+            // 광고 = 시간 구매. 완료 알럿이 뜨는 순간 결제감 피드백(차임 + 햅틱)을 준다.
+            if source == .adReward {
+                PurchaseFeedback.play()
+            }
             completionAlert = LockOptionsCompletionAlert(
-                title: "연장 완료",
-                message: completionMessage(for: result)
+                title: source == .adReward ? "구매 완료" : "연장 완료",
+                message: completionMessage(for: result, source: source)
             )
         case .failure(let failure):
             infoMessage = message(for: failure, source: source)
@@ -240,9 +244,11 @@ final class LockOptionsViewModel {
         }
     }
 
-    private func completionMessage(for result: GroupExtensionResult) -> String {
+    private func completionMessage(for result: GroupExtensionResult, source: ExtensionSource) -> String {
         let duration = result.durationSeconds == 60 ? "1분" : "\(result.durationSeconds / 60)분"
-        var message = "\(result.group.displayName)을 \(duration) 연장했어요.\n\(duration) 더 쓰면 다시 잠겨요."
+        var message = source == .adReward
+            ? "\(result.group.displayName) \(duration)을 구매했어요.\n\(duration) 더 쓰면 다시 잠겨요."
+            : "\(result.group.displayName)을 \(duration) 연장했어요.\n\(duration) 더 쓰면 다시 잠겨요."
 
         if let token = requestedApplicationToken {
             let remaining = extendGroupUseCase.lockedGroupsAfterExtension(
