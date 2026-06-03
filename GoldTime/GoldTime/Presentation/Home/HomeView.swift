@@ -231,7 +231,7 @@ struct HomeView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
                         .foregroundStyle(Color.accent)
-                    Text("그룹당 \(viewModel.maxAppsPerGroup)개 항목까지 · 같은 항목을 여러 그룹에 포함시킬 수 있어요.")
+                    Text("그룹당 \(viewModel.maxAppsPerGroup)개 항목까지 · 같은 항목을 여러 그룹에 포함시킬 수 있어요. 그룹 이름을 탭하면 바로 바꿀 수 있어요.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

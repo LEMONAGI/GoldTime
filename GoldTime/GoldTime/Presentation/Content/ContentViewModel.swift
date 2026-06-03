@@ -323,8 +323,13 @@ final class ContentViewModel {
         pendingLimitLockWarning = nil
     }
 
+    /// 잠금 또는 연장 중인 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    private func isEditRestricted(_ id: UUID) -> Bool {
+        lockedGroupIDs.contains(id) || overrideGroupIDs.contains(id)
+    }
+
     func requestPickerPresentation(for group: ScreenTimeGroup) {
-        guard lockedGroupIDs.contains(group.id) else {
+        guard isEditRestricted(group.id) else {
             presentPicker(for: group)
             return
         }
@@ -334,7 +339,7 @@ final class ContentViewModel {
     }
 
     func requestLimitPickerPresentation(for group: ScreenTimeGroup) {
-        guard lockedGroupIDs.contains(group.id) else {
+        guard isEditRestricted(group.id) else {
             presentLimitPicker(for: group)
             return
         }
@@ -345,7 +350,7 @@ final class ContentViewModel {
 
     func requestDeleteGroup(_ id: UUID) {
         let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
-        guard lockedGroupIDs.contains(id) else {
+        guard isEditRestricted(id) else {
             deleteGroup(id)
             presentDeletionCompletedAlert(groupName: name)
             return

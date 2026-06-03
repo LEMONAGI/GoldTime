@@ -33,6 +33,14 @@ struct StatsReport {
         averageUnlockedSeconds(from: weeklyStats)
     }
 
+    var previousWeekAverageSeconds: Int {
+        averageUnlockedSeconds(from: previousWeekStats)
+    }
+
+    var weeklyAverageDelta: Int {
+        weeklyAverageSeconds - previousWeekAverageSeconds
+    }
+
     var monthlyAverageSeconds: Int {
         averageUnlockedSeconds(from: monthlyStats)
     }

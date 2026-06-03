@@ -34,8 +34,7 @@ struct StatsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 metricGrid
-                weeklySection
-                monthlySection
+                TrendChartSection(viewModel: viewModel)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -55,210 +54,84 @@ struct StatsView: View {
             )
             LazyVGrid(columns: metricColumns, spacing: 12) {
                 DashboardMetricCard(
-                    title: "추가 사용",
-                    value: goldTimeDurationText(seconds: viewModel.statsReport.todayStats.totalUnlockedSeconds),
+                    title: "일간 추세",
+                    value: viewModel.dailyTrendHeadline,
                     caption: viewModel.todayDeltaCaption,
                     systemName: "clock.fill",
                     tint: .cyan,
-                    trend: viewModel.statsReport.todayTrend,
-                    sentiment: viewModel.todaySentiment
+                    sentiment: viewModel.dailyTrendSentiment
                 )
 
                 DashboardMetricCard(
-                    title: "이번 주 추가 사용",
-                    value: goldTimeDurationText(seconds: viewModel.statsReport.weeklyUnlockedSeconds),
+                    title: "주간 추세",
+                    value: viewModel.weeklyTrendHeadline,
                     caption: viewModel.weeklyDeltaCaption,
                     systemName: "calendar.badge.clock",
                     tint: .cyan,
-                    trend: viewModel.statsReport.weeklyTrend,
-                    sentiment: viewModel.weeklySentiment
+                    sentiment: viewModel.weeklyTrendSentiment
                 )
             }
         }
     }
 
-    private var weeklySection: some View {
-        WeeklyGraphSection(viewModel: viewModel)
-    }
-
-    private var monthlySection: some View {
-        MonthlyGraphSection(viewModel: viewModel)
-    }
 }
 
-private struct WeeklyGraphSection: View {
+private struct TrendChartSection: View {
     let viewModel: StatsViewModel
+
+    enum Mode: String, CaseIterable, Identifiable {
+        case weekly = "주간"
+        case monthly = "월간"
+        var id: String { rawValue }
+    }
+
+    @State private var mode: Mode = .weekly
     @State private var weekOffset = 0
-
-    private var weekRange: (start: Date, end: Date)? {
-        viewModel.calendarWeekRange(offset: weekOffset)
-    }
-
-    private var stats: [DailyStats] {
-        viewModel.weeklyStats(offset: weekOffset)
-    }
-
-    private var navigationLabel: String {
-        guard weekOffset != 0, let range = weekRange else { return "이번 주" }
-        let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "ko_KR")
-        fmt.dateFormat = "M/d"
-        return "\(fmt.string(from: range.start)) - \(fmt.string(from: range.end))"
-    }
-
-    private var averageSeconds: Int {
-        viewModel.averageSeconds(for: stats)
-    }
-
-    private var maxMinutes: Double {
-        stats.map { Double($0.totalUnlockedSeconds) / 60.0 }.max() ?? 0
-    }
-
-    private var hasData: Bool {
-        stats.contains { $0.totalUnlockedSeconds > 0 }
-    }
-
-    private var comparisonAverageSeconds: Int {
-        viewModel.averageSeconds(for: viewModel.monthlyStats(offset: 0))
-    }
-
-    private var comparisonLabel: String { "이번 달 평균" }
-    private var comparisonDelta: Int { averageSeconds - comparisonAverageSeconds }
-
-    private var shouldShowComparison: Bool {
-        comparisonAverageSeconds > 0 && comparisonDelta != 0
-    }
-
-    private var comparisonCaption: String {
-        let text = goldTimeDurationText(seconds: abs(comparisonDelta))
-        return comparisonDelta > 0 ? "이번 달 평균보다 \(text) 많아요" : "이번 달 평균보다 \(text) 적어요"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "주간 기록")
-
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Button { weekOffset -= 1 } label: {
-                        Image(systemName: "chevron.left").fontWeight(.semibold)
-                    }
-                    Spacer()
-                    Text(navigationLabel)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Group {
-                        if weekOffset < 0 {
-                            Button { weekOffset += 1 } label: {
-                                Image(systemName: "chevron.right").fontWeight(.semibold)
-                            }
-                        } else {
-                            Image(systemName: "chevron.right").fontWeight(.semibold).hidden()
-                        }
-                    }
-                }
-                .foregroundStyle(.primary)
-
-                ZStack {
-                    Chart(stats) { stat in
-                        let minutes = Double(stat.totalUnlockedSeconds) / 60.0
-                        BarMark(
-                            x: .value("날짜", stat.date, unit: .day),
-                            y: .value("추가 사용", minutes > 0 ? minutes : 0.2)
-                        )
-                        .cornerRadius(4)
-                        .foregroundStyle(minutes > 0 ? Color.accent : Color.accent.opacity(0.3))
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: stats.map(\.date)) {
-                            AxisGridLine()
-                            AxisValueLabel(format: .dateTime.weekday(.narrow).locale(Locale(identifier: "ko_KR")))
-                        }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading)
-                    }
-                    .chartYScale(domain: 0...max(5.0, maxMinutes))
-
-                    if !hasData {
-                        Text("추가 사용 기록 없음")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(height: 180)
-                .padding(.top, 8)
-                Divider()
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("주간 평균")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                                Text(goldTimeDurationText(seconds: averageSeconds))
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(
-                                        shouldShowComparison
-                                            ? (comparisonDelta > 0 ? Color.red : Color.green)
-                                            : Color.primary
-                                    )
-                                if shouldShowComparison {
-                                    Image(systemName: comparisonDelta > 0 ? "arrow.up" : "arrow.down")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(comparisonDelta > 0 ? Color.red : Color.green)
-                                }
-                            }
-                        }
-                        if comparisonAverageSeconds > 0 {
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text(comparisonLabel)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(goldTimeDurationText(seconds: comparisonAverageSeconds))
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    if shouldShowComparison {
-                        Text(comparisonCaption)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .font(.subheadline)
-            }
-            .cardContainer()
-        }
-    }
-}
-
-private struct MonthlyGraphSection: View {
-    let viewModel: StatsViewModel
     @State private var monthOffset = 0
 
-    private var monthRange: (start: Date, end: Date)? {
-        viewModel.calendarMonthRange(offset: monthOffset)
+    private var stats: [DailyStats] {
+        switch mode {
+        case .weekly: viewModel.weeklyStats(offset: weekOffset)
+        case .monthly: viewModel.monthlyStats(offset: monthOffset)
+        }
     }
 
-    private var stats: [DailyStats] {
-        viewModel.monthlyStats(offset: monthOffset)
+    private var range: (start: Date, end: Date)? {
+        switch mode {
+        case .weekly: viewModel.calendarWeekRange(offset: weekOffset)
+        case .monthly: viewModel.calendarMonthRange(offset: monthOffset)
+        }
+    }
+
+    private var canGoForward: Bool {
+        mode == .weekly ? weekOffset < 0 : monthOffset < 0
+    }
+
+    private func goBackward() {
+        if mode == .weekly { weekOffset -= 1 } else { monthOffset -= 1 }
+    }
+
+    private func goForward() {
+        if mode == .weekly { weekOffset += 1 } else { monthOffset += 1 }
     }
 
     private var navigationLabel: String {
-        guard monthOffset != 0, let range = monthRange else { return "이번 달" }
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "ko_KR")
-        fmt.dateFormat = "yyyy년 M월"
-        return fmt.string(from: range.start)
+        switch mode {
+        case .weekly:
+            guard weekOffset != 0, let range else { return "이번 주" }
+            fmt.dateFormat = "M/d"
+            return "\(fmt.string(from: range.start)) - \(fmt.string(from: range.end))"
+        case .monthly:
+            guard monthOffset != 0, let range else { return "이번 달" }
+            fmt.dateFormat = "yyyy년 M월"
+            return fmt.string(from: range.start)
+        }
     }
 
-    private var averageSeconds: Int {
-        viewModel.averageSeconds(for: stats)
-    }
+    private var averageSeconds: Int { viewModel.averageSeconds(for: stats) }
+    private var averageLabel: String { mode == .weekly ? "주간 평균" : "월간 평균" }
 
     private var maxMinutes: Double {
         stats.map { Double($0.totalUnlockedSeconds) / 60.0 }.max() ?? 0
@@ -270,27 +143,38 @@ private struct MonthlyGraphSection: View {
 
     private var displayYear: Int {
         let cal = Calendar.current
-        if let start = monthRange?.start {
+        if let start = range?.start {
             return cal.component(.year, from: start)
         }
         return cal.component(.year, from: Date())
     }
 
     private var comparisonAverageSeconds: Int {
-        let cal = Calendar.current
-        let year = displayYear
-        let yearStats = viewModel.allDailyStats().filter {
-            cal.component(.year, from: $0.date) == year
+        switch mode {
+        case .weekly:
+            return viewModel.averageSeconds(for: viewModel.monthlyStats(offset: 0))
+        case .monthly:
+            let cal = Calendar.current
+            let year = displayYear
+            let yearStats = viewModel.allDailyStats().filter {
+                cal.component(.year, from: $0.date) == year
+            }
+            guard !yearStats.isEmpty else { return 0 }
+            return yearStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / yearStats.count
         }
-        guard !yearStats.isEmpty else { return 0 }
-        return yearStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / yearStats.count
     }
 
     private var comparisonLabel: String {
-        let currentYear = Calendar.current.component(.year, from: Date())
-        return displayYear == currentYear ? "올해 평균" : "\(displayYear)년 평균"
+        switch mode {
+        case .weekly:
+            return "이번 달 평균"
+        case .monthly:
+            let currentYear = Calendar.current.component(.year, from: Date())
+            return displayYear == currentYear ? "올해 평균" : "\(displayYear)년 평균"
+        }
     }
 
+    private var averageMinutes: Double { Double(averageSeconds) / 60.0 }
     private var comparisonDelta: Int { averageSeconds - comparisonAverageSeconds }
 
     private var shouldShowComparison: Bool {
@@ -302,13 +186,52 @@ private struct MonthlyGraphSection: View {
         return comparisonDelta > 0 ? "\(comparisonLabel)보다 \(text) 많아요" : "\(comparisonLabel)보다 \(text) 적어요"
     }
 
+    // MARK: - Y축 (시간 단위)
+
+    private var dataMaxMinutes: Double { max(maxMinutes, averageMinutes) }
+
+    /// 데이터 최대값을 올림한 도메인 상단(시간). 최소 1시간.
+    private var yDomainTopHours: Int {
+        max(1, Int((dataMaxMinutes / 60.0).rounded(.up)))
+    }
+
+    /// 눈금이 최대 3개가 되도록 시간 간격을 고릅니다(짝수 시간 우선).
+    private var yHourStep: Int {
+        let top = yDomainTopHours
+        for step in [1, 2, 4, 6, 12, 24] where top / step <= 3 {
+            return step
+        }
+        return 24
+    }
+
+    /// 0과 시간 눈금 위치(분 단위)들.
+    private var yTickMinutes: [Double] {
+        var values: [Double] = [0]
+        var hour = yHourStep
+        while hour <= yDomainTopHours {
+            values.append(Double(hour * 60))
+            hour += yHourStep
+        }
+        return values
+    }
+
+    private func yAxisLabel(forMinutes minutes: Double) -> String {
+        let hours = Int((minutes / 60.0).rounded())
+        return hours == 0 ? "0" : "\(hours)시간"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "월간 기록")
+            SectionHeader(title: "기록")
 
             VStack(alignment: .leading, spacing: 12) {
+                Picker("기간", selection: $mode) {
+                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+
                 HStack {
-                    Button { monthOffset -= 1 } label: {
+                    Button { goBackward() } label: {
                         Image(systemName: "chevron.left").fontWeight(.semibold)
                     }
                     Spacer()
@@ -317,8 +240,8 @@ private struct MonthlyGraphSection: View {
                         .fontWeight(.semibold)
                     Spacer()
                     Group {
-                        if monthOffset < 0 {
-                            Button { monthOffset += 1 } label: {
+                        if canGoForward {
+                            Button { goForward() } label: {
                                 Image(systemName: "chevron.right").fontWeight(.semibold)
                             }
                         } else {
@@ -328,79 +251,117 @@ private struct MonthlyGraphSection: View {
                 }
                 .foregroundStyle(.primary)
 
-                ZStack {
-                    Chart(stats) { stat in
-                        let minutes = Double(stat.totalUnlockedSeconds) / 60.0
-                        BarMark(
-                            x: .value("날짜", stat.date, unit: .day),
-                            y: .value("추가 사용", minutes > 0 ? minutes : 0.2)
-                        )
-                        .cornerRadius(4)
-                        .foregroundStyle(minutes > 0 ? Color.accent : Color.accent.opacity(0.3))
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: .stride(by: .day, count: 7)) {
-                            AxisGridLine()
-                            AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
-                        }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading)
-                    }
-                    .chartYScale(domain: 0...max(5.0, maxMinutes))
+                chart
+                    .frame(height: 180)
+                    .padding(.top, 8)
 
-                    if !hasData {
-                        Text("추가 사용 기록 없음")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(height: 180)
-                .padding(.top, 8)
                 Divider()
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("월간 평균")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                                Text(goldTimeDurationText(seconds: averageSeconds))
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(
-                                        shouldShowComparison
-                                            ? (comparisonDelta > 0 ? Color.red : Color.green)
-                                            : Color.primary
-                                    )
-                                if shouldShowComparison {
-                                    Image(systemName: comparisonDelta > 0 ? "arrow.up" : "arrow.down")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(comparisonDelta > 0 ? Color.red : Color.green)
-                                }
-                            }
-                        }
-                        if comparisonAverageSeconds > 0 {
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text(comparisonLabel)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(goldTimeDurationText(seconds: comparisonAverageSeconds))
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    if shouldShowComparison {
-                        Text(comparisonCaption)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .font(.subheadline)
+                comparisonSummary
             }
             .cardContainer()
         }
+    }
+
+    private var chart: some View {
+        ZStack {
+            Chart {
+                ForEach(stats) { stat in
+                    let minutes = Double(stat.totalUnlockedSeconds) / 60.0
+                    BarMark(
+                        x: .value("날짜", stat.date, unit: .day),
+                        y: .value("추가 사용", minutes > 0 ? minutes : 0.2)
+                    )
+                    .cornerRadius(4)
+                    .foregroundStyle(minutes > 0 ? Color.accent : Color.accent.opacity(0.3))
+                }
+                if averageSeconds > 0 {
+                    RuleMark(y: .value("평균", averageMinutes))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .chartXAxis {
+                if mode == .weekly {
+                    AxisMarks(values: stats.map(\.date)) {
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.weekday(.narrow).locale(Locale(identifier: "ko_KR")))
+                    }
+                } else {
+                    AxisMarks(values: .stride(by: .day, count: 7)) {
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                    }
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .trailing, values: yTickMinutes) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let minutes = value.as(Double.self) {
+                            Text(yAxisLabel(forMinutes: minutes))
+                        }
+                    }
+                }
+                if averageSeconds > 0 {
+                    AxisMarks(position: .trailing, values: [averageMinutes]) { _ in
+                        AxisValueLabel {
+                            Text("평균")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .chartYScale(domain: 0...Double(yDomainTopHours * 60))
+
+            if !hasData {
+                Text("추가 사용 기록 없음")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var comparisonSummary: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(averageLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        Text(goldTimeDurationText(seconds: averageSeconds))
+                            .fontWeight(.bold)
+                            .foregroundStyle(
+                                shouldShowComparison
+                                    ? (comparisonDelta > 0 ? Color.red : Color.green)
+                                    : Color.primary
+                            )
+                        if shouldShowComparison {
+                            Image(systemName: comparisonDelta > 0 ? "arrow.up" : "arrow.down")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(comparisonDelta > 0 ? Color.red : Color.green)
+                        }
+                    }
+                }
+                if comparisonAverageSeconds > 0 {
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(comparisonLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(goldTimeDurationText(seconds: comparisonAverageSeconds))
+                            .fontWeight(.bold)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if shouldShowComparison {
+                Text(comparisonCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.subheadline)
     }
 }
 

@@ -318,6 +318,70 @@ struct ViewModelTests {
         #expect(viewModel.adGateFallbackLabel == "그래도 삭제하기")
     }
 
+    @Test func adGateOpenedForOverrideGroupEdit() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.overrideGroupIDs = [group.id]
+
+        viewModel.requestPickerPresentation(for: group)
+
+        #expect(viewModel.isAdGatePresented)
+        #expect(viewModel.adGateFallbackLabel == "그래도 편집하기")
+        #expect(!viewModel.isPickerPresented)
+    }
+
+    @Test func adGateOpenedForOverrideGroupLimitChange() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.overrideGroupIDs = [group.id]
+
+        viewModel.requestLimitPickerPresentation(for: group)
+
+        #expect(viewModel.isAdGatePresented)
+        #expect(viewModel.adGateFallbackLabel == "그래도 변경하기")
+        #expect(!viewModel.isLimitPickerPresented)
+    }
+
+    @Test func adGateOpenedForOverrideGroupDelete() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.overrideGroupIDs = [group.id]
+
+        viewModel.requestDeleteGroup(group.id)
+
+        #expect(viewModel.isAdGatePresented)
+        #expect(viewModel.adGateFallbackLabel == "그래도 삭제하기")
+    }
+
     @Test func regularGroupDeleteShowsCompletionAlertWithName() async {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
         let groupRepo = FakeGroupRepository()
@@ -1022,10 +1086,11 @@ struct ViewModelTests {
             maxAdFreeStreakDays: 7
         )
 
-        // thisWeek total = 1200s, prevWeek total = 3600s → delta = -2400s = -40분
-        #expect(viewModel.statsReport.weeklyUnlockedSeconds == 1200)
-        #expect(viewModel.statsReport.previousWeekUnlockedSeconds == 3600)
-        #expect(viewModel.weeklyDeltaCaption == "지난 주보다 40분 적어요")
+        // 캡션은 하루 평균 기준: thisWeek avg = 1200/7 = 171s, prevWeek avg = 3600/7 = 514s
+        // → delta = -343s → 올림 6분
+        #expect(viewModel.statsReport.weeklyAverageSeconds == 171)
+        #expect(viewModel.statsReport.previousWeekAverageSeconds == 514)
+        #expect(viewModel.weeklyDeltaCaption == "지난 주보다 평균 6분 적어요")
     }
 
     @Test func statsViewModelWeeklyDeltaCaptionNoPrevData() {
@@ -1044,6 +1109,40 @@ struct ViewModelTests {
         )
 
         #expect(viewModel.weeklyDeltaCaption == "지난 주 기록 없음")
+    }
+
+    // MARK: - UsageTrend
+
+    @Test func usageTrendNilWhenFewerThanTwoPeriods() {
+        #expect(UsageTrend.fromOrderedTotals([]) == nil)
+        #expect(UsageTrend.fromOrderedTotals([300]) == nil)
+    }
+
+    @Test func usageTrendFlatWhenLatestEqualsPrevious() {
+        let trend = UsageTrend.fromOrderedTotals([600, 300, 300])
+        #expect(trend == UsageTrend(direction: .flat, streak: 0))
+    }
+
+    @Test func usageTrendCountsConsecutiveDecreases() {
+        // 오래된→최신: 10분, 8분, 5분, 3분 → 마지막 3스텝 모두 감소
+        let trend = UsageTrend.fromOrderedTotals([600, 480, 300, 180])
+        #expect(trend == UsageTrend(direction: .down, streak: 3))
+    }
+
+    @Test func usageTrendCountsConsecutiveIncreases() {
+        let trend = UsageTrend.fromOrderedTotals([180, 300, 480])
+        #expect(trend == UsageTrend(direction: .up, streak: 2))
+    }
+
+    @Test func usageTrendStreakStopsAtDirectionChange() {
+        // 최근 2스텝만 감소(300<480, 180<300), 그 이전은 증가(480>120)
+        let trend = UsageTrend.fromOrderedTotals([240, 120, 480, 300, 180])
+        #expect(trend == UsageTrend(direction: .down, streak: 2))
+    }
+
+    @Test func usageTrendSingleStep() {
+        let trend = UsageTrend.fromOrderedTotals([300, 180])
+        #expect(trend == UsageTrend(direction: .down, streak: 1))
     }
 
     // MARK: - averageUnlockedSeconds

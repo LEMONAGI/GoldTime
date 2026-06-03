@@ -24,6 +24,24 @@ struct GroupCardView: View {
         viewModel.lockedGroupIDs.contains(group.id)
     }
 
+    private var isOverrideActive: Bool {
+        viewModel.overrideGroupIDs.contains(group.id)
+    }
+
+    /// 잠금 또는 연장 중인 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    private var isEditRestricted: Bool {
+        isLocked || isOverrideActive
+    }
+
+    private var restrictedDialogTitle: String {
+        isLocked ? "잠긴 그룹" : "연장 중 그룹"
+    }
+
+    private var restrictedDialogMessage: String {
+        let state = isLocked ? "잠겨 있는" : "연장 중인"
+        return "우회 방지를 위해,\n\(state) 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요."
+    }
+
     private var selectionCountText: String {
         "\(group.selectionCount)/\(viewModel.maxAppsPerGroup)"
     }
@@ -68,7 +86,7 @@ struct GroupCardView: View {
                 Spacer()
 
                 Button(role: .destructive) {
-                    if isLocked {
+                    if isEditRestricted {
                         isShowingDeleteConfirm = true
                     } else {
                         isShowingDeleteRegularConfirm = true
@@ -86,20 +104,20 @@ struct GroupCardView: View {
                 } message: {
                     Text("그룹을 삭제하면 되돌릴 수 없어요.")
                 }
-                .confirmationDialog("잠긴 그룹", isPresented: $isShowingDeleteConfirm) {
+                .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingDeleteConfirm) {
                     Button("광고 보고 삭제하기", role: .destructive) {
                         onDeleteGroup(group.id)
                     }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
+                    Text(restrictedDialogMessage)
                 }
             }
 
             Divider()
 
             Button {
-                if isLocked { isShowingLimitConfirm = true } else { onPresentLimitPicker(group) }
+                if isEditRestricted { isShowingLimitConfirm = true } else { onPresentLimitPicker(group) }
             } label: {
                 HStack(alignment: .center, spacing: 0) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -119,13 +137,13 @@ struct GroupCardView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .confirmationDialog("잠긴 그룹", isPresented: $isShowingLimitConfirm) {
+            .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingLimitConfirm) {
                 Button("광고 보고 변경하기") {
                     onPresentLimitPicker(group)
                 }
                 Button("취소", role: .cancel) {}
             } message: {
-                Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
+                Text(restrictedDialogMessage)
             }
 
             if isLocked {
@@ -139,13 +157,13 @@ struct GroupCardView: View {
             }
 
             editTokenList
-                .confirmationDialog("잠긴 그룹", isPresented: $isShowingEditConfirm) {
+                .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingEditConfirm) {
                     Button("광고 보고 편집하기") {
                         onPresentPicker(group)
                     }
                     Button("취소", role: .cancel) {}
                 } message: {
-                    Text("우회 방지를 위해,\n잠겨 있는 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요.")
+                    Text(restrictedDialogMessage)
                 }
         }
         .cardContainer()
@@ -155,7 +173,7 @@ struct GroupCardView: View {
     private var editTokenList: some View {
         if group.selectionCount == 0 {
             Button {
-                if isLocked { isShowingEditConfirm = true } else { onPresentPicker(group) }
+                if isEditRestricted { isShowingEditConfirm = true } else { onPresentPicker(group) }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "square.grid.2x2")
@@ -171,7 +189,7 @@ struct GroupCardView: View {
             .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
         } else {
             Button {
-                if isLocked { isShowingEditConfirm = true } else { onPresentPicker(group) }
+                if isEditRestricted { isShowingEditConfirm = true } else { onPresentPicker(group) }
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
