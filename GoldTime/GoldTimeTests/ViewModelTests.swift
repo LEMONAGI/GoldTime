@@ -254,6 +254,44 @@ struct ViewModelTests {
         #expect(viewModel.alertMessage?.title == "스크린 타임 권한 필요")
     }
 
+    @Test func settingsViewModelLoadsDailyMorningNotificationPreference() async {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.isDailyMorningNotificationEnabled = false
+        let viewModel = SettingsViewModel(
+            manageSettingsUseCase: ManageSettingsUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            )
+        )
+
+        #expect(!viewModel.isDailyMorningNotificationEnabled)
+
+        notifRepo.isDailyMorningNotificationEnabled = true
+        await viewModel.loadState()
+
+        #expect(viewModel.isDailyMorningNotificationEnabled)
+    }
+
+    @Test func settingsViewModelTogglesDailyMorningNotification() {
+        let notifRepo = FakeNotificationRepository()
+        let viewModel = SettingsViewModel(
+            manageSettingsUseCase: ManageSettingsUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            )
+        )
+
+        viewModel.setDailyMorningNotificationEnabled(false)
+
+        #expect(!viewModel.isDailyMorningNotificationEnabled)
+        #expect(notifRepo.setDailyMorningEnabledCalls == [false])
+
+        viewModel.setDailyMorningNotificationEnabled(true)
+
+        #expect(viewModel.isDailyMorningNotificationEnabled)
+        #expect(notifRepo.setDailyMorningEnabledCalls == [false, true])
+    }
+
     // MARK: - Ad Gate
 
     @Test func adGateSkippedForUnlockedGroup() {
@@ -1111,38 +1149,68 @@ struct ViewModelTests {
         #expect(viewModel.weeklyDeltaCaption == "지난 주 기록 없음")
     }
 
-    // MARK: - UsageTrend
+    // MARK: - 기록 카드 비교 (월간 vs 올해)
 
-    @Test func usageTrendNilWhenFewerThanTwoPeriods() {
-        #expect(UsageTrend.fromOrderedTotals([]) == nil)
-        #expect(UsageTrend.fromOrderedTotals([300]) == nil)
+    private func makeComparisonVM(repo: FakeStatsRepository) -> StatsViewModel {
+        StatsViewModel(
+            groups: [],
+            statsReport: StatsReport(
+                todayStats: DailyStats(dateKey: ""),
+                weeklyStats: [],
+                previousWeekStats: [],
+                monthlyStats: [],
+                oldestStatDate: nil
+            ),
+            isMonitoring: false,
+            adFreeStreakDays: 0,
+            maxAdFreeStreakDays: 7,
+            statsRepository: repo
+        )
     }
 
-    @Test func usageTrendFlatWhenLatestEqualsPrevious() {
-        let trend = UsageTrend.fromOrderedTotals([600, 300, 300])
-        #expect(trend == UsageTrend(direction: .flat, streak: 0))
+    /// 두 평균이 같은 분으로 올림 표시되면(초 단위로만 다르면) "1분 적어요"가 아니라 "같음(flat)"이어야 한다.
+    @Test func statsComparisonIsFlatWhenMonthlyAndYearlyRoundToSameMinute() {
+        let repo = FakeStatsRepository()
+        // 2025년 데이터 평균 = (2080 + 2100) / 2 = 2090초 → 올림 35분
+        repo.weeklyStatsValue = [DailyStats(dateKey: "2025-01-10", adUnlockedSeconds: 2080)]
+        repo.previousWeekStatsValue = [DailyStats(dateKey: "2025-01-11", adUnlockedSeconds: 2100)]
+        let vm = makeComparisonVM(repo: repo)
+        let today = Calendar.current.date(from: DateComponents(year: 2025, month: 6, day: 1))!
+
+        // 현재 월간 평균 2050초 → 올림 35분 (올해 평균 2090초도 올림 35분)
+        let comparison = vm.comparison(
+            period: .monthly, currentAverageSeconds: 2050, displayYear: 2025, today: today
+        )
+
+        #expect(vm.displayMinutes(2050) == 35)
+        #expect(comparison.comparisonAverageSeconds == 2090)
+        #expect(vm.displayMinutes(comparison.comparisonAverageSeconds) == 35)
+        #expect(comparison.deltaMinutes == 0)
+        #expect(comparison.trend == .flat)
+        #expect(comparison.shouldShow) // 비교 데이터가 있으면 같음도 표시(orange + →)
+        #expect(comparison.caption == "올해 평균과 같아요")
     }
 
-    @Test func usageTrendCountsConsecutiveDecreases() {
-        // 오래된→최신: 10분, 8분, 5분, 3분 → 마지막 3스텝 모두 감소
-        let trend = UsageTrend.fromOrderedTotals([600, 480, 300, 180])
-        #expect(trend == UsageTrend(direction: .down, streak: 3))
-    }
+    /// 표시 분이 실제로 다르면 분 단위 차이로 문구가 떠야 한다.
+    @Test func statsComparisonShowsMinuteDeltaForMonthly() {
+        let repo = FakeStatsRepository()
+        // 2025년 데이터 평균 = 1980초 → 올림 33분
+        repo.weeklyStatsValue = [DailyStats(dateKey: "2025-03-01", adUnlockedSeconds: 1980)]
+        repo.previousWeekStatsValue = []
+        let vm = makeComparisonVM(repo: repo)
+        let today = Calendar.current.date(from: DateComponents(year: 2025, month: 6, day: 1))!
 
-    @Test func usageTrendCountsConsecutiveIncreases() {
-        let trend = UsageTrend.fromOrderedTotals([180, 300, 480])
-        #expect(trend == UsageTrend(direction: .up, streak: 2))
-    }
+        // 현재 월간 평균 2100초 → 올림 35분, 올해 평균 33분 → delta +2분
+        let comparison = vm.comparison(
+            period: .monthly, currentAverageSeconds: 2100, displayYear: 2025, today: today
+        )
 
-    @Test func usageTrendStreakStopsAtDirectionChange() {
-        // 최근 2스텝만 감소(300<480, 180<300), 그 이전은 증가(480>120)
-        let trend = UsageTrend.fromOrderedTotals([240, 120, 480, 300, 180])
-        #expect(trend == UsageTrend(direction: .down, streak: 2))
-    }
-
-    @Test func usageTrendSingleStep() {
-        let trend = UsageTrend.fromOrderedTotals([300, 180])
-        #expect(trend == UsageTrend(direction: .down, streak: 1))
+        #expect(comparison.comparisonAverageSeconds == 1980)
+        #expect(comparison.deltaMinutes == 2)
+        #expect(comparison.trend == .up)
+        #expect(comparison.shouldShow)
+        #expect(comparison.comparisonLabel == "올해 평균")
+        #expect(comparison.caption == "올해 평균보다 2분 많아요")
     }
 
     // MARK: - averageUnlockedSeconds
@@ -1774,6 +1842,14 @@ private final class FakeNotificationRepository: NotificationRepository {
     func scheduleWeeklyStatsNotification(weekStartDay: Int) {}
 
     func scheduleDailyMorningNotification(extraMinutes: Int) {}
+
+    var isDailyMorningNotificationEnabled = true
+    private(set) var setDailyMorningEnabledCalls: [Bool] = []
+
+    func setDailyMorningNotificationEnabled(_ enabled: Bool) {
+        isDailyMorningNotificationEnabled = enabled
+        setDailyMorningEnabledCalls.append(enabled)
+    }
 }
 
 @MainActor

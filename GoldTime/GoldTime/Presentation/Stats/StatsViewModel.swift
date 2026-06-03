@@ -16,9 +16,6 @@ final class StatsViewModel {
     var adFreeStreakDays: Int
     var maxAdFreeStreakDays: Int
 
-    let dailyTrend: UsageTrend?
-    let weeklyTrend: UsageTrend?
-
     init(
         groups: [ScreenTimeGroup],
         statsReport: StatsReport,
@@ -32,10 +29,7 @@ final class StatsViewModel {
         self.isMonitoring = isMonitoring
         self.adFreeStreakDays = adFreeStreakDays
         self.maxAdFreeStreakDays = maxAdFreeStreakDays
-        let repository = statsRepository ?? StatsRepositoryImpl()
-        self.statsRepository = repository
-        dailyTrend = Self.computeDailyTrend(repository: repository)
-        weeklyTrend = Self.computeWeeklyTrend(repository: repository)
+        self.statsRepository = statsRepository ?? StatsRepositoryImpl()
     }
 
     // MARK: - On-demand paginated queries for graph sections
@@ -72,6 +66,79 @@ final class StatsViewModel {
         return relevant.reduce(0) { $0 + $1.totalUnlockedSeconds } / relevant.count
     }
 
+    // MARK: - 기록 카드 비교 (주간 vs 이번 달 / 월간 vs 올해)
+
+    enum StatsPeriod {
+        case weekly
+        case monthly
+    }
+
+    struct StatsComparison {
+        /// 비교 대상(이번 달 평균 또는 올해 평균)의 초 단위 평균.
+        let comparisonAverageSeconds: Int
+        let comparisonLabel: String
+        /// 화면에 보이는 두 평균(올림된 분)의 차이. 양수면 현재가 더 많음.
+        let deltaMinutes: Int
+
+        /// 비교 대상 데이터가 있을 때만 비교 UI(색·화살표·문구)를 표시한다.
+        var shouldShow: Bool { comparisonAverageSeconds > 0 }
+
+        var trend: TrendDirection {
+            if deltaMinutes > 0 { return .up }
+            if deltaMinutes < 0 { return .down }
+            return .flat
+        }
+
+        var caption: String {
+            switch trend {
+            case .up:
+                return "\(comparisonLabel)보다 \(goldTimeDurationText(seconds: deltaMinutes * 60)) 많아요"
+            case .down:
+                return "\(comparisonLabel)보다 \(goldTimeDurationText(seconds: -deltaMinutes * 60)) 적어요"
+            case .flat:
+                return "\(comparisonLabel)과 같아요"
+            }
+        }
+    }
+
+    /// 표시값(`goldTimeDurationText`)과 동일하게 올림한 분.
+    func displayMinutes(_ seconds: Int) -> Int {
+        Int((Double(max(0, seconds)) / 60.0).rounded(.up))
+    }
+
+    /// 현재 기간 평균과 비교 대상(이번 달/올해) 평균을 분 단위로 비교한다.
+    /// 초 단위로 비교하면 두 값이 같은 분으로 표시되는데도 "1분 적어요"가 떠서 분 단위로 계산한다.
+    func comparison(
+        period: StatsPeriod,
+        currentAverageSeconds: Int,
+        displayYear: Int,
+        today: Date = Date()
+    ) -> StatsComparison {
+        let comparisonAverageSeconds: Int
+        let label: String
+        switch period {
+        case .weekly:
+            comparisonAverageSeconds = averageSeconds(for: monthlyStats(offset: 0), today: today)
+            label = "이번 달 평균"
+        case .monthly:
+            let calendar = Calendar.current
+            let yearStats = allDailyStats().filter {
+                calendar.component(.year, from: $0.date) == displayYear
+            }
+            comparisonAverageSeconds = yearStats.isEmpty
+                ? 0
+                : yearStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / yearStats.count
+            let currentYear = calendar.component(.year, from: today)
+            label = displayYear == currentYear ? "올해 평균" : "\(displayYear)년 평균"
+        }
+        let deltaMinutes = displayMinutes(currentAverageSeconds) - displayMinutes(comparisonAverageSeconds)
+        return StatsComparison(
+            comparisonAverageSeconds: comparisonAverageSeconds,
+            comparisonLabel: label,
+            deltaMinutes: deltaMinutes
+        )
+    }
+
     // MARK: - UI formatting only
 
     var todayDeltaCaption: String {
@@ -94,55 +161,21 @@ final class StatsViewModel {
         adFreeStreakDays > 0 ? .positive : .negative
     }
 
-    var dailyTrendHeadline: String { Self.headline(for: dailyTrend, unit: "일") }
-    var weeklyTrendHeadline: String { Self.headline(for: weeklyTrend, unit: "주") }
-
-    var dailyTrendSentiment: CardSentiment? { Self.sentiment(for: dailyTrend) }
-    var weeklyTrendSentiment: CardSentiment? { Self.sentiment(for: weeklyTrend) }
-
-    private static func headline(for trend: UsageTrend?, unit: String) -> String {
-        guard let trend else { return "비교할 기록 없음" }
-        switch trend.direction {
-        case .up: return "\(trend.streak)\(unit)째 증가 중"
-        case .down: return "\(trend.streak)\(unit)째 감소 중"
-        case .flat: return "변화 없음"
+    var todaySentiment: CardSentiment? {
+        switch statsReport.todayTrend {
+        case .up: .negative
+        case .down: .positive
+        case .flat: .neutral
+        case nil: nil
         }
     }
 
-    private static func sentiment(for trend: UsageTrend?) -> CardSentiment? {
-        switch trend?.direction {
-        case .up: return .negative
-        case .down: return .positive
-        default: return nil
+    var weeklySentiment: CardSentiment? {
+        switch statsReport.weeklyTrend {
+        case .up: .negative
+        case .down: .positive
+        case .flat: .neutral
+        case nil: nil
         }
-    }
-
-    // MARK: - Trend computation
-
-    /// 최근 30일의 일별 추가 사용 합계로 일간 추세를 계산합니다. 데이터 시작일 이전은 제외합니다.
-    private static func computeDailyTrend(repository: any StatsRepository) -> UsageTrend? {
-        let floor = Calendar.current.startOfDay(for: repository.oldestStatDate ?? .distantPast)
-        let today = Calendar.current.startOfDay(for: Date())
-        let totals = repository.lastNDayStats(30)
-            .filter { $0.date >= floor && $0.date <= today }
-            .sorted { $0.date < $1.date }
-            .map { $0.totalUnlockedSeconds }
-        return UsageTrend.fromOrderedTotals(totals)
-    }
-
-    /// 최근 8주의 주별 "하루 평균" 추가 사용으로 주간 추세를 계산합니다.
-    /// 합계가 아니라 평균이라 진행 중인 주(일수가 덜 찬 주)도 공정하게 비교됩니다.
-    /// 데이터 시작일 이전과 미래 날짜는 평균에서 제외합니다.
-    private static func computeWeeklyTrend(repository: any StatsRepository) -> UsageTrend? {
-        let floor = Calendar.current.startOfDay(for: repository.oldestStatDate ?? .distantPast)
-        let today = Calendar.current.startOfDay(for: Date())
-        var averages: [Int] = []
-        for offset in stride(from: -7, through: 0, by: 1) {
-            let relevant = repository.statsForCalendarWeek(weekOffset: offset)
-                .filter { $0.date >= floor && $0.date <= today }
-            guard !relevant.isEmpty else { continue }
-            averages.append(relevant.reduce(0) { $0 + $1.totalUnlockedSeconds } / relevant.count)
-        }
-        return UsageTrend.fromOrderedTotals(averages)
     }
 }

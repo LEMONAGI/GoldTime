@@ -54,21 +54,23 @@ struct StatsView: View {
             )
             LazyVGrid(columns: metricColumns, spacing: 12) {
                 DashboardMetricCard(
-                    title: "일간 추세",
-                    value: viewModel.dailyTrendHeadline,
+                    title: "추가 사용",
+                    value: goldTimeDurationText(seconds: viewModel.statsReport.todayStats.totalUnlockedSeconds),
                     caption: viewModel.todayDeltaCaption,
                     systemName: "clock.fill",
                     tint: .cyan,
-                    sentiment: viewModel.dailyTrendSentiment
+                    trend: viewModel.statsReport.todayTrend,
+                    sentiment: viewModel.todaySentiment
                 )
 
                 DashboardMetricCard(
-                    title: "주간 추세",
-                    value: viewModel.weeklyTrendHeadline,
+                    title: "주간 평균",
+                    value: goldTimeDurationText(seconds: viewModel.statsReport.weeklyAverageSeconds),
                     caption: viewModel.weeklyDeltaCaption,
                     systemName: "calendar.badge.clock",
                     tint: .cyan,
-                    sentiment: viewModel.weeklyTrendSentiment
+                    trend: viewModel.statsReport.weeklyTrend,
+                    sentiment: viewModel.weeklySentiment
                 )
             }
         }
@@ -149,41 +151,30 @@ private struct TrendChartSection: View {
         return cal.component(.year, from: Date())
     }
 
-    private var comparisonAverageSeconds: Int {
-        switch mode {
-        case .weekly:
-            return viewModel.averageSeconds(for: viewModel.monthlyStats(offset: 0))
-        case .monthly:
-            let cal = Calendar.current
-            let year = displayYear
-            let yearStats = viewModel.allDailyStats().filter {
-                cal.component(.year, from: $0.date) == year
-            }
-            guard !yearStats.isEmpty else { return 0 }
-            return yearStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / yearStats.count
-        }
-    }
-
-    private var comparisonLabel: String {
-        switch mode {
-        case .weekly:
-            return "이번 달 평균"
-        case .monthly:
-            let currentYear = Calendar.current.component(.year, from: Date())
-            return displayYear == currentYear ? "올해 평균" : "\(displayYear)년 평균"
-        }
-    }
-
     private var averageMinutes: Double { Double(averageSeconds) / 60.0 }
-    private var comparisonDelta: Int { averageSeconds - comparisonAverageSeconds }
 
-    private var shouldShowComparison: Bool {
-        comparisonAverageSeconds > 0 && comparisonDelta != 0
+    private var comparison: StatsViewModel.StatsComparison {
+        viewModel.comparison(
+            period: mode == .weekly ? .weekly : .monthly,
+            currentAverageSeconds: averageSeconds,
+            displayYear: displayYear
+        )
     }
 
-    private var comparisonCaption: String {
-        let text = goldTimeDurationText(seconds: abs(comparisonDelta))
-        return comparisonDelta > 0 ? "\(comparisonLabel)보다 \(text) 많아요" : "\(comparisonLabel)보다 \(text) 적어요"
+    private func trendColor(_ trend: TrendDirection) -> Color {
+        switch trend {
+        case .up: .red
+        case .down: .green
+        case .flat: .orange
+        }
+    }
+
+    private func trendSymbol(_ trend: TrendDirection) -> String {
+        switch trend {
+        case .up: "arrow.up"
+        case .down: "arrow.down"
+        case .flat: "arrow.right"
+        }
     }
 
     // MARK: - Y축 (시간 단위)
@@ -322,7 +313,8 @@ private struct TrendChartSection: View {
     }
 
     private var comparisonSummary: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let comparison = comparison
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(averageLabel)
@@ -332,31 +324,29 @@ private struct TrendChartSection: View {
                         Text(goldTimeDurationText(seconds: averageSeconds))
                             .fontWeight(.bold)
                             .foregroundStyle(
-                                shouldShowComparison
-                                    ? (comparisonDelta > 0 ? Color.red : Color.green)
-                                    : Color.primary
+                                comparison.shouldShow ? trendColor(comparison.trend) : Color.primary
                             )
-                        if shouldShowComparison {
-                            Image(systemName: comparisonDelta > 0 ? "arrow.up" : "arrow.down")
+                        if comparison.shouldShow {
+                            Image(systemName: trendSymbol(comparison.trend))
                                 .font(.caption.weight(.semibold))
-                                .foregroundStyle(comparisonDelta > 0 ? Color.red : Color.green)
+                                .foregroundStyle(trendColor(comparison.trend))
                         }
                     }
                 }
-                if comparisonAverageSeconds > 0 {
+                if comparison.comparisonAverageSeconds > 0 {
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(comparisonLabel)
+                        Text(comparison.comparisonLabel)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(goldTimeDurationText(seconds: comparisonAverageSeconds))
+                        Text(goldTimeDurationText(seconds: comparison.comparisonAverageSeconds))
                             .fontWeight(.bold)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
-            if shouldShowComparison {
-                Text(comparisonCaption)
+            if comparison.shouldShow {
+                Text(comparison.caption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

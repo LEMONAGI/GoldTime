@@ -9,6 +9,7 @@ struct StreakCard: View {
         switch sentiment {
         case .positive: .green
         case .negative: .red
+        case .neutral: .orange
         case nil: .primary
         }
     }

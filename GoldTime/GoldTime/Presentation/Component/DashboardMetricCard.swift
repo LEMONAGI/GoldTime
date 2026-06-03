@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum CardSentiment {
-    case positive, negative
+    case positive, negative, neutral
 }
 
 struct DashboardMetricCard: View {
@@ -17,6 +17,25 @@ struct DashboardMetricCard: View {
         switch sentiment {
         case .positive: .green
         case .negative: .red
+        case .neutral: .orange
+        case nil: .primary
+        }
+    }
+
+    private var trendSymbol: String? {
+        switch trend {
+        case .up: "arrow.up"
+        case .down: "arrow.down"
+        case .flat: "arrow.right"
+        case nil: nil
+        }
+    }
+
+    private var trendColor: Color {
+        switch trend {
+        case .up: .red
+        case .down: .green
+        case .flat: .orange
         case nil: .primary
         }
     }
@@ -38,10 +57,10 @@ struct DashboardMetricCard: View {
                         .foregroundStyle(valueColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
-                    if let trend, trend != .flat {
-                        Image(systemName: trend == .up ? "arrow.up" : "arrow.down")
+                    if let trendSymbol {
+                        Image(systemName: trendSymbol)
                             .font(.body.weight(.bold))
-                            .foregroundStyle(trend == .up ? Color.red : Color.green)
+                            .foregroundStyle(trendColor)
                     }
                 }
                 Text(caption)
@@ -51,7 +70,7 @@ struct DashboardMetricCard: View {
             }
         }
         .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 146, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
