@@ -33,4 +33,12 @@ final class ManageSettingsUseCase {
     func requestNotificationAuthorizationIfNeeded() async -> NotificationPermissionState {
         await notificationRepository.requestAuthorizationIfNeeded()
     }
+
+    var isDailyMorningNotificationEnabled: Bool {
+        notificationRepository.isDailyMorningNotificationEnabled
+    }
+
+    func setDailyMorningNotificationEnabled(_ enabled: Bool) {
+        notificationRepository.setDailyMorningNotificationEnabled(enabled)
+    }
 }

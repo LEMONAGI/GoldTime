@@ -40,6 +40,19 @@ enum SharedStore {
         static let overrideBaselineUsedTimeByGroupID = "overrideBaselineUsedTimeByGroupID"
         static let overrideGrantedMinutesByGroupID = "overrideGrantedMinutesByGroupID"
         static let lastMorningNotificationDate = "lastMorningNotificationDate"
+        static let isDailyMorningNotificationEnabled = "isDailyMorningNotificationEnabled"
+    }
+
+    /// 하루 요약(오전 9시) 알림 수신 여부. 기본값 On.
+    /// 앱 복귀 알림(쉴드 진입용)은 별도 토글 없이 항상 발송된다.
+    static var isDailyMorningNotificationEnabled: Bool {
+        get {
+            if defaults.object(forKey: Key.isDailyMorningNotificationEnabled) == nil {
+                return true
+            }
+            return defaults.bool(forKey: Key.isDailyMorningNotificationEnabled)
+        }
+        set { defaults.set(newValue, forKey: Key.isDailyMorningNotificationEnabled) }
     }
 
     /// 아침 사용량 알림을 오늘 아직 예약하지 않았다면 true를 반환하고 오늘 날짜를 기록한다.

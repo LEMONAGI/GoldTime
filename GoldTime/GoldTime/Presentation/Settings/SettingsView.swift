@@ -92,9 +92,14 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                 } else {
-                    notificationRow()
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                    NavigationLink {
+                        NotificationSettingsView(viewModel: viewModel)
+                    } label: {
+                        notificationRow(showsChevron: true)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 Divider().padding(.horizontal, 20)
@@ -146,7 +151,7 @@ struct SettingsView: View {
 
     private func notificationRow(showsChevron: Bool = false) -> some View {
         settingsRow(
-            title: "GoldTime 복귀 알림",
+            title: "알림",
             subtitle: notificationSubtitle,
             systemName: notificationIconName,
             tint: notificationTint,
@@ -182,7 +187,7 @@ struct SettingsView: View {
 
     private func settingsRow(
         title: String,
-        subtitle: String,
+        subtitle: String? = nil,
         systemName: String,
         tint: Color,
         showsProgress: Bool = false,
@@ -193,10 +198,12 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
             Spacer(minLength: 8)
             if showsProgress {
@@ -212,13 +219,11 @@ struct SettingsView: View {
         .contentShape(Rectangle())
     }
 
-    private var notificationSubtitle: String {
+    private var notificationSubtitle: String? {
         switch viewModel.notificationPermissionState {
         case .notDetermined: "권한 요청 전"
-        case .authorized: "허용됨"
+        case .authorized, .provisional, .ephemeral: nil
         case .denied: "iOS 설정에서 꺼져 있어요"
-        case .provisional: "임시 허용됨"
-        case .ephemeral: "일시 허용됨"
         case .unknown: "상태 확인 필요"
         }
     }
@@ -233,7 +238,7 @@ struct SettingsView: View {
 
     private var notificationTint: Color {
         switch viewModel.notificationPermissionState {
-        case .authorized, .provisional, .ephemeral: .green
+        case .authorized, .provisional, .ephemeral: Color.accentColor
         case .denied: .red
         case .notDetermined, .unknown: .red
         }

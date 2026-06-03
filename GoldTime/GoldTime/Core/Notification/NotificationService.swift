@@ -42,6 +42,7 @@ enum NotificationService {
         content.body = "GoldTime을 열어 1분 연장 또는 광고 시청을 선택하세요."
         content.sound = .default
         content.interruptionLevel = .timeSensitive
+        content.relevanceScore = 1.0
         content.categoryIdentifier = openAppCategory
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
@@ -58,13 +59,26 @@ enum NotificationService {
     /// 그날 오전 9시 알림을 예약한다. 자정에 끝난 어제 데이터가 이미 확정돼 있으므로
     /// 발송 직전 생성 없이도 사용량 기반 문구가 정확하다.
     static func scheduleDailyMorningNotificationIfNeeded(now: Date = Date()) {
+        guard SharedStore.isDailyMorningNotificationEnabled else { return }
         guard SharedStore.claimMorningNotificationSlot(now: now) else { return }
+        scheduleDailyMorningNotificationUsingYesterdayUsage(now: now)
+    }
 
+    /// 확정된 어제 사용량으로 다음 오전 9시 알림을 예약한다. 슬롯 가드 없이 즉시 예약하므로
+    /// 설정에서 하루 요약 알림을 다시 켰을 때 그날 오전 9시 알림을 곧바로 복구하는 데 쓴다.
+    static func scheduleDailyMorningNotificationUsingYesterdayUsage(now: Date = Date()) {
         let calendar = Calendar.current
         let yesterday = calendar.date(byAdding: .day, value: -1, to: now) ?? now
         let extraMinutes = SharedStore.stats(for: yesterday).totalUnlockedSeconds / 60
         let isWeekStart = calendar.component(.weekday, from: now) == SharedStore.weekStartDay
         scheduleDailyMorningNotification(extraMinutes: extraMinutes, isWeekStart: isWeekStart)
+    }
+
+    /// 예약된 오전 9시 알림(주간 통계 포함)을 취소한다. 하루 요약 알림을 끌 때 사용.
+    static func cancelDailyMorningNotification() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: [dailyMorningIdentifier, weeklyStatsIdentifier]
+        )
     }
 
     /// 어제 추가 사용 분량에 따라 다음에 도래하는 오전 9시 알림을 예약한다.

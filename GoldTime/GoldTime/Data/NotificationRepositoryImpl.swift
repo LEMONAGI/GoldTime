@@ -14,6 +14,19 @@ struct NotificationRepositoryImpl: NotificationRepository {
     func scheduleDailyMorningNotification(extraMinutes: Int) {
         NotificationService.scheduleDailyMorningNotification(extraMinutes: extraMinutes)
     }
+
+    var isDailyMorningNotificationEnabled: Bool {
+        SharedStore.isDailyMorningNotificationEnabled
+    }
+
+    func setDailyMorningNotificationEnabled(_ enabled: Bool) {
+        SharedStore.isDailyMorningNotificationEnabled = enabled
+        if enabled {
+            NotificationService.scheduleDailyMorningNotificationUsingYesterdayUsage()
+        } else {
+            NotificationService.cancelDailyMorningNotification()
+        }
+    }
 }
 
 private extension UNAuthorizationStatus {
