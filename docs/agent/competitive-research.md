@@ -142,6 +142,29 @@ GoldTime 적용:
 
 ## 리서치 업데이트 로그
 
+### 2026-06-02
+
+출처:
+
+- Opal FAQ (Streaks / Focus Hours): https://opalapp.com/help/what-are-streaks-and-focus-hours
+- Opal FAQ (Screen Time 리포트): https://opalapp.com/help/how-when-and-where-does-opal-report-your-screen-time
+- Swift Charts RuleMark: https://developer.apple.com/documentation/charts/rulemark
+- 차트 plan vs actual 점선 컨벤션: https://nastengraph.substack.com/p/how-to-visualize-plan-vs-actual
+
+관찰:
+
+- Opal은 연속 일수(Streak)와 "이번 주 일 평균 vs 지난주 일 평균" 벤치마크를 통계 전면에 둡니다. 절대 총량보다 추세/비교가 통계 UX의 핵심입니다.
+- 차트에서 점선(dashed)은 "측정값"이 아니라 "기준/목표"를 뜻하는 관례입니다. 막대=실측, 점선=벤치마크로 분리하면 의미가 즉시 읽힙니다.
+- 기존 스크린타임 앱의 흔한 약점은 "평균보다 N분 적음"이 *무엇 대비*인지(그날/그주/앱 전체) 라벨이 없어 모호하다는 점입니다.
+
+GoldTime 적용점:
+
+- 통계의 트렌드는 총 스크린타임이 아니라 "추가 사용"(한도 초과로 광고/1분으로 더 쓴 시간)에 대해 계산합니다. "N일/N주째 감소 중"은 웰니스 코칭이 아니라 비용이 줄고 있다는 행동 결과라서 GoldTime답습니다. 문구는 칭찬 없이 건조하게 둡니다(`product-context.md` Stats 톤).
+- 추세는 엄격 연속 기준으로 계산합니다(직전 기간 대비 감소/증가, 같으면 끊김). 핵심 로직은 `UsageTrend.fromOrderedTotals`에 두고 단위 테스트로 고정합니다. 주간 추세는 합계가 아니라 주별 "하루 평균"으로 비교해, 일수가 덜 찬 진행 중인 주가 불리하게 잡히지 않게 합니다.
+- 차트 평균 비교는 텍스트뿐 아니라 점선 `RuleMark`로 표기하고, 점선에 비교 기준 라벨(이번 달 평균/올해 평균)을 붙여 무엇 대비인지 모호하지 않게 합니다.
+- 주간/월간은 별도 섹션 대신 segmented `Picker`로 한 카드에 묶어 화면을 단순하게 유지합니다(기본 iOS 패턴).
+- 그룹별 사용량 분해는 `DailyStats`에 그룹 차원이 없어 데이터 모델/extension 변경이 필요하므로 통계 트렌드 작업과 분리합니다.
+
 ### 2026-05-17
 
 출처:

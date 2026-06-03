@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GoldTime Support</title>
+  <meta name="description" content="GoldTime app support page for questions, troubleshooting, and contact information.">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f4;
+      --text: #191814;
+      --muted: #66645c;
+      --line: #dedbd0;
+      --gold: #b98518;
+      --gold-dark: #7a520d;
+      --panel: #ffffff;
+      --soft: #f0eee6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      width: min(920px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 56px 0 64px;
+    }
+
+    header {
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 12px;
+      font-size: clamp(2.2rem, 6vw, 4rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-bottom: 16px;
+      font-size: 1.45rem;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      font-size: 1.04rem;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    p,
+    li {
+      font-size: 1rem;
+    }
+
+    a {
+      color: var(--gold-dark);
+      font-weight: 700;
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.18em;
+    }
+
+    .lead {
+      max-width: 680px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 1.12rem;
+    }
+
+    .contact {
+      margin: 28px 0;
+      padding: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .contact p:last-child {
+      margin-bottom: 0;
+    }
+
+    .email {
+      display: inline-block;
+      overflow-wrap: anywhere;
+      font-size: 1.08rem;
+    }
+
+    section {
+      padding: 32px 0 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      padding: 20px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .card p:last-child,
+    .card ul:last-child {
+      margin-bottom: 0;
+    }
+
+    .note {
+      padding: 16px 18px;
+      background: var(--soft);
+      border-left: 4px solid var(--gold);
+      border-radius: 6px;
+      color: var(--text);
+    }
+
+    .language-divider {
+      margin: 44px 0 0;
+      padding-top: 36px;
+      border-top: 1px solid var(--line);
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 720px) {
+      main {
+        width: min(100% - 24px, 920px);
+        padding: 36px 0 48px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .contact,
+      .card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>GoldTime Support</h1>
+      <p class="lead">GoldTime은 스크린타임 한도를 넘긴 순간을 그냥 지나치지 않게 만드는 iOS 앱입니다. 막힌 이유를 확인하고, 멈출지 더 쓸지 직접 선택하게 돕습니다.</p>
+    </header>
+
+    <section aria-labelledby="contact-title">
+      <div class="contact">
+        <h2 id="contact-title">문의</h2>
+        <p>앱 사용 중 문제가 있거나 App Store 제출 관련 확인이 필요하면 아래 이메일로 연락해 주세요.</p>
+        <p><a class="email" href="mailto:nagi.appstudio@gmail.com">nagi.appstudio@gmail.com</a></p>
+        <p>가능하면 사용 중인 iOS 버전, GoldTime 앱 버전, 문제가 발생한 화면, 재현 순서를 함께 보내 주세요.</p>
+        <p>개인정보 처리방침은 <a href="./privacy-policy.html">여기</a>에서 확인할 수 있습니다.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="help-title">
+      <h2 id="help-title">도움말</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>선택한 앱이 잠기지 않아요</h3>
+          <p>GoldTime은 Apple Screen Time API를 사용합니다. 스크린타임 권한이 허용되어 있는지 확인하고, 앱 그룹과 일일 한도가 설정되어 있는지 확인해 주세요. 실제 사용 시간이 한도에 도달해야 Shield가 표시됩니다.</p>
+        </article>
+        <article class="card">
+          <h3>Shield 화면에서 돌아오지 못해요</h3>
+          <p>Shield에서 GoldTime으로 이동한 뒤, 그만 쓰기, 1분만 더 쓰기, 광고 보고 더 쓰기 중 하나를 선택할 수 있습니다. 알림 권한을 허용하면 GoldTime으로 돌아오는 흐름이 더 안정적으로 동작합니다.</p>
+        </article>
+        <article class="card">
+          <h3>광고가 준비되지 않았어요</h3>
+          <p>보상형 광고는 네트워크 상태와 광고 재고에 따라 준비 시간이 달라질 수 있습니다. 광고가 표시되지 않으면 잠시 후 다시 시도하거나, 그냥 나가면 됩니다. 광고 안 보면 당신 승리예요.</p>
+        </article>
+        <article class="card">
+          <h3>데이터와 개인정보</h3>
+          <p>GoldTime은 선택한 앱, 한도, 사용 연장 상태를 관리하기 위해 필요한 정보만 사용합니다. 문의 시에는 개인정보를 과도하게 보내지 말고, 재현에 필요한 내용만 공유해 주세요.</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="before-email-title">
+      <h2 id="before-email-title">문의 전에 확인할 것</h2>
+      <ul>
+        <li>iPhone 설정에서 Screen Time 관련 권한을 허용했는지 확인해 주세요.</li>
+        <li>차단할 앱 또는 카테고리와 일일 한도를 설정했는지 확인해 주세요.</li>
+        <li>알림 권한을 껐다면 Shield 이후 앱 복귀 안내가 제한될 수 있습니다.</li>
+        <li>광고 문제는 네트워크 상태를 확인한 뒤 다시 시도해 주세요.</li>
+      </ul>
+      <p class="note">GoldTime은 사용자를 영원히 막기 위한 앱이 아닙니다. 한도 이후의 선택을 조금 더 분명하게 만들기 위한 앱입니다.</p>
+    </section>
+
+    <section class="language-divider" lang="en" aria-labelledby="english-title">
+      <h2 id="english-title">English Support</h2>
+      <p>GoldTime is an iOS app that adds friction after your Screen Time limit is reached, helping you make a deliberate choice before continuing.</p>
+      <p>For support, contact <a href="mailto:nagi.appstudio@gmail.com">nagi.appstudio@gmail.com</a>. Please include your iOS version, GoldTime app version, the screen where the issue happened, and steps to reproduce the issue.</p>
+      <p>You can review the privacy policy <a href="./privacy-policy.html">here</a>.</p>
+    </section>
+
+    <footer>
+      <p>Last updated: 2026-06-02</p>
+      <p>GoldTime Support is provided by the GoldTime app team.</p>
+    </footer>
+  </main>
+</body>
+</html>
