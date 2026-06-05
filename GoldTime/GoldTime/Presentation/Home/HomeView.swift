@@ -141,8 +141,9 @@ struct HomeView: View {
             RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(Color.accent.opacity(0.5), lineWidth: 1.5)
         }
+        .accessibilityElement(children: .combine)
     }
-    
+
     private var dashedDivider: some View {
         GeometryReader { geometry in
             Path { path in
@@ -168,32 +169,6 @@ struct HomeView: View {
                 .foregroundStyle(accent ? Color.accent : .white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-        }
-    }
-    
-    private var currentStatusSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "현재 상태")
-            
-            HStack(spacing: 12) {
-                IconTile(
-                    systemName: viewModel.isShieldActive ? "lock.fill" : "lock.open.fill",
-                    tint: viewModel.isShieldActive ? .red : viewModel.protectionStatusTint
-                )
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(viewModel.shieldStatusValue)
-                        .font(.headline)
-                    Text(viewModel.shieldStatusCaption)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer(minLength: 8)
-                
-                GroupStatusBadge(title: viewModel.protectionStatusTitle, tint: viewModel.protectionStatusTint)
-            }
-            .cardContainer()
         }
     }
     

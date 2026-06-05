@@ -201,6 +201,7 @@ struct GroupCardView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                         Spacer()
                         Image(systemName: "square.grid.2x2")
                             .font(.footnote.weight(.semibold))

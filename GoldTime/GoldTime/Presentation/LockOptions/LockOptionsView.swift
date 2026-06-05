@@ -240,6 +240,7 @@ struct LockOptionsView: View {
             Text(group.displayName)
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Text("\(group.selectionCount)/9")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -321,5 +322,6 @@ struct LockOptionsView: View {
         .disabled(!enabled)
         .buttonStyle(.plain)
         .opacity(enabled ? 1 : 0.58)
+        .accessibilityElement(children: .combine)
     }
 }

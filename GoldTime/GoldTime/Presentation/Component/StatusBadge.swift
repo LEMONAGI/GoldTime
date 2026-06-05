@@ -12,6 +12,7 @@ struct StatusBadge: View {
             Text(title)
                 .font(.caption.weight(.bold))
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .foregroundStyle(tint)
         .padding(.horizontal, 10)
@@ -34,5 +35,6 @@ struct GroupStatusBadge: View {
             .background(tint.opacity(0.12))
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .lineLimit(1)
+            .minimumScaleFactor(0.8)
     }
 }
