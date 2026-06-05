@@ -210,7 +210,8 @@ struct HomeView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                
+                .opacity(viewModel.isAtGroupLimit ? 0.45 : 1)
+
                 Button {
                     onAddGroup()
                 } label: {
