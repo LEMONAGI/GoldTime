@@ -220,6 +220,7 @@ struct GroupCardView: View {
                                     .labelStyle(.iconOnly)
                                     .scaleEffect(1.3)
                                     .frame(width: 28, height: 28)
+                                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                             }
                             ForEach(
                                 group.selection.webDomainTokens.sorted {
@@ -232,6 +233,7 @@ struct GroupCardView: View {
                                     .labelStyle(.iconOnly)
                                     .scaleEffect(1.3)
                                     .frame(width: 28, height: 28)
+                                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                             }
                         }
                     }
