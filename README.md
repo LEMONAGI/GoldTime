@@ -6,6 +6,12 @@ GoldTime은 줄이고 싶은 앱에 한도를 걸어두고, 그 한도를 넘겼
 
 핵심은 강제로 막는 게 아니라, 무심코 이어지는 사용 사이에 작은 마찰을 하나 넣는 것입니다.
 
+## 🖼️ 스크린샷
+
+| 오늘의 시간 청구서 | 한도 초과 Shield | 사용 기록 |
+| --- | --- | --- |
+| 스크린샷 준비 중<br>`docs/images/readme-dashboard.png` | 스크린샷 준비 중<br>`docs/images/readme-shield.png` | 스크린샷 준비 중<br>`docs/images/readme-stats.png` |
+
 ## 💡 아이디어의 시작
 
 처음 아이디어는 유튜브를 보다가 떠올렸습니다.
@@ -56,12 +62,6 @@ GoldTime은 iOS Screen Time 기능을 기반으로 앱 사용 한도를 관리�
 ### 🎬 광고로 추가 시간 얻기
 
 광고를 보면 일정 시간 동안 앱을 더 사용할 수 있습니다. 다만 GoldTime에서 광고는 멋진 보상이라기보다, 계속 사용하기 전에 거치는 귀찮은 단계에 가깝습니다. 광고를 보지 않고 그냥 나가는 것도 GoldTime이 기대하는 좋은 사용 방식입니다.
-
-## 🖼️ 스크린샷
-
-| 오늘의 시간 청구서 | 한도 초과 Shield | 사용 기록 |
-| --- | --- | --- |
-| 스크린샷 준비 중<br>`docs/images/readme-dashboard.png` | 스크린샷 준비 중<br>`docs/images/readme-shield.png` | 스크린샷 준비 중<br>`docs/images/readme-stats.png` |
 
 ## 🤔 왜 GoldTime인가요?
 
