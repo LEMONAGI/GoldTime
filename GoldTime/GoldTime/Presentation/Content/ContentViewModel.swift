@@ -42,10 +42,9 @@ final class ContentViewModel {
     var isCheckingPermissions: Bool = true
     var isFullyAuthorized: Bool { isAuthorized && isNotificationAuthorized }
     var hasCompletedInitialHomeEntry: Bool
-    var shouldShowInitialOnboarding: Bool { !hasCompletedInitialHomeEntry && !isFullyAuthorized }
-    var shouldShowNotificationOnboarding: Bool {
-        hasCompletedInitialHomeEntry && isAuthorized && !isNotificationAuthorized
-    }
+    // 온보딩 완료 플래그가 진입의 단일 기준. 스크린타임 허용 직후 isAuthorized가 true로
+    // 바뀌어도 온보딩(알림/광고 단계)을 끝까지 마치기 전에는 홈으로 넘어가면 안 된다.
+    var shouldShowInitialOnboarding: Bool { !hasCompletedInitialHomeEntry }
     var groups: [ScreenTimeGroup] = []
     var pickerSelection = FamilyActivitySelection(includeEntireCategory: true)
     var pickerGroupID: UUID?
@@ -478,7 +477,8 @@ final class ContentViewModel {
     }
 
     private func markInitialHomeEntryIfReady() {
-        guard isFullyAuthorized, !hasCompletedInitialHomeEntry else { return }
+        // 알림은 선택 권한이므로 스크린타임 권한만 확보되면 홈 진입을 확정한다.
+        guard isAuthorized, !hasCompletedInitialHomeEntry else { return }
         hasCompletedInitialHomeEntry = true
         userDefaults.set(true, forKey: Self.hasCompletedInitialHomeEntryKey)
     }

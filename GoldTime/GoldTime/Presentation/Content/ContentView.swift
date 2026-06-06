@@ -51,8 +51,6 @@ struct ContentView: View {
         } else if viewModel.shouldShowInitialOnboarding {
             let startStep: OnboardingStep = viewModel.isAuthorized ? .notificationPermission : .intro
             OnboardingView(startStep: startStep, onAuthorized: viewModel.refreshAuthorization)
-        } else if viewModel.shouldShowNotificationOnboarding {
-            OnboardingView(startStep: .notificationPermission, onAuthorized: viewModel.refreshAuthorization)
         } else {
             content
                 .withConsentFlow()

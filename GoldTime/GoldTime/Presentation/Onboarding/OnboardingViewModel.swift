@@ -61,13 +61,15 @@ final class OnboardingViewModel {
     func requestNotification() async {
         isRequesting = true
         defer { isRequesting = false }
-        let state = await authorizeUseCase.requestNotification()
-        if [NotificationPermissionState.authorized, .provisional, .ephemeral].contains(state) {
-            errorMessage = nil
-            currentStep = .trackingPermission
-        } else {
-            errorMessage = "알림을 허용해야 앱을 시작할 수 있어요. iOS 설정 > GoldTime에서 알림을 켜주세요."
-        }
+        // 알림은 선택 권한이므로 허용/거부 결과와 관계없이 다음 단계로 진행한다.
+        _ = await authorizeUseCase.requestNotification()
+        errorMessage = nil
+        currentStep = .trackingPermission
+    }
+
+    func skipNotification() {
+        errorMessage = nil
+        currentStep = .trackingPermission
     }
 
     func requestTracking() async {

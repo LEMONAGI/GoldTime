@@ -62,6 +62,9 @@ struct ViewModelTests {
         #expect(viewModel.isAuthorized)
         #expect(!viewModel.isNotificationAuthorized)
         #expect(!viewModel.isFullyAuthorized)
+        // 알림은 선택 권한이므로 거부해도 홈 진입이 막히면 안 된다.
+        #expect(viewModel.hasCompletedInitialHomeEntry)
+        #expect(!viewModel.shouldShowInitialOnboarding)
     }
 
     @Test func contentViewModelIsFullyAuthorizedWhenBothGranted() async throws {
@@ -1519,7 +1522,7 @@ struct ViewModelTests {
         #expect(viewModel.errorMessage == nil)
     }
 
-    @Test func onboardingViewModelNotificationDenialStaysOnSameStep() async {
+    @Test func onboardingViewModelNotificationDenialStillMovesToTrackingStep() async {
         let notifRepo = FakeNotificationRepository()
         notifRepo.requestAuthorizationResult = .denied
         var didAuthorize = false
@@ -1534,9 +1537,29 @@ struct ViewModelTests {
 
         await viewModel.requestNotification()
 
-        #expect(viewModel.currentStep == .notificationPermission)
-        #expect(viewModel.errorMessage != nil)
+        // 알림은 선택 권한이므로 거부해도 다음 단계로 넘어간다.
+        #expect(notifRepo.requestCallCount == 1)
+        #expect(viewModel.currentStep == .trackingPermission)
+        #expect(viewModel.errorMessage == nil)
         #expect(!didAuthorize)
+    }
+
+    @Test func onboardingViewModelSkipNotificationMovesToTrackingStepWithoutRequesting() {
+        let notifRepo = FakeNotificationRepository()
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            ),
+            startStep: .notificationPermission,
+            onAuthorized: {}
+        )
+
+        viewModel.skipNotification()
+
+        #expect(notifRepo.requestCallCount == 0)
+        #expect(viewModel.currentStep == .trackingPermission)
+        #expect(viewModel.errorMessage == nil)
     }
 
     @Test func onboardingViewModelCompleteCallsOnAuthorized() async {

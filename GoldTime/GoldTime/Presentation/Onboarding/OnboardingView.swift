@@ -65,12 +65,14 @@ struct OnboardingView: View {
             step: 2,
             icon: "bell.fill",
             title: "알림 권한",
-            description: "한도에 가까워지면 알림으로 알려드려요.\n알림을 허용해야 앱을 사용할 수 있어요.",
+            description: "한도에 가까워지면 알림으로 알려드려요.\n원하지 않으면 나중에 설정에서 켤 수 있어요.",
             permissionType: .notification,
             errorMessage: viewModel.errorMessage,
             buttonTitle: viewModel.isRequesting ? "요청 중..." : "알림 허용하기",
             isLoading: viewModel.isRequesting,
-            settingsButtonVisible: viewModel.errorMessage != nil
+            settingsButtonVisible: viewModel.errorMessage != nil,
+            skipTitle: "나중에 하기",
+            skipAction: { viewModel.skipNotification() }
         ) {
             Task { await viewModel.requestNotification() }
         }
@@ -120,6 +122,8 @@ private struct OnboardingStepView: View {
     let buttonTitle: String
     let isLoading: Bool
     var settingsButtonVisible: Bool = false
+    var skipTitle: String? = nil
+    var skipAction: (() -> Void)? = nil
     let action: () -> Void
 
     var body: some View {
@@ -170,8 +174,16 @@ private struct OnboardingStepView: View {
                     .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 16))
                     .disabled(isLoading)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 32)
+
+                    if let skipTitle, let skipAction {
+                        Button(skipTitle, action: skipAction)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .disabled(isLoading)
+                            .padding(.top, 4)
+                    }
                 }
+                .padding(.bottom, 32)
             }
         }
     }
@@ -244,9 +256,9 @@ private struct PermissionPreviewCard: View {
     }
 
     private var notificationNote: some View {
-        Label("'시간 지정 요약에서 허용'이 아닌 '허용'을 선택해야 즉시 알림을 받을 수 있어요", systemImage: "exclamationmark.circle.fill")
+        Label("'시간 지정 요약에서 허용'이 아닌 '허용'을 선택해야 즉시 알림을 받을 수 있어요", systemImage: "info.circle.fill")
             .font(.caption.weight(.semibold))
-            .foregroundStyle(.red)
+            .foregroundStyle(.secondary)
     }
 
     private var trackingNote: some View {
