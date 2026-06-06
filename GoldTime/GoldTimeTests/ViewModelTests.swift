@@ -109,6 +109,30 @@ struct ViewModelTests {
         #expect(!viewModel.isScreenTimeRecoveryPresented)
     }
 
+    @Test func contentViewModelKeepsOnboardingWhenStepSavedDespiteScreenTimeGranted() async throws {
+        // 알림 단계까지 갔다가 앱을 종료한 상태를 재현한다(스크린타임은 이미 허용됨).
+        // 재실행해도 권한만 보고 홈으로 건너뛰지 않고 온보딩을 유지해야 한다.
+        let defaults = makeUserDefaults()
+        defaults.set(OnboardingStep.notificationPermission.rawValue, forKey: OnboardingViewModel.savedStepKey)
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .notDetermined
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            ),
+            userDefaults: defaults
+        )
+        while viewModel.isCheckingPermissions {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+
+        #expect(viewModel.shouldShowInitialOnboarding)
+        #expect(viewModel.onboardingStartStep == .notificationPermission)
+    }
+
     @Test func contentViewModelShowsRecoveryAfterStartedUserLosesScreenTime() async throws {
         let defaults = makeUserDefaults(hasCompletedInitialHomeEntry: true)
         let authRepo = FakeAuthorizationRepository(isAuthorized: false)
@@ -1576,6 +1600,71 @@ struct ViewModelTests {
         #expect(notifRepo.requestCallCount == 0)
         #expect(viewModel.currentStep == .trackingPermission)
         #expect(viewModel.errorMessage == nil)
+    }
+
+    @Test func onboardingViewModelPersistsStepOnAdvance() async {
+        let defaults = UserDefaults(suiteName: "onboarding.persist.\(UUID().uuidString)")!
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        authRepo.requestResultIsAuthorized = true
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            ),
+            startStep: .screenTimePermission,
+            userDefaults: defaults,
+            onAuthorized: {}
+        )
+
+        await viewModel.requestScreenTime()
+
+        #expect(viewModel.currentStep == .notificationPermission)
+        #expect(defaults.string(forKey: OnboardingViewModel.savedStepKey) == "notificationPermission")
+    }
+
+    @Test func onboardingViewModelCompleteClearsSavedStep() async {
+        let defaults = UserDefaults(suiteName: "onboarding.clear.\(UUID().uuidString)")!
+        defaults.set(OnboardingStep.trackingPermission.rawValue, forKey: OnboardingViewModel.savedStepKey)
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: FakeNotificationRepository()
+            ),
+            startStep: .completion,
+            userDefaults: defaults,
+            onAuthorized: {}
+        )
+
+        viewModel.complete()
+
+        #expect(defaults.string(forKey: OnboardingViewModel.savedStepKey) == nil)
+    }
+
+    @Test func contentViewModelRestoresSavedOnboardingStep() async {
+        let defaults = UserDefaults(suiteName: "onboarding.restore.\(UUID().uuidString)")!
+        defaults.set(OnboardingStep.trackingPermission.rawValue, forKey: OnboardingViewModel.savedStepKey)
+        let viewModel = ContentViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: FakeNotificationRepository()
+            ),
+            userDefaults: defaults
+        )
+
+        #expect(viewModel.onboardingStartStep == .trackingPermission)
+    }
+
+    @Test func contentViewModelOnboardingStepFallsBackWhenNoSavedStep() async {
+        let defaults = UserDefaults(suiteName: "onboarding.fallback.\(UUID().uuidString)")!
+        let viewModel = ContentViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: false),
+                notificationRepository: FakeNotificationRepository()
+            ),
+            userDefaults: defaults
+        )
+
+        #expect(viewModel.onboardingStartStep == .intro)
     }
 
     @Test func onboardingViewModelCompleteCallsOnAuthorized() async {

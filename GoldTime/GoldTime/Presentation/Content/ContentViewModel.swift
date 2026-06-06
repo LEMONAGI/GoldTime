@@ -45,6 +45,15 @@ final class ContentViewModel {
     // 온보딩 완료 플래그가 진입의 단일 기준. 스크린타임 허용 직후 isAuthorized가 true로
     // 바뀌어도 온보딩(알림/광고 단계)을 끝까지 마치기 전에는 홈으로 넘어가면 안 된다.
     var shouldShowInitialOnboarding: Bool { !hasCompletedInitialHomeEntry }
+    /// 온보딩 시작 단계. 진행하다 앱을 종료한 경우 저장된 단계로 복원하고,
+    /// 없으면 스크린타임 권한 보유 여부로 기본 시작 단계를 정한다.
+    var onboardingStartStep: OnboardingStep {
+        if let raw = userDefaults.string(forKey: OnboardingViewModel.savedStepKey),
+           let saved = OnboardingStep(rawValue: raw) {
+            return saved
+        }
+        return isAuthorized ? .notificationPermission : .intro
+    }
     var groups: [ScreenTimeGroup] = []
     var pickerSelection = FamilyActivitySelection(includeEntireCategory: true)
     var pickerGroupID: UUID?
@@ -479,6 +488,10 @@ final class ContentViewModel {
     private func markInitialHomeEntryIfReady() {
         // 알림은 선택 권한이므로 스크린타임 권한만 확보되면 홈 진입을 확정한다.
         guard isAuthorized, !hasCompletedInitialHomeEntry else { return }
+        // 단, 온보딩을 아직 진행 중이면(저장된 단계 존재) 완료 처리하지 않는다.
+        // 스크린타임 허용 직후 알림/광고 단계에서 앱을 종료하고 재실행해도
+        // 권한만 보고 홈으로 건너뛰지 않도록, 끝까지 마칠 때까지 온보딩을 유지한다.
+        if userDefaults.string(forKey: OnboardingViewModel.savedStepKey) != nil { return }
         hasCompletedInitialHomeEntry = true
         userDefaults.set(true, forKey: Self.hasCompletedInitialHomeEntryKey)
     }

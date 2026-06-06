@@ -6,7 +6,7 @@
 
 import Foundation
 
-enum OnboardingStep {
+enum OnboardingStep: String {
     case intro
     case screenTimePermission
     case notificationPermission
@@ -17,16 +17,25 @@ enum OnboardingStep {
 @MainActor
 @Observable
 final class OnboardingViewModel {
-    var currentStep: OnboardingStep
+    /// 온보딩 진행 단계 저장 키. 앱을 껐다 켜도 진행하던 단계로 복원하기 위해 사용한다.
+    static let savedStepKey = "onboardingCurrentStep"
+
+    // 단계가 바뀔 때마다 저장한다. init의 첫 할당에는 didSet이 호출되지 않으므로
+    // 복원된(또는 시작) 단계는 불필요하게 다시 쓰지 않는다.
+    var currentStep: OnboardingStep {
+        didSet { userDefaults.set(currentStep.rawValue, forKey: Self.savedStepKey) }
+    }
     var errorMessage: String?
     var isRequesting = false
 
     private let authorizeUseCase: AuthorizeUseCase
     private let onAuthorized: () -> Void
+    private let userDefaults: UserDefaults
 
     init(
         authorizeUseCase: AuthorizeUseCase? = nil,
         startStep: OnboardingStep = .intro,
+        userDefaults: UserDefaults = .standard,
         onAuthorized: @escaping () -> Void
     ) {
         self.authorizeUseCase = authorizeUseCase ?? AuthorizeUseCase(
@@ -34,6 +43,7 @@ final class OnboardingViewModel {
             notificationRepository: NotificationRepositoryImpl()
         )
         self.currentStep = startStep
+        self.userDefaults = userDefaults
         self.onAuthorized = onAuthorized
     }
 
@@ -80,6 +90,8 @@ final class OnboardingViewModel {
     }
 
     func complete() {
+        // 온보딩을 끝까지 마쳤으므로 저장된 진행 단계를 정리한다.
+        userDefaults.removeObject(forKey: Self.savedStepKey)
         onAuthorized()
     }
 }

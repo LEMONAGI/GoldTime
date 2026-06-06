@@ -49,8 +49,7 @@ struct ContentView: View {
         if viewModel.isCheckingPermissions {
             Color(.systemBackground).ignoresSafeArea()
         } else if viewModel.shouldShowInitialOnboarding {
-            let startStep: OnboardingStep = viewModel.isAuthorized ? .notificationPermission : .intro
-            OnboardingView(startStep: startStep, onAuthorized: viewModel.refreshAuthorization)
+            OnboardingView(startStep: viewModel.onboardingStartStep, onAuthorized: viewModel.refreshAuthorization)
         } else {
             content
                 .withConsentFlow()
