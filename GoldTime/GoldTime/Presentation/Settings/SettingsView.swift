@@ -11,6 +11,7 @@ struct SettingsView: View {
     let isReconnecting: Bool
     let onRequestReconnect: () -> Void
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ScrollView {
@@ -28,6 +29,11 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.large)
         .task {
             await viewModel.loadState()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // iOS 설정에서 권한을 바꾸고 돌아오면 즉시 행이 최신 상태로 갱신되도록 한다.
+            guard newPhase == .active else { return }
+            Task { await viewModel.loadState() }
         }
         .alert(item: $viewModel.alertMessage) { alert in
             Alert(
@@ -72,7 +78,18 @@ struct SettingsView: View {
 
                 Divider().padding(.horizontal, 20)
 
-                if viewModel.notificationPermissionState == .notDetermined {
+                if isNotificationAuthorized && !viewModel.isNotificationDeferredBySummary {
+                    NavigationLink {
+                        NotificationSettingsView(viewModel: viewModel)
+                    } label: {
+                        notificationRow(showsChevron: true)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+                } else if viewModel.notificationPermissionState == .notDetermined {
+                    // 한 번도 권한을 요청한 적이 없으면 iOS 설정에 토글이 없어 켤 수 없으므로,
+                    // 설정 이동 대신 시스템 권한 요청을 먼저 띄운다.
                     Button {
                         guard !viewModel.isRequestingNotificationAuthorization else { return }
                         Task { await viewModel.requestNotificationAuthorization() }
@@ -82,18 +99,11 @@ struct SettingsView: View {
                             .padding(.vertical, 12)
                     }
                     .buttonStyle(.plain)
-                } else if viewModel.notificationPermissionState == .denied {
+                } else {
+                    // 거부됐거나, 권한은 있어도 시간 지정 요약에 묶여 알림이 늦는 경우는
+                    // iOS 설정에서만 바꿀 수 있으므로 설정으로 이동.
                     Button {
                         openAppSettings()
-                    } label: {
-                        notificationRow(showsChevron: true)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    NavigationLink {
-                        NotificationSettingsView(viewModel: viewModel)
                     } label: {
                         notificationRow(showsChevron: true)
                             .padding(.horizontal, 16)
@@ -219,28 +229,48 @@ struct SettingsView: View {
         .contentShape(Rectangle())
     }
 
-    private var notificationSubtitle: String? {
+    private var isNotificationAuthorized: Bool {
         switch viewModel.notificationPermissionState {
-        case .notDetermined: "권한 요청 전"
-        case .authorized, .provisional, .ephemeral: nil
-        case .denied: "iOS 설정에서 꺼져 있어요"
-        case .unknown: "상태 확인 필요"
+        case .authorized, .provisional, .ephemeral: true
+        case .notDetermined, .denied, .unknown: false
+        }
+    }
+
+    /// 권한은 허용됐지만 시간 지정 요약에 묶여 알림이 지연되는 상태.
+    private var isNotificationDeferredBySummary: Bool {
+        isNotificationAuthorized && viewModel.isNotificationDeferredBySummary
+    }
+
+    private var notificationSubtitle: String? {
+        if isNotificationDeferredBySummary {
+            return "시간 지정 요약에 묶여 알림이 늦을 수 있어요"
+        }
+        switch viewModel.notificationPermissionState {
+        case .notDetermined: return "탭하여 알림을 허용해 주세요"
+        case .authorized, .provisional, .ephemeral: return nil
+        case .denied: return "iOS 설정에서 꺼져 있어요"
+        case .unknown: return "iOS 설정에서 켜주세요"
         }
     }
 
     private var notificationIconName: String {
+        if isNotificationDeferredBySummary {
+            return "clock.badge.exclamationmark.fill"
+        }
         switch viewModel.notificationPermissionState {
-        case .authorized, .provisional, .ephemeral: "bell.badge.fill"
-        case .denied: "bell.slash.fill"
-        case .notDetermined, .unknown: "bell"
+        case .authorized, .provisional, .ephemeral: return "bell.badge.fill"
+        case .denied, .notDetermined, .unknown: return "bell.slash.fill"
         }
     }
 
     private var notificationTint: Color {
+        if isNotificationDeferredBySummary {
+            return .orange
+        }
         switch viewModel.notificationPermissionState {
-        case .authorized, .provisional, .ephemeral: Color.accentColor
-        case .denied: .red
-        case .notDetermined, .unknown: .red
+        case .authorized, .provisional, .ephemeral: return Color.accentColor
+        case .denied: return .red
+        case .notDetermined, .unknown: return .red
         }
     }
 

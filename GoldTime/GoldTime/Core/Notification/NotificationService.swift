@@ -19,6 +19,14 @@ enum NotificationService {
         return settings.authorizationStatus
     }
 
+    /// 알림이 "시간 지정 요약"에 묶여 즉시 전달되지 않는 상태인지.
+    /// time-sensitive 알림은 요약을 우회하므로, time-sensitive가 켜져 있으면 지연되지 않는다.
+    static func isDeferredByScheduledSummary() async -> Bool {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        guard settings.scheduledDeliverySetting == .enabled else { return false }
+        return settings.timeSensitiveSetting != .enabled
+    }
+
     static func requestAuthorizationIfNeeded() async -> UNAuthorizationStatus {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()

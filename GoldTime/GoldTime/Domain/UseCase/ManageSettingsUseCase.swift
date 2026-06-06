@@ -34,6 +34,10 @@ final class ManageSettingsUseCase {
         await notificationRepository.requestAuthorizationIfNeeded()
     }
 
+    func isNotificationDeferredByScheduledSummary() async -> Bool {
+        await notificationRepository.isNotificationDeferredByScheduledSummary()
+    }
+
     var isDailyMorningNotificationEnabled: Bool {
         notificationRepository.isDailyMorningNotificationEnabled
     }

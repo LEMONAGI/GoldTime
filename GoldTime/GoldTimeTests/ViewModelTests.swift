@@ -275,6 +275,22 @@ struct ViewModelTests {
         #expect(viewModel.isDailyMorningNotificationEnabled)
     }
 
+    @Test func settingsViewModelLoadsScheduledSummaryDeferral() async {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .authorized
+        notifRepo.isDeferredByScheduledSummary = true
+        let viewModel = SettingsViewModel(
+            manageSettingsUseCase: ManageSettingsUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            )
+        )
+
+        await viewModel.loadState()
+
+        #expect(viewModel.isNotificationDeferredBySummary)
+    }
+
     @Test func settingsViewModelTogglesDailyMorningNotification() {
         let notifRepo = FakeNotificationRepository()
         let viewModel = SettingsViewModel(
@@ -1860,6 +1876,12 @@ private final class FakeNotificationRepository: NotificationRepository {
         requestCallCount += 1
         authorizationStateValue = requestAuthorizationResult
         return requestAuthorizationResult
+    }
+
+    var isDeferredByScheduledSummary = false
+
+    func isNotificationDeferredByScheduledSummary() async -> Bool {
+        isDeferredByScheduledSummary
     }
 
     func scheduleWeeklyStatsNotification(weekStartDay: Int) {}

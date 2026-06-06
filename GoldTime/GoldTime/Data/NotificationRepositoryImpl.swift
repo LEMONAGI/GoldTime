@@ -11,6 +11,10 @@ struct NotificationRepositoryImpl: NotificationRepository {
         await NotificationService.requestAuthorizationIfNeeded().permissionState
     }
 
+    func isNotificationDeferredByScheduledSummary() async -> Bool {
+        await NotificationService.isDeferredByScheduledSummary()
+    }
+
     func scheduleDailyMorningNotification(extraMinutes: Int) {
         NotificationService.scheduleDailyMorningNotification(extraMinutes: extraMinutes)
     }

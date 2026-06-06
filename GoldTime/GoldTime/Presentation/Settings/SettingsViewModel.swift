@@ -20,6 +20,8 @@ struct SettingsAlertMessage: Identifiable, Equatable {
 final class SettingsViewModel {
     var isScreenTimeAuthorized: Bool
     var notificationPermissionState: NotificationPermissionState = .unknown
+    /// 권한은 허용됐지만 "시간 지정 요약"에 묶여 알림이 지연되는 상태.
+    var isNotificationDeferredBySummary = false
     var isRequestingScreenTimeAuthorization = false
     var isRequestingNotificationAuthorization = false
     var isDailyMorningNotificationEnabled: Bool
@@ -49,6 +51,7 @@ final class SettingsViewModel {
     func loadState() async {
         isScreenTimeAuthorized = manageSettingsUseCase.refreshScreenTimeAuthorization()
         notificationPermissionState = await manageSettingsUseCase.notificationAuthorizationState()
+        isNotificationDeferredBySummary = await manageSettingsUseCase.isNotificationDeferredByScheduledSummary()
         isDailyMorningNotificationEnabled = manageSettingsUseCase.isDailyMorningNotificationEnabled
     }
 
@@ -77,5 +80,6 @@ final class SettingsViewModel {
         defer { isRequestingNotificationAuthorization = false }
 
         notificationPermissionState = await manageSettingsUseCase.requestNotificationAuthorizationIfNeeded()
+        isNotificationDeferredBySummary = await manageSettingsUseCase.isNotificationDeferredByScheduledSummary()
     }
 }
