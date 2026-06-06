@@ -8,9 +8,13 @@ GoldTime은 줄이고 싶은 앱에 한도를 걸어두고, 그 한도를 넘겼
 
 ## 🖼️ 스크린샷
 
-| 오늘의 시간 청구서 | 한도 초과 Shield | 사용 기록 |
-| --- | --- | --- |
-| 스크린샷 준비 중<br>`docs/images/readme-dashboard.png` | 스크린샷 준비 중<br>`docs/images/readme-shield.png` | 스크린샷 준비 중<br>`docs/images/readme-stats.png` |
+<p align="center">
+  <img src="docs/images/app-store-screenshot-01.png" width="160" alt="GoldTime App Store screenshot 1">
+  <img src="docs/images/app-store-screenshot-02.png" width="160" alt="GoldTime App Store screenshot 2">
+  <img src="docs/images/app-store-screenshot-03.png" width="160" alt="GoldTime App Store screenshot 3">
+  <img src="docs/images/app-store-screenshot-04.png" width="160" alt="GoldTime App Store screenshot 4">
+  <img src="docs/images/app-store-screenshot-05.png" width="160" alt="GoldTime App Store screenshot 5">
+</p>
 
 ## 💡 아이디어의 시작
 
