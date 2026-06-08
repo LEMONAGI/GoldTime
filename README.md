@@ -1,5 +1,11 @@
 # GoldTime
 
+<p align="center">
+  <a href="https://apps.apple.com/us/app/%EC%8A%A4%ED%81%AC%EB%A6%B0%ED%83%80%EC%9E%84-goldtime-%EC%95%B1-%EC%9E%A0%EA%B8%88-%EC%95%B1-%EC%B0%A8%EB%8B%A8/id6772543300">
+    <img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-pre-order-on-the-app-store.svg" alt="App Store에서 GoldTime 사전 주문하기" width="160">
+  </a>
+</p>
+
 GoldTime은 스크린타임 한도를 넘긴 뒤의 선택을 조금 더 의식적으로 만들도록 돕는 iOS 앱입니다.
 
 GoldTime은 줄이고 싶은 앱에 한도를 걸어두고, 그 한도를 넘겼을 때 한 번 더 멈춰서 생각하게 만듭니다. 계속 쓸 수도 있습니다. 대신 바로 이어서 쓰는 게 아니라, 그만 쓸지, 1분만 더 쓸지, 광고를 보고 더 쓸지 직접 고르게 됩니다.
@@ -83,4 +89,4 @@ GoldTime은 그 순간을 조금 더 잘 보이게 만들고 싶었습니다. �
 ## 🚧 현재 상태
 
 GoldTime은 iOS 26.0+를 대상으로 준비 중입니다.  
-App Store 다운로드 링크는 출시 후 이곳에 추가됩니다.
+현재 App Store에서 사전 출시 중입니다.
