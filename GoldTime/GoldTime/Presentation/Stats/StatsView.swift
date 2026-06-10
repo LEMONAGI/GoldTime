@@ -139,8 +139,8 @@ private struct TrendChartSection: View {
         stats.map { Double($0.totalUnlockedSeconds) / 60.0 }.max() ?? 0
     }
 
-    private var hasData: Bool {
-        stats.contains { $0.totalUnlockedSeconds > 0 }
+    private var hasAnyRecord: Bool {
+        stats.contains { viewModel.hasRecord($0) }
     }
 
     private var displayYear: Int {
@@ -177,38 +177,45 @@ private struct TrendChartSection: View {
         }
     }
 
-    // MARK: - Y축 (시간 단위)
+    // MARK: - Y축 (최대값 기반 눈금)
 
     private var dataMaxMinutes: Double { max(maxMinutes, averageMinutes) }
 
-    /// 데이터 최대값을 올림한 도메인 상단(시간). 최소 1시간.
-    private var yDomainTopHours: Int {
-        max(1, Int((dataMaxMinutes / 60.0).rounded(.up)))
+    /// 눈금 간격 후보(분).
+    private static let yStepCandidates: [Double] = [5, 10, 15, 20, 30, 60, 120, 180, 240, 360, 480, 720]
+
+    /// 데이터 최대값이 3칸 안에 들어오는 가장 작은 간격. 데이터가 없으면 도메인이 1시간이 되는 20분.
+    private var yStepMinutes: Double {
+        guard dataMaxMinutes > 0 else { return 20 }
+        return Self.yStepCandidates.first { dataMaxMinutes <= $0 * 3 } ?? 720
     }
 
-    /// 눈금이 최대 3개가 되도록 시간 간격을 고릅니다(짝수 시간 우선).
-    private var yHourStep: Int {
-        let top = yDomainTopHours
-        for step in [1, 2, 4, 6, 12, 24] where top / step <= 3 {
-            return step
-        }
-        return 24
-    }
+    /// 도메인 상단(분): 최대값이 딱 들어오는 3칸 (위로 여유 칸 없음).
+    private var yDomainTopMinutes: Double { yStepMinutes * 3 }
 
-    /// 0과 시간 눈금 위치(분 단위)들.
+    /// 0 포함 4개 눈금 위치(분 단위).
     private var yTickMinutes: [Double] {
-        var values: [Double] = [0]
-        var hour = yHourStep
-        while hour <= yDomainTopHours {
-            values.append(Double(hour * 60))
-            hour += yHourStep
-        }
-        return values
+        [0, yStepMinutes, yStepMinutes * 2, yStepMinutes * 3]
     }
 
     private func yAxisLabel(forMinutes minutes: Double) -> String {
-        let hours = Int((minutes / 60.0).rounded())
-        return hours == 0 ? "0" : "\(hours)시간"
+        let total = Int(minutes.rounded())
+        guard total > 0 else { return "0" }
+        let hours = total / 60
+        let mins = total % 60
+        if hours > 0 && mins > 0 { return "\(hours)시간 \(mins)분" }
+        return hours > 0 ? "\(hours)시간" : "\(mins)분"
+    }
+
+    /// 기록은 있지만 0분인 날의 스텁 막대 높이(분). 도메인 상단에 비례해 어느 도메인에서든 같은 높이로 보인다.
+    private var zeroRecordStubMinutes: Double {
+        yDomainTopMinutes * 0.025
+    }
+
+    /// 기록 없는 날(설치/제한 적용 전, 미래)은 막대만 투명 처리해 축·그리드 골격은 동일하게 유지한다.
+    private func barColor(for stat: DailyStats, minutes: Double) -> Color {
+        guard viewModel.hasRecord(stat) else { return .clear }
+        return minutes > 0 ? .accent : Color.accent.opacity(0.3)
     }
 
     var body: some View {
@@ -260,15 +267,25 @@ private struct TrendChartSection: View {
                     let minutes = Double(stat.totalUnlockedSeconds) / 60.0
                     BarMark(
                         x: .value("날짜", stat.date, unit: .day),
-                        y: .value("추가 사용", minutes > 0 ? minutes : 0.2)
+                        y: .value("추가 사용", minutes > 0 ? minutes : zeroRecordStubMinutes)
                     )
                     .cornerRadius(4)
-                    .foregroundStyle(minutes > 0 ? Color.accent : Color.accent.opacity(0.3))
+                    .foregroundStyle(barColor(for: stat, minutes: minutes))
                 }
                 if averageSeconds > 0 {
                     RuleMark(y: .value("평균", averageMinutes))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.orange)
+                        .annotation(
+                            position: .top,
+                            alignment: .trailing,
+                            spacing: 2,
+                            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+                        ) {
+                            Text("평균")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.orange)
+                        }
                 }
             }
             .chartXAxis {
@@ -293,18 +310,10 @@ private struct TrendChartSection: View {
                         }
                     }
                 }
-                if averageSeconds > 0 {
-                    AxisMarks(position: .trailing, values: [averageMinutes]) { _ in
-                        AxisValueLabel {
-                            Text("평균")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
             }
-            .chartYScale(domain: 0...Double(yDomainTopHours * 60))
+            .chartYScale(domain: 0...yDomainTopMinutes)
 
-            if !hasData {
+            if !hasAnyRecord {
                 Text("추가 사용 기록 없음")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -382,7 +391,7 @@ private func makeStatsView(allMock: [DailyStats]) -> some View {
         weeklyStats: Array(allMock.prefix(min(7, allMock.count))),
         previousWeekStats: allMock.count >= 14 ? Array(allMock[7..<14]) : [],
         monthlyStats: Array(allMock.prefix(min(30, allMock.count))),
-        oldestStatDate: allMock.last?.date
+        trackingStartDate: allMock.last?.date
     )
     return NavigationStack {
         StatsView(

@@ -6,7 +6,8 @@ struct StatsReport {
     let weeklyStats: [DailyStats]
     let previousWeekStats: [DailyStats]
     let monthlyStats: [DailyStats]
-    let oldestStatDate: Date?
+    /// 기록 추적 시작일. 이 날짜 이후의 0분 날도 평균 분모에 포함된다.
+    let trackingStartDate: Date?
 
     var yesterdayUnlockedSeconds: Int {
         let key = DailyStats.dateKey(for: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date())
@@ -70,7 +71,7 @@ struct StatsReport {
 
     private func averageUnlockedSeconds(from stats: [DailyStats]) -> Int {
         let today = Calendar.current.startOfDay(for: Date())
-        let floor: Date = oldestStatDate ?? .distantPast
+        let floor: Date = trackingStartDate ?? .distantPast
         let relevant = stats.filter { $0.date >= floor && $0.date <= today }
         guard !relevant.isEmpty else { return 0 }
         return relevant.reduce(0) { $0 + $1.totalUnlockedSeconds } / relevant.count

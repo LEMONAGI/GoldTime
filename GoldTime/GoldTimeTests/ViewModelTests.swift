@@ -1074,7 +1074,7 @@ struct ViewModelTests {
                 weeklyStats: weekly,
                 previousWeekStats: Array(repeating: DailyStats(dateKey: ""), count: 7),
                 monthlyStats: Array(repeating: DailyStats(dateKey: ""), count: 30),
-                oldestStatDate: nil
+                trackingStartDate: nil
             ),
             isMonitoring: true,
             adFreeStreakDays: 0,
@@ -1095,7 +1095,7 @@ struct ViewModelTests {
                 weeklyStats: weekly,
                 previousWeekStats: Array(repeating: DailyStats(dateKey: ""), count: 7),
                 monthlyStats: Array(repeating: DailyStats(dateKey: ""), count: 30),
-                oldestStatDate: nil
+                trackingStartDate: nil
             ),
             isMonitoring: true,
             adFreeStreakDays: 0,
@@ -1115,7 +1115,7 @@ struct ViewModelTests {
                 weeklyStats: weekly,
                 previousWeekStats: Array(repeating: DailyStats(dateKey: ""), count: 7),
                 monthlyStats: Array(repeating: DailyStats(dateKey: ""), count: 30),
-                oldestStatDate: nil
+                trackingStartDate: nil
             ),
             isMonitoring: false,
             adFreeStreakDays: 0,
@@ -1143,7 +1143,7 @@ struct ViewModelTests {
             weeklyStats: thisWeek,
             previousWeekStats: prevWeek,
             monthlyStats: [],
-            oldestStatDate: nil
+            trackingStartDate: nil
         )
 
         #expect(report.yesterdayUnlockedSeconds == 2700)
@@ -1160,7 +1160,7 @@ struct ViewModelTests {
                 weeklyStats: thisWeek,
                 previousWeekStats: prevWeek,
                 monthlyStats: Array(repeating: DailyStats(dateKey: ""), count: 30),
-                oldestStatDate: nil
+                trackingStartDate: nil
             ),
             isMonitoring: true,
             adFreeStreakDays: 0,
@@ -1182,7 +1182,7 @@ struct ViewModelTests {
                 weeklyStats: makeWeeklyStats(),
                 previousWeekStats: Array(repeating: DailyStats(dateKey: ""), count: 7),
                 monthlyStats: Array(repeating: DailyStats(dateKey: ""), count: 30),
-                oldestStatDate: nil
+                trackingStartDate: nil
             ),
             isMonitoring: true,
             adFreeStreakDays: 0,
@@ -1202,7 +1202,7 @@ struct ViewModelTests {
                 weeklyStats: [],
                 previousWeekStats: [],
                 monthlyStats: [],
-                oldestStatDate: nil
+                trackingStartDate: nil
             ),
             isMonitoring: false,
             adFreeStreakDays: 0,
@@ -1268,7 +1268,7 @@ struct ViewModelTests {
                 weeklyStats: [],
                 previousWeekStats: [],
                 monthlyStats: [],
-                oldestStatDate: oldest
+                trackingStartDate: oldest
             ),
             isMonitoring: false,
             adFreeStreakDays: 0,
@@ -1326,6 +1326,56 @@ struct ViewModelTests {
         let today = Calendar.current.startOfDay(for: Date())
         let emptyStats: [DailyStats] = []
         #expect(makeAverageVM().averageSeconds(for: emptyStats, today: today) == 0)
+    }
+
+    // MARK: - hasRecord (그래프의 기록 없음 / 0분 구분)
+
+    private func makeTrackingVM(trackingStart: Date?) -> StatsViewModel {
+        let repo = FakeStatsRepository()
+        repo.trackingStartDateValue = trackingStart
+        return makeComparisonVM(repo: repo)
+    }
+
+    private func zeroStat(daysFromToday offset: Int, today: Date) -> DailyStats {
+        let date = Calendar.current.date(byAdding: .day, value: offset, to: today)!
+        return DailyStats(dateKey: DailyStats.dateKey(for: date))
+    }
+
+    @Test func hasRecordIsTrueForPositiveUsageEvenWithoutTracking() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let stat = DailyStats(dateKey: DailyStats.dateKey(for: today), adUnlockedSeconds: 60)
+        #expect(makeTrackingVM(trackingStart: nil).hasRecord(stat, today: today))
+    }
+
+    @Test func hasRecordIsFalseForZeroUsageWithoutTracking() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let vm = makeTrackingVM(trackingStart: nil)
+        #expect(!vm.hasRecord(zeroStat(daysFromToday: 0, today: today), today: today))
+    }
+
+    @Test func hasRecordTreatsZeroUsageAsRecordAfterTrackingStart() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let trackingStart = cal.date(byAdding: .day, value: -3, to: today)!
+        let vm = makeTrackingVM(trackingStart: trackingStart)
+        #expect(vm.hasRecord(zeroStat(daysFromToday: -3, today: today), today: today))
+        #expect(vm.hasRecord(zeroStat(daysFromToday: 0, today: today), today: today))
+    }
+
+    @Test func hasRecordIsFalseBeforeTrackingStart() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let trackingStart = cal.date(byAdding: .day, value: -3, to: today)!
+        let vm = makeTrackingVM(trackingStart: trackingStart)
+        #expect(!vm.hasRecord(zeroStat(daysFromToday: -4, today: today), today: today))
+    }
+
+    @Test func hasRecordIsFalseForFutureDays() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let trackingStart = cal.date(byAdding: .day, value: -3, to: today)!
+        let vm = makeTrackingVM(trackingStart: trackingStart)
+        #expect(!vm.hasRecord(zeroStat(daysFromToday: 1, today: today), today: today))
     }
 
     // MARK: - LoadDashboardUseCase streak
@@ -1869,6 +1919,10 @@ private final class FakeStatsRepository: StatsRepository {
     func calendarMonthRange(monthOffset: Int) -> (start: Date, end: Date)? { nil }
     func allDailyStats() -> [DailyStats] { weeklyStatsValue + previousWeekStatsValue }
     var oldestStatDate: Date? { oldestStatDateValue }
+    var trackingStartDateValue: Date?
+    var trackingStartDate: Date? {
+        [trackingStartDateValue, oldestStatDateValue].compactMap { $0 }.min()
+    }
 }
 
 @MainActor

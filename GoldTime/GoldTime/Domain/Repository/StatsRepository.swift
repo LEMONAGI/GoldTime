@@ -12,4 +12,6 @@ protocol StatsRepository {
     func calendarMonthRange(monthOffset: Int) -> (start: Date, end: Date)?
     func allDailyStats() -> [DailyStats]
     var oldestStatDate: Date? { get }
+    /// 기록 추적 시작일. 이 날짜 이후로는 통계가 없는 날도 "0분 기록"으로 취급한다.
+    var trackingStartDate: Date? { get }
 }

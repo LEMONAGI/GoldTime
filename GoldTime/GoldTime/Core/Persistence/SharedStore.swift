@@ -41,6 +41,7 @@ enum SharedStore {
         static let overrideGrantedMinutesByGroupID = "overrideGrantedMinutesByGroupID"
         static let lastMorningNotificationDate = "lastMorningNotificationDate"
         static let isDailyMorningNotificationEnabled = "isDailyMorningNotificationEnabled"
+        static let statsTrackingStartDate = "statsTrackingStartDate"
     }
 
     /// 하루 요약(오전 9시) 알림 수신 여부. 기본값 On.
@@ -312,6 +313,18 @@ enum SharedStore {
         return dateKeyFormatter.date(from: minKey)
     }
 
+    /// 일일 제한 모니터링이 처음 켜진 날(자정 기준).
+    /// 그래프에서 "설치/제한 적용 이전(기록 없음)"과 "추적 중인데 0분"을 구분하는 기준.
+    static var statsTrackingStartDate: Date? {
+        get { defaults.object(forKey: Key.statsTrackingStartDate) as? Date }
+        set { defaults.set(newValue, forKey: Key.statsTrackingStartDate) }
+    }
+
+    static func markStatsTrackingStartedIfNeeded(referenceDate: Date = Date()) {
+        guard statsTrackingStartDate == nil else { return }
+        statsTrackingStartDate = Calendar.current.startOfDay(for: referenceDate)
+    }
+
     static var allDailyStats: [DailyStats] {
         Array(dailyStatsByDate.values)
     }
@@ -420,6 +433,7 @@ enum SharedStore {
         var dict: [String: DailyStats] = [:]
         for stat in stats { dict[stat.dateKey] = stat }
         dailyStatsByDate = dict
+        statsTrackingStartDate = dict.keys.min().flatMap { dateKeyFormatter.date(from: $0) }
     }
     #endif
 

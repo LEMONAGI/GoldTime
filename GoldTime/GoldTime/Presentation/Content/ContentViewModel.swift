@@ -150,7 +150,7 @@ final class ContentViewModel {
             weeklyStats: statsRepo.statsForCalendarWeek(weekOffset: 0),
             previousWeekStats: statsRepo.statsForCalendarWeek(weekOffset: -1),
             monthlyStats: statsRepo.lastNDayStats(30),
-            oldestStatDate: statsRepo.oldestStatDate
+            trackingStartDate: statsRepo.trackingStartDate
         )
         adFreeStreakDays = 0
         maxAdFreeStreakDays = 0

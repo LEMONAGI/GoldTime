@@ -54,13 +54,23 @@ final class StatsViewModel {
         statsRepository.allDailyStats()
     }
 
-    var oldestStatDate: Date? {
-        statsRepository.oldestStatDate
+    var trackingStartDate: Date? {
+        statsRepository.trackingStartDate
+    }
+
+    /// 해당 날짜를 "기록 있음"으로 취급할지. 추적 시작 이후 ~ 오늘까지는 0분도 기록으로 본다.
+    /// 추적 시작 이전(설치/제한 적용 전)과 미래 날짜는 기록 없음.
+    func hasRecord(_ stat: DailyStats, today: Date = Date()) -> Bool {
+        if stat.totalUnlockedSeconds > 0 { return true }
+        guard let start = trackingStartDate else { return false }
+        let calendar = Calendar.current
+        return stat.date >= calendar.startOfDay(for: start)
+            && stat.date <= calendar.startOfDay(for: today)
     }
 
     func averageSeconds(for stats: [DailyStats], today: Date = Date()) -> Int {
         let today = Calendar.current.startOfDay(for: today)
-        let floor: Date = oldestStatDate ?? .distantPast
+        let floor: Date = trackingStartDate ?? .distantPast
         let relevant = stats.filter { $0.date >= floor && $0.date <= today }
         guard !relevant.isEmpty else { return 0 }
         return relevant.reduce(0) { $0 + $1.totalUnlockedSeconds } / relevant.count

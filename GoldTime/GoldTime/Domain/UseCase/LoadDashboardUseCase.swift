@@ -53,7 +53,7 @@ final class LoadDashboardUseCase {
             weeklyStats: statsRepository.statsForCalendarWeek(weekOffset: 0),
             previousWeekStats: statsRepository.statsForCalendarWeek(weekOffset: -1),
             monthlyStats: statsRepository.lastNDayStats(30),
-            oldestStatDate: statsRepository.oldestStatDate
+            trackingStartDate: statsRepository.trackingStartDate
         )
         return DashboardState(
             isShieldActive: shieldRepository.isShieldActive,

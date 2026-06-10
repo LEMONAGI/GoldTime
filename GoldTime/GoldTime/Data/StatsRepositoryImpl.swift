@@ -23,6 +23,10 @@ struct StatsRepositoryImpl: StatsRepository {
     }
     func allDailyStats() -> [DailyStats] { SharedStore.allDailyStats.map { $0.toDomain() } }
     var oldestStatDate: Date? { SharedStore.oldestStatDate }
+    // 모니터링 시작 마커와 첫 통계 기록 중 더 이른 날. 마커 도입 전 설치된 기기도 기존 기록을 보존한다.
+    var trackingStartDate: Date? {
+        [SharedStore.statsTrackingStartDate, SharedStore.oldestStatDate].compactMap { $0 }.min()
+    }
 }
 
 private extension SharedStore.DailyStats {

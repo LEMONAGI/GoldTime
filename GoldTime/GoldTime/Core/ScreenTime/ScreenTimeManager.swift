@@ -194,6 +194,7 @@ enum ScreenTimeManager {
         do {
             try registerAllGroups(sanitizedGroups)
             SharedStore.isDailyMonitoringEnabled = true
+            SharedStore.markStatsTrackingStartedIfNeeded()
         } catch {
             SharedStore.isDailyMonitoringEnabled = false
             throw error
@@ -284,6 +285,7 @@ enum ScreenTimeManager {
         SharedStore.lastRegisteredGroupsByID = newRegistered
         SharedStore.lastRegisteredGenerationByID = generationByID
         SharedStore.isDailyMonitoringEnabled = true
+        SharedStore.markStatsTrackingStartedIfNeeded()
         applyShield()
 
         if let error = firstError { throw error }
