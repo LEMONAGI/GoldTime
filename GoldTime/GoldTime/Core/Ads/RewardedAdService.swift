@@ -14,7 +14,8 @@ final class RewardedAdService: NSObject {
     private(set) var loadState: LoadState = .idle
 
     private var rewardedAd: RewardedAd?
-    private let adUnitID = "ca-app-pub-3940256099942544/1712485313"
+    // 실제 광고 단위. Debug 빌드에서는 ConsentService에 등록된 테스트 기기에서만 테스트 광고가 노출된다.
+    private let adUnitID = "ca-app-pub-7955752005034474/4426609987"
 
     private var dismissCallback: ((_ didEarnReward: Bool) -> Void)?
     private var didEarnReward = false
