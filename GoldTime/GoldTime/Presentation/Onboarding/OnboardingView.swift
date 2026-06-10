@@ -225,7 +225,7 @@ private struct PermissionPreviewCard: View {
     private var dialogTitle: String {
         switch type {
         case .screenTime: "스크린타임 접근 허용"
-        case .notification: "알림을 보내도 됩니까?"
+        case .notification: "\"GoldTime\"에서 알림을 보내고자 합니다"
         case .tracking: "\"GoldTime\"이 추적을 요청합니다"
         }
     }
@@ -253,18 +253,24 @@ private struct PermissionPreviewCard: View {
         Label("이 권한을 허용해야 앱을 사용할 수 있어요", systemImage: "exclamationmark.circle.fill")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.red)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var notificationNote: some View {
         Label("'시간 지정 요약에서 허용'이 아닌 '허용'을 선택해야 즉시 알림을 받을 수 있어요", systemImage: "info.circle.fill")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var trackingNote: some View {
         Label("거부해도 광고는 표시되며 앱 이용에 제한이 없어요", systemImage: "info.circle.fill")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var screenTimeCard: some View {

@@ -18,6 +18,7 @@ final class ConsentService {
     /// UMP 동의 → ATT → MobileAds.start() 순서를 보장하는 전체 흐름.
     /// 동의 거부, 네트워크 없음 등 어떤 경우에도 MobileAds.start()까지 완료한다.
     func requestConsentAndInitialize() async {
+        await requestUMPConsent(from: findPresentingViewController())
         await requestATTIfNeeded()
         await startMobileAds()
         isAdSdkReady = true
@@ -58,9 +59,10 @@ final class ConsentService {
     }
 
     private func startMobileAds() async {
-        // 등록된 개발자 기기는 빌드 구성과 무관하게 항상 테스트 광고로 보호한다.
-        // (self-click으로 인한 invalid traffic 방지. 일반 사용자에게는 실제 광고가 노출된다.)
+        #if DEBUG
+        // Debug 빌드에서만 개발자 기기를 테스트 기기로 등록한다. Release에서는 모든 기기에 실제 광고가 노출된다.
         MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["b5ed086b1fad2b5c424eb682be84e562"]
+        #endif
         await withCheckedContinuation { continuation in
             MobileAds.shared.start { _ in continuation.resume() }
         }
