@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://apps.apple.com/us/app/%EC%8A%A4%ED%81%AC%EB%A6%B0%ED%83%80%EC%9E%84-goldtime-%EC%95%B1-%EC%9E%A0%EA%B8%88-%EC%95%B1-%EC%B0%A8%EB%8B%A8/id6772543300">
-    <img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-pre-order-on-the-app-store.svg" alt="App Store에서 GoldTime 사전 주문하기" width="160">
+    <img src="https://developer.apple.com/app-store/marketing/guidelines/images/badge-download-on-the-app-store.svg" alt="App Store에서 GoldTime 다운로드하기" width="160">
   </a>
 </p>
 
