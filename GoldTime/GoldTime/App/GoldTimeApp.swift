@@ -4,7 +4,6 @@
 //
 
 import BackgroundTasks
-import SwiftData
 import SwiftUI
 
 @main
