@@ -41,15 +41,28 @@ struct AppPickerSheet: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(role: .cancel) { dismiss() }
-                        .tint(.white)
+                    if #available(iOS 26.0, *) {
+                        Button(role: .cancel) { dismiss() }
+                            .tint(.white)
+                    } else {
+                        Button("취소", role: .cancel) { dismiss() }
+                            .tint(.white)
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(role: .confirm) {
-                        onCommit()
-                        dismiss()
+                    if #available(iOS 26.0, *) {
+                        Button(role: .confirm) {
+                            onCommit()
+                            dismiss()
+                        }
+                        .disabled(!viewModel.warnings.isEmpty)
+                    } else {
+                        Button("완료") {
+                            onCommit()
+                            dismiss()
+                        }
+                        .disabled(!viewModel.warnings.isEmpty)
                     }
-                    .disabled(!viewModel.warnings.isEmpty)
                 }
             }
             .navigationTitle("항목 선택")
