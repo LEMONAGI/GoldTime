@@ -81,7 +81,7 @@ struct ContentView: View {
                     onDeleteGroup: viewModel.requestDeleteGroup,
                     onUpdateGroupName: viewModel.updateGroupName,
                     onPresentPicker: viewModel.requestPickerPresentation,
-                    onPresentLimitPicker: viewModel.requestLimitPickerPresentation,
+                    onPresentRuleEditor: viewModel.requestRuleEditorPresentation,
                     onUnlockGroup: viewModel.presentUnlockSheet
                 )
             }
@@ -132,20 +132,23 @@ struct ContentView: View {
             .interactiveDismissDisabled()
         }
         .sheet(isPresented: Binding(
-            get: { viewModel.isLimitPickerPresented },
-            set: { viewModel.setLimitPickerPresented($0) }
+            get: { viewModel.isRuleEditorPresented },
+            set: { viewModel.setRuleEditorPresented($0) }
         ), onDismiss: {
-            viewModel.handleLimitPickerDismiss()
+            viewModel.handleRuleEditorDismiss()
         }) {
-            LimitPickerSheet(
+            RuleEditorSheet(
+                selectedKind: $viewModel.ruleEditorSelectedKind,
                 hours: $viewModel.limitPickerHours,
                 minutes: $viewModel.limitPickerMinutes,
+                timeWindows: $viewModel.ruleEditorTimeWindows,
+                currentKind: viewModel.ruleEditorSelectedKind,
                 onConfirm: {
-                    viewModel.commitLimitPickerSelection()
+                    viewModel.commitRuleSelection()
                 },
-                onCancel: { viewModel.setLimitPickerPresented(false) }
+                onCancel: { viewModel.setRuleEditorPresented(false) }
             )
-            .presentationDetents([.height(300)])
+            .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
         .alert(item: activeAlert) { active in

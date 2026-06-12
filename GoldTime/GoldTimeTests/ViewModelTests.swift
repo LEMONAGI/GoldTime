@@ -436,11 +436,11 @@ struct ViewModelTests {
         viewModel.groups = [group]
         viewModel.overrideGroupIDs = [group.id]
 
-        viewModel.requestLimitPickerPresentation(for: group)
+        viewModel.requestRuleEditorPresentation(for: group)
 
         #expect(viewModel.isAdGatePresented)
         #expect(viewModel.adGateFallbackLabel == "그래도 변경하기")
-        #expect(!viewModel.isLimitPickerPresented)
+        #expect(!viewModel.isRuleEditorPresented)
     }
 
     @Test func adGateOpenedForOverrideGroupDelete() {
@@ -660,7 +660,7 @@ struct ViewModelTests {
         #expect(viewModel.isPickerPresented)
     }
 
-    @Test func contentViewModelCommitsLimitPickerSelection() {
+    @Test func contentViewModelCommitsDailyLimitRule() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
         let groupRepo = FakeGroupRepository()
         groupRepo.screenTimeGroups = [group]
@@ -677,17 +677,19 @@ struct ViewModelTests {
         )
         viewModel.groups = [group]
 
-        viewModel.presentLimitPicker(for: group)
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 1
         viewModel.limitPickerMinutes = 15
-        viewModel.commitLimitPickerSelection()
+        viewModel.commitRuleSelection()
 
         #expect(viewModel.groups.first?.dailyLimitMinutes == 75)
+        #expect(viewModel.groups.first?.ruleKind == .dailyLimit)
         #expect(groupRepo.screenTimeGroups.first?.dailyLimitMinutes == 75)
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
-    @Test func limitPickerWarnsAndDefersWhenNewLimitBelowUsedTime() {
+    @Test func dailyLimitRuleWarnsAndDefersWhenNewLimitBelowUsedTime() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
         let groupRepo = FakeGroupRepository()
         groupRepo.screenTimeGroups = [group]
@@ -706,11 +708,12 @@ struct ViewModelTests {
         viewModel.usedTimeByGroupID = [group.id: 20]
 
         // 20분 사용 중인 그룹에 10분 한도 → 즉시 잠김. 적용하지 말고 경고를 대기시킨다.
-        viewModel.presentLimitPicker(for: group)
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 10
-        viewModel.commitLimitPickerSelection()
-        viewModel.handleLimitPickerDismiss()
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.pendingLimitLockWarning != nil)
         #expect(viewModel.pendingLimitLockWarning?.minutes == 10)
@@ -728,7 +731,7 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
-    @Test func limitPickerCancelKeepsOriginalLimit() {
+    @Test func dailyLimitRuleCancelKeepsOriginalLimit() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
         let groupRepo = FakeGroupRepository()
         groupRepo.screenTimeGroups = [group]
@@ -746,11 +749,12 @@ struct ViewModelTests {
         viewModel.groups = [group]
         viewModel.usedTimeByGroupID = [group.id: 20]
 
-        viewModel.presentLimitPicker(for: group)
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 10
-        viewModel.commitLimitPickerSelection()
-        viewModel.handleLimitPickerDismiss()
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
         viewModel.cancelLimitLockChange()
 
         #expect(viewModel.pendingLimitLockWarning == nil)
@@ -758,7 +762,7 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 0)
     }
 
-    @Test func limitPickerAppliesWithoutWarningWhenAboveUsedTime() {
+    @Test func dailyLimitRuleAppliesWithoutWarningWhenAboveUsedTime() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
         let groupRepo = FakeGroupRepository()
         groupRepo.screenTimeGroups = [group]
@@ -777,14 +781,143 @@ struct ViewModelTests {
         viewModel.usedTimeByGroupID = [group.id: 5]
 
         // 5분 사용 < 20분 한도 → 경고 없이 즉시 적용.
-        viewModel.presentLimitPicker(for: group)
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 20
-        viewModel.commitLimitPickerSelection()
+        viewModel.commitRuleSelection()
 
         #expect(viewModel.pendingLimitLockWarning == nil)
         #expect(viewModel.groups.first?.dailyLimitMinutes == 20)
         #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    // MARK: - 규칙 편집기 (시간대 차단)
+
+    @Test func presentRuleEditorLoadsExistingRuleAndWindows() {
+        let windows = [TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 10 * 60)]
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "SNS",
+            dailyLimitMinutes: 45,
+            ruleKind: .timeWindows,
+            timeWindows: windows
+        )
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+
+        #expect(viewModel.ruleEditorSelectedKind == .timeWindows)
+        #expect(viewModel.ruleEditorTimeWindows == windows)
+        #expect(viewModel.isRuleEditorPresented)
+    }
+
+    @Test func timeWindowsRuleWithOverlapAlertsAndDoesNotChangeGroup() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .timeWindows
+        viewModel.ruleEditorTimeWindows = [
+            TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 11 * 60),
+            TimeWindow(startMinuteOfDay: 10 * 60, endMinuteOfDay: 12 * 60)   // 겹침
+        ]
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.alertMessage != nil)
+        #expect(viewModel.groups.first?.ruleKind == .dailyLimit)   // 미변경
+        #expect(viewModel.groups.first?.timeWindows.isEmpty == true)
+        #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
+    @Test func timeWindowsRuleWithValidWindowsUpdatesGroupAndSyncs() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        let windows = [
+            TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 10 * 60),
+            TimeWindow(startMinuteOfDay: 14 * 60, endMinuteOfDay: 15 * 60)
+        ]
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .timeWindows
+        viewModel.ruleEditorTimeWindows = windows
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.alertMessage == nil)
+        #expect(viewModel.groups.first?.ruleKind == .timeWindows)
+        #expect(viewModel.groups.first?.timeWindows == windows)
+        #expect(groupRepo.screenTimeGroups.first?.timeWindows == windows)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func switchingToTimeWindowsPreservesDailyLimitMinutes() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "SNS",
+            dailyLimitMinutes: 42,
+            ruleKind: .dailyLimit
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .timeWindows
+        viewModel.ruleEditorTimeWindows = [
+            TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 10 * 60)
+        ]
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.groups.first?.ruleKind == .timeWindows)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 42)   // 보존
+        #expect(groupRepo.screenTimeGroups.first?.dailyLimitMinutes == 42)
     }
 
     // MARK: - HomeViewModel

@@ -225,7 +225,9 @@ struct HomeViewModel {
     }
 
     func lockProgress(for group: ScreenTimeGroup) -> SegmentProgress? {
-        guard validGroupIDs.contains(group.id),
+        // 사용량 진행바는 일일 한도 그룹에만 의미가 있다. 시간대 차단 그룹은 진행바 대신 시간대 요약을 보여준다.
+        guard usesDailyLimit(group),
+              validGroupIDs.contains(group.id),
               !lockedGroupIDs.contains(group.id),
               !overrideGroupIDs.contains(group.id) else { return nil }
         let used = usedTimeByGroupID[group.id] ?? 0
@@ -268,6 +270,44 @@ struct HomeViewModel {
         } else {
             return "\(m)분 넘기면 이 그룹이 잠겨요"
         }
+    }
+
+    /// 그룹 카드 "차단 규칙" 행의 짧은 요약 값. dailyLimit은 한도, timeWindows는 시간대 요약.
+    func ruleSummary(for group: ScreenTimeGroup) -> String {
+        switch group.ruleKind ?? .dailyLimit {
+        case .dailyLimit:
+            return limitLabel(group.dailyLimitMinutes)
+        case .timeWindows:
+            return timeWindowsSummary(group.timeWindows)
+        }
+    }
+
+    /// "10:00–12:00 외 1개" 식 요약. 비어 있으면 설정 안내.
+    func timeWindowsSummary(_ windows: [TimeWindow]) -> String {
+        let sorted = windows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
+        guard let first = sorted.first else {
+            return "차단 시간대를 추가해 주세요"
+        }
+        let range = "\(goldTimeClockText(minuteOfDay: first.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: first.endMinuteOfDay))"
+        if sorted.count > 1 {
+            return "\(range) 외 \(sorted.count - 1)개"
+        }
+        return range
+    }
+
+    /// 시간대 차단 그룹이 지금 잠겨 있을 때 "HH:mm까지 잠겨요" 캡션. 그 외엔 nil.
+    func activeWindowLockCaption(for group: ScreenTimeGroup) -> String? {
+        guard (group.ruleKind ?? .dailyLimit) == .timeWindows,
+              lockedGroupIDs.contains(group.id) else { return nil }
+        let minute = TimeWindowPolicy.minuteOfDay(for: Date())
+        guard let end = TimeWindowPolicy.activeWindowEnd(minuteOfDay: minute, windows: group.timeWindows) else {
+            return nil
+        }
+        return "\(goldTimeClockText(minuteOfDay: end))까지 잠겨요"
+    }
+
+    func usesDailyLimit(_ group: ScreenTimeGroup) -> Bool {
+        (group.ruleKind ?? .dailyLimit) == .dailyLimit
     }
 
     private var validMonitoringGroups: [ScreenTimeGroup] {

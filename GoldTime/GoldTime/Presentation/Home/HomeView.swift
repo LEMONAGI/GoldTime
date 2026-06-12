@@ -14,7 +14,7 @@ struct HomeView: View {
     let onDeleteGroup: (UUID) -> Void
     let onUpdateGroupName: (UUID, String) -> Void
     let onPresentPicker: (ScreenTimeGroup) -> Void
-    let onPresentLimitPicker: (ScreenTimeGroup) -> Void
+    let onPresentRuleEditor: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
     
     init(
@@ -38,7 +38,7 @@ struct HomeView: View {
         onDeleteGroup: @escaping (UUID) -> Void,
         onUpdateGroupName: @escaping (UUID, String) -> Void,
         onPresentPicker: @escaping (ScreenTimeGroup) -> Void,
-        onPresentLimitPicker: @escaping (ScreenTimeGroup) -> Void,
+        onPresentRuleEditor: @escaping (ScreenTimeGroup) -> Void,
         onUnlockGroup: @escaping (UUID) -> Void = { _ in }
     ) {
         self.viewModel = HomeViewModel(
@@ -63,7 +63,7 @@ struct HomeView: View {
         self.onDeleteGroup = onDeleteGroup
         self.onUpdateGroupName = onUpdateGroupName
         self.onPresentPicker = onPresentPicker
-        self.onPresentLimitPicker = onPresentLimitPicker
+        self.onPresentRuleEditor = onPresentRuleEditor
         self.onUnlockGroup = onUnlockGroup
     }
     
@@ -195,7 +195,7 @@ struct HomeView: View {
                             onDeleteGroup: onDeleteGroup,
                             onUpdateGroupName: onUpdateGroupName,
                             onPresentPicker: onPresentPicker,
-                            onPresentLimitPicker: onPresentLimitPicker,
+                            onPresentRuleEditor: onPresentRuleEditor,
                             onUnlockGroup: onUnlockGroup
                         )
                     }

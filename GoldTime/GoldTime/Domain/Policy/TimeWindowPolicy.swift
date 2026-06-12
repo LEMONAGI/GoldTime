@@ -72,6 +72,13 @@ enum TimeWindowPolicy {
         windows.contains { $0.contains(minuteOfDay: minute) }
     }
 
+    /// 자정 기준 경과 분(0...1439). Presentation에서 SharedStore를 직접 참조하지 않도록
+    /// SharedStore.minuteOfDay와 같은 계산을 Domain에도 둔다.
+    static func minuteOfDay(for date: Date, calendar: Calendar = .current) -> Int {
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+    }
+
     /// 현재 시각이 속한 시간대의 종료 분. 잠금 안내("HH:mm까지 잠김")에 사용.
     static func activeWindowEnd(minuteOfDay minute: Int, windows: [TimeWindow]) -> Int? {
         windows.first { $0.contains(minuteOfDay: minute) }?.endMinuteOfDay

@@ -12,7 +12,7 @@ struct GroupCardView: View {
     let onDeleteGroup: (UUID) -> Void
     let onUpdateGroupName: (UUID, String) -> Void
     let onPresentPicker: (ScreenTimeGroup) -> Void
-    let onPresentLimitPicker: (ScreenTimeGroup) -> Void
+    let onPresentRuleEditor: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
 
     @State private var isShowingEditConfirm = false
@@ -79,6 +79,10 @@ struct GroupCardView: View {
                                 tint: .green,
                                 accessibilityText: progress.accessibilityLabel
                             )
+                        } else if let lockCaption = viewModel.activeWindowLockCaption(for: group) {
+                            Text(lockCaption)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.red)
                         }
                     }
                 }
@@ -117,13 +121,13 @@ struct GroupCardView: View {
             Divider()
 
             Button {
-                if isEditRestricted { isShowingLimitConfirm = true } else { onPresentLimitPicker(group) }
+                if isEditRestricted { isShowingLimitConfirm = true } else { onPresentRuleEditor(group) }
             } label: {
                 HStack(alignment: .center, spacing: 0) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("일일 한도")
+                        Text("차단 규칙")
                             .font(.subheadline.weight(.semibold))
-                        Text(viewModel.limitLabel(group.dailyLimitMinutes))
+                        Text(viewModel.ruleSummary(for: group))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -139,7 +143,7 @@ struct GroupCardView: View {
             .buttonStyle(.plain)
             .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingLimitConfirm) {
                 Button("광고 보고 변경하기") {
-                    onPresentLimitPicker(group)
+                    onPresentRuleEditor(group)
                 }
                 Button("취소", role: .cancel) {}
             } message: {

@@ -39,9 +39,23 @@ final class ManageGroupsUseCase {
         groups[index].name = name
     }
 
-    func updateLimit(id: UUID, minutes: Int, in groups: inout [ScreenTimeGroup]) {
+    /// 그룹의 차단 규칙을 갱신한다.
+    /// dailyLimitMinutes는 규칙을 timeWindows로 바꿔도 보존되도록, nil이면 기존 값을 유지한다.
+    func updateRule(
+        id: UUID,
+        kind: GroupRuleKind,
+        dailyLimitMinutes: Int? = nil,
+        timeWindows: [TimeWindow]? = nil,
+        in groups: inout [ScreenTimeGroup]
+    ) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
-        groups[index].dailyLimitMinutes = minutes
+        groups[index].ruleKind = kind
+        if let dailyLimitMinutes {
+            groups[index].dailyLimitMinutes = dailyLimitMinutes
+        }
+        if let timeWindows {
+            groups[index].timeWindows = timeWindows
+        }
     }
 
     func updateSelection(id: UUID, selection: FamilyActivitySelection, in groups: inout [ScreenTimeGroup]) {
