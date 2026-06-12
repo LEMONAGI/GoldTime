@@ -30,6 +30,20 @@ extension DeviceActivityName {
     nonisolated static func override(for groupID: UUID) -> Self {
         Self("override.\(groupID.uuidString)")
     }
+
+    /// `window.<UUID>.<index>` 형식. index는 그룹 timeWindows 배열 순서(0...).
+    nonisolated static func timeWindow(for groupID: UUID, index: Int) -> Self {
+        Self("window.\(groupID.uuidString).\(index)")
+    }
+
+    /// `window.<UUID>.<index>`에서 groupID 추출.
+    var timeWindowGroupID: UUID? {
+        let prefix = "window."
+        guard rawValue.hasPrefix(prefix) else { return nil }
+        let body = String(rawValue.dropFirst(prefix.count))
+        let firstSegment = body.split(separator: ".").first.map(String.init) ?? body
+        return UUID(uuidString: firstSegment)
+    }
 }
 
 extension DeviceActivityEvent.Name {
@@ -140,6 +154,9 @@ enum ScreenTimeManager {
     static var overrideMonitorRegistrar: any OverrideMonitorRegistering = DeviceActivityOverrideMonitorRegistrar()
     private static let overrideMonitorStartDelay: TimeInterval = 1
     private static let minimumOverrideMonitorDuration: TimeInterval = 15 * 60
+    /// 한 그룹이 가질 수 있는 시간대 최대 개수(TimeWindowPolicy와 동일). 그룹이 시간대를 줄이거나
+    /// dailyLimit으로 바뀌어도 잔여 window activity가 남지 않도록, 정리 시 0...max-1을 전부 stop한다.
+    static let maxTimeWindowsPerGroup = 3
 
     // MARK: - 일일 모니터링 동기화
 
@@ -213,15 +230,37 @@ enum ScreenTimeManager {
             .map(DeviceActivityName.override(for:))
         let registeredGroupIDs: Set<UUID> = SharedStore.lastRegisteredGroupsByID
             .map { Set($0.keys) } ?? []
+        let lastRegistered = SharedStore.lastRegisteredGroupsByID ?? [:]
         var generationByID = SharedStore.lastRegisteredGenerationByID
-        let staleGroupActivities = registeredGroupIDs
-            .subtracting(validGroupIDs)
+
+        // 이번 동기화에서 daily 경로로 등록할 유효 그룹과 시간대 경로로 등록할 유효 그룹을 분리한다.
+        let validDailyGroups = validGroups.filter { $0.ruleKind != .timeWindows }
+        let validWindowGroupIDs = Set(validGroups.filter { $0.ruleKind == .timeWindows }.map(\.id))
+
+        // 삭제/무효화/dailyLimit 전환된 그룹의 stale daily activity 정리.
+        // (이전에 daily로 등록됐다가 timeWindows로 바뀐 그룹의 daily activity도 여기서 멈춘다)
+        let staleDailyGroupIDs = registeredGroupIDs
+            .subtracting(Set(validDailyGroups.map(\.id)))
+        let staleGroupActivities = staleDailyGroupIDs
             .map { groupID -> DeviceActivityName in
                 .dailyGroup(for: groupID, generation: generationByID[groupID] ?? 0)
             }
 
+        // 시간대 그룹이 변경됐거나(또는 dailyLimit/삭제로 무효화됐거나) 새로 들어온 경우,
+        // 해당 그룹의 window activity 슬롯을 전부 멈췄다가 필요 시 아래에서 다시 등록한다.
+        let previousWindowGroupIDs = Set(lastRegistered.filter { $0.value.ruleKind == .timeWindows }.map(\.key))
+        let windowGroupIDsToResetMonitoring = previousWindowGroupIDs.union(validWindowGroupIDs)
+        let staleWindowActivities = windowGroupIDsToResetMonitoring.flatMap { groupID -> [DeviceActivityName] in
+            // 변경되지 않은 시간대 그룹은 재등록을 피해야 하므로 stop도 하지 않는다.
+            if validWindowGroupIDs.contains(groupID),
+               lastRegistered[groupID] == validGroups.first(where: { $0.id == groupID }) {
+                return []
+            }
+            return (0..<maxTimeWindowsPerGroup).map { DeviceActivityName.timeWindow(for: groupID, index: $0) }
+        }
+
         SharedStore.screenTimeGroups = sanitizedGroups
-        let activitiesToStop = staleOverrideActivities + staleGroupActivities
+        let activitiesToStop = staleOverrideActivities + staleGroupActivities + staleWindowActivities
         if !activitiesToStop.isEmpty {
             center.stopMonitoring(activitiesToStop)
         }
@@ -242,7 +281,6 @@ enum ScreenTimeManager {
         }
 
         // 그룹별 변경 감지: 변경된 그룹만 재시작 (usedTime은 SharedStore에 보존)
-        let lastRegistered = SharedStore.lastRegisteredGroupsByID ?? [:]
         var newRegistered = lastRegistered.filter { validGroupIDs.contains($0.key) }
         var firstError: Error?
 
@@ -250,11 +288,26 @@ enum ScreenTimeManager {
             let last = lastRegistered[group.id]
             guard last != group else { continue }
 
+            // 시간대 차단 그룹: daily tick/baseline/generation 경로를 건너뛰고 window activity로 등록.
+            // (stale window activity는 위에서 이미 stop했다)
+            if group.ruleKind == .timeWindows {
+                generationByID.removeValue(forKey: group.id)
+                do {
+                    try registerTimeWindowGroup(group)
+                    newRegistered[group.id] = group
+                } catch {
+                    firstError = firstError ?? error
+                }
+                continue
+            }
+
             let currentGen = generationByID[group.id] ?? 0
             let usedMinutes = SharedStore.usedTimeByGroupID[group.id] ?? 0
             let wasLocked = SharedStore.shieldedGroupIDs.contains(group.id)
             let limitChanged = last != nil && last!.dailyLimitMinutes != group.dailyLimitMinutes
-            let needsMonitoringRestart = last == nil || last!.selection != group.selection || wasLocked || limitChanged
+            // 이전이 시간대 그룹이었다면(규칙 전환) daily 카운터가 없으므로 항상 재등록한다.
+            let ruleChanged = last != nil && last!.ruleKind != group.ruleKind
+            let needsMonitoringRestart = last == nil || last!.selection != group.selection || wasLocked || limitChanged || ruleChanged
 
             if usedMinutes >= group.dailyLimitMinutes {
                 center.stopMonitoring([.dailyGroup(for: group.id, generation: currentGen)])
@@ -286,9 +339,35 @@ enum ScreenTimeManager {
         SharedStore.lastRegisteredGenerationByID = generationByID
         SharedStore.isDailyMonitoringEnabled = true
         SharedStore.markStatsTrackingStartedIfNeeded()
+        // 시간대 그룹의 '지금 시간대 안인지'를 shieldedGroupIDs에 반영한 뒤 쉴드를 적용한다.
+        SharedStore.resyncTimeWindowLocks()
         applyShield()
 
         if let error = firstError { throw error }
+    }
+
+    /// 시간대 차단 그룹을 timeWindows 개수만큼 window activity로 등록한다.
+    /// 각 시간대는 [start, end) 구간을 repeats:true로 도는 schedule이고, threshold 이벤트는 없다
+    /// (잠금은 intervalDidStart에서 resync로, 해제는 intervalDidEnd에서 resync로 처리).
+    private static func registerTimeWindowGroup(_ group: SharedStore.ScreenTimeGroup) throws {
+        for (index, window) in group.timeWindows.enumerated() {
+            let schedule = DeviceActivitySchedule(
+                intervalStart: DateComponents(
+                    hour: window.startMinuteOfDay / 60,
+                    minute: window.startMinuteOfDay % 60
+                ),
+                intervalEnd: DateComponents(
+                    hour: window.endMinuteOfDay / 60,
+                    minute: window.endMinuteOfDay % 60
+                ),
+                repeats: true
+            )
+            try center.startMonitoring(
+                .timeWindow(for: group.id, index: index),
+                during: schedule,
+                events: [:]
+            )
+        }
     }
 
     static func validDailyMonitoringGroups(
@@ -614,7 +693,10 @@ enum ScreenTimeManager {
 
     @discardableResult
     static func reapplyShieldIfOverrideExpired(now: Date = Date()) -> Bool {
-        guard SharedStore.clearExpiredOverrides(now: now) else {
+        // override 만료뿐 아니라 시간대 진입/이탈도 foreground 복귀 시 보정한다.
+        let overrideChanged = SharedStore.clearExpiredOverrides(now: now)
+        let windowChanged = SharedStore.resyncTimeWindowLocks(now: now).changed
+        guard overrideChanged || windowChanged else {
             return false
         }
 

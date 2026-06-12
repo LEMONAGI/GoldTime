@@ -25,6 +25,15 @@ extension DeviceActivityName {
         guard rawValue.hasPrefix(prefix) else { return nil }
         return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
     }
+
+    /// `window.<UUID>.<index>`에서 groupID 추출 (시간대 차단 activity).
+    var timeWindowGroupID: UUID? {
+        let prefix = "window."
+        guard rawValue.hasPrefix(prefix) else { return nil }
+        let body = String(rawValue.dropFirst(prefix.count))
+        let firstSegment = body.split(separator: ".").first.map(String.init) ?? body
+        return UUID(uuidString: firstSegment)
+    }
 }
 
 extension DeviceActivityEvent.Name {
@@ -70,9 +79,23 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
-        if activity.dailyGroupID != nil {
+        if activity.timeWindowGroupID != nil {
+            // 시간대 진입. 모든 그룹이 시간대 규칙이면 daily activity가 없어 자정 리셋 트리거가
+            // 사라지므로 여기서도 리셋을 점검한다.
             if SharedStore.resetDailyProtectionStateIfNeeded() {
                 clearSystemShield()
+            }
+            let result = SharedStore.resyncTimeWindowLocks()
+            if !result.newlyLocked.isEmpty {
+                SharedStore.recordShieldHit()
+            }
+            applyShieldFromGroups()
+        } else if activity.dailyGroupID != nil {
+            if SharedStore.resetDailyProtectionStateIfNeeded() {
+                clearSystemShield()
+                // 00:00 시작 시간대와 자정 리셋의 race 보완: 리셋 직후 시간대 잠금을 다시 반영한다.
+                SharedStore.resyncTimeWindowLocks()
+                applyShieldFromGroups()
             }
             // 자정에 정확히 도는 콜백. 어제 데이터가 확정된 시점에 오늘 9시 알림을 예약한다.
             // 그룹 수만큼 호출돼도 SharedStore 가드가 하루 1회만 통과시킨다.
@@ -88,12 +111,20 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             // daily 계열은 dailySchedule(repeats:true)이 매일 자동 재시작하므로 무시.
             return
         }
+        // 시간대 종료. daily가 아닌 activity는 아래에서 전부 override로 처리되므로 먼저 가로챈다.
+        if activity.timeWindowGroupID != nil {
+            SharedStore.resyncTimeWindowLocks()
+            applyShieldFromGroups()
+            return
+        }
         let result = SharedStore.clearOverrideAfterActivityEnd(activityName: activity.rawValue)
         SharedStore.recordOverrideIntervalDidEnd(
             activityName: activity.rawValue,
             parsedGroupID: result.parsedGroupID,
             didClearOverride: result.didClearOverride
         )
+        // override 종료 시점에 시간대가 이미 끝난 그룹이 잘못 재잠금되지 않도록 보정한다.
+        SharedStore.resyncTimeWindowLocks()
         applyShieldFromGroups()
     }
 
@@ -107,6 +138,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             parsedGroupID: result.parsedGroupID,
             didClearOverride: result.didClearOverride
         )
+        SharedStore.resyncTimeWindowLocks()
         applyShieldFromGroups()
     }
 
@@ -168,6 +200,9 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             parsedGroupID: groupID,
             didClearOverride: true
         )
+        // 연장 소진 재잠금 직후, 시간대가 이미 끝난 시간대 그룹은 다시 풀어준다
+        // (dailyLimit 그룹의 재잠금에는 영향 없음 — resync는 timeWindows 그룹만 건드림).
+        SharedStore.resyncTimeWindowLocks()
         applyShieldFromGroups()
     }
 

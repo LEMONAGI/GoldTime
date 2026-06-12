@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import DeviceActivity
 import FamilyControls
 @testable import GoldTime
 
@@ -248,5 +249,173 @@ struct TimeWindowTests {
             )
         ]
         #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: valid) == nil)
+    }
+
+    // MARK: - resyncTimeWindowLocks (모니터링 엔진)
+
+    private func makeWindowGroup(
+        id: UUID = UUID(),
+        windows: [SharedStore.TimeWindow],
+        isApplied: Bool = true
+    ) -> SharedStore.ScreenTimeGroup {
+        SharedStore.ScreenTimeGroup(
+            id: id,
+            name: "시간대 그룹",
+            ruleKind: .timeWindows,
+            timeWindows: windows,
+            isApplied: isApplied
+        )
+    }
+
+    private func date(_ hour: Int, _ minute: Int) -> Date {
+        Calendar.current.date(
+            from: DateComponents(year: 2026, month: 6, day: 13, hour: hour, minute: minute)
+        )!
+    }
+
+    @Test func resyncLocksGroupInsideWindowThenIdempotent() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.screenTimeGroups = [
+            makeWindowGroup(id: id, windows: [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720)])
+        ]
+
+        let first = SharedStore.resyncTimeWindowLocks(now: date(11, 0))
+        #expect(first.changed)
+        #expect(first.newlyLocked.contains(id))
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+
+        // 같은 시각으로 다시 호출하면 멤버십 변화가 없으므로 changed == false.
+        let second = SharedStore.resyncTimeWindowLocks(now: date(11, 0))
+        #expect(!second.changed)
+        #expect(second.newlyLocked.isEmpty)
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+    }
+
+    @Test func resyncUnlocksGroupOutsideWindow() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.screenTimeGroups = [
+            makeWindowGroup(id: id, windows: [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720)])
+        ]
+        SharedStore.markGroupShielded(id)
+
+        let result = SharedStore.resyncTimeWindowLocks(now: date(13, 0))
+        #expect(result.changed)
+        #expect(!SharedStore.shieldedGroupIDs.contains(id))
+    }
+
+    @Test func resyncBoundaryStartInclusiveEndExclusive() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.screenTimeGroups = [
+            makeWindowGroup(id: id, windows: [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720)])
+        ]
+
+        // 시작 정각(10:00) 포함 → 잠금.
+        _ = SharedStore.resyncTimeWindowLocks(now: date(10, 0))
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+
+        // 종료 정각(12:00) 미포함 → 해제.
+        let end = SharedStore.resyncTimeWindowLocks(now: date(12, 0))
+        #expect(end.changed)
+        #expect(!SharedStore.shieldedGroupIDs.contains(id))
+    }
+
+    @Test func resyncLeavesDailyLimitGroupUntouched() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let dailyID = UUID()
+        SharedStore.screenTimeGroups = [
+            SharedStore.ScreenTimeGroup(id: dailyID, name: "게임", dailyLimitMinutes: 30)
+        ]
+        SharedStore.markGroupShielded(dailyID)
+
+        // 시간대 그룹이 아니므로 어떤 시각이든 멤버십이 유지된다.
+        let result = SharedStore.resyncTimeWindowLocks(now: date(3, 0))
+        #expect(!result.changed)
+        #expect(SharedStore.shieldedGroupIDs.contains(dailyID))
+    }
+
+    @Test func resyncIgnoresDraftWindowGroup() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.screenTimeGroups = [
+            makeWindowGroup(
+                id: id,
+                windows: [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720)],
+                isApplied: false
+            )
+        ]
+
+        let result = SharedStore.resyncTimeWindowLocks(now: date(11, 0))
+        #expect(!result.changed)
+        #expect(!SharedStore.shieldedGroupIDs.contains(id))
+    }
+
+    @Test func resyncKeepsLockAtTouchingWindowBoundary() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.screenTimeGroups = [
+            makeWindowGroup(id: id, windows: [
+                TimeWindow(startMinuteOfDay: 10 * 60, endMinuteOfDay: 12 * 60),
+                TimeWindow(startMinuteOfDay: 12 * 60, endMinuteOfDay: 13 * 60)
+            ])
+        ]
+
+        // 12:00은 첫 시간대 종료(미포함)이자 둘째 시간대 시작(포함) → 잠금 유지.
+        _ = SharedStore.resyncTimeWindowLocks(now: date(11, 30))
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+        let atBoundary = SharedStore.resyncTimeWindowLocks(now: date(12, 0))
+        #expect(!atBoundary.changed)
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+    }
+
+    @Test func resyncWithOverrideKeepsMarkButExcludesFromLocked() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.screenTimeGroups = [
+            makeWindowGroup(id: id, windows: [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720)])
+        ]
+
+        let now = date(11, 0)
+        SharedStore.setOverride(until: now.addingTimeInterval(15 * 60), for: id)
+
+        // 시간대 안 + override 중: marked는 유지하되 lockedGroups에는 없다.
+        _ = SharedStore.resyncTimeWindowLocks(now: now)
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+        #expect(!SharedStore.lockedGroups(now: now).contains { $0.id == id })
+
+        // 시간대 밖이면 override 여부와 무관하게 unmark.
+        let outside = date(13, 0)
+        let result = SharedStore.resyncTimeWindowLocks(now: outside)
+        #expect(result.changed)
+        #expect(!SharedStore.shieldedGroupIDs.contains(id))
+    }
+
+    // MARK: - DeviceActivityName.timeWindow round-trip
+
+    @Test func timeWindowActivityNameParsesGroupID() {
+        let id = UUID()
+        let name = DeviceActivityName.timeWindow(for: id, index: 2)
+        #expect(name.rawValue == "window.\(id.uuidString).2")
+        #expect(name.timeWindowGroupID == id)
+
+        // daily/override 이름은 시간대 파서에 잡히지 않는다.
+        #expect(DeviceActivityName.override(for: id).timeWindowGroupID == nil)
+        #expect(DeviceActivityName.dailyGroup(for: id, generation: 0).timeWindowGroupID == nil)
     }
 }

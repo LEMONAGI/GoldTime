@@ -979,6 +979,41 @@ enum SharedStore {
         return didChange
     }
 
+    /// 적용된 시간대 차단 그룹에 대해 '지금이 시간대 안인지'를 판정해 shieldedGroupIDs에 반영한다.
+    /// dailyLimit 그룹과 draft 그룹의 잠금 상태는 절대 건드리지 않는다.
+    /// override 상태는 손대지 않으므로(시간대 안이라 marked여도 override 중이면 lockedGroups가 제외),
+    /// 단 시간대 밖이면 override 여부와 무관하게 unmark한다.
+    @discardableResult
+    static func resyncTimeWindowLocks(now: Date = Date()) -> (changed: Bool, newlyLocked: Set<UUID>) {
+        let minute = minuteOfDay(for: now)
+        var ids = shieldedGroupIDs
+        var newlyLocked = Set<UUID>()
+        var changed = false
+
+        for group in screenTimeGroups {
+            guard group.ruleKind == .timeWindows,
+                  group.isApplied,
+                  !group.timeWindows.isEmpty else { continue }
+
+            let inside = group.timeWindows.contains { $0.contains(minuteOfDay: minute) }
+            if inside {
+                if ids.insert(group.id).inserted {
+                    newlyLocked.insert(group.id)
+                    changed = true
+                }
+            } else {
+                if ids.remove(group.id) != nil {
+                    changed = true
+                }
+            }
+        }
+
+        if changed {
+            shieldedGroupIDs = ids
+        }
+        return (changed, newlyLocked)
+    }
+
     static func markGroupShielded(_ groupID: UUID) {
         var ids = shieldedGroupIDs
         ids.insert(groupID)
