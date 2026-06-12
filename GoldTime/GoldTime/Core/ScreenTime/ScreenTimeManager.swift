@@ -660,7 +660,10 @@ extension SharedStore.ScreenTimeGroup {
             appTokens: selection.applicationTokens,
             webDomainTokenCount: selection.webDomainTokens.count,
             hasNonAppTokens: hasNonAppTokens,
-            dailyLimitMinutes: dailyLimitMinutes
+            dailyLimitMinutes: dailyLimitMinutes,
+            ruleKind: ruleKind,
+            timeWindows: timeWindows,
+            isApplied: isApplied
         )
     }
 }
