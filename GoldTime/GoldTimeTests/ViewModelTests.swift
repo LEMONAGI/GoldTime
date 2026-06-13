@@ -1185,8 +1185,6 @@ struct ViewModelTests {
             validGroupIDs: [lockedGroup.id]
         )
 
-        #expect(viewModel.shieldStatusValue == "잠금 중")
-        #expect(viewModel.shieldStatusCaption == "한도를 넘겼어요")
         #expect(viewModel.protectionStatusTitle == "차단 규칙 적용 중")
         #expect(viewModel.statusTitle(for: lockedGroup) == "23:59까지 잠금")
     }

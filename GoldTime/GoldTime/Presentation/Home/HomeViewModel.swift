@@ -146,56 +146,6 @@ struct HomeViewModel {
         }
     }
 
-    var shieldStatusValue: String {
-        if isShieldActive {
-            return "잠금 중"
-        }
-        if !overrideGroupIDs.isEmpty {
-            return "연장 중"
-        }
-        return isMonitoring ? "사용 가능" : "대기 중"
-    }
-
-    var shieldStatusCaption: String {
-        if isShieldActive {
-            let locked = groups.filter { lockedGroupIDs.contains($0.id) }
-            if locked.count > 1 {
-                return "\(locked.count)개 그룹이 잠겨 있어요"
-            }
-            // 잠금 사유에 맞는 문구: 시간대 차단·쿨다운은 한도 초과가 아니다.
-            if let group = locked.first {
-                switch group.ruleKind ?? .dailyLimit {
-                case .timeWindows:
-                    return "차단 시간대예요"
-                case .cooldown:
-                    if let end = cooldownEndByGroupID[group.id] {
-                        return "\(goldTimeClockText(date: end))까지 쉬는 중"
-                    }
-                    return "쉬는 중이에요"
-                case .dailyLimit:
-                    break
-                }
-            }
-            return "한도를 넘겼어요"
-        }
-        if !overrideGroupIDs.isEmpty {
-            let shortest = groups
-                .filter { overrideGroupIDs.contains($0.id) }
-                .map { group -> Int in
-                    let baseline = overrideBaselineUsedTimeByGroupID[group.id] ?? 0
-                    let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
-                    let consumed = max(0, (usedTimeByGroupID[group.id] ?? 0) - baseline)
-                    return max(1, granted - consumed)
-                }
-                .min()
-            if let shortest {
-                return "\(shortest)분 남음"
-            }
-            return "연장 중"
-        }
-        return isMonitoring ? "아직 한도 안쪽" : "설정 필요"
-    }
-
     func statusTitle(for group: ScreenTimeGroup) -> String {
         if !group.isApplied {
             return "설정 중"
@@ -206,7 +156,7 @@ struct HomeViewModel {
         if overrideGroupIDs.contains(group.id) {
             // 부여된 분(진행바가 나타내는 총 시간)을 함께 표기. 실시간 갱신 아님.
             let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
-            return "\(granted)분 연장중"
+            return "\(granted)분 추가 사용"
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return "설정 필요"
