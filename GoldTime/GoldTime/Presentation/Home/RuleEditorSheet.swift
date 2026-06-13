@@ -258,8 +258,7 @@ private struct CooldownDetailView: View {
     let onConfirm: () -> Void
 
     // 사용 시간 5분 단위(5분~2시간), 휴식 간격 10분 단위(30분~6시간).
-    // TODO: 테스트용 임시 — 1분 프리셋 추가 (원래 stride(from: 5, ...))
-    private let usagePresets = [1] + Array(stride(from: 5, through: 120, by: 5))
+    private let usagePresets = Array(stride(from: 5, through: 120, by: 5))
     private let durationPresets = Array(stride(from: 30, through: 360, by: 10))
 
     private var invalidReason: CooldownPolicy.InvalidReason? {
