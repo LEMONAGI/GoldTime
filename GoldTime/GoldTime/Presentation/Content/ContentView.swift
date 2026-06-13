@@ -79,6 +79,7 @@ struct ContentView: View {
                     usedTimeByGroupID: viewModel.usedTimeByGroupID,
                     overrideBaselineUsedTimeByGroupID: viewModel.overrideBaselineUsedTimeByGroupID,
                     overrideGrantedMinutesByGroupID: viewModel.overrideGrantedMinutesByGroupID,
+                    cooldownEndByGroupID: viewModel.cooldownEndByGroupID,
                     oneMinuteRemaining: viewModel.oneMinuteRemaining,
                     oneMinuteDailyLimit: viewModel.oneMinuteDailyLimit,
                     onAddGroup: viewModel.addGroup,
@@ -147,6 +148,8 @@ struct ContentView: View {
                 hours: $viewModel.limitPickerHours,
                 minutes: $viewModel.limitPickerMinutes,
                 timeWindows: $viewModel.ruleEditorTimeWindows,
+                cooldownUsageMinutes: $viewModel.ruleEditorCooldownUsageMinutes,
+                cooldownDurationMinutes: $viewModel.ruleEditorCooldownDurationMinutes,
                 currentKind: viewModel.ruleEditorSelectedKind,
                 onConfirm: {
                     viewModel.commitRuleSelection()

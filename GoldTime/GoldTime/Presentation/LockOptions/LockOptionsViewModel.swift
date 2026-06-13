@@ -33,6 +33,7 @@ final class LockOptionsViewModel {
 
     private var requestedApplicationToken: ApplicationToken?
     private var requestedWebDomainToken: WebDomainToken?
+    private var cooldownEndByGroupID: [UUID: Date] = [:]
     private var pendingAdRewardGroupID: UUID?
     private var pendingRetry: (groupID: UUID, source: ExtensionSource)?
     private var retryTask: Task<Void, Never>?
@@ -72,8 +73,15 @@ final class LockOptionsViewModel {
         !lockedGroups.isEmpty && lockedGroups.allSatisfy { ($0.ruleKind ?? .dailyLimit) == .timeWindows }
     }
 
+    /// 잠긴 그룹이 전부 쿨다운 규칙이면 "한도 초과"가 아니라 "휴식 중" 프레이밍이 맞다.
+    private var isCooldownOnlyLock: Bool {
+        !lockedGroups.isEmpty && lockedGroups.allSatisfy { ($0.ruleKind ?? .dailyLimit) == .cooldown }
+    }
+
     var headerTitle: String {
-        isWindowOnlyLock ? "차단 시간대예요" : "한도 끝났어요"
+        if isWindowOnlyLock { return "차단 시간대예요" }
+        if isCooldownOnlyLock { return "쉬는 시간이에요" }
+        return "한도 끝났어요"
     }
 
     /// 선택된 그룹이 시간대 차단으로 잠겨 있으면 종료 시각을 알려준다.
@@ -85,6 +93,14 @@ final class LockOptionsViewModel {
             return nil
         }
         return "\(goldTimeClockText(minuteOfDay: end))까지 잠겨 있어요"
+    }
+
+    /// 선택된 그룹이 쿨다운으로 잠겨 있으면 휴식 종료 시각을 알려준다.
+    var selectedCooldownLockCaption: String? {
+        guard let group = selectedGroup,
+              (group.ruleKind ?? .dailyLimit) == .cooldown,
+              let end = cooldownEndByGroupID[group.id] else { return nil }
+        return "\(goldTimeClockText(date: end))까지 쉬어요"
     }
 
     var canExtendOneMinute: Bool {
@@ -99,8 +115,8 @@ final class LockOptionsViewModel {
 
     func onAppear(initialGroupID: UUID? = nil) {
         refreshLockedGroups()
-        // 첫 문구("오늘 한도 다 썼어요.")는 한도 초과 전용이라 시간대 차단만 잠긴 경우엔 제외.
-        let pool = isWindowOnlyLock ? Array(shieldMessages.dropFirst()) : shieldMessages
+        // 첫 문구("오늘 한도 다 썼어요.")는 한도 초과 전용이라 시간대 차단·쿨다운만 잠긴 경우엔 제외.
+        let pool = (isWindowOnlyLock || isCooldownOnlyLock) ? Array(shieldMessages.dropFirst()) : shieldMessages
         headerMessage = pool.randomElement() ?? "더 쓰려면 광고가 필요해요."
         if let id = initialGroupID, lockedGroups.contains(where: { $0.id == id }) {
             selectedGroupID = id
@@ -165,6 +181,7 @@ final class LockOptionsViewModel {
         let state = extendGroupUseCase.refreshState()
         requestedApplicationToken = state.requestedToken
         requestedWebDomainToken = state.requestedWebDomainToken
+        cooldownEndByGroupID = state.cooldownEndByGroupID
         lockedGroups = state.lockedGroups
 
         if lockedGroups.count == 1 {

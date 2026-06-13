@@ -20,6 +20,7 @@ enum ScreenTimeGroupPolicy {
         case groupHasNoRule(String)
         case groupNotApplied(String)
         case groupHasInvalidTimeWindows(String, TimeWindowPolicy.InvalidReason)
+        case groupHasInvalidCooldown(String, CooldownPolicy.InvalidReason)
         case groupHasTooManySelections(String)
         case groupHasNonAppTokens(String)
         case shieldApplicationLimitExceeded(Int)
@@ -37,6 +38,8 @@ enum ScreenTimeGroupPolicy {
             case .groupNotApplied(let name):
                 return "\(name)은 아직 적용 전이라 보호가 시작되지 않았어요."
             case .groupHasInvalidTimeWindows(let name, let reason):
+                return "\(name): \(reason.userMessage)"
+            case .groupHasInvalidCooldown(let name, let reason):
                 return "\(name): \(reason.userMessage)"
             case .groupHasTooManySelections(let name):
                 return "\(name)은 앱과 웹 사이트를 합쳐 9개까지만 담을 수 있어요."
@@ -58,6 +61,10 @@ enum ScreenTimeGroupPolicy {
         var ruleKind: GroupRuleKind?
         var timeWindows: [TimeWindow]
         var isApplied: Bool
+        /// 쿨다운 모드: 사용 예산(분). ruleKind == .cooldown 일 때 유효.
+        var cooldownUsageMinutes: Int
+        /// 쿨다운 모드: 강제 휴식(분). ruleKind == .cooldown 일 때 유효.
+        var cooldownDurationMinutes: Int
 
         init(
             id: UUID = UUID(),
@@ -68,7 +75,9 @@ enum ScreenTimeGroupPolicy {
             dailyLimitMinutes: Int,
             ruleKind: GroupRuleKind? = .dailyLimit,
             timeWindows: [TimeWindow] = [],
-            isApplied: Bool = true
+            isApplied: Bool = true,
+            cooldownUsageMinutes: Int = 10,
+            cooldownDurationMinutes: Int = 300
         ) {
             self.id = id
             self.name = name
@@ -79,6 +88,8 @@ enum ScreenTimeGroupPolicy {
             self.ruleKind = ruleKind
             self.timeWindows = timeWindows
             self.isApplied = isApplied
+            self.cooldownUsageMinutes = cooldownUsageMinutes
+            self.cooldownDurationMinutes = cooldownDurationMinutes
         }
 
         var selectionCount: Int {
@@ -97,6 +108,14 @@ enum ScreenTimeGroupPolicy {
         case .timeWindows:
             if let reason = TimeWindowPolicy.firstInvalidReason(for: group.timeWindows) {
                 return .groupHasInvalidTimeWindows(group.name, reason)
+            }
+            return nil
+        case .cooldown:
+            if let reason = CooldownPolicy.firstInvalidReason(
+                usageMinutes: group.cooldownUsageMinutes,
+                cooldownMinutes: group.cooldownDurationMinutes
+            ) {
+                return .groupHasInvalidCooldown(group.name, reason)
             }
             return nil
         }

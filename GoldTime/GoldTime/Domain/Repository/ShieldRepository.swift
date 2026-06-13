@@ -9,6 +9,7 @@ protocol ShieldRepository {
     var usedTimeByGroupID: [UUID: Int] { get }
     var overrideBaselineUsedTimeByGroupID: [UUID: Int] { get }
     var overrideGrantedMinutesByGroupID: [UUID: Int] { get }
+    var cooldownEndByGroupID: [UUID: Date] { get }
     var oneMinuteRemaining: Int { get }
     var lastRequestedUnlockApplicationToken: ApplicationToken? { get }
     var lastRequestedUnlockWebDomainToken: WebDomainToken? { get }

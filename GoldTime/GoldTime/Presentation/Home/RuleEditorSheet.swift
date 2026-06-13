@@ -13,6 +13,8 @@ struct RuleEditorSheet: View {
     @Binding var hours: Int
     @Binding var minutes: Int
     @Binding var timeWindows: [TimeWindow]
+    @Binding var cooldownUsageMinutes: Int
+    @Binding var cooldownDurationMinutes: Int
     let currentKind: GroupRuleKind
     let onConfirm: () -> Void
     let onCancel: () -> Void
@@ -32,6 +34,12 @@ struct RuleEditorSheet: View {
                         systemName: "clock.badge.xmark",
                         title: "시간대별 차단",
                         subtitle: "정한 시간대 동안 사용을 막아요"
+                    )
+                    ruleRow(
+                        kind: .cooldown,
+                        systemName: "hourglass.bottomhalf.filled",
+                        title: "쿨다운 잠금",
+                        subtitle: "정한 만큼 쓰면 한동안 쉬어야 해요"
                     )
                 } header: {
                     Text("차단 규칙")
@@ -92,6 +100,12 @@ struct RuleEditorSheet: View {
             TimeWindowsDetailView(
                 windows: $timeWindows,
                 onConfirm: confirm(as: .timeWindows)
+            )
+        case .cooldown:
+            CooldownDetailView(
+                usageMinutes: $cooldownUsageMinutes,
+                durationMinutes: $cooldownDurationMinutes,
+                onConfirm: confirm(as: .cooldown)
             )
         }
     }
@@ -233,6 +247,90 @@ private struct TimeWindowsDetailView: View {
         let start = min(lastEnd, 23 * 60)
         let end = min(start + 60, 24 * 60 - 1)
         windows.append(TimeWindow(startMinuteOfDay: start, endMinuteOfDay: end))
+    }
+}
+
+// MARK: - 쿨다운 잠금 본문
+
+private struct CooldownDetailView: View {
+    @Binding var usageMinutes: Int
+    @Binding var durationMinutes: Int
+    let onConfirm: () -> Void
+
+    // 사용 시간 5분 단위(5분~2시간), 휴식 간격 10분 단위(30분~6시간).
+    private let usagePresets = Array(stride(from: 5, through: 120, by: 5))
+    private let durationPresets = Array(stride(from: 30, through: 360, by: 10))
+
+    private var invalidReason: CooldownPolicy.InvalidReason? {
+        CooldownPolicy.firstInvalidReason(usageMinutes: usageMinutes, cooldownMinutes: durationMinutes)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
+                VStack(spacing: 4) {
+                    Text("사용 시간")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Picker("사용 시간", selection: $usageMinutes) {
+                        ForEach(usagePresets, id: \.self) { m in
+                            Text(Self.label(forMinutes: m)).tag(m)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                }
+                .frame(maxWidth: .infinity)
+
+                VStack(spacing: 4) {
+                    Text("휴식 간격")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Picker("휴식 간격", selection: $durationMinutes) {
+                        ForEach(durationPresets, id: \.self) { m in
+                            Text(Self.label(forMinutes: m)).tag(m)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(height: 216)
+            .padding(.top, 24)
+
+            Group {
+                if let invalidReason {
+                    Text(invalidReason.userMessage)
+                        .foregroundStyle(.red)
+                } else {
+                    Text("이만큼 쓰면 잠기고, 휴식이 끝나면 다시 충전돼요. 매일 자정에도 새로 시작해요.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.footnote)
+            .multilineTextAlignment(.center)
+            .padding(.top, 12)
+            .padding(.horizontal, 8)
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .navigationTitle("쿨다운 잠금")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("완료", action: onConfirm)
+                    .fontWeight(.semibold)
+                    .disabled(invalidReason != nil)
+            }
+        }
+    }
+
+    /// 분을 "N분 / N시간 / N시간 M분"으로 표기.
+    static func label(forMinutes minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes)분" }
+        let hours = minutes / 60
+        let mins = minutes % 60
+        return mins == 0 ? "\(hours)시간" : "\(hours)시간 \(mins)분"
     }
 }
 

@@ -117,6 +117,15 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             applyShieldFromGroups()
             return
         }
+        // 쿨다운 사용 예산 창은 23:59:59에 자연 종료된다(daily처럼 무시 — 자정 리셋이 재등록).
+        if activity.cooldownUsageGroupID != nil {
+            return
+        }
+        // 휴식 타이머 종료 → 재충전(사용 예산 모니터 재등록).
+        if let groupID = activity.cooldownTimerGroupID {
+            handleCooldownTimerEnded(groupID: groupID)
+            return
+        }
         let result = SharedStore.clearOverrideAfterActivityEnd(activityName: activity.rawValue)
         SharedStore.recordOverrideIntervalDidEnd(
             activityName: activity.rawValue,
@@ -151,6 +160,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // 사용량 기반 override tick: 광고/1분 연장 중 그룹의 앱을 minute분 누적 사용 시 1회 발동.
         if let info = event.usageTickInfo {
             handleOverrideTick(groupID: info.groupID, minute: info.minute, activity: activity)
+            return
+        }
+
+        // 쿨다운 사용 예산 tick: 진행바용 사용량 갱신 + 예산 소진 시 잠금.
+        if let info = event.cooldownTickInfo,
+           activity.cooldownUsageGroupID == info.groupID {
+            handleCooldownUsageTick(groupID: info.groupID, minute: info.minute)
             return
         }
 
@@ -203,6 +219,57 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // 연장 소진 재잠금 직후, 시간대가 이미 끝난 시간대 그룹은 다시 풀어준다
         // (dailyLimit 그룹의 재잠금에는 영향 없음 — resync는 timeWindows 그룹만 건드림).
         SharedStore.resyncTimeWindowLocks()
+        applyShieldFromGroups()
+    }
+
+    /// 쿨다운 사용 예산 tick → 진행바용 사용량 갱신, 예산(cooldownUsageMinutes) 소진 시 잠금.
+    private func handleCooldownUsageTick(groupID: UUID, minute: Int) {
+        // 자정을 넘겨 계속 사용 중이면 일일 리셋 처리(쿨다운도 자정에 함께 해제됨).
+        if SharedStore.resetDailyProtectionStateIfNeeded() {
+            clearSystemShield()
+        }
+        guard let group = SharedStore.group(id: groupID) else { return }
+        // 사이클 사용량을 minute로 끌어올린다(역행 방지) → 홈 진행바가 남은 시간을 보여준다.
+        let used = SharedStore.raiseUsedTime(to: minute, for: groupID)
+
+        // 이미 휴식 중이거나 결제(override) 중이면 잠금 트리거를 건너뛴다(진행만 갱신).
+        guard !SharedStore.isInCooldown(groupID),
+              !SharedStore.usageBasedOverrideGroupIDs.contains(groupID) else { return }
+        // 아직 예산이 남았으면 진행바만 갱신하고 끝.
+        guard used >= group.cooldownUsageMinutes else { return }
+
+        let until = Date().addingTimeInterval(TimeInterval(group.cooldownDurationMinutes * 60))
+        SharedStore.startCooldown(until: until, for: groupID)
+        SharedStore.recordShieldHit()
+        try? CooldownMonitor.startCooldownTimer(
+            center: DeviceActivityCenter(),
+            groupID: groupID,
+            until: until
+        )
+        applyShieldFromGroups()
+    }
+
+    /// 휴식 타이머 종료 → 사용 예산 모니터를 새 generation으로 재등록(다음 사이클 시작) + 잠금 해제.
+    private func handleCooldownTimerEnded(groupID: UUID) {
+        if SharedStore.resetDailyProtectionStateIfNeeded() {
+            clearSystemShield()
+        }
+        // 자정 리셋 등으로 이미 휴식이 풀렸으면 중복 재충전하지 않는다.
+        guard SharedStore.cooldownEnd(for: groupID) != nil else {
+            applyShieldFromGroups()
+            return
+        }
+        let generation = SharedStore.endCooldownAndRecharge(for: groupID)
+        let center = DeviceActivityCenter()
+        // 직전 사이클의 사용 예산 activity를 멈춘 뒤 새 generation으로 재등록.
+        center.stopMonitoring([.cooldownUsage(for: groupID, generation: generation - 1)])
+        if let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 {
+            try? CooldownMonitor.startUsageMonitoring(
+                center: center,
+                group: group,
+                generation: generation
+            )
+        }
         applyShieldFromGroups()
     }
 

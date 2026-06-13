@@ -1029,6 +1029,65 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
+    @Test func cooldownRuleWithValidValuesUpdatesGroupAndSyncs() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 15
+        viewModel.ruleEditorCooldownDurationMinutes = 240
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.alertMessage == nil)
+        #expect(viewModel.groups.first?.ruleKind == .cooldown)
+        #expect(viewModel.groups.first?.cooldownUsageMinutes == 15)
+        #expect(viewModel.groups.first?.cooldownDurationMinutes == 240)
+        #expect(groupRepo.screenTimeGroups.first?.cooldownUsageMinutes == 15)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func cooldownRuleWithInvalidValuesAlertsAndDoesNotChangeGroup() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 0          // 범위 밖
+        viewModel.ruleEditorCooldownDurationMinutes = 240
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.alertMessage != nil)
+        #expect(viewModel.groups.first?.ruleKind == .dailyLimit)   // 미변경
+        #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
     @Test func switchingToTimeWindowsPreservesDailyLimitMinutes() {
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(),
@@ -1176,6 +1235,34 @@ struct ViewModelTests {
         #expect(progress(used: 30)?.remaining == 5)   // 30/60 → 5칸
         #expect(progress(used: 54)?.remaining == 1)   // 6분 남음 → 최소 1칸
         #expect(progress(used: 60) == nil)            // 소진 → nil(잠금 임박)
+    }
+
+    @Test func homeViewModelLockProgressUsesCooldownBudget() {
+        // 쿨다운 그룹도 휴식 전 사용 예산(cooldownUsageMinutes) 기준으로 초록 진행바를 보여준다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "게임",
+            ruleKind: .cooldown,
+            cooldownUsageMinutes: 20,
+            cooldownDurationMinutes: 300
+        )
+        func progress(used: Int) -> HomeViewModel.SegmentProgress? {
+            HomeViewModel(
+                groups: [group],
+                todayStats: DailyStats(dateKey: "2026-05-30"),
+                isMonitoring: true,
+                isShieldActive: false,
+                shieldOverrideUntil: nil,
+                successMessage: nil,
+                errorMessage: nil,
+                validGroupIDs: [group.id],
+                usedTimeByGroupID: [group.id: used]
+            ).lockProgress(for: group)
+        }
+
+        #expect(progress(used: 0)?.remaining == 10)   // 예산 20분, 0 사용 → 가득
+        #expect(progress(used: 10)?.remaining == 5)    // 10/20 → 5칸
+        #expect(progress(used: 20) == nil)             // 예산 소진 → nil(잠금 임박)
     }
 
     @Test func homeViewModelOverrideProgressFillsTenSegmentsByUsage() {
@@ -2154,6 +2241,7 @@ private final class FakeShieldRepository: ShieldRepository {
     var usedTimeByGroupID: [UUID: Int] = [:]
     var overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:]
     var overrideGrantedMinutesByGroupID: [UUID: Int] = [:]
+    var cooldownEndByGroupID: [UUID: Date] = [:]
     var oneMinuteRemainingValue = 5
     var oneMinuteRemaining: Int { oneMinuteRemainingValue }
     var lastRequestedUnlockApplicationToken: ApplicationToken?

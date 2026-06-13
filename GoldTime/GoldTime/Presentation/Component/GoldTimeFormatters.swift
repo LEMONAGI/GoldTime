@@ -24,3 +24,9 @@ func goldTimeClockText(minuteOfDay minute: Int) -> String {
     let clamped = max(0, min(minute, 24 * 60 - 1))
     return String(format: "%02d:%02d", clamped / 60, clamped % 60)
 }
+
+/// Date의 시:분을 "HH:mm" 24시간 표기로 변환. 쿨다운 종료 시각 표시에 사용.
+func goldTimeClockText(date: Date, calendar: Calendar = .current) -> String {
+    let components = calendar.dateComponents([.hour, .minute], from: date)
+    return goldTimeClockText(minuteOfDay: (components.hour ?? 0) * 60 + (components.minute ?? 0))
+}

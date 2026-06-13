@@ -99,6 +99,10 @@ struct GroupCardView: View {
                             Text(lockCaption)
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.red)
+                        } else if let cooldownCaption = viewModel.activeCooldownLockCaption(for: group) {
+                            Text(cooldownCaption)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.red)
                         }
                     }
                 }

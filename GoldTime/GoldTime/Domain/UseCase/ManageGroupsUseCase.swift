@@ -50,12 +50,14 @@ final class ManageGroupsUseCase {
     }
 
     /// 그룹의 차단 규칙을 갱신한다.
-    /// dailyLimitMinutes는 규칙을 timeWindows로 바꿔도 보존되도록, nil이면 기존 값을 유지한다.
+    /// 각 규칙별 값(일일 한도/시간대/쿨다운)은 규칙을 바꿔도 보존되도록, nil이면 기존 값을 유지한다.
     func updateRule(
         id: UUID,
         kind: GroupRuleKind,
         dailyLimitMinutes: Int? = nil,
         timeWindows: [TimeWindow]? = nil,
+        cooldownUsageMinutes: Int? = nil,
+        cooldownDurationMinutes: Int? = nil,
         in groups: inout [ScreenTimeGroup]
     ) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
@@ -65,6 +67,12 @@ final class ManageGroupsUseCase {
         }
         if let timeWindows {
             groups[index].timeWindows = timeWindows
+        }
+        if let cooldownUsageMinutes {
+            groups[index].cooldownUsageMinutes = cooldownUsageMinutes
+        }
+        if let cooldownDurationMinutes {
+            groups[index].cooldownDurationMinutes = cooldownDurationMinutes
         }
     }
 

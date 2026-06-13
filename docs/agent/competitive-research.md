@@ -172,13 +172,14 @@ GoldTime 적용:
 - 시간대 차단, 즉시 차단 세션, 일일 사용량 한도는 Opal/Jomo/ScreenZen/Freedom/Apple Screen Time까지 넓게 퍼진 기본 기능입니다.
 - strict/deep focus처럼 해제나 설정 변경을 어렵게 만드는 유료/고강도 장치도 이미 흔합니다. Opal은 Deep Focus, Jomo는 Strict Mode, AppBlock은 Strict Mode를 전면에 둡니다.
 - "정해진 횟수만 열기"와 "한 번 열 때 N분만 쓰기"는 AppBlock Open Limit, ScreenZen의 opens/ScreenTime 기반 strict block, Jomo의 usage/open limit에서 이미 관찰됩니다.
-- Refocus의 Pomodoro unlock처럼 "하루 N번, 각 N분, 사이 cooldown" 구조는 항해 모드와 가까운 인접 기능입니다. AppBlock Open Limit도 daily open count와 open duration을 조합합니다.
+- Refocus의 Pomodoro unlock처럼 "하루 N번, 각 N분, 사이 cooldown" 구조는 쿨다운 모드와 가까운 인접 기능입니다. AppBlock Open Limit도 daily open count와 open duration을 조합합니다.
 - 아직 덜 흔한 지점은 "정해진 주기마다 사용 시간을 다시 배급하는 rolling allowance"와, 그 배급이 끝난 뒤에도 광고/1분/그만두기라는 동일한 Shield 결제대에 서게 만드는 조합입니다.
+- (구현됨, 2026-06) **쿨다운 모드** = 사용 예산 소진 시 잠금 → 강제 휴식 후 자동 재충전. 휴식 중에도 광고/1분으로 풀 수 있어 위 "동일한 Shield 결제대" 차별점을 그대로 구현합니다. 자정 리셋은 일일 한도와 동일하게 적용.
 
 GoldTime 적용점:
 
 - 신규 기획의 시간대별 차단과 집중 모드는 차별 기능이라기보다 기본 기대치를 채우는 기능으로 봅니다. 복잡한 코칭/리포트 없이 그룹의 "잠그는 이유" 옵션으로 흡수하는 방향이 맞습니다.
-- 항해 모드는 이름만으로 차별화하지 말고 "N시간마다 M분 보급"이라는 반복 배급 구조를 명확히 해야 합니다. 단순 일일 quota, open limit, Pomodoro unlock/cooldown과 헷갈리면 차별점이 약해집니다.
+- 쿨다운 모드는 이름만으로 차별화하지 말고 "쓴 만큼 쉬고 다시 배급"이라는 반복 구조를 명확히 해야 합니다. 단순 일일 quota, open limit, Pomodoro unlock/cooldown과 헷갈리면 차별점이 약해집니다.
 - 진짜 차별점은 모든 트리거가 같은 Shield 해제 선택지로 모인다는 점입니다. 경쟁 앱의 break/pause는 편의 기능처럼 보이지만, GoldTime의 광고 해제는 "더 쓰기 위해 치르는 비용"이어야 합니다.
 - 완전 차단 유료화는 경쟁 앱의 strict/deep focus와 겹칩니다. 다만 GoldTime은 "광고를 자주 보고 풀었다"는 자기 행동 기록을 업셀 근거로 삼을 수 있어, 단순 strict mode보다 설득 흐름이 더 GoldTime답습니다.
 

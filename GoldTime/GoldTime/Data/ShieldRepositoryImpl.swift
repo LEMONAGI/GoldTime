@@ -13,6 +13,7 @@ struct ShieldRepositoryImpl: ShieldRepository {
     var overrideGrantedMinutesByGroupID: [UUID: Int] {
         SharedStore.overrideGrantedMinutesByGroupID
     }
+    var cooldownEndByGroupID: [UUID: Date] { SharedStore.cooldownUntilByGroupID }
     var oneMinuteRemaining: Int { SharedStore.oneMinuteRemaining }
     var lastRequestedUnlockApplicationToken: ApplicationToken? {
         SharedStore.lastRequestedUnlockApplicationToken

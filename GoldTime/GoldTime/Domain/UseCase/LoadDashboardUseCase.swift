@@ -10,6 +10,7 @@ struct DashboardState {
     let usedTimeByGroupID: [UUID: Int]
     let overrideBaselineUsedTimeByGroupID: [UUID: Int]
     let overrideGrantedMinutesByGroupID: [UUID: Int]
+    let cooldownEndByGroupID: [UUID: Date]
     let todayStats: DailyStats
     let statsReport: StatsReport
     let adFreeStreakDays: Int
@@ -64,6 +65,7 @@ final class LoadDashboardUseCase {
             usedTimeByGroupID: shieldRepository.usedTimeByGroupID,
             overrideBaselineUsedTimeByGroupID: shieldRepository.overrideBaselineUsedTimeByGroupID,
             overrideGrantedMinutesByGroupID: shieldRepository.overrideGrantedMinutesByGroupID,
+            cooldownEndByGroupID: shieldRepository.cooldownEndByGroupID,
             todayStats: todayStats,
             statsReport: statsReport,
             adFreeStreakDays: calculateAdFreeStreak(),
