@@ -177,6 +177,9 @@ struct HomeViewModel {
     }
 
     func statusTitle(for group: ScreenTimeGroup) -> String {
+        if !group.isApplied {
+            return "설정 중"
+        }
         if lockedGroupIDs.contains(group.id) {
             return "잠금 중"
         }
@@ -192,6 +195,9 @@ struct HomeViewModel {
     }
 
     func statusTint(for group: ScreenTimeGroup) -> Color {
+        if !group.isApplied {
+            return .secondary
+        }
         if lockedGroupIDs.contains(group.id) {
             return .red
         }
@@ -314,9 +320,12 @@ struct HomeViewModel {
         groups.filter { validGroupIDs.contains($0.id) }
     }
 
+    /// 적용된 그룹 중 설정 미비로 모니터링에서 빠진 그룹.
+    /// draft(미적용)는 "설정이 덜 끝난 그룹"이 아니라 적용 대기 상태이므로 제외한다.
     private var invalidMonitoringGroups: [ScreenTimeGroup] {
         groups.filter { group in
-            ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil
+            group.isApplied
+                && ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil
         }
     }
 

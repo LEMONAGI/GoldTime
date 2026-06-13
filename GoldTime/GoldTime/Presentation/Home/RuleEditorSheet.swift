@@ -36,7 +36,7 @@ struct RuleEditorSheet: View {
                 } header: {
                     Text("차단 규칙")
                 } footer: {
-                    Text("규칙을 고르면 바로 적용돼요.")
+                    Text("적용된 그룹은 규칙을 바꾸면 바로 반영돼요.")
                 }
             }
             .navigationTitle("차단 규칙")

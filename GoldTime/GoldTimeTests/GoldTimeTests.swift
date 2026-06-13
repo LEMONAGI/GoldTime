@@ -286,6 +286,33 @@ struct GoldTimeTests {
         #expect(eligible.map(\.id) == [validID, noLimitID])
     }
 
+    @Test func draftGroupExcludedFromMonitoringEligibility() {
+        let appliedID = UUID()
+        let draftID = UUID()
+        let groups = [
+            ScreenTimeGroupPolicy.GroupSnapshot(
+                id: appliedID,
+                name: "적용됨",
+                appTokens: ["instagram"],
+                dailyLimitMinutes: 20,
+                isApplied: true
+            ),
+            ScreenTimeGroupPolicy.GroupSnapshot(
+                id: draftID,
+                name: "설정 중",
+                appTokens: ["youtube"],
+                dailyLimitMinutes: 20,
+                isApplied: false
+            )
+        ]
+
+        // draft는 자격에서 제외되고, 개별 사유는 groupNotApplied.
+        #expect(ScreenTimeGroupPolicy.monitoringEligibleGroups(from: groups).map(\.id) == [appliedID])
+        #expect(ScreenTimeGroupPolicy.invalidReason(for: groups[1]) == .groupNotApplied("설정 중"))
+        // 그러나 저장 전체 검증(firstInvalidReason)은 draft 때문에 막히지 않는다.
+        #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: groups) == nil)
+    }
+
     @Test func pruneShieldStateRemovesDeletedOrInvalidGroupsOnly() {
         SharedStore.clearGroupStateForTesting()
         defer { SharedStore.clearGroupStateForTesting() }

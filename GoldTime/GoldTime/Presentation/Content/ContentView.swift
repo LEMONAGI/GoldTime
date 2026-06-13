@@ -17,10 +17,12 @@ struct ContentView: View {
     private enum ActiveAlert: Identifiable {
         case notice(GoldTimeAlertMessage)
         case limitWarning(LimitLockWarning)
+        case applyConfirmation(ApplyGroupConfirmation)
         var id: String {
             switch self {
             case .notice(let m): return "notice-\(m.id)"
             case .limitWarning(let w): return "warn-\(w.id)"
+            case .applyConfirmation(let c): return "apply-\(c.id)"
             }
         }
     }
@@ -30,12 +32,14 @@ struct ContentView: View {
             get: {
                 if let m = viewModel.alertMessage { return .notice(m) }
                 if let w = viewModel.pendingLimitLockWarning { return .limitWarning(w) }
+                if let c = viewModel.pendingApplyConfirmation { return .applyConfirmation(c) }
                 return nil
             },
             set: { newValue in
                 if newValue == nil {
                     viewModel.alertMessage = nil
                     viewModel.pendingLimitLockWarning = nil
+                    viewModel.pendingApplyConfirmation = nil
                 }
             }
         )
@@ -82,7 +86,8 @@ struct ContentView: View {
                     onUpdateGroupName: viewModel.updateGroupName,
                     onPresentPicker: viewModel.requestPickerPresentation,
                     onPresentRuleEditor: viewModel.requestRuleEditorPresentation,
-                    onUnlockGroup: viewModel.presentUnlockSheet
+                    onUnlockGroup: viewModel.presentUnlockSheet,
+                    onApplyGroup: viewModel.requestApplyGroup
                 )
             }
             .tabItem {
@@ -168,6 +173,17 @@ struct ContentView: View {
                     },
                     secondaryButton: .cancel(Text("취소")) {
                         viewModel.cancelLimitLockChange()
+                    }
+                )
+            case .applyConfirmation(let confirmation):
+                Alert(
+                    title: Text("그룹을 적용할까요?"),
+                    message: Text("‘\(confirmation.groupName)’ 그룹을 적용하면 바로 보호가 시작돼요. 이후 규칙 변경, 제한 항목 수정, 삭제에는 광고 시청이 필요해요."),
+                    primaryButton: .default(Text("적용하기")) {
+                        viewModel.confirmApplyGroup(confirmation)
+                    },
+                    secondaryButton: .cancel(Text("취소")) {
+                        viewModel.cancelApplyGroup()
                     }
                 )
             }

@@ -29,9 +29,19 @@ final class ManageGroupsUseCase {
         guard currentCount < SharedStore.maxGroupCount else {
             throw ManageGroupsError.maxGroupCountReached
         }
+        // 새 그룹은 draft로 시작한다. 규칙을 고르지 않았고(ruleKind = nil)
+        // 아직 적용(commit) 전이라(isApplied = false) 모니터링에 등록되지 않는다.
         return SharedStore.ScreenTimeGroup(
-            name: groupRepository.defaultGroupName(for: currentCount)
+            name: groupRepository.defaultGroupName(for: currentCount),
+            ruleKind: nil,
+            isApplied: false
         )
+    }
+
+    /// draft 그룹을 적용 상태로 전환한다. 적용 이후 규칙/제한 항목 수정·삭제는 광고 게이트를 거친다.
+    func markApplied(id: UUID, in groups: inout [ScreenTimeGroup]) {
+        guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        groups[index].isApplied = true
     }
 
     func updateName(id: UUID, name: String, in groups: inout [ScreenTimeGroup]) {

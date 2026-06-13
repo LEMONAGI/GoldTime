@@ -31,6 +31,13 @@ struct LimitLockWarning: Identifiable {
     let usedMinutes: Int
 }
 
+/// draft 그룹을 "적용하기"로 commit하기 전, 이후 수정에 광고가 필요함을 안내하는 확인.
+struct ApplyGroupConfirmation: Identifiable {
+    let id = UUID()
+    let groupID: UUID
+    let groupName: String
+}
+
 @MainActor
 @Observable
 final class ContentViewModel {
@@ -63,6 +70,7 @@ final class ContentViewModel {
     var successMessage: String?
     var alertMessage: GoldTimeAlertMessage?
     var pendingLimitLockWarning: LimitLockWarning?
+    var pendingApplyConfirmation: ApplyGroupConfirmation?
     private var stagedLimitLockWarning: LimitLockWarning?
     private var pendingDeletedGroupName: String?
     var isReconnecting = false
@@ -372,9 +380,11 @@ final class ContentViewModel {
         pendingLimitLockWarning = nil
     }
 
-    /// 잠금 또는 연장 중인 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    /// 적용(commit)된 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    /// applied는 잠금/연장 상태를 모두 포함(applied ⊃ locked ∪ override)하므로 더 엄격한 기준이다.
+    /// draft(미적용) 그룹은 자유롭게 수정·삭제할 수 있도록 게이트 없음.
     private func isEditRestricted(_ id: UUID) -> Bool {
-        lockedGroupIDs.contains(id) || overrideGroupIDs.contains(id)
+        groups.first(where: { $0.id == id })?.isApplied ?? false
     }
 
     func requestPickerPresentation(for group: ScreenTimeGroup) {
@@ -427,6 +437,37 @@ final class ContentViewModel {
         Task { @MainActor in
             self.alertMessage = message
         }
+    }
+
+    /// draft 그룹 "적용하기". 적용 가능 여부를 검증한 뒤 확인 alert 단계로 넘긴다.
+    /// 검증 실패 시 부족한 항목을 안내한다.
+    func requestApplyGroup(id: UUID) {
+        guard let group = groups.first(where: { $0.id == id }) else { return }
+        if let reason = applyInvalidReason(of: group) {
+            // draft 자체(미적용)는 검증에서 제외하고, 규칙/항목 등 실제 부족분만 안내한다.
+            alertMessage = GoldTimeAlertMessage(title: "적용할 수 없어요", message: reason.userMessage)
+            return
+        }
+        pendingApplyConfirmation = ApplyGroupConfirmation(groupID: id, groupName: group.name)
+    }
+
+    /// 적용 가능 검증은 isApplied 분기를 빼고 본다(아직 draft이므로 isApplied=false가 당연).
+    private func applyInvalidReason(of group: ScreenTimeGroup) -> ScreenTimeGroupPolicy.InvalidReason? {
+        var snapshot = group.policySnapshot
+        snapshot.isApplied = true
+        return ScreenTimeGroupPolicy.invalidReason(for: snapshot)
+    }
+
+    // confirmation을 인자로 받는다: .alert(item:)이 버튼 액션 전에 바인딩을 nil로 만들기 때문.
+    func confirmApplyGroup(_ confirmation: ApplyGroupConfirmation) {
+        pendingApplyConfirmation = nil
+        updateGroup(confirmation.groupID) { groups in
+            manageGroupsUseCase.markApplied(id: confirmation.groupID, in: &groups)
+        }
+    }
+
+    func cancelApplyGroup() {
+        pendingApplyConfirmation = nil
     }
 
     func adGateCompleted() {

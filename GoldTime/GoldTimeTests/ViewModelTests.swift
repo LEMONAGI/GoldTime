@@ -337,7 +337,54 @@ struct ViewModelTests {
 
     // MARK: - Ad Gate
 
-    @Test func adGateSkippedForUnlockedGroup() {
+    @Test func adGateSkippedForDraftGroup() {
+        // draft(미적용) 그룹은 잠금/연장과 무관하게 광고 게이트 없이 바로 편집된다.
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", ruleKind: nil, isApplied: false)
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: FakeGroupRepository(),
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.requestPickerPresentation(for: group)
+        #expect(!viewModel.isAdGatePresented)
+        #expect(viewModel.isPickerPresented)
+
+        viewModel.requestRuleEditorPresentation(for: group)
+        #expect(!viewModel.isAdGatePresented)
+        #expect(viewModel.isRuleEditorPresented)
+    }
+
+    @Test func adGateSkippedForDraftDelete() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", ruleKind: nil, isApplied: false)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.requestDeleteGroup(group.id)
+
+        #expect(!viewModel.isAdGatePresented)
+        #expect(!viewModel.groups.contains(where: { $0.id == group.id }))
+    }
+
+    @Test func adGateOpenedForAppliedUnlockedGroup() {
+        // 적용된 그룹은 잠겨 있지 않아도 편집/변경/삭제에 광고 게이트가 뜬다.
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
         let viewModel = ContentViewModel(
             manageGroupsUseCase: ManageGroupsUseCase(
@@ -352,9 +399,17 @@ struct ViewModelTests {
         viewModel.groups = [group]
 
         viewModel.requestPickerPresentation(for: group)
+        #expect(viewModel.isAdGatePresented)
+        #expect(!viewModel.isPickerPresented)
 
-        #expect(!viewModel.isAdGatePresented)
-        #expect(viewModel.isPickerPresented)
+        viewModel.adGateCancelled()
+        viewModel.requestRuleEditorPresentation(for: group)
+        #expect(viewModel.isAdGatePresented)
+        #expect(!viewModel.isRuleEditorPresented)
+
+        viewModel.adGateCancelled()
+        viewModel.requestDeleteGroup(group.id)
+        #expect(viewModel.isAdGatePresented)
     }
 
     @Test func adGateOpenedForLockedGroupEdit() {
@@ -391,6 +446,7 @@ struct ViewModelTests {
             authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
             userDefaults: makeUserDefaults()
         )
+        viewModel.groups = [group]
         viewModel.lockedGroupIDs = [group.id]
 
         viewModel.requestDeleteGroup(group.id)
@@ -455,6 +511,7 @@ struct ViewModelTests {
             authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
             userDefaults: makeUserDefaults()
         )
+        viewModel.groups = [group]
         viewModel.overrideGroupIDs = [group.id]
 
         viewModel.requestDeleteGroup(group.id)
@@ -464,7 +521,8 @@ struct ViewModelTests {
     }
 
     @Test func regularGroupDeleteShowsCompletionAlertWithName() async {
-        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        // draft(미적용) 그룹은 광고 게이트 없이 바로 삭제되고 완료 알럿이 뜬다.
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", ruleKind: nil, isApplied: false)
         let groupRepo = FakeGroupRepository()
         groupRepo.screenTimeGroups = [group]
         let viewModel = ContentViewModel(
@@ -591,6 +649,91 @@ struct ViewModelTests {
 
         #expect(!viewModel.isAdGatePresented)
         #expect(!viewModel.isPickerPresented)
+    }
+
+    // MARK: - Draft / Apply (commit)
+
+    @Test func makeNewGroupStartsAsDraft() throws {
+        let useCase = ManageGroupsUseCase(
+            groupRepository: FakeGroupRepository(),
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+
+        let group = try useCase.makeNewGroup(currentCount: 0)
+
+        #expect(group.isApplied == false)
+        #expect(group.ruleKind == nil)
+    }
+
+    @Test func requestApplyBlockedWhenRuleNotChosen() {
+        // 규칙 미선택 draft는 적용할 수 없고 안내 alert만 뜬다.
+        // (테스트 환경에선 실제 ApplicationToken을 만들 수 없어 selection도 비어 있다.
+        //  invalidReason은 선택 누락을 먼저 잡으므로 어떤 경우든 적용은 막히고 안내가 뜬다.)
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "SNS",
+            ruleKind: nil,
+            isApplied: false
+        )
+        let viewModel = makeApplyViewModel(with: group)
+
+        viewModel.requestApplyGroup(id: group.id)
+
+        #expect(viewModel.pendingApplyConfirmation == nil)
+        #expect(viewModel.alertMessage?.title == "적용할 수 없어요")
+        #expect(viewModel.groups.first?.isApplied == false)
+    }
+
+    @Test func confirmApplyMarksGroupAppliedAndSyncs() {
+        // requestApplyGroup의 유효성 검증은 실제 ApplicationToken 의존(selectionCount)이라 테스트에서
+        // 만족시킬 수 없다. 확인 단계 이후의 commit 동작(isApplied 전환 + sync)을 직접 검증한다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "SNS",
+            dailyLimitMinutes: 30,
+            ruleKind: .dailyLimit,
+            isApplied: false
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        let confirmation = ApplyGroupConfirmation(groupID: group.id, groupName: group.name)
+        viewModel.pendingApplyConfirmation = confirmation
+        viewModel.confirmApplyGroup(confirmation)
+
+        #expect(viewModel.pendingApplyConfirmation == nil)
+        #expect(viewModel.groups.first?.isApplied == true)
+        #expect(groupRepo.screenTimeGroups.first?.isApplied == true)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    private func makeApplyViewModel(with group: SharedStore.ScreenTimeGroup) -> ContentViewModel {
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        return viewModel
     }
 
     @Test func contentViewModelAddsGroupAndPersistsWithoutSync() {

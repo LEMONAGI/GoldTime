@@ -16,7 +16,8 @@ struct HomeView: View {
     let onPresentPicker: (ScreenTimeGroup) -> Void
     let onPresentRuleEditor: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
-    
+    let onApplyGroup: (UUID) -> Void
+
     init(
         groups: [ScreenTimeGroup],
         todayStats: DailyStats,
@@ -39,7 +40,8 @@ struct HomeView: View {
         onUpdateGroupName: @escaping (UUID, String) -> Void,
         onPresentPicker: @escaping (ScreenTimeGroup) -> Void,
         onPresentRuleEditor: @escaping (ScreenTimeGroup) -> Void,
-        onUnlockGroup: @escaping (UUID) -> Void = { _ in }
+        onUnlockGroup: @escaping (UUID) -> Void = { _ in },
+        onApplyGroup: @escaping (UUID) -> Void = { _ in }
     ) {
         self.viewModel = HomeViewModel(
             groups: groups,
@@ -65,6 +67,7 @@ struct HomeView: View {
         self.onPresentPicker = onPresentPicker
         self.onPresentRuleEditor = onPresentRuleEditor
         self.onUnlockGroup = onUnlockGroup
+        self.onApplyGroup = onApplyGroup
     }
     
     var body: some View {
@@ -196,7 +199,8 @@ struct HomeView: View {
                             onUpdateGroupName: onUpdateGroupName,
                             onPresentPicker: onPresentPicker,
                             onPresentRuleEditor: onPresentRuleEditor,
-                            onUnlockGroup: onUnlockGroup
+                            onUnlockGroup: onUnlockGroup,
+                            onApplyGroup: onApplyGroup
                         )
                     }
                 }

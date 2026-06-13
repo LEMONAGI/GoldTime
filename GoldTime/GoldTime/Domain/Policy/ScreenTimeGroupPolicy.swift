@@ -18,6 +18,7 @@ enum ScreenTimeGroupPolicy {
         case groupHasNoSelection(String)
         case groupHasNoLimit(String)
         case groupHasNoRule(String)
+        case groupNotApplied(String)
         case groupHasInvalidTimeWindows(String, TimeWindowPolicy.InvalidReason)
         case groupHasTooManySelections(String)
         case groupHasNonAppTokens(String)
@@ -33,6 +34,8 @@ enum ScreenTimeGroupPolicy {
                 return "\(name)의 한도 설정이 올바르지 않아요."
             case .groupHasNoRule(let name):
                 return "\(name)의 차단 규칙을 아직 고르지 않았어요."
+            case .groupNotApplied(let name):
+                return "\(name)은 아직 적용 전이라 보호가 시작되지 않았어요."
             case .groupHasInvalidTimeWindows(let name, let reason):
                 return "\(name): \(reason.userMessage)"
             case .groupHasTooManySelections(let name):
@@ -135,10 +138,17 @@ enum ScreenTimeGroupPolicy {
         return nil
     }
 
+    /// 개별 그룹의 모니터링 자격. draft(미적용) 그룹은 보호가 시작되지 않으므로 자격 없음으로 본다.
+    /// 이 분기는 per-group 경로에만 두고, 저장 전체 검증인 `firstInvalidReason(for groups:)`에는
+    /// 넣지 않는다 — draft 존재가 저장 자체를 막는 에러가 되면 안 되기 때문.
     static func invalidReason<Token>(
         for group: GroupSnapshot<Token>,
         maxAppsPerGroup: Int = ScreenTimeGroupPolicy.maxAppsPerGroup
     ) -> InvalidReason? {
+        if !group.isApplied {
+            return .groupNotApplied(group.name)
+        }
+
         if group.selectionCount == 0 {
             return .groupHasNoSelection(group.name)
         }
