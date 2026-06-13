@@ -81,13 +81,13 @@ struct HomeViewModel {
     var protectionStatusCaption: String {
         if isMonitoring {
             let count = validMonitoringGroups.count
-            return count > 1 ? "\(count)개 유효 그룹에 한도를 적용 중이에요" : "유효한 그룹에 한도를 적용 중이에요"
+            return count > 1 ? "\(count)개 유효 그룹에 규칙을 적용 중이에요" : "유효한 그룹에 규칙을 적용 중이에요"
         }
         if groups.isEmpty {
-            return "그룹을 만들고 항목을 담으면 바로 적용돼요"
+            return "그룹을 만들고 적용하면 보호가 시작돼요"
         }
         if validMonitoringGroups.isEmpty {
-            return "항목과 한도가 설정된 그룹이 필요해요"
+            return "항목과 규칙을 정해 적용한 그룹이 필요해요"
         }
         return "자동 적용을 준비하고 있어요"
     }
@@ -114,7 +114,7 @@ struct HomeViewModel {
         }
 
         if validMonitoringGroups.isEmpty {
-            return "아직 적용할 수 있는 그룹이 없어요. 앱이나 웹 사이트를 하나 이상 담고 한도를 정해주세요."
+            return "아직 적용할 수 있는 그룹이 없어요. 앱이나 웹 사이트를 하나 이상 담고 규칙을 정해 적용해 주세요."
         }
 
         return "\(invalidCount)개 그룹은 설정이 덜 끝나서 자동 적용에서 제외됐어요."
@@ -155,8 +155,15 @@ struct HomeViewModel {
 
     var shieldStatusCaption: String {
         if isShieldActive {
-            let count = lockedGroupIDs.count
-            return count > 1 ? "\(count)개 그룹이 한도에 닿았어요" : "한도를 넘겼어요"
+            let locked = groups.filter { lockedGroupIDs.contains($0.id) }
+            if locked.count > 1 {
+                return "\(locked.count)개 그룹이 잠겨 있어요"
+            }
+            // 잠금 사유에 맞는 문구: 시간대 차단은 한도 초과가 아니다.
+            if let group = locked.first, (group.ruleKind ?? .dailyLimit) == .timeWindows {
+                return "차단 시간대예요"
+            }
+            return "한도를 넘겼어요"
         }
         if !overrideGroupIDs.isEmpty {
             let shortest = groups

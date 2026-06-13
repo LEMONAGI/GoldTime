@@ -67,6 +67,26 @@ final class LockOptionsViewModel {
 
     var selectedGroupName: String? { selectedGroup?.displayName }
 
+    /// 잠긴 그룹이 전부 시간대 차단 규칙이면 "한도 초과" 프레이밍이 사실과 다르다.
+    private var isWindowOnlyLock: Bool {
+        !lockedGroups.isEmpty && lockedGroups.allSatisfy { ($0.ruleKind ?? .dailyLimit) == .timeWindows }
+    }
+
+    var headerTitle: String {
+        isWindowOnlyLock ? "차단 시간대예요" : "한도 끝났어요"
+    }
+
+    /// 선택된 그룹이 시간대 차단으로 잠겨 있으면 종료 시각을 알려준다.
+    var selectedWindowLockCaption: String? {
+        guard let group = selectedGroup,
+              (group.ruleKind ?? .dailyLimit) == .timeWindows else { return nil }
+        let minute = TimeWindowPolicy.minuteOfDay(for: Date())
+        guard let end = TimeWindowPolicy.activeWindowEnd(minuteOfDay: minute, windows: group.timeWindows) else {
+            return nil
+        }
+        return "\(goldTimeClockText(minuteOfDay: end))까지 잠겨 있어요"
+    }
+
     var canExtendOneMinute: Bool {
         selectedGroup != nil && oneMinuteRemaining > 0 && !isExtending
     }
@@ -78,8 +98,10 @@ final class LockOptionsViewModel {
     var maxAppsPerGroup: Int { SharedStore.maxAppsPerGroup }
 
     func onAppear(initialGroupID: UUID? = nil) {
-        headerMessage = shieldMessages.randomElement() ?? "오늘 한도를 다 썼어요."
         refreshLockedGroups()
+        // 첫 문구("오늘 한도 다 썼어요.")는 한도 초과 전용이라 시간대 차단만 잠긴 경우엔 제외.
+        let pool = isWindowOnlyLock ? Array(shieldMessages.dropFirst()) : shieldMessages
+        headerMessage = pool.randomElement() ?? "더 쓰려면 광고가 필요해요."
         if let id = initialGroupID, lockedGroups.contains(where: { $0.id == id }) {
             selectedGroupID = id
         }

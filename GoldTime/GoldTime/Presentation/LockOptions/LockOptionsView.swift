@@ -83,12 +83,17 @@ struct LockOptionsView: View {
                 .clipShape(Circle())
 
             VStack(spacing: 6) {
-                Text("한도 끝났어요")
+                Text(viewModel.headerTitle)
                     .font(.title2.bold())
                 Text(viewModel.headerMessage)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                if let caption = viewModel.selectedWindowLockCaption {
+                    Text(caption)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.red)
+                }
             }
         }
         .frame(maxWidth: .infinity)
