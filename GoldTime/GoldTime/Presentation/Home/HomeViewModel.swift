@@ -194,7 +194,10 @@ struct HomeViewModel {
         }
         let minute = TimeWindowPolicy.minuteOfDay(for: Date())
         if let start = TimeWindowPolicy.nextWindowStart(minuteOfDay: minute, windows: group.timeWindows) {
-            return "\(goldTimeClockText(minuteOfDay: start))까지 사용 가능"
+            // 차단은 start 분부터(inclusive) 막히므로 마지막 사용 가능 분은 start - 1.
+            // start가 00:00이면 전날 23:59로 wrap.
+            let lastUsable = (start + 24 * 60 - 1) % (24 * 60)
+            return "\(goldTimeClockText(minuteOfDay: lastUsable))까지 사용 가능"
         }
         return "사용 가능"
     }
