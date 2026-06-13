@@ -8,7 +8,7 @@
 import Foundation
 
 enum CooldownPolicy {
-    static let minUsageMinutes = 5
+    static let minUsageMinutes = 1     // TODO: 테스트용 임시값 (원래 5)
     static let maxUsageMinutes = 120     // 2시간
     static let minCooldownMinutes = 30
     static let maxCooldownMinutes = 360  // 6시간

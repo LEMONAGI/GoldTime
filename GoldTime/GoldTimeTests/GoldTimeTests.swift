@@ -398,6 +398,31 @@ struct GoldTimeTests {
         #expect(!SharedStore.isShieldActive)
     }
 
+    @Test func nextDayDailyProtectionCheckClearsUsageBasedOverrideMetadata() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let calendar = Calendar.current
+        let firstDay = calendar.date(from: DateComponents(year: 2026, month: 5, day: 17, hour: 23))!
+        let nextDay = calendar.date(from: DateComponents(year: 2026, month: 5, day: 18, hour: 0, minute: 1))!
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.oneMinuteCounterDate = firstDay
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.setOverride(until: firstDay.addingTimeInterval(60), for: group.id)
+        SharedStore.markUsageBasedOverride(group.id)
+        SharedStore.recordOverrideBaseline(groupID: group.id, baseline: 3, grantedMinutes: 1)
+
+        #expect(!SharedStore.resetDailyProtectionStateIfNeeded(now: firstDay))
+        #expect(SharedStore.resetDailyProtectionStateIfNeeded(now: nextDay))
+
+        #expect(SharedStore.overrideUntilByGroupID.isEmpty)
+        #expect(SharedStore.usageBasedOverrideGroupIDs.isEmpty)
+        #expect(SharedStore.overrideBaselineUsedTimeByGroupID.isEmpty)
+        #expect(SharedStore.overrideGrantedMinutesByGroupID.isEmpty)
+        #expect(SharedStore.lockedGroups(now: nextDay).isEmpty)
+    }
+
     @Test func groupOverrideOnlyRemovesSelectedGroupFromLockedGroups() {
         SharedStore.clearGroupStateForTesting()
         defer { SharedStore.clearGroupStateForTesting() }
@@ -455,6 +480,112 @@ struct GoldTimeTests {
         #expect(registrar.startCallCount == 1)
         // usage-based override는 사용량 tick 이벤트로 재잠금하므로 시간 기반 warningTime을 쓰지 않는다.
         #expect(registrar.lastSchedule?.warningTime == nil)
+    }
+
+    @Test func oneMinuteExtensionNearMidnightRegistersScheduleLongEnoughToCrossMidnight() {
+        SharedStore.clearGroupStateForTesting()
+        SharedStore.clearDailyStatsForTesting()
+        defer {
+            SharedStore.clearGroupStateForTesting()
+            SharedStore.clearDailyStatsForTesting()
+        }
+
+        let calendar = Calendar.current
+        let now = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 5,
+            day: 19,
+            hour: 23,
+            minute: 50,
+            second: 0
+        ))!
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.oneMinuteUsedToday = 0
+        SharedStore.oneMinuteCounterDate = now
+        SharedStore.isShieldActive = true
+        let registrar = FakeOverrideMonitorRegistrar()
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
+
+        let outcome = ScreenTimeManager.extendGroup(
+            groupID: group.id,
+            duration: 60,
+            source: .oneMinute,
+            now: now
+        )
+
+        guard case .success(let result) = outcome else {
+            #expect(Bool(false), "자정 직전 1분 연장은 성공해야 합니다.")
+            return
+        }
+        guard let schedule = registrar.lastSchedule,
+              let dates = scheduleDates(from: schedule, calendar: calendar) else {
+            #expect(Bool(false), "등록된 override schedule을 Date로 복원할 수 있어야 합니다.")
+            return
+        }
+        #expect(result.overrideUntil == now.addingTimeInterval(60))
+        #expect(SharedStore.overrideUntilByGroupID[group.id] == result.overrideUntil)
+        #expect(dates.end.timeIntervalSince(dates.start) >= 15 * 60)
+        #expect(calendar.component(.day, from: dates.end) == 20)
+        #expect(schedule.warningTime == nil)
+    }
+
+    @Test func oneMinuteExtensionDuringDayKeepsScheduleUntilEndOfDay() {
+        SharedStore.clearGroupStateForTesting()
+        SharedStore.clearDailyStatsForTesting()
+        defer {
+            SharedStore.clearGroupStateForTesting()
+            SharedStore.clearDailyStatsForTesting()
+        }
+
+        let calendar = Calendar.current
+        let now = calendar.date(from: DateComponents(
+            year: 2026,
+            month: 5,
+            day: 19,
+            hour: 10,
+            minute: 0,
+            second: 0
+        ))!
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.oneMinuteUsedToday = 0
+        SharedStore.oneMinuteCounterDate = now
+        SharedStore.isShieldActive = true
+        let registrar = FakeOverrideMonitorRegistrar()
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
+
+        let outcome = ScreenTimeManager.extendGroup(
+            groupID: group.id,
+            duration: 60,
+            source: .oneMinute,
+            now: now
+        )
+
+        guard case .success = outcome else {
+            #expect(Bool(false), "낮 시간대 1분 연장은 성공해야 합니다.")
+            return
+        }
+        guard let schedule = registrar.lastSchedule,
+              let dates = scheduleDates(from: schedule, calendar: calendar) else {
+            #expect(Bool(false), "등록된 override schedule을 Date로 복원할 수 있어야 합니다.")
+            return
+        }
+        let endComponents = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: dates.end
+        )
+        #expect(calendar.isDate(dates.end, inSameDayAs: now))
+        #expect(endComponents.hour == 23)
+        #expect(endComponents.minute == 59)
+        #expect(endComponents.second == 59)
+        #expect(schedule.warningTime == nil)
     }
 
     @Test func adExtensionClearsSingleLockedGroup() {
@@ -776,6 +907,17 @@ struct GoldTimeTests {
         #expect(SharedStore.oneMinuteRemaining == 0)
     }
 
+}
+
+private func scheduleDates(
+    from schedule: DeviceActivitySchedule,
+    calendar: Calendar
+) -> (start: Date, end: Date)? {
+    guard let start = calendar.date(from: schedule.intervalStart),
+          let end = calendar.date(from: schedule.intervalEnd) else {
+        return nil
+    }
+    return (start, end)
 }
 
 private struct TestRelockError: LocalizedError {

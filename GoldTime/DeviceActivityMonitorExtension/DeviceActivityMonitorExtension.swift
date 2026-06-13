@@ -197,6 +197,21 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     }
 
     private func handleOverrideTick(groupID: UUID, minute: Int, activity: DeviceActivityName) {
+        if SharedStore.resetDailyProtectionStateIfNeeded() {
+            clearSystemShield()
+        }
+        guard SharedStore.usageBasedOverrideGroupIDs.contains(groupID),
+              SharedStore.overrideUntilByGroupID[groupID] != nil else {
+            DeviceActivityCenter().stopMonitoring([activity])
+            SharedStore.recordOverrideIntervalDidEnd(
+                activityName: activity.rawValue,
+                parsedGroupID: groupID,
+                didClearOverride: false
+            )
+            applyShieldFromGroups()
+            return
+        }
+
         let baseline = SharedStore.overrideBaselineUsedTimeByGroupID[groupID] ?? 0
         let granted = SharedStore.overrideGrantedMinutesByGroupID[groupID] ?? 1
 

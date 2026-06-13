@@ -576,9 +576,19 @@ enum ScreenTimeManager {
         // 각 이벤트는 딱 한 번만 발화하므로 재등록(relay)이 없어 폭주가 구조적으로 불가능하다.
         // 분배 마지막 원소가 항상 minutes(=granted)라 마지막 이벤트에서 정확히 재잠금된다.
         let calendar = Calendar.current
+        var endOfDayComponents = calendar.dateComponents([.year, .month, .day], from: now)
+        endOfDayComponents.hour = 23
+        endOfDayComponents.minute = 59
+        endOfDayComponents.second = 59
+        let endOfDay = calendar.date(from: endOfDayComponents) ?? end
+        let window = overrideScheduleWindow(
+            now: now,
+            overrideUntil: endOfDay,
+            calendar: calendar
+        )
         let schedule = DeviceActivitySchedule(
-            intervalStart: calendar.dateComponents([.hour, .minute, .second], from: now),
-            intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
+            intervalStart: window.startComponents,
+            intervalEnd: window.endComponents,
             repeats: false
         )
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
