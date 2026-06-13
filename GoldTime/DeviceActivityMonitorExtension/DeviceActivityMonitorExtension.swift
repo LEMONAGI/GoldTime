@@ -163,10 +163,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             return
         }
 
-        // 쿨다운 사용 예산 소진: 잠금 + 휴식 시작 + 휴식 타이머 등록.
+        // 쿨다운 사용 예산 tick: 진행바용 사용량 갱신 + 예산 소진 시 잠금.
         if let info = event.cooldownTickInfo,
            activity.cooldownUsageGroupID == info.groupID {
-            handleCooldownUsageReached(groupID: info.groupID)
+            handleCooldownUsageTick(groupID: info.groupID, minute: info.minute)
             return
         }
 
@@ -222,16 +222,21 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         applyShieldFromGroups()
     }
 
-    /// 쿨다운 사용 예산 소진(cdtick 발화) → 잠금 + 휴식 시작 + 휴식 타이머 등록.
-    private func handleCooldownUsageReached(groupID: UUID) {
+    /// 쿨다운 사용 예산 tick → 진행바용 사용량 갱신, 예산(cooldownUsageMinutes) 소진 시 잠금.
+    private func handleCooldownUsageTick(groupID: UUID, minute: Int) {
         // 자정을 넘겨 계속 사용 중이면 일일 리셋 처리(쿨다운도 자정에 함께 해제됨).
         if SharedStore.resetDailyProtectionStateIfNeeded() {
             clearSystemShield()
         }
         guard let group = SharedStore.group(id: groupID) else { return }
-        // 이미 휴식 중이거나 결제(override) 중이면 중복 처리하지 않는다.
+        // 사이클 사용량을 minute로 끌어올린다(역행 방지) → 홈 진행바가 남은 시간을 보여준다.
+        let used = SharedStore.raiseUsedTime(to: minute, for: groupID)
+
+        // 이미 휴식 중이거나 결제(override) 중이면 잠금 트리거를 건너뛴다(진행만 갱신).
         guard !SharedStore.isInCooldown(groupID),
               !SharedStore.usageBasedOverrideGroupIDs.contains(groupID) else { return }
+        // 아직 예산이 남았으면 진행바만 갱신하고 끝.
+        guard used >= group.cooldownUsageMinutes else { return }
 
         let until = Date().addingTimeInterval(TimeInterval(group.cooldownDurationMinutes * 60))
         SharedStore.startCooldown(until: until, for: groupID)

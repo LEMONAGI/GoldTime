@@ -251,17 +251,26 @@ struct HomeViewModel {
     }
 
     func lockProgress(for group: ScreenTimeGroup) -> SegmentProgress? {
-        // 사용량 진행바는 일일 한도 그룹에만 의미가 있다. 시간대 차단 그룹은 진행바 대신 시간대 요약을 보여준다.
-        guard usesDailyLimit(group),
-              validGroupIDs.contains(group.id),
+        // 사용량 진행바는 일일 한도와 쿨다운 그룹에 의미가 있다(쿨다운은 휴식 전 사용 예산 잔여).
+        // 시간대 차단 그룹은 진행바 대신 시간대 요약을 보여준다.
+        let budget: Int
+        switch group.ruleKind ?? .dailyLimit {
+        case .dailyLimit:
+            budget = group.dailyLimitMinutes
+        case .cooldown:
+            budget = group.cooldownUsageMinutes
+        case .timeWindows:
+            return nil
+        }
+        guard validGroupIDs.contains(group.id),
               !lockedGroupIDs.contains(group.id),
               !overrideGroupIDs.contains(group.id) else { return nil }
         let used = usedTimeByGroupID[group.id] ?? 0
-        let remainingMin = group.dailyLimitMinutes - used
+        let remainingMin = budget - used
         guard remainingMin > 0 else { return nil }
         return SegmentProgress(
             total: 10,
-            remaining: segments(remainingMinutes: remainingMin, totalMinutes: group.dailyLimitMinutes),
+            remaining: segments(remainingMinutes: remainingMin, totalMinutes: budget),
             accessibilityLabel: remainingMinutesLabel(remainingMin)
         )
     }
@@ -342,10 +351,6 @@ struct HomeViewModel {
               lockedGroupIDs.contains(group.id),
               let end = cooldownEndByGroupID[group.id] else { return nil }
         return "\(goldTimeClockText(date: end))까지 쉬어요"
-    }
-
-    func usesDailyLimit(_ group: ScreenTimeGroup) -> Bool {
-        (group.ruleKind ?? .dailyLimit) == .dailyLimit
     }
 
     private var validMonitoringGroups: [ScreenTimeGroup] {

@@ -71,27 +71,49 @@ enum CooldownMonitor {
         )
     }
 
-    /// 사용 예산 모니터 등록. cooldownUsageMinutes분 사용 시 cdtick 이벤트가 1회 발화한다.
-    /// 한 번에 단일 이벤트만 등록하므로(no relay) 재발화 누적 버그에 면역.
+    /// 사용 예산(분)을 최대 maxEvents개 threshold로 나눈 목록. 예산이 maxEvents 이하면 1분 단위,
+    /// 초과하면 균등 분배하되 마지막은 정확히 예산. (daily의 dailyThresholdMinutes와 동일 규칙)
+    nonisolated static func usageThresholds(forBudget budget: Int, maxEvents: Int = 10) -> [Int] {
+        guard budget > 0 else { return [] }
+        if budget <= maxEvents {
+            return Array(1...budget)
+        }
+        var set = Set<Int>()
+        for i in 1...maxEvents {
+            let m = Int((Double(budget) * Double(i) / Double(maxEvents)).rounded())
+            if m >= 1 { set.insert(min(m, budget)) }
+        }
+        set.insert(budget)
+        return set.sorted()
+    }
+
+    /// 사용 예산 모니터 등록. 누적 사용 분이 각 threshold에 닿을 때마다 cdtick이 1회씩 발화한다.
+    /// 진행바(남은 시간)를 위해 최대 10개 threshold를 한 번에 등록(no relay)하며, 마지막
+    /// threshold(=cooldownUsageMinutes)에서 잠금이 트리거된다. 사이클마다 새 window라 baseline 불필요.
     nonisolated static func startUsageMonitoring(
         center: DeviceActivityCenter,
         group: SharedStore.ScreenTimeGroup,
         generation: Int,
         now: Date = Date()
     ) throws {
-        let minutes = group.cooldownUsageMinutes
-        guard minutes > 0 else { return }
+        let budget = group.cooldownUsageMinutes
+        guard budget > 0 else { return }
+        let thresholds = usageThresholds(forBudget: budget)
+        guard !thresholds.isEmpty else { return }
 
-        let event = DeviceActivityEvent(
-            applications: group.selection.applicationTokens,
-            categories: [],
-            webDomains: group.selection.webDomainTokens,
-            threshold: DateComponents(minute: minutes)
-        )
+        var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
+        for minute in thresholds {
+            events[.cooldownTick(for: group.id, minute: minute)] = DeviceActivityEvent(
+                applications: group.selection.applicationTokens,
+                categories: [],
+                webDomains: group.selection.webDomainTokens,
+                threshold: DateComponents(minute: minute)
+            )
+        }
         try center.startMonitoring(
             .cooldownUsage(for: group.id, generation: generation),
             during: usageSchedule(now: now),
-            events: [.cooldownTick(for: group.id, minute: minutes): event]
+            events: events
         )
     }
 

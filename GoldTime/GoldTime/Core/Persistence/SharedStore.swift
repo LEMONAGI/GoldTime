@@ -661,6 +661,10 @@ enum SharedStore {
         map.removeValue(forKey: groupID)
         cooldownUntilByGroupID = map
         unmarkGroupShielded(groupID)
+        // 새 사이클은 사용량 0부터 시작한다(진행바·잠금 판정 기준).
+        var used = usedTimeByGroupID
+        used.removeValue(forKey: groupID)
+        usedTimeByGroupID = used
         var gens = cooldownGenerationByID
         let next = (gens[groupID] ?? 0) + 1
         gens[groupID] = next

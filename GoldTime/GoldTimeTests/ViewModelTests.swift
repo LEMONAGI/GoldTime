@@ -1237,6 +1237,34 @@ struct ViewModelTests {
         #expect(progress(used: 60) == nil)            // 소진 → nil(잠금 임박)
     }
 
+    @Test func homeViewModelLockProgressUsesCooldownBudget() {
+        // 쿨다운 그룹도 휴식 전 사용 예산(cooldownUsageMinutes) 기준으로 초록 진행바를 보여준다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "게임",
+            ruleKind: .cooldown,
+            cooldownUsageMinutes: 20,
+            cooldownDurationMinutes: 300
+        )
+        func progress(used: Int) -> HomeViewModel.SegmentProgress? {
+            HomeViewModel(
+                groups: [group],
+                todayStats: DailyStats(dateKey: "2026-05-30"),
+                isMonitoring: true,
+                isShieldActive: false,
+                shieldOverrideUntil: nil,
+                successMessage: nil,
+                errorMessage: nil,
+                validGroupIDs: [group.id],
+                usedTimeByGroupID: [group.id: used]
+            ).lockProgress(for: group)
+        }
+
+        #expect(progress(used: 0)?.remaining == 10)   // 예산 20분, 0 사용 → 가득
+        #expect(progress(used: 10)?.remaining == 5)    // 10/20 → 5칸
+        #expect(progress(used: 20) == nil)             // 예산 소진 → nil(잠금 임박)
+    }
+
     @Test func homeViewModelOverrideProgressFillsTenSegmentsByUsage() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
         func progress(used: Int) -> HomeViewModel.SegmentProgress? {
