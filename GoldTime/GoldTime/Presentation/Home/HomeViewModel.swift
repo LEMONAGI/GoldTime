@@ -70,7 +70,7 @@ struct HomeViewModel {
 
     var protectionStatusTitle: String {
         if isMonitoring {
-            return "자동 적용 중"
+            return "차단 규칙 적용 중"
         }
         if groups.isEmpty {
             return "설정 필요"
@@ -78,7 +78,7 @@ struct HomeViewModel {
         if validMonitoringGroups.isEmpty {
             return "설정 필요"
         }
-        return "자동 적용 대기"
+        return "차단 규칙 대기"
     }
 
     var protectionStatusCaption: String {
@@ -92,7 +92,7 @@ struct HomeViewModel {
         if validMonitoringGroups.isEmpty {
             return "항목과 규칙을 정해 적용한 그룹이 필요해요"
         }
-        return "자동 적용을 준비하고 있어요"
+        return "차단 규칙을 준비하고 있어요"
     }
 
     var protectionStatusIcon: String {
@@ -120,7 +120,7 @@ struct HomeViewModel {
             return "아직 적용할 수 있는 그룹이 없어요. 앱이나 웹 사이트를 하나 이상 담고 규칙을 정해 적용해 주세요."
         }
 
-        return "\(invalidCount)개 그룹은 설정이 덜 끝나서 자동 적용에서 제외됐어요."
+        return "\(invalidCount)개 그룹은 설정이 덜 끝나서 차단 규칙 적용에서 제외됐어요."
     }
 
     var billTotalText: String {
@@ -201,7 +201,7 @@ struct HomeViewModel {
             return "설정 중"
         }
         if lockedGroupIDs.contains(group.id) {
-            return "잠금 중"
+            return lockedBadgeTitle(for: group)
         }
         if overrideGroupIDs.contains(group.id) {
             // 부여된 분(진행바가 나타내는 총 시간)을 함께 표기. 실시간 갱신 아님.
@@ -211,7 +211,42 @@ struct HomeViewModel {
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return "설정 필요"
         }
-        return isMonitoring ? "적용 중" : "대기 중"
+        if !isMonitoring {
+            return "대기 중"
+        }
+        return availableBadgeTitle(for: group)
+    }
+
+    /// 잠금 중 뱃지 문구. 규칙별로 "언제까지 잠금"을 HH:mm으로 표기.
+    /// 일일 한도는 자정 리셋이라 "00:00까지 잠금", 쿨다운은 휴식 종료 시각, 시간대는 연속 시간대의 마지막 종료.
+    private func lockedBadgeTitle(for group: ScreenTimeGroup) -> String {
+        switch group.ruleKind ?? .dailyLimit {
+        case .dailyLimit:
+            return "00:00까지 잠금"
+        case .cooldown:
+            if let end = cooldownEndByGroupID[group.id] {
+                return "\(goldTimeClockText(date: end))까지 잠금"
+            }
+            return "잠금 중"
+        case .timeWindows:
+            let minute = TimeWindowPolicy.minuteOfDay(for: Date())
+            if let end = TimeWindowPolicy.contiguousWindowEnd(minuteOfDay: minute, windows: group.timeWindows) {
+                return "\(goldTimeClockText(minuteOfDay: end))까지 잠금"
+            }
+            return "잠금 중"
+        }
+    }
+
+    /// 사용 가능 뱃지 문구. 시간대 규칙은 다음 차단 시작 시각까지, 그 외는 그냥 "사용 가능".
+    private func availableBadgeTitle(for group: ScreenTimeGroup) -> String {
+        guard (group.ruleKind ?? .dailyLimit) == .timeWindows else {
+            return "사용 가능"
+        }
+        let minute = TimeWindowPolicy.minuteOfDay(for: Date())
+        if let start = TimeWindowPolicy.nextWindowStart(minuteOfDay: minute, windows: group.timeWindows) {
+            return "\(goldTimeClockText(minuteOfDay: start))까지 사용 가능"
+        }
+        return "사용 가능"
     }
 
     func statusTint(for group: ScreenTimeGroup) -> Color {
@@ -307,6 +342,30 @@ struct HomeViewModel {
         }
     }
 
+    /// 규칙 종류의 표시 이름. 그룹 카드 규칙 행 제목 등에 사용.
+    func ruleDisplayName(_ kind: GroupRuleKind) -> String {
+        switch kind {
+        case .dailyLimit:
+            return "일일 한도 제한"
+        case .timeWindows:
+            return "시간대별 차단"
+        case .cooldown:
+            return "쿨다운 잠금"
+        }
+    }
+
+    /// 그룹 카드 규칙 행 제목. 규칙 미선택이면 "차단 규칙 선택", 선택했으면 규칙 이름.
+    func ruleRowTitle(for group: ScreenTimeGroup) -> String {
+        guard let kind = group.ruleKind else { return "차단 규칙 선택" }
+        return ruleDisplayName(kind)
+    }
+
+    /// 그룹 카드 규칙 행 부제. 규칙 미선택이면 선택 안내, 선택했으면 규칙 요약.
+    func ruleRowSubtitle(for group: ScreenTimeGroup) -> String {
+        guard group.ruleKind != nil else { return "원하는 규칙을 선택하세요" }
+        return ruleSummary(for: group)
+    }
+
     /// 그룹 카드 "차단 규칙" 행의 짧은 요약 값. dailyLimit은 한도, timeWindows는 시간대 요약.
     func ruleSummary(for group: ScreenTimeGroup) -> String {
         switch group.ruleKind ?? .dailyLimit {
@@ -321,36 +380,15 @@ struct HomeViewModel {
         }
     }
 
-    /// "10:00–12:00 외 1개" 식 요약. 비어 있으면 설정 안내.
+    /// "21:00–22:00, 22:00–23:00" 식으로 모든 시간대를 시작시각 순으로 나열. 비어 있으면 설정 안내.
     func timeWindowsSummary(_ windows: [TimeWindow]) -> String {
         let sorted = windows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
-        guard let first = sorted.first else {
+        guard !sorted.isEmpty else {
             return "차단 시간대를 추가해 주세요"
         }
-        let range = "\(goldTimeClockText(minuteOfDay: first.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: first.endMinuteOfDay))"
-        if sorted.count > 1 {
-            return "\(range) 외 \(sorted.count - 1)개"
-        }
-        return range
-    }
-
-    /// 시간대 차단 그룹이 지금 잠겨 있을 때 "HH:mm까지 잠겨요" 캡션. 그 외엔 nil.
-    func activeWindowLockCaption(for group: ScreenTimeGroup) -> String? {
-        guard (group.ruleKind ?? .dailyLimit) == .timeWindows,
-              lockedGroupIDs.contains(group.id) else { return nil }
-        let minute = TimeWindowPolicy.minuteOfDay(for: Date())
-        guard let end = TimeWindowPolicy.activeWindowEnd(minuteOfDay: minute, windows: group.timeWindows) else {
-            return nil
-        }
-        return "\(goldTimeClockText(minuteOfDay: end))까지 잠겨요"
-    }
-
-    /// 쿨다운 그룹이 지금 휴식 중일 때 "HH:mm까지 쉬어요" 캡션. 그 외엔 nil.
-    func activeCooldownLockCaption(for group: ScreenTimeGroup) -> String? {
-        guard (group.ruleKind ?? .dailyLimit) == .cooldown,
-              lockedGroupIDs.contains(group.id),
-              let end = cooldownEndByGroupID[group.id] else { return nil }
-        return "\(goldTimeClockText(date: end))까지 쉬어요"
+        return sorted
+            .map { "\(goldTimeClockText(minuteOfDay: $0.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: $0.endMinuteOfDay))" }
+            .joined(separator: ", ")
     }
 
     private var validMonitoringGroups: [ScreenTimeGroup] {

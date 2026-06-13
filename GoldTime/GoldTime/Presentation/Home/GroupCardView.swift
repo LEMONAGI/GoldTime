@@ -63,7 +63,7 @@ struct GroupCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
                 IconTile(systemName: "app.badge", tint: Color.accent)
                     .padding(.trailing, 12)
@@ -79,32 +79,6 @@ struct GroupCardView: View {
                         title: viewModel.statusTitle(for: group),
                         tint: viewModel.statusTint(for: group)
                     )
-
-                    TimelineView(.periodic(from: .now, by: 60)) { _ in
-                        if let progress = viewModel.overrideProgress(for: group) {
-                            SegmentedProgressBar(
-                                remaining: progress.remaining,
-                                total: progress.total,
-                                tint: .blue,
-                                accessibilityText: progress.accessibilityLabel
-                            )
-                        } else if let progress = viewModel.lockProgress(for: group) {
-                            SegmentedProgressBar(
-                                remaining: progress.remaining,
-                                total: progress.total,
-                                tint: .green,
-                                accessibilityText: progress.accessibilityLabel
-                            )
-                        } else if let lockCaption = viewModel.activeWindowLockCaption(for: group) {
-                            Text(lockCaption)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.red)
-                        } else if let cooldownCaption = viewModel.activeCooldownLockCaption(for: group) {
-                            Text(cooldownCaption)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.red)
-                        }
-                    }
                 }
 
                 Spacer()
@@ -137,17 +111,51 @@ struct GroupCardView: View {
                     Text(restrictedDialogMessage)
                 }
             }
+            .padding(.bottom, 14)
+
+            // 진행바는 카드 이미지(상단 행) 아래 전용 줄에 둔다.
+            // "남은 한도" 라벨이 바를 잘라먹지 않도록 바를 한 줄에서 전체 길이로 표시.
+            TimelineView(.periodic(from: .now, by: 60)) { _ in
+                if let progress = viewModel.overrideProgress(for: group) {
+                    HStack(spacing: 8) {
+                        Text("남은 한도")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                        SegmentedProgressBar(
+                            remaining: progress.remaining,
+                            total: progress.total,
+                            tint: .blue,
+                            accessibilityText: progress.accessibilityLabel
+                        )
+                    }
+                    .padding(.bottom, 14)
+                } else if let progress = viewModel.lockProgress(for: group) {
+                    HStack(spacing: 8) {
+                        Text("남은 한도")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                        SegmentedProgressBar(
+                            remaining: progress.remaining,
+                            total: progress.total,
+                            tint: .green,
+                            accessibilityText: progress.accessibilityLabel
+                        )
+                    }
+                    .padding(.bottom, 14)
+                }
+            }
 
             Divider()
+                .padding(.bottom, 14)
 
             Button {
                 if isEditRestricted { isShowingLimitConfirm = true } else { onPresentRuleEditor(group) }
             } label: {
                 HStack(alignment: .center, spacing: 0) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("차단 규칙")
+                        Text(viewModel.ruleRowTitle(for: group))
                             .font(.subheadline.weight(.semibold))
-                        Text(viewModel.ruleSummary(for: group))
+                        Text(viewModel.ruleRowSubtitle(for: group))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -169,6 +177,7 @@ struct GroupCardView: View {
             } message: {
                 Text(restrictedDialogMessage)
             }
+            .padding(.bottom, 14)
 
             if isLocked {
                 Button {
@@ -178,6 +187,7 @@ struct GroupCardView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(GoldTimeButtonStyle(background: Color.red.opacity(0.12), foreground: .red))
+                .padding(.bottom, 14)
             }
 
             editTokenList
@@ -189,9 +199,11 @@ struct GroupCardView: View {
                 } message: {
                     Text(restrictedDialogMessage)
                 }
+                .padding(.bottom, 14)
 
             if !group.isApplied {
                 applySection
+                    .padding(.bottom, 14)
             }
         }
         .cardContainer()
@@ -215,7 +227,7 @@ struct GroupCardView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else if canApply {
-                Text("적용하면 바로 보호가 시작돼요. 이후 수정·삭제엔 광고가 필요해요.")
+                Text("적용하면 바로 차단 규칙이 시작되고, 적용 이후 수정 및 삭제에는 광고가 필요해요.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

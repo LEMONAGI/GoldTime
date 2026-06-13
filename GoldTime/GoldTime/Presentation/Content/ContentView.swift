@@ -150,7 +150,7 @@ struct ContentView: View {
                 timeWindows: $viewModel.ruleEditorTimeWindows,
                 cooldownUsageMinutes: $viewModel.ruleEditorCooldownUsageMinutes,
                 cooldownDurationMinutes: $viewModel.ruleEditorCooldownDurationMinutes,
-                currentKind: viewModel.ruleEditorSelectedKind,
+                currentKind: viewModel.ruleEditorCurrentKind,
                 onConfirm: {
                     viewModel.commitRuleSelection()
                 },

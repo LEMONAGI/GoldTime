@@ -83,4 +83,25 @@ enum TimeWindowPolicy {
     static func activeWindowEnd(minuteOfDay minute: Int, windows: [TimeWindow]) -> Int? {
         windows.first { $0.contains(minuteOfDay: minute) }?.endMinuteOfDay
     }
+
+    /// 지금 속한 시간대부터 끝==다음 시작으로 인접하게 이어지는 마지막 시간대의 종료 분.
+    /// 예: 21:00–22:00, 22:00–23:00이 붙어 있으면 23:00 반환. 어디에도 안 속하면 nil.
+    static func contiguousWindowEnd(minuteOfDay minute: Int, windows: [TimeWindow]) -> Int? {
+        let sorted = windows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
+        guard var end = sorted.first(where: { $0.contains(minuteOfDay: minute) })?.endMinuteOfDay else {
+            return nil
+        }
+        for window in sorted where window.startMinuteOfDay == end {
+            end = window.endMinuteOfDay
+        }
+        return end
+    }
+
+    /// 현재 분 이후 가장 가까운 시간대 시작 분. 오늘 남은 게 없으면 가장 이른 시작(다음날)으로 wrap.
+    /// "HH:mm까지 사용 가능" 안내에 사용. 시간대가 없으면 nil.
+    static func nextWindowStart(minuteOfDay minute: Int, windows: [TimeWindow]) -> Int? {
+        let starts = windows.map(\.startMinuteOfDay).sorted()
+        guard !starts.isEmpty else { return nil }
+        return starts.first { $0 > minute } ?? starts.first
+    }
 }
