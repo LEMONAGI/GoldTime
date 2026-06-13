@@ -201,7 +201,7 @@ struct HomeViewModel {
             return "설정 중"
         }
         if lockedGroupIDs.contains(group.id) {
-            return "잠금 중"
+            return lockedBadgeTitle(for: group)
         }
         if overrideGroupIDs.contains(group.id) {
             // 부여된 분(진행바가 나타내는 총 시간)을 함께 표기. 실시간 갱신 아님.
@@ -211,7 +211,42 @@ struct HomeViewModel {
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return "설정 필요"
         }
-        return isMonitoring ? "적용 중" : "대기 중"
+        if !isMonitoring {
+            return "대기 중"
+        }
+        return availableBadgeTitle(for: group)
+    }
+
+    /// 잠금 중 뱃지 문구. 규칙별로 "언제까지 잠금"을 HH:mm으로 표기.
+    /// 일일 한도는 자정 리셋이라 "00:00까지 잠금", 쿨다운은 휴식 종료 시각, 시간대는 연속 시간대의 마지막 종료.
+    private func lockedBadgeTitle(for group: ScreenTimeGroup) -> String {
+        switch group.ruleKind ?? .dailyLimit {
+        case .dailyLimit:
+            return "00:00까지 잠금"
+        case .cooldown:
+            if let end = cooldownEndByGroupID[group.id] {
+                return "\(goldTimeClockText(date: end))까지 잠금"
+            }
+            return "잠금 중"
+        case .timeWindows:
+            let minute = TimeWindowPolicy.minuteOfDay(for: Date())
+            if let end = TimeWindowPolicy.contiguousWindowEnd(minuteOfDay: minute, windows: group.timeWindows) {
+                return "\(goldTimeClockText(minuteOfDay: end))까지 잠금"
+            }
+            return "잠금 중"
+        }
+    }
+
+    /// 사용 가능 뱃지 문구. 시간대 규칙은 다음 차단 시작 시각까지, 그 외는 그냥 "사용 가능".
+    private func availableBadgeTitle(for group: ScreenTimeGroup) -> String {
+        guard (group.ruleKind ?? .dailyLimit) == .timeWindows else {
+            return "사용 가능"
+        }
+        let minute = TimeWindowPolicy.minuteOfDay(for: Date())
+        if let start = TimeWindowPolicy.nextWindowStart(minuteOfDay: minute, windows: group.timeWindows) {
+            return "\(goldTimeClockText(minuteOfDay: start))까지 사용 가능"
+        }
+        return "사용 가능"
     }
 
     func statusTint(for group: ScreenTimeGroup) -> Color {
@@ -354,25 +389,6 @@ struct HomeViewModel {
         return sorted
             .map { "\(goldTimeClockText(minuteOfDay: $0.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: $0.endMinuteOfDay))" }
             .joined(separator: ", ")
-    }
-
-    /// 시간대 차단 그룹이 지금 잠겨 있을 때 "HH:mm까지 잠겨요" 캡션. 그 외엔 nil.
-    func activeWindowLockCaption(for group: ScreenTimeGroup) -> String? {
-        guard (group.ruleKind ?? .dailyLimit) == .timeWindows,
-              lockedGroupIDs.contains(group.id) else { return nil }
-        let minute = TimeWindowPolicy.minuteOfDay(for: Date())
-        guard let end = TimeWindowPolicy.activeWindowEnd(minuteOfDay: minute, windows: group.timeWindows) else {
-            return nil
-        }
-        return "\(goldTimeClockText(minuteOfDay: end))까지 잠겨요"
-    }
-
-    /// 쿨다운 그룹이 지금 휴식 중일 때 "HH:mm까지 쉬어요" 캡션. 그 외엔 nil.
-    func activeCooldownLockCaption(for group: ScreenTimeGroup) -> String? {
-        guard (group.ruleKind ?? .dailyLimit) == .cooldown,
-              lockedGroupIDs.contains(group.id),
-              let end = cooldownEndByGroupID[group.id] else { return nil }
-        return "\(goldTimeClockText(date: end))까지 쉬어요"
     }
 
     private var validMonitoringGroups: [ScreenTimeGroup] {

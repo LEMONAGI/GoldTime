@@ -89,20 +89,17 @@ struct GroupCardView: View {
                                 accessibilityText: progress.accessibilityLabel
                             )
                         } else if let progress = viewModel.lockProgress(for: group) {
-                            SegmentedProgressBar(
-                                remaining: progress.remaining,
-                                total: progress.total,
-                                tint: .green,
-                                accessibilityText: progress.accessibilityLabel
-                            )
-                        } else if let lockCaption = viewModel.activeWindowLockCaption(for: group) {
-                            Text(lockCaption)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.red)
-                        } else if let cooldownCaption = viewModel.activeCooldownLockCaption(for: group) {
-                            Text(cooldownCaption)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.red)
+                            HStack(spacing: 8) {
+                                Text("남은 한도")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                SegmentedProgressBar(
+                                    remaining: progress.remaining,
+                                    total: progress.total,
+                                    tint: .green,
+                                    accessibilityText: progress.accessibilityLabel
+                                )
+                            }
                         }
                     }
                 }
