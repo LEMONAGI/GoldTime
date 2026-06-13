@@ -307,6 +307,30 @@ struct HomeViewModel {
         }
     }
 
+    /// 규칙 종류의 표시 이름. 그룹 카드 규칙 행 제목 등에 사용.
+    func ruleDisplayName(_ kind: GroupRuleKind) -> String {
+        switch kind {
+        case .dailyLimit:
+            return "일일 한도 제한"
+        case .timeWindows:
+            return "시간대별 차단"
+        case .cooldown:
+            return "쿨다운 잠금"
+        }
+    }
+
+    /// 그룹 카드 규칙 행 제목. 규칙 미선택이면 "차단 규칙 선택", 선택했으면 규칙 이름.
+    func ruleRowTitle(for group: ScreenTimeGroup) -> String {
+        guard let kind = group.ruleKind else { return "차단 규칙 선택" }
+        return ruleDisplayName(kind)
+    }
+
+    /// 그룹 카드 규칙 행 부제. 규칙 미선택이면 선택 안내, 선택했으면 규칙 요약.
+    func ruleRowSubtitle(for group: ScreenTimeGroup) -> String {
+        guard group.ruleKind != nil else { return "원하는 규칙을 선택하세요" }
+        return ruleSummary(for: group)
+    }
+
     /// 그룹 카드 "차단 규칙" 행의 짧은 요약 값. dailyLimit은 한도, timeWindows는 시간대 요약.
     func ruleSummary(for group: ScreenTimeGroup) -> String {
         switch group.ruleKind ?? .dailyLimit {
@@ -321,17 +345,15 @@ struct HomeViewModel {
         }
     }
 
-    /// "10:00–12:00 외 1개" 식 요약. 비어 있으면 설정 안내.
+    /// "21:00–22:00, 22:00–23:00" 식으로 모든 시간대를 시작시각 순으로 나열. 비어 있으면 설정 안내.
     func timeWindowsSummary(_ windows: [TimeWindow]) -> String {
         let sorted = windows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
-        guard let first = sorted.first else {
+        guard !sorted.isEmpty else {
             return "차단 시간대를 추가해 주세요"
         }
-        let range = "\(goldTimeClockText(minuteOfDay: first.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: first.endMinuteOfDay))"
-        if sorted.count > 1 {
-            return "\(range) 외 \(sorted.count - 1)개"
-        }
-        return range
+        return sorted
+            .map { "\(goldTimeClockText(minuteOfDay: $0.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: $0.endMinuteOfDay))" }
+            .joined(separator: ", ")
     }
 
     /// 시간대 차단 그룹이 지금 잠겨 있을 때 "HH:mm까지 잠겨요" 캡션. 그 외엔 nil.

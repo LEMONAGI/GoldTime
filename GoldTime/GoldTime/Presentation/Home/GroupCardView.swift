@@ -145,9 +145,9 @@ struct GroupCardView: View {
             } label: {
                 HStack(alignment: .center, spacing: 0) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("차단 규칙")
+                        Text(viewModel.ruleRowTitle(for: group))
                             .font(.subheadline.weight(.semibold))
-                        Text(viewModel.ruleSummary(for: group))
+                        Text(viewModel.ruleRowSubtitle(for: group))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
