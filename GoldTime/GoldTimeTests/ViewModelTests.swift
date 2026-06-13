@@ -1580,8 +1580,9 @@ struct ViewModelTests {
         // 2025년 데이터 평균 = (2080 + 2100) / 2 = 2090초 → 올림 35분
         repo.weeklyStatsValue = [DailyStats(dateKey: "2025-01-10", adUnlockedSeconds: 2080)]
         repo.previousWeekStatsValue = [DailyStats(dateKey: "2025-01-11", adUnlockedSeconds: 2100)]
+        repo.trackingStartDateValue = Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 10))!
         let vm = makeComparisonVM(repo: repo)
-        let today = Calendar.current.date(from: DateComponents(year: 2025, month: 6, day: 1))!
+        let today = Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 11))!
 
         // 현재 월간 평균 2050초 → 올림 35분 (올해 평균 2090초도 올림 35분)
         let comparison = vm.comparison(
@@ -1603,8 +1604,9 @@ struct ViewModelTests {
         // 2025년 데이터 평균 = 1980초 → 올림 33분
         repo.weeklyStatsValue = [DailyStats(dateKey: "2025-03-01", adUnlockedSeconds: 1980)]
         repo.previousWeekStatsValue = []
+        repo.trackingStartDateValue = Calendar.current.date(from: DateComponents(year: 2025, month: 3, day: 1))!
         let vm = makeComparisonVM(repo: repo)
-        let today = Calendar.current.date(from: DateComponents(year: 2025, month: 6, day: 1))!
+        let today = Calendar.current.date(from: DateComponents(year: 2025, month: 3, day: 1))!
 
         // 현재 월간 평균 2100초 → 올림 35분, 올해 평균 33분 → delta +2분
         let comparison = vm.comparison(
@@ -1617,6 +1619,48 @@ struct ViewModelTests {
         #expect(comparison.shouldShow)
         #expect(comparison.comparisonLabel == "올해 평균")
         #expect(comparison.caption == "올해 평균보다 2분 많아요")
+    }
+
+    @Test func yearlyAverageIncludesZeroDaysAfterTrackingStart() {
+        let repo = FakeStatsRepository()
+        repo.weeklyStatsValue = [
+            DailyStats(dateKey: "2025-01-01", adUnlockedSeconds: 180)
+        ]
+        repo.previousWeekStatsValue = []
+        repo.trackingStartDateValue = Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 1))!
+        let vm = makeComparisonVM(repo: repo)
+        let today = Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 3))!
+
+        let comparison = vm.comparison(
+            period: .monthly, currentAverageSeconds: 60, displayYear: 2025, today: today
+        )
+
+        // 1/1 기록 180초 + 1/2 0초 + 1/3 0초 = 60초 평균.
+        #expect(comparison.comparisonAverageSeconds == 60)
+        #expect(comparison.deltaMinutes == 0)
+        #expect(comparison.trend == .flat)
+    }
+
+    @Test func yearlyAverageExcludesDaysBeforeTrackingStartAndFutureDays() {
+        let repo = FakeStatsRepository()
+        repo.weeklyStatsValue = [
+            DailyStats(dateKey: "2025-01-01", adUnlockedSeconds: 600),
+            DailyStats(dateKey: "2025-01-03", adUnlockedSeconds: 90),
+            DailyStats(dateKey: "2025-01-06", adUnlockedSeconds: 900)
+        ]
+        repo.previousWeekStatsValue = []
+        repo.trackingStartDateValue = Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 3))!
+        let vm = makeComparisonVM(repo: repo)
+        let today = Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 5))!
+
+        let comparison = vm.comparison(
+            period: .monthly, currentAverageSeconds: 30, displayYear: 2025, today: today
+        )
+
+        // 1/1은 추적 전, 1/6은 미래라 제외. 1/3 90초 + 1/4 0초 + 1/5 0초 = 30초 평균.
+        #expect(comparison.comparisonAverageSeconds == 30)
+        #expect(comparison.deltaMinutes == 0)
+        #expect(comparison.trend == .flat)
     }
 
     // MARK: - averageUnlockedSeconds

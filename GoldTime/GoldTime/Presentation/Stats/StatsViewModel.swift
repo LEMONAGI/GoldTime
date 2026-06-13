@@ -132,12 +132,8 @@ final class StatsViewModel {
             label = "이번 달 평균"
         case .monthly:
             let calendar = Calendar.current
-            let yearStats = allDailyStats().filter {
-                calendar.component(.year, from: $0.date) == displayYear
-            }
-            comparisonAverageSeconds = yearStats.isEmpty
-                ? 0
-                : yearStats.reduce(0) { $0 + $1.totalUnlockedSeconds } / yearStats.count
+            let yearStats = statsForDisplayYear(displayYear, today: today)
+            comparisonAverageSeconds = averageSeconds(for: yearStats, today: today)
             let currentYear = calendar.component(.year, from: today)
             label = displayYear == currentYear ? "올해 평균" : "\(displayYear)년 평균"
         }
@@ -147,6 +143,30 @@ final class StatsViewModel {
             comparisonLabel: label,
             deltaMinutes: deltaMinutes
         )
+    }
+
+    private func statsForDisplayYear(_ displayYear: Int, today: Date) -> [DailyStats] {
+        let calendar = Calendar.current
+        guard let yearStart = calendar.date(from: DateComponents(year: displayYear, month: 1, day: 1)),
+              let nextYearStart = calendar.date(from: DateComponents(year: displayYear + 1, month: 1, day: 1)),
+              let yearEnd = calendar.date(byAdding: .day, value: -1, to: nextYearStart) else {
+            return []
+        }
+
+        let currentYear = calendar.component(.year, from: today)
+        let rangeEnd = displayYear == currentYear ? calendar.startOfDay(for: today) : yearEnd
+        guard rangeEnd >= yearStart else { return [] }
+
+        var storedStatsByKey: [String: DailyStats] = [:]
+        for stat in allDailyStats() {
+            storedStatsByKey[stat.dateKey] = stat
+        }
+        let dayCount = (calendar.dateComponents([.day], from: yearStart, to: rangeEnd).day ?? 0) + 1
+        return (0..<dayCount).map { offset in
+            let date = calendar.date(byAdding: .day, value: offset, to: yearStart) ?? yearStart
+            let key = DailyStats.dateKey(for: date)
+            return storedStatsByKey[key] ?? DailyStats(dateKey: key)
+        }
     }
 
     // MARK: - UI formatting only
