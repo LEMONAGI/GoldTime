@@ -197,27 +197,6 @@ enum ScreenTimeManager {
         return set.sorted()
     }
 
-    static func startDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
-        let sanitizedGroups = sanitized(groups)
-
-        if let reason = ScreenTimeGroupPolicy.firstInvalidReason(for: sanitizedGroups.policySnapshots) {
-            throw ManagerError.invalidConfiguration(reason.userMessage)
-        }
-
-        SharedStore.screenTimeGroups = sanitizedGroups
-        SharedStore.clearAllShieldState()
-        SharedStore.clearAllUsedTime()
-        center.stopMonitoring()
-        do {
-            try registerAllGroups(sanitizedGroups)
-            SharedStore.isDailyMonitoringEnabled = true
-            SharedStore.markStatsTrackingStartedIfNeeded()
-        } catch {
-            SharedStore.isDailyMonitoringEnabled = false
-            throw error
-        }
-    }
-
     static func syncDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
         resetDailyProtectionStateIfNeeded()
 
@@ -437,29 +416,6 @@ enum ScreenTimeManager {
             during: freshDailyWindow(),
             events: events
         )
-    }
-
-    private static func registerAllGroups(_ groups: [SharedStore.ScreenTimeGroup]) throws {
-        var newRegistered: [UUID: SharedStore.ScreenTimeGroup] = [:]
-        var generationByID: [UUID: Int] = [:]
-        for group in groups {
-            try registerGroup(group, generation: 0)
-            newRegistered[group.id] = group
-            generationByID[group.id] = 0
-        }
-        SharedStore.lastRegisteredGroupsByID = newRegistered
-        SharedStore.lastRegisteredGenerationByID = generationByID
-    }
-
-    static func stopAllMonitoring() {
-        center.stopMonitoring()
-        store.shield.applications = nil
-        store.shield.applicationCategories = nil
-        store.shield.webDomains = nil
-        SharedStore.isDailyMonitoringEnabled = false
-        SharedStore.clearAllShieldState()
-        SharedStore.lastRegisteredGroupsByID = nil
-        SharedStore.lastRegisteredGenerationByID = [:]
     }
 
     // MARK: - 쉴드 제어
