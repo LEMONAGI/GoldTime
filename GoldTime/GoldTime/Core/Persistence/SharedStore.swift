@@ -88,22 +88,107 @@ enum SharedStore {
     static let maxAppsPerGroup = 9
     static let maxShieldApplicationCount = 49
 
+    /// 하루 안의 차단 시간대. 분 단위(0...1439), start 포함·end 미포함, 자정 넘김 금지(start < end).
+    struct TimeWindow: Codable, Equatable, Hashable, Identifiable {
+        var id: UUID
+        var startMinuteOfDay: Int
+        var endMinuteOfDay: Int
+
+        init(id: UUID = UUID(), startMinuteOfDay: Int, endMinuteOfDay: Int) {
+            self.id = id
+            self.startMinuteOfDay = startMinuteOfDay
+            self.endMinuteOfDay = endMinuteOfDay
+        }
+
+        var durationMinutes: Int {
+            endMinuteOfDay - startMinuteOfDay
+        }
+
+        func contains(minuteOfDay minute: Int) -> Bool {
+            minute >= startMinuteOfDay && minute < endMinuteOfDay
+        }
+    }
+
     struct ScreenTimeGroup: Codable, Equatable, Identifiable {
+        /// 그룹 잠금 규칙 종류. nil이면 아직 규칙을 고르지 않은 설정 중(draft) 상태.
+        enum RuleKind: String, Codable {
+            case dailyLimit
+            case timeWindows
+        }
+
         var id: UUID
         var name: String
         var selection: FamilyActivitySelection
         var dailyLimitMinutes: Int
+        var ruleKind: RuleKind?
+        var timeWindows: [TimeWindow]
+        var isApplied: Bool
 
         init(
             id: UUID = UUID(),
             name: String,
             selection: FamilyActivitySelection = FamilyActivitySelection(),
-            dailyLimitMinutes: Int = 30
+            dailyLimitMinutes: Int = 30,
+            ruleKind: RuleKind? = .dailyLimit,
+            timeWindows: [TimeWindow] = [],
+            isApplied: Bool = true
         ) {
             self.id = id
             self.name = name
             self.selection = selection.supportedTokenSelection
             self.dailyLimitMinutes = dailyLimitMinutes
+            self.ruleKind = ruleKind
+            self.timeWindows = timeWindows
+            self.isApplied = isApplied
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case selection
+            case dailyLimitMinutes
+            case ruleKind
+            case timeWindows
+            case isApplied
+        }
+
+        // 새 필드는 어떤 페이로드에서도 throw하지 않아야 한다.
+        // screenTimeGroups getter가 배열 전체를 try?로 디코딩하므로
+        // 그룹 1개의 실패가 저장된 그룹 전체 소실로 이어진다.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            name = try container.decode(String.self, forKey: .name)
+            selection = try container.decode(FamilyActivitySelection.self, forKey: .selection)
+            dailyLimitMinutes = try container.decode(Int.self, forKey: .dailyLimitMinutes)
+
+            if let isApplied = (try? container.decodeIfPresent(Bool.self, forKey: .isApplied)) ?? nil {
+                self.isApplied = isApplied
+                if let rawKind = (try? container.decodeIfPresent(String.self, forKey: .ruleKind)) ?? nil {
+                    // 미래 버전의 미지 규칙 값은 보호가 끊기지 않도록 일일 한도로 fallback.
+                    ruleKind = RuleKind(rawValue: rawKind) ?? .dailyLimit
+                } else {
+                    ruleKind = nil
+                }
+                timeWindows = (try? container.decodeIfPresent([TimeWindow].self, forKey: .timeWindows)) ?? nil ?? []
+            } else {
+                // isApplied 키 부재 = 구버전 페이로드. 기존 사용자 그룹은 일일 한도 규칙이 이미 적용된 상태.
+                isApplied = true
+                ruleKind = .dailyLimit
+                timeWindows = []
+            }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(name, forKey: .name)
+            try container.encode(selection, forKey: .selection)
+            try container.encode(dailyLimitMinutes, forKey: .dailyLimitMinutes)
+            // isApplied는 신형 페이로드 마커 역할이므로 항상 기록한다.
+            try container.encode(isApplied, forKey: .isApplied)
+            try container.encodeIfPresent(ruleKind, forKey: .ruleKind)
+            try container.encode(timeWindows, forKey: .timeWindows)
         }
 
         var appCount: Int {
@@ -894,6 +979,41 @@ enum SharedStore {
         return didChange
     }
 
+    /// 적용된 시간대 차단 그룹에 대해 '지금이 시간대 안인지'를 판정해 shieldedGroupIDs에 반영한다.
+    /// dailyLimit 그룹과 draft 그룹의 잠금 상태는 절대 건드리지 않는다.
+    /// override 상태는 손대지 않으므로(시간대 안이라 marked여도 override 중이면 lockedGroups가 제외),
+    /// 단 시간대 밖이면 override 여부와 무관하게 unmark한다.
+    @discardableResult
+    static func resyncTimeWindowLocks(now: Date = Date()) -> (changed: Bool, newlyLocked: Set<UUID>) {
+        let minute = minuteOfDay(for: now)
+        var ids = shieldedGroupIDs
+        var newlyLocked = Set<UUID>()
+        var changed = false
+
+        for group in screenTimeGroups {
+            guard group.ruleKind == .timeWindows,
+                  group.isApplied,
+                  !group.timeWindows.isEmpty else { continue }
+
+            let inside = group.timeWindows.contains { $0.contains(minuteOfDay: minute) }
+            if inside {
+                if ids.insert(group.id).inserted {
+                    newlyLocked.insert(group.id)
+                    changed = true
+                }
+            } else {
+                if ids.remove(group.id) != nil {
+                    changed = true
+                }
+            }
+        }
+
+        if changed {
+            shieldedGroupIDs = ids
+        }
+        return (changed, newlyLocked)
+    }
+
     static func markGroupShielded(_ groupID: UUID) {
         var ids = shieldedGroupIDs
         ids.insert(groupID)
@@ -1009,6 +1129,12 @@ enum SharedStore {
 
     static func dateKey(for date: Date) -> String {
         dateKeyFormatter.string(from: date)
+    }
+
+    /// 자정 기준 경과 분(0...1439). 시간대 차단 판정의 기준 값.
+    static func minuteOfDay(for date: Date, calendar: Calendar = .current) -> Int {
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        return (components.hour ?? 0) * 60 + (components.minute ?? 0)
     }
 
     static func date(fromDateKey dateKey: String) -> Date? {

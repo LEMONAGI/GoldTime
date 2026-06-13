@@ -18,3 +18,9 @@ func goldTimeDurationText(seconds: Int) -> String {
     }
     return "\(hours)시간 \(remainingMinutes)분"
 }
+
+/// 자정 기준 분(0...1439)을 "HH:mm" 24시간 표기로 변환. 시간대 차단 규칙 표시에 사용.
+func goldTimeClockText(minuteOfDay minute: Int) -> String {
+    let clamped = max(0, min(minute, 24 * 60 - 1))
+    return String(format: "%02d:%02d", clamped / 60, clamped % 60)
+}

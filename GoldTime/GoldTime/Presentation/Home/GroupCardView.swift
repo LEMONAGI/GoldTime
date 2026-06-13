@@ -12,8 +12,9 @@ struct GroupCardView: View {
     let onDeleteGroup: (UUID) -> Void
     let onUpdateGroupName: (UUID, String) -> Void
     let onPresentPicker: (ScreenTimeGroup) -> Void
-    let onPresentLimitPicker: (ScreenTimeGroup) -> Void
+    let onPresentRuleEditor: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
+    let onApplyGroup: (UUID) -> Void
 
     @State private var isShowingEditConfirm = false
     @State private var isShowingLimitConfirm = false
@@ -28,18 +29,33 @@ struct GroupCardView: View {
         viewModel.overrideGroupIDs.contains(group.id)
     }
 
-    /// 잠금 또는 연장 중인 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    /// 적용(commit)된 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    /// draft(미적용) 그룹은 광고 없이 자유롭게 수정·삭제할 수 있다.
     private var isEditRestricted: Bool {
-        isLocked || isOverrideActive
+        group.isApplied
     }
 
-    private var restrictedDialogTitle: String {
-        isLocked ? "잠긴 그룹" : "연장 중 그룹"
+    /// draft 그룹은 규칙 선택 + 제한 항목이 모두 갖춰져야 적용할 수 있다.
+    private var canApply: Bool {
+        group.ruleKind != nil && group.selectionCount > 0
     }
+
+    /// 적용 버튼이 비활성일 때 무엇이 부족한지 안내하는 캡션.
+    private var applyHintCaption: String? {
+        guard !group.isApplied, !canApply else { return nil }
+        if group.ruleKind == nil && group.selectionCount == 0 {
+            return "규칙과 제한 항목을 먼저 정해 주세요."
+        }
+        if group.ruleKind == nil {
+            return "차단 규칙을 먼저 골라 주세요."
+        }
+        return "제한 항목을 하나 이상 담아 주세요."
+    }
+
+    private let restrictedDialogTitle = "적용된 그룹"
 
     private var restrictedDialogMessage: String {
-        let state = isLocked ? "잠겨 있는" : "연장 중인"
-        return "우회 방지를 위해,\n\(state) 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요."
+        "적용된 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요."
     }
 
     private var selectionCountText: String {
@@ -79,6 +95,10 @@ struct GroupCardView: View {
                                 tint: .green,
                                 accessibilityText: progress.accessibilityLabel
                             )
+                        } else if let lockCaption = viewModel.activeWindowLockCaption(for: group) {
+                            Text(lockCaption)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.red)
                         }
                     }
                 }
@@ -117,13 +137,13 @@ struct GroupCardView: View {
             Divider()
 
             Button {
-                if isEditRestricted { isShowingLimitConfirm = true } else { onPresentLimitPicker(group) }
+                if isEditRestricted { isShowingLimitConfirm = true } else { onPresentRuleEditor(group) }
             } label: {
                 HStack(alignment: .center, spacing: 0) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("일일 한도")
+                        Text("차단 규칙")
                             .font(.subheadline.weight(.semibold))
-                        Text(viewModel.limitLabel(group.dailyLimitMinutes))
+                        Text(viewModel.ruleSummary(for: group))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -139,7 +159,7 @@ struct GroupCardView: View {
             .buttonStyle(.plain)
             .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingLimitConfirm) {
                 Button("광고 보고 변경하기") {
-                    onPresentLimitPicker(group)
+                    onPresentRuleEditor(group)
                 }
                 Button("취소", role: .cancel) {}
             } message: {
@@ -165,8 +185,37 @@ struct GroupCardView: View {
                 } message: {
                     Text(restrictedDialogMessage)
                 }
+
+            if !group.isApplied {
+                applySection
+            }
         }
         .cardContainer()
+    }
+
+    @ViewBuilder
+    private var applySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                onApplyGroup(group.id)
+            } label: {
+                Label("적용하기", systemImage: "checkmark.shield")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black))
+            .disabled(!canApply)
+            .opacity(canApply ? 1 : 0.45)
+
+            if let applyHintCaption {
+                Text(applyHintCaption)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else if canApply {
+                Text("적용하면 바로 보호가 시작돼요. 이후 수정·삭제엔 광고가 필요해요.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     @ViewBuilder

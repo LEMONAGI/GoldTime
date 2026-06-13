@@ -14,9 +14,10 @@ struct HomeView: View {
     let onDeleteGroup: (UUID) -> Void
     let onUpdateGroupName: (UUID, String) -> Void
     let onPresentPicker: (ScreenTimeGroup) -> Void
-    let onPresentLimitPicker: (ScreenTimeGroup) -> Void
+    let onPresentRuleEditor: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
-    
+    let onApplyGroup: (UUID) -> Void
+
     init(
         groups: [ScreenTimeGroup],
         todayStats: DailyStats,
@@ -38,8 +39,9 @@ struct HomeView: View {
         onDeleteGroup: @escaping (UUID) -> Void,
         onUpdateGroupName: @escaping (UUID, String) -> Void,
         onPresentPicker: @escaping (ScreenTimeGroup) -> Void,
-        onPresentLimitPicker: @escaping (ScreenTimeGroup) -> Void,
-        onUnlockGroup: @escaping (UUID) -> Void = { _ in }
+        onPresentRuleEditor: @escaping (ScreenTimeGroup) -> Void,
+        onUnlockGroup: @escaping (UUID) -> Void = { _ in },
+        onApplyGroup: @escaping (UUID) -> Void = { _ in }
     ) {
         self.viewModel = HomeViewModel(
             groups: groups,
@@ -63,8 +65,9 @@ struct HomeView: View {
         self.onDeleteGroup = onDeleteGroup
         self.onUpdateGroupName = onUpdateGroupName
         self.onPresentPicker = onPresentPicker
-        self.onPresentLimitPicker = onPresentLimitPicker
+        self.onPresentRuleEditor = onPresentRuleEditor
         self.onUnlockGroup = onUnlockGroup
+        self.onApplyGroup = onApplyGroup
     }
     
     var body: some View {
@@ -195,8 +198,9 @@ struct HomeView: View {
                             onDeleteGroup: onDeleteGroup,
                             onUpdateGroupName: onUpdateGroupName,
                             onPresentPicker: onPresentPicker,
-                            onPresentLimitPicker: onPresentLimitPicker,
-                            onUnlockGroup: onUnlockGroup
+                            onPresentRuleEditor: onPresentRuleEditor,
+                            onUnlockGroup: onUnlockGroup,
+                            onApplyGroup: onApplyGroup
                         )
                     }
                 }

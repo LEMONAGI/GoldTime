@@ -81,13 +81,13 @@ struct HomeViewModel {
     var protectionStatusCaption: String {
         if isMonitoring {
             let count = validMonitoringGroups.count
-            return count > 1 ? "\(count)개 유효 그룹에 한도를 적용 중이에요" : "유효한 그룹에 한도를 적용 중이에요"
+            return count > 1 ? "\(count)개 유효 그룹에 규칙을 적용 중이에요" : "유효한 그룹에 규칙을 적용 중이에요"
         }
         if groups.isEmpty {
-            return "그룹을 만들고 항목을 담으면 바로 적용돼요"
+            return "그룹을 만들고 적용하면 보호가 시작돼요"
         }
         if validMonitoringGroups.isEmpty {
-            return "항목과 한도가 설정된 그룹이 필요해요"
+            return "항목과 규칙을 정해 적용한 그룹이 필요해요"
         }
         return "자동 적용을 준비하고 있어요"
     }
@@ -114,7 +114,7 @@ struct HomeViewModel {
         }
 
         if validMonitoringGroups.isEmpty {
-            return "아직 적용할 수 있는 그룹이 없어요. 앱이나 웹 사이트를 하나 이상 담고 한도를 정해주세요."
+            return "아직 적용할 수 있는 그룹이 없어요. 앱이나 웹 사이트를 하나 이상 담고 규칙을 정해 적용해 주세요."
         }
 
         return "\(invalidCount)개 그룹은 설정이 덜 끝나서 자동 적용에서 제외됐어요."
@@ -155,8 +155,15 @@ struct HomeViewModel {
 
     var shieldStatusCaption: String {
         if isShieldActive {
-            let count = lockedGroupIDs.count
-            return count > 1 ? "\(count)개 그룹이 한도에 닿았어요" : "한도를 넘겼어요"
+            let locked = groups.filter { lockedGroupIDs.contains($0.id) }
+            if locked.count > 1 {
+                return "\(locked.count)개 그룹이 잠겨 있어요"
+            }
+            // 잠금 사유에 맞는 문구: 시간대 차단은 한도 초과가 아니다.
+            if let group = locked.first, (group.ruleKind ?? .dailyLimit) == .timeWindows {
+                return "차단 시간대예요"
+            }
+            return "한도를 넘겼어요"
         }
         if !overrideGroupIDs.isEmpty {
             let shortest = groups
@@ -177,6 +184,9 @@ struct HomeViewModel {
     }
 
     func statusTitle(for group: ScreenTimeGroup) -> String {
+        if !group.isApplied {
+            return "설정 중"
+        }
         if lockedGroupIDs.contains(group.id) {
             return "잠금 중"
         }
@@ -192,6 +202,9 @@ struct HomeViewModel {
     }
 
     func statusTint(for group: ScreenTimeGroup) -> Color {
+        if !group.isApplied {
+            return .secondary
+        }
         if lockedGroupIDs.contains(group.id) {
             return .red
         }
@@ -225,7 +238,9 @@ struct HomeViewModel {
     }
 
     func lockProgress(for group: ScreenTimeGroup) -> SegmentProgress? {
-        guard validGroupIDs.contains(group.id),
+        // 사용량 진행바는 일일 한도 그룹에만 의미가 있다. 시간대 차단 그룹은 진행바 대신 시간대 요약을 보여준다.
+        guard usesDailyLimit(group),
+              validGroupIDs.contains(group.id),
               !lockedGroupIDs.contains(group.id),
               !overrideGroupIDs.contains(group.id) else { return nil }
         let used = usedTimeByGroupID[group.id] ?? 0
@@ -270,13 +285,54 @@ struct HomeViewModel {
         }
     }
 
+    /// 그룹 카드 "차단 규칙" 행의 짧은 요약 값. dailyLimit은 한도, timeWindows는 시간대 요약.
+    func ruleSummary(for group: ScreenTimeGroup) -> String {
+        switch group.ruleKind ?? .dailyLimit {
+        case .dailyLimit:
+            return limitLabel(group.dailyLimitMinutes)
+        case .timeWindows:
+            return timeWindowsSummary(group.timeWindows)
+        }
+    }
+
+    /// "10:00–12:00 외 1개" 식 요약. 비어 있으면 설정 안내.
+    func timeWindowsSummary(_ windows: [TimeWindow]) -> String {
+        let sorted = windows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
+        guard let first = sorted.first else {
+            return "차단 시간대를 추가해 주세요"
+        }
+        let range = "\(goldTimeClockText(minuteOfDay: first.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: first.endMinuteOfDay))"
+        if sorted.count > 1 {
+            return "\(range) 외 \(sorted.count - 1)개"
+        }
+        return range
+    }
+
+    /// 시간대 차단 그룹이 지금 잠겨 있을 때 "HH:mm까지 잠겨요" 캡션. 그 외엔 nil.
+    func activeWindowLockCaption(for group: ScreenTimeGroup) -> String? {
+        guard (group.ruleKind ?? .dailyLimit) == .timeWindows,
+              lockedGroupIDs.contains(group.id) else { return nil }
+        let minute = TimeWindowPolicy.minuteOfDay(for: Date())
+        guard let end = TimeWindowPolicy.activeWindowEnd(minuteOfDay: minute, windows: group.timeWindows) else {
+            return nil
+        }
+        return "\(goldTimeClockText(minuteOfDay: end))까지 잠겨요"
+    }
+
+    func usesDailyLimit(_ group: ScreenTimeGroup) -> Bool {
+        (group.ruleKind ?? .dailyLimit) == .dailyLimit
+    }
+
     private var validMonitoringGroups: [ScreenTimeGroup] {
         groups.filter { validGroupIDs.contains($0.id) }
     }
 
+    /// 적용된 그룹 중 설정 미비로 모니터링에서 빠진 그룹.
+    /// draft(미적용)는 "설정이 덜 끝난 그룹"이 아니라 적용 대기 상태이므로 제외한다.
     private var invalidMonitoringGroups: [ScreenTimeGroup] {
         groups.filter { group in
-            ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil
+            group.isApplied
+                && ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil
         }
     }
 

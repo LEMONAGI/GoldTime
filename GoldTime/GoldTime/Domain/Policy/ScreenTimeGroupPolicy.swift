@@ -17,6 +17,9 @@ enum ScreenTimeGroupPolicy {
         case tooManyGroups
         case groupHasNoSelection(String)
         case groupHasNoLimit(String)
+        case groupHasNoRule(String)
+        case groupNotApplied(String)
+        case groupHasInvalidTimeWindows(String, TimeWindowPolicy.InvalidReason)
         case groupHasTooManySelections(String)
         case groupHasNonAppTokens(String)
         case shieldApplicationLimitExceeded(Int)
@@ -29,6 +32,12 @@ enum ScreenTimeGroupPolicy {
                 return "\(name)에 앱이나 웹 사이트가 없어요."
             case .groupHasNoLimit(let name):
                 return "\(name)의 한도 설정이 올바르지 않아요."
+            case .groupHasNoRule(let name):
+                return "\(name)의 차단 규칙을 아직 고르지 않았어요."
+            case .groupNotApplied(let name):
+                return "\(name)은 아직 적용 전이라 보호가 시작되지 않았어요."
+            case .groupHasInvalidTimeWindows(let name, let reason):
+                return "\(name): \(reason.userMessage)"
             case .groupHasTooManySelections(let name):
                 return "\(name)은 앱과 웹 사이트를 합쳐 9개까지만 담을 수 있어요."
             case .groupHasNonAppTokens(let name):
@@ -46,6 +55,9 @@ enum ScreenTimeGroupPolicy {
         var webDomainTokenCount: Int
         var hasNonAppTokens: Bool
         var dailyLimitMinutes: Int
+        var ruleKind: GroupRuleKind?
+        var timeWindows: [TimeWindow]
+        var isApplied: Bool
 
         init(
             id: UUID = UUID(),
@@ -53,7 +65,10 @@ enum ScreenTimeGroupPolicy {
             appTokens: Set<Token>,
             webDomainTokenCount: Int = 0,
             hasNonAppTokens: Bool = false,
-            dailyLimitMinutes: Int
+            dailyLimitMinutes: Int,
+            ruleKind: GroupRuleKind? = .dailyLimit,
+            timeWindows: [TimeWindow] = [],
+            isApplied: Bool = true
         ) {
             self.id = id
             self.name = name
@@ -61,10 +76,29 @@ enum ScreenTimeGroupPolicy {
             self.webDomainTokenCount = webDomainTokenCount
             self.hasNonAppTokens = hasNonAppTokens
             self.dailyLimitMinutes = dailyLimitMinutes
+            self.ruleKind = ruleKind
+            self.timeWindows = timeWindows
+            self.isApplied = isApplied
         }
 
         var selectionCount: Int {
             appTokens.count + webDomainTokenCount
+        }
+    }
+
+    /// 그룹이 선택한 규칙 자체의 유효성. 규칙 미선택(draft 중)도 invalid로 취급해
+    /// 모니터링 대상에서 자연스럽게 제외된다.
+    static func ruleInvalidReason<Token>(for group: GroupSnapshot<Token>) -> InvalidReason? {
+        switch group.ruleKind {
+        case .none:
+            return .groupHasNoRule(group.name)
+        case .dailyLimit:
+            return group.dailyLimitMinutes < 0 ? .groupHasNoLimit(group.name) : nil
+        case .timeWindows:
+            if let reason = TimeWindowPolicy.firstInvalidReason(for: group.timeWindows) {
+                return .groupHasInvalidTimeWindows(group.name, reason)
+            }
+            return nil
         }
     }
 
@@ -82,8 +116,10 @@ enum ScreenTimeGroupPolicy {
             return .groupHasNoSelection(group.name)
         }
 
-        for group in groups where group.dailyLimitMinutes < 0 {
-            return .groupHasNoLimit(group.name)
+        for group in groups {
+            if let reason = ruleInvalidReason(for: group) {
+                return reason
+            }
         }
 
         for group in groups where group.selectionCount > maxAppsPerGroup {
@@ -102,16 +138,23 @@ enum ScreenTimeGroupPolicy {
         return nil
     }
 
+    /// 개별 그룹의 모니터링 자격. draft(미적용) 그룹은 보호가 시작되지 않으므로 자격 없음으로 본다.
+    /// 이 분기는 per-group 경로에만 두고, 저장 전체 검증인 `firstInvalidReason(for groups:)`에는
+    /// 넣지 않는다 — draft 존재가 저장 자체를 막는 에러가 되면 안 되기 때문.
     static func invalidReason<Token>(
         for group: GroupSnapshot<Token>,
         maxAppsPerGroup: Int = ScreenTimeGroupPolicy.maxAppsPerGroup
     ) -> InvalidReason? {
+        if !group.isApplied {
+            return .groupNotApplied(group.name)
+        }
+
         if group.selectionCount == 0 {
             return .groupHasNoSelection(group.name)
         }
 
-        if group.dailyLimitMinutes < 0 {
-            return .groupHasNoLimit(group.name)
+        if let reason = ruleInvalidReason(for: group) {
+            return reason
         }
 
         if group.selectionCount > maxAppsPerGroup {
