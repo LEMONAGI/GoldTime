@@ -218,11 +218,11 @@ struct HomeViewModel {
     }
 
     /// 잠금 중 뱃지 문구. 규칙별로 "언제까지 잠금"을 HH:mm으로 표기.
-    /// 일일 한도는 자정 리셋이라 "00:00까지 잠금", 쿨다운은 휴식 종료 시각, 시간대는 연속 시간대의 마지막 종료.
+    /// 일일 한도는 오늘이 끝날 때까지라 "23:59까지 잠금", 쿨다운은 휴식 종료 시각, 시간대는 연속 시간대의 마지막 종료.
     private func lockedBadgeTitle(for group: ScreenTimeGroup) -> String {
         switch group.ruleKind ?? .dailyLimit {
         case .dailyLimit:
-            return "00:00까지 잠금"
+            return "23:59까지 잠금"
         case .cooldown:
             if let end = cooldownEndByGroupID[group.id] {
                 return "\(goldTimeClockText(date: end))까지 잠금"
