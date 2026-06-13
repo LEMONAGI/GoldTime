@@ -25,14 +25,14 @@ Skip when: 이미 작고 명확한 문서/문구 수정이며 검증 기준이 �
 | Screen Time / Shield | `ScreenTimeManager`, DeviceActivity, Shield extension | 실기기 검증 시나리오 먼저, 가능한 순수 로직은 unit test |
 | Ads | `RewardedAdService`, `AdMockView`, 보상 콜백 | reward/fallback 시나리오 먼저, 가능한 wrapper/helper는 unit test |
 | Project config | `.xcodeproj`, SPM, entitlements, App Group | 설정 검증 시나리오 먼저, build와 target membership 검토 |
-| Docs-only | Markdown guide, setup note | 링크/경로 일치, 중복 확인, `AGENTS.md`/`CLAUDE.md` 동일성 확인 |
+| Docs-only | Markdown guide, setup note | 링크/경로 일치, 중복 확인, `CLAUDE.md`만 편집 후 `scripts/sync-agent-docs.sh`로 `AGENTS.md` 동기화 |
 
 ## 검증 선택 규칙
 
 - 순수 로직, 저장/조회, 날짜 key, 카운터, formatter/helper는 unit test 또는 regression test로 확인합니다.
 - UI-only 변경은 acceptance criteria를 먼저 쓰고, 가능하면 build로 컴파일 회귀를 확인합니다. HIG/iOS 26.0 적합성, 기본 iOS 컴포넌트 우선 여부, 접근성/동적 글자 크기도 함께 봅니다.
 - 날짜/시간, 선택, 설정, 확인 흐름은 `DatePicker`, `Picker`, `Form`, `confirmationDialog` 같은 의미에 맞는 시스템 컴포넌트를 먼저 검토합니다.
-- 공용 가능성이 있는 UI는 `GoldTime/GoldTime/Views/Component/` 추출 여부를 판단합니다.
+- 공용 가능성이 있는 UI는 `GoldTime/GoldTime/Presentation/Component/` 추출 여부를 판단합니다.
 - 새 색상은 `AccentColor`를 제외하고 RGB literal 대신 Asset Color로 추가했는지 확인합니다.
 - FamilyControls, DeviceActivity, ManagedSettings Shield, Shield extension, 알림 복귀는 수동/실기기 시나리오를 먼저 정합니다.
 - Screen Time / Shield 런타임은 `xcodebuild test` 통과만으로 완료 검증처럼 말하지 않습니다. 실제 기기에서만 확인 가능한 항목은 완료 보고에 남깁니다.

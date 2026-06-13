@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# GoldTime pre-commit 훅: CLAUDE.md ↔ AGENTS.md 동기화 강제.
+# 설치: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit  (또는 cp)
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# 1) 정본(CLAUDE.md)에 맞춰 AGENTS.md 갱신
+"$ROOT/scripts/sync-agent-docs.sh" >/dev/null
+
+# 2) sync로 바뀐 AGENTS.md를 스테이징(이미 CLAUDE.md를 커밋 중일 때 짝을 맞춘다)
+changed="$(git diff --name-only -- '*AGENTS.md' 'AGENTS.md' || true)"
+if [[ -n "$changed" ]]; then
+  # shellcheck disable=SC2086
+  git add $changed
+  echo "pre-commit: AGENTS.md를 CLAUDE.md에 맞춰 동기화하고 스테이징했습니다."
+fi

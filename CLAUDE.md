@@ -1,88 +1,87 @@
 # GoldTime Agent Guide
 
-GoldTime은 스크린타임 한도를 넘기면 Shield 흐름과 보상형 광고 해제를 통해 사용 시간을 의식하게 만드는 iOS 앱입니다.
+GoldTime은 스크린타임 한도를 넘기면 Shield 흐름과 보상형 광고 해제를 통해 사용 시간을
+의식하게 만드는 iOS 앱입니다. 메인 SwiftUI 앱 1개 + Screen Time extension 3개,
+Clean Architecture 5개 레이어(폴더링)로 구성됩니다.
 
-`AGENTS.md`와 `CLAUDE.md`는 반드시 동일하게 유지합니다. 이 루트 가이드는 짧게 두고, 자세한 규칙은 `docs/agent/` 문서로 분리합니다.
+이 파일은 항상 로드되는 **진입점**입니다. 세부 규칙은 여기 담지 않고, 작업 위치에 따라
+자동으로 로드되는 nested 가이드와 "찾아 읽는 공통 문서"로 분리했습니다.
+`AGENTS.md`는 이 파일의 사본입니다(편집은 `CLAUDE.md`만, 동기화는 `scripts/sync-agent-docs.sh`).
 
-## 시작 순서
+---
 
-1. 먼저 이 루트 가이드만 읽고 작업 유형을 분류합니다.
-2. 읽을 상세 문서를 1-2개만 고릅니다.
-3. 기획이 모호하면 `docs/agent/competitive-research.md`를 먼저 확인합니다.
-4. 수정 전에 관련 코드를 먼저 확인합니다.
-5. 동작 변경 전 검증 방식을 먼저 정합니다.
-6. 큰 작업은 작은 step으로 나누고 완료 기준을 정합니다.
-7. 공유 상태나 고위험 작업은 병렬이 아니라 직렬로 처리합니다.
-8. 변경 유형에 맞게 검증한 뒤 완료를 한국어로 보고합니다.
+## 🚨 작업 전 반드시 알 것 (Non-negotiables)
 
-작업 시작 전에 다음 4가지를 말할 수 있어야 합니다.
+1. **의존 방향은 단방향**: `App → Presentation → Domain ← Data → Core`.
+   역방향 import 금지. **Domain/Data에서 `@Observable`·`@Published` 금지**. Presentation은
+   UseCase만 의존하고 Core/Data를 직접 참조하지 않는다.
+2. **공유 상태(`SharedStore`, App Group)는 하위 호환 우선**. key 이름·Codable 구조 변경은
+   설치된 앱 상태 마이그레이션이다. 새 `ScreenTimeGroup` 필드는 custom Codable로 throw하지
+   않게 디코딩한다(배열 전체 `try?` 디코딩 → 1개 실패가 전체 소실).
+3. **Screen Time / Shield / FamilyControls / DeviceActivity / AdMob 실제 표시는 실기기 검증
+   필수**. 시뮬레이터 build는 컴파일 회귀만 증명하지 런타임 동작을 증명하지 않는다.
+4. **새 색상은 Asset Color**. RGB/hex literal과 `Color+Brand.swift` 같은 수동 색상 extension은
+   금지(`AccentColor`는 `Color.accent` 자동 생성).
+5. **`.xcodeproj`, entitlements, App Group, `SharedStore`, `ScreenTimeManager`, extension은
+   위험도 High** → 직렬로 처리하고 검증 메모를 남긴다. 워크트리의 사용자 변경은 보존한다.
+6. 브랜치 `Type/이슈`, 커밋 `[Type] 한글 설명`. **광고 관련 변경은 `[Ad]` 태그**.
 
-- 작업 유형: UI-only, shared state, Screen Time / Shield, ads, project config, docs-only.
-- 읽을 상세 문서: 아래 문서 지도에서 고른 1-2개.
-- 기획 모호성 여부와 참고 기준: 명확하면 생략하고, 모호하면 `competitive-research.md`와 GoldTime다운 판단 기준을 확인합니다.
-- 검증 방식: unit test, regression test, build, 수동/실기기 시나리오, 또는 docs-only 확인.
+---
 
-## 문서 선택 규칙
+## 📂 문서 자동 로딩 (컨텍스트 관리의 핵심)
 
-- 처음에는 상세 문서를 1-2개만 읽고, 진행 중 필요할 때 추가로 엽니다.
-- 일반적인 기능 변경은 2-3개까지 자연스럽게 허용합니다.
-- 4개 이상 필요하면 왜 필요한지 짧게 설명한 뒤 추가로 읽습니다.
-- 문서 전체를 습관적으로 읽지 말고 필요한 섹션만 확인합니다.
-- 새 파일 위치나 레이어 경계가 불명확할 때는 `architecture.md`를 먼저 읽습니다.
-- 코드 위치가 이미 명확하면 `project-map.md`를 생략합니다.
-- 레이어가 이미 명확하면 `architecture.md`를 생략합니다.
-- 제품 범위 판단이 없으면 `decision-context.md`를 생략합니다.
-- 문구/UX 판단이 없으면 `product-context.md`를 생략합니다.
-- Screen Time / Shield / 광고 / App Group을 안 건드리면 `critical-flows.md`를 생략합니다.
-- 큰 작업 분해가 필요 없으면 `task-harness.md`를 생략합니다.
-- 기획이 모호하거나 경쟁/유사 앱 참고가 필요하면 `competitive-research.md`를 먼저 읽습니다.
-- 경쟁 앱 판단은 `decision-context.md`보다 `competitive-research.md`를 우선하고, 제품 범위 확정이 필요할 때만 `decision-context.md`를 함께 읽습니다.
-- 문구/UX 톤 확정이 필요하면 `product-context.md`를 함께 읽습니다.
-- UI 구현, 공용 컴포넌트, 색상/Asset 판단은 `ui-design-system.md`를 우선합니다.
-- UI 판단은 특별한 지시가 없으면 기본 iOS 컴포넌트를 기반으로 HIG와 iOS 26.0 UI/UX에 자연스럽게 맞춥니다.
-- `competitive-research.md`로 부족해서 최신 경쟁/유사 앱 리서치를 했다면, 재사용 가치가 있는 관찰과 GoldTime 적용점을 해당 문서에 추가합니다.
-- 문서/문구 수정은 루트 가이드와 해당 문서만 읽습니다.
-- UI 문구, 톤, 화면 감정 판단은 `product-context.md`를 먼저 읽습니다.
-- UI 구현, 기본 컴포넌트, 공용 컴포넌트, 색상 작업은 `ui-design-system.md`를 먼저 읽습니다.
-- 코드 위치가 불명확할 때만 `project-map.md`를 추가합니다.
-- 순수 로직/테스트 변경은 `testing.md`를 우선하고, 위치가 불명확할 때만 `project-map.md`를 추가합니다.
-- Screen Time / Shield / 광고 / App Group 변경은 `critical-flows.md`를 우선하고, 검증 설계가 필요할 때만 `testing.md`를 추가합니다.
-- 큰 기능 변경은 `decision-context.md`와 `task-harness.md`를 먼저 보고, 이후 step별로 필요한 문서를 근거와 함께 추가합니다.
+레이어/타겟 폴더에 `CLAUDE.md`가 **co-locate** 되어 있다. 그 경로의 파일을 열면 해당
+`CLAUDE.md`가 자동으로 함께 로드된다 → **필요한 문서만 정확히** 읽힌다.
 
-## 문서 지도
+```
+CLAUDE.md                                        ← 항상 (이 파일)
+GoldTime/GoldTime/App/CLAUDE.md                  ← DI 조립 규칙
+GoldTime/GoldTime/Core/CLAUDE.md                 ← SharedStore/ScreenTime 함정 (High)
+GoldTime/GoldTime/Domain/CLAUDE.md               ← import/UseCase/Repository 규칙
+GoldTime/GoldTime/Data/CLAUDE.md                 ← Repository 구현/타입 매핑
+GoldTime/GoldTime/Presentation/CLAUDE.md         ← ViewModel/컴포넌트/색상
+GoldTime/DeviceActivityMonitorExtension/CLAUDE.md   ← 콜백/일일 리셋/시간대 (High)
+GoldTime/ShieldConfigurationExtension/CLAUDE.md     ← Shield UI 읽기 계약 (High)
+GoldTime/ShieldActionExtension/CLAUDE.md            ← Shield 액션 쓰기 계약 (High)
+```
 
-| 트리거 조건 | 읽을 문서 |
-| --- | --- |
-| 레이어 경계, 의존 방향, 신규 파일 위치, UseCase/Repository 추가 | `docs/agent/architecture.md` |
-| 제품 범위, 하지 않을 일, 큰 방향 판단 | `docs/agent/decision-context.md` |
-| 프로젝트 구조, 타겟, 시작 위치만 확인 | `docs/agent/project-map.md` |
-| Screen Time, Shield, 광고, App Group 런타임 변경 | `docs/agent/critical-flows.md` |
-| 작업 절차, 위험도, 검증 기준 확인 | `docs/agent/working-rules.md` |
-| TDD, regression test, 수동/실기기 검증 시나리오 | `docs/agent/testing.md` |
-| 큰 작업 분해, step 상태, 병렬 판단 | `docs/agent/task-harness.md` |
-| 문구, 톤앤매너, UX 판단 | `docs/agent/product-context.md` |
-| iOS UI/HIG, 기본 컴포넌트, 공용 컴포넌트, Asset Color | `docs/agent/ui-design-system.md` |
-| 앱 아이콘 시안, AppIcon light/dark/tinted 방향, 이미지 생성 프롬프트 | `docs/agent/app-icon-brief.md` |
-| 기획 모호성, 경쟁 앱 참고, GoldTime다움 판단 | `docs/agent/competitive-research.md` |
+예: `Core/Persistence/SharedStore.swift`를 만지면 이 파일 + `Core/CLAUDE.md`가 함께 로드된다.
+**→ 다른 레이어 문서를 일부러 찾아 읽지 말 것.** 작업 위치가 필요한 문서를 알아서 가져온다.
+작업 중 함정을 발견하면 가장 가까운 `CLAUDE.md`의 "주의사항" 절에 누적한다(`/learn`).
 
-## 수정 전 확인
+### 찾아 읽는 공통 문서 (자동 로드 X)
 
-- 작업 유형을 먼저 분류합니다: UI-only, shared state, Screen Time / Shield, ads, project config, docs-only.
-- 수정 예상 파일과 건드리는 핵심 흐름을 말할 수 있어야 합니다.
-- UI 작업이면 문구/톤 판단인지, SwiftUI 구현/색상/컴포넌트 판단인지 먼저 구분합니다.
-- 기획이 모호한 결정은 경쟁 앱을 그대로 따르지 말고 GoldTime의 비용감, 마찰, Shield 선택 경험에 맞게 해석합니다.
-- UI는 특별한 지시가 없으면 기본 iOS 컴포넌트를 기반으로 HIG와 iOS 26.0 UI/UX에 자연스럽게 맞춥니다.
-- 날짜/시간, 선택, 설정, 확인 흐름은 `DatePicker`, `Picker`, `Form`, `confirmationDialog` 같은 의미에 맞는 시스템 컴포넌트를 먼저 검토합니다.
-- 공용으로 반복될 UI는 `GoldTime/GoldTime/Presentation/Component/` 추출을 검토합니다.
-- 새 색상은 `AccentColor`를 제외하고 RGB literal 대신 Asset Color로 추가합니다.
-- 동작 변경이면 unit test, regression test, build, 수동/실기기 시나리오 중 하나를 먼저 정합니다.
-- `.xcodeproj`, entitlements, App Group, `SharedStore`, `ScreenTimeManager`, extension은 가볍게 수정하지 않습니다.
-- 워크트리에 이미 있는 사용자 변경은 보존합니다.
+| 문서 | 언제 |
+|---|---|
+| [docs/agent/architecture.md](docs/agent/architecture.md) | 레이어 의존 방향, 새 파일 배치, UseCase/Repository 추가 |
+| [docs/agent/critical-flows.md](docs/agent/critical-flows.md) | Screen Time/Shield/광고/App Group 런타임 흐름 전체 |
+| [docs/agent/testing.md](docs/agent/testing.md) | TDD, regression, 실기기 검증 시나리오 |
+| [docs/agent/working-rules.md](docs/agent/working-rules.md) | 작업 유형, 위험도, 검증 명령(Xcode MCP) |
+| [docs/agent/task-harness.md](docs/agent/task-harness.md) | 큰 작업 분해, step 상태, 병렬/직렬 판단 |
+| [docs/agent/definition-of-done.md](docs/agent/definition-of-done.md) | **작업 종료 규칙** (완료 직전 자가 점검) |
+| [docs/agent/decision-context.md](docs/agent/decision-context.md) | 제품 범위, 하지 않을 일, ADR |
+| [docs/agent/product-context.md](docs/agent/product-context.md) | 문구, 톤앤매너, 화면 감정 |
+| [docs/agent/ui-design-system.md](docs/agent/ui-design-system.md) | iOS UI/HIG, 공용 컴포넌트, Asset Color |
+| [docs/agent/competitive-research.md](docs/agent/competitive-research.md) | 기획 모호성, 경쟁 앱 참고, GoldTime다움 |
+| [docs/agent/app-icon-brief.md](docs/agent/app-icon-brief.md) | 앱 아이콘 시안/프롬프트 |
+| [docs/agent/project-map.md](docs/agent/project-map.md) | 타겟/경로/entitlement/App Group 위치 |
 
-## 검증 원칙
+기획이 모호하면 경쟁 앱을 그대로 따르지 말고 GoldTime의 비용감·마찰·Shield 선택 경험에 맞게
+해석한다. 문서가 코드와 다르면 **코드가 진실** — 발견 즉시 가장 가까운 `CLAUDE.md`를 고친다.
 
-- 순수 로직: 테스트를 먼저 추가하거나 기존 테스트를 먼저 조정합니다.
-- 빌드와 테스트는 반드시 Xcode MCP 툴을 사용합니다. 사용 전 `mcp__xcode__XcodeListWindows`로 tabIdentifier를 먼저 확인합니다. `xcodebuild` CLI는 MCP를 쓸 수 없을 때만 fallback입니다. 자세한 사용법은 `docs/agent/working-rules.md`의 "검증 명령" 섹션을 확인합니다.
-- FamilyControls, DeviceActivity, Shield, 알림: 구현 전 검증 시나리오를 먼저 쓰고, 시뮬레이터만으로 완료 처리하지 않습니다.
-- 테스트 코드로 대체할 수 없는 실기기 확인 항목이 남으면 완료 보고에 사용자 체크리스트로 적습니다.
-- 로컬 캐시, signing, simulator, sandbox 문제로 명령이 실패하면 정확한 한계와 대체 확인 방법을 기록합니다.
+---
+
+## ✅ 작업 종료 규칙
+
+완료를 보고하기 전에 [docs/agent/definition-of-done.md](docs/agent/definition-of-done.md)로
+자가 점검한다. 핵심: 의존 방향/상태 규칙 위반 없음, 변경에 가장 가까운 `CLAUDE.md` 갱신,
+정한 검증 실행, 실기기로만 확인 가능한 항목은 완료 보고에 사용자 체크리스트로 남김.
+
+---
+
+## 🛠 검증 명령
+
+빌드/테스트는 **반드시 Xcode MCP 툴**을 쓴다(`xcodebuild` CLI는 fallback).
+호출 전 `mcp__xcode__XcodeListWindows`로 `tabIdentifier`를 먼저 확인한다. 빌드
+`BuildProject`, 전체 테스트 `RunAllTests`, 특정 테스트 `RunSomeTests`. 자세히는
+[docs/agent/working-rules.md](docs/agent/working-rules.md)의 "검증 명령".

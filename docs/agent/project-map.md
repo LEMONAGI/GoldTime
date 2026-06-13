@@ -1,11 +1,13 @@
 # Project Map
 
-Read when: 수정할 코드 위치, target, 시작 파일이 불명확할 때.
+Read when: target/경로/entitlement/App Group 같은 프로젝트 설정 위치가 불명확할 때.
 
-Skip when: 수정 대상 파일을 이미 알고 있거나 제품/검증 판단만 필요할 때.
+Skip when: 작업할 레이어 폴더가 이미 명확할 때(그 폴더의 `CLAUDE.md`가 자동 로드되어 규칙을
+가져온다).
 
-코드를 넓게 읽기 전에, 작업 유형에 맞는 시작 위치를 고르기 위한 지도입니다.
-레이어 경계나 의존성 규칙이 필요하면 `docs/agent/architecture.md`를 함께 읽습니다.
+레이어별 규칙·함정은 각 폴더의 nested `CLAUDE.md`가 자동으로 알려주므로, 이 문서는 자동
+로딩이 못 주는 정보(타겟 목록, 경로, entitlement, App Group, 설정 파일 위치)에 집중합니다.
+레이어 경계나 의존성 규칙은 `docs/agent/architecture.md`를 읽습니다.
 
 ## 앱 구조
 
@@ -42,8 +44,7 @@ GoldTime은 메인 iOS 앱 1개와 Screen Time 관련 extension 3개로 구성�
 | 잠금 선택지 | Presentation | `Presentation/LockOptions/LockOptionsView.swift` | 1분 연장, 광고 해제, 참기 선택지 |
 | 광고 화면 | Presentation | `Presentation/RewardedAd/RewardedAdView.swift` | 보상형 광고 표시 래퍼와 fallback UI |
 | 공용 UI 컴포넌트 | Presentation | `Presentation/Component/` | 여러 화면에서 반복되는 SwiftUI 컴포넌트와 ButtonStyle |
-| 브랜드 스타일 | — | `Extensions/Color+Brand.swift` | Asset Color convenience wrapper |
-| 색상 Asset | — | `Assets.xcassets` | `AccentColor`와 `gray100`, `gold100` 같은 Color Set |
+| 색상 Asset | — | `Assets.xcassets` | `AccentColor`(=`Color.accent`)와 `gray100` Color Set. 색상 규칙은 `docs/agent/ui-design-system.md` |
 
 ## 프로젝트 설정
 
@@ -55,13 +56,15 @@ GoldTime은 메인 iOS 앱 1개와 Screen Time 관련 extension 3개로 구성�
   - `GoldTime/ShieldActionExtension/ShieldActionExtension.entitlements`
 - 수동 설정 메모: `SETUP.md`
 
-## 작업별 시작점
+## 기능별 핵심 파일
 
-- UI 문구 또는 레이아웃: 문구/톤은 `docs/agent/product-context.md`, 구현/색상/공용 컴포넌트는 `docs/agent/ui-design-system.md`를 읽고 대상 `Presentation/{화면}/XxxView.swift` 확인.
-- 대시보드 통계: `Core/Persistence/SharedStore.swift`, `Presentation/Home/HomeView.swift`, `Domain/UseCase/LoadDashboardUseCase.swift` 확인.
-- 통계 화면 (이력·추세): `Presentation/Stats/StatsView.swift`, `StatsViewModel.swift`, `Domain/Repository/StatsRepository.swift`, `Data/StatsRepositoryImpl.swift` 확인. 스트릭 계산은 `Domain/UseCase/LoadDashboardUseCase.swift`의 `calculateAdFreeStreak()` 참고.
-- 1분 연장 동작: `critical-flows.md`, `Core/ScreenTime/ScreenTimeManager.swift`, `Presentation/LockOptions/LockOptionsView.swift`, `Domain/UseCase/ExtendGroupUseCase.swift`, `DeviceActivityMonitorExtension.swift` 확인.
-- 광고 해제: `critical-flows.md`, `Core/Ads/RewardedAdService.swift`, `Presentation/RewardedAd/RewardedAdView.swift`, `Domain/UseCase/ExtendGroupUseCase.swift` 확인.
-- Shield 화면 또는 버튼: Shield extension 파일들과 `critical-flows.md` 확인.
-- 새 기능 레이어 결정: `docs/agent/architecture.md`의 "새 파일을 어느 레이어에 둘지" 표 참고.
-- Entitlement 또는 target membership: `SETUP.md`를 읽고 project config 작업으로 취급.
+여러 레이어에 걸친 기능의 진입 파일만 모았습니다(같은 폴더의 규칙은 nested `CLAUDE.md` 참고).
+런타임 흐름은 `docs/agent/critical-flows.md`를 함께 봅니다.
+
+- 대시보드 통계: `Core/Persistence/SharedStore.swift`, `Presentation/Home/HomeView.swift`, `Domain/UseCase/LoadDashboardUseCase.swift`.
+- 통계 화면(이력·추세): `Presentation/Stats/StatsView.swift`·`StatsViewModel.swift`·`EmptyChartState.swift`, `Domain/Repository/StatsRepository.swift`, `Data/StatsRepositoryImpl.swift`. 스트릭 계산은 `LoadDashboardUseCase.calculateAdFreeStreak()`.
+- 1분 연장: `Core/ScreenTime/ScreenTimeManager.swift`, `Presentation/LockOptions/LockOptionsView.swift`, `Domain/UseCase/ExtendGroupUseCase.swift`, `DeviceActivityMonitorExtension/`.
+- 광고 해제: `Core/Ads/RewardedAdService.swift`, `Presentation/RewardedAd/RewardedAdView.swift`, `Domain/UseCase/ExtendGroupUseCase.swift`.
+- Shield 화면/버튼: `ShieldConfigurationExtension/`, `ShieldActionExtension/`.
+- 새 기능 레이어 결정: `docs/agent/architecture.md`의 "새 파일을 어느 레이어에 둘지" 표.
+- Entitlement / target membership: `SETUP.md`(project config 작업으로 취급).

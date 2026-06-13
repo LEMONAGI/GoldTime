@@ -58,41 +58,22 @@ MVP에서 하지 않을 일:
 
 ## Architecture 기준
 
-GoldTime은 메인 iOS 앱과 세 개의 Screen Time extension으로 나뉩니다.
+GoldTime은 메인 iOS 앱 1개 + Screen Time extension 3개(DeviceActivity / ShieldConfiguration /
+ShieldAction)로 나뉘고, 메인 앱은 Clean Architecture 5개 레이어(`App → Presentation → Domain
+← Data → Core`)를 폴더링으로 표현합니다. Extension은 앱 전용 API 대신 App Group 상태와 알림으로
+메인 앱과 이어집니다.
 
-**Target별 역할:**
-
-- Main app: 권한, 설정, 대시보드, 해제 선택지, 광고 표시를 담당합니다.
-- DeviceActivity extension: interval / threshold callback에서 Shield 적용과 일일 상태 정리를 담당합니다.
-- ShieldConfiguration extension: 시스템 Shield 화면의 문구와 버튼 구성을 담당합니다.
-- ShieldAction extension: Shield 버튼 액션을 처리하고 앱 복귀 요청을 기록합니다.
-
-**메인 앱 내부 구조 (Clean Architecture, 5개 레이어):**
-
-```
-Presentation → Domain ← Data → Core
-       App → 모든 레이어 (DI 조립)
-```
-
-- **App**: `AppDIContainer`가 모든 레이어를 조립합니다. DI 이외 로직 없음.
-- **Core**: Apple Framework 직접 의존. `SharedStore`, `ScreenTimeManager`, `AuthorizationService` 등 싱글톤 서비스.
-- **Domain**: 순수 Swift. Repository 프로토콜, UseCase, Model. Core/Data를 모릅니다.
-- **Data**: Domain Repository 프로토콜 구현. Core 서비스 호출 + Core ↔ Domain 타입 매핑.
-- **Presentation**: ViewModel이 UseCase만 의존. Core/Data 직접 참조 금지. `@Observable @MainActor`.
-
-레이어별 파일 경로, 의존 규칙, 새 파일 추가 위치는 `docs/agent/architecture.md`를 읽습니다.
-
-**Extension과 메인 앱 간 통신:**
-
-Extension은 앱 전용 API에 의존하지 않고 App Group 상태와 알림을 통해 메인 앱과 이어집니다.
-App Group key와 Codable 저장 구조는 설치된 앱 상태에 영향을 주므로 하위 호환을 우선합니다.
+레이어별 규칙·의존 방향·새 파일 배치·Target별 역할 같은 세부는 여기서 중복하지 않습니다.
+각 레이어/타겟 폴더의 nested `CLAUDE.md`가 자동 로드되어 알려주고, 통합 개요는
+`docs/agent/architecture.md`, 타겟/경로는 `docs/agent/project-map.md`에 있습니다.
 
 ## ADR 기준
 
 현재 유지할 결정:
 
-- 루트 agent 문서는 짧은 라우터로 유지하고, 상세 문서는 필요한 것만 읽습니다.
-- 자동화 하네스보다 step card 기반의 얇은 작업 규약을 사용합니다.
+- 루트 agent 문서는 짧은 진입점으로 유지하고, 레이어 규칙은 폴더에 co-locate된 nested
+  `CLAUDE.md`로 자동 로딩한다. 교차 관심사만 `docs/agent/`에서 찾아 읽는다.
+- 무거운 자동화 하네스보다 step card 기반의 얇은 작업 규약을 사용합니다.
 - MVP에서는 작동하는 Screen Time / Shield 흐름을 제품 확장보다 우선합니다.
 - 유효한 그룹 설정은 별도 시작 버튼 없이 자동 적용합니다.
 - 전체 보호 초기화는 사용자용 pause가 아니라 Screen Time 상태 꼬임을 푸는 숨은 복구/개발용 기능으로 둡니다.

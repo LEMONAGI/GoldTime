@@ -5,6 +5,9 @@ Read when: Screen Time, Shield, 보상형 광고, App Group 공유 상태, exten
 Skip when: 독립 UI, 문구, 문서, 순수 테스트만 바꿀 때.
 
 Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸기 전에 읽습니다.
+이 문서는 여러 레이어를 가로지르는 **end-to-end 흐름**을 다룹니다. 특정 레이어/타겟에서만
+걸리는 국소 함정은 그 폴더의 nested `CLAUDE.md`(`Core/`, `DeviceActivityMonitorExtension/`
+등)에도 있고, 그 파일을 열면 자동 로드됩니다.
 
 ## Shared State 계약
 

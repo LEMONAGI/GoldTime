@@ -92,11 +92,14 @@ Apple 기준 문서:
 - 숫자가 작을수록 더 연하고, 클수록 더 진합니다.
 - 같은 색상군 안에서만 숫자 의미를 비교합니다. `gray100`과 `blue100`이 같은 밝기일 필요는 없습니다.
 
-초기 토큰 후보:
+현재 Asset Color (실재):
 
-- `gold100`: 기존 GoldTime primary gold 계열.
+- `AccentColor`: Xcode 자동 생성, `Color.accent`로 사용.
 - `gray100`: 기본 어두운 배경 계열.
-- 실제 RGB 값은 문서나 Swift helper가 아니라 Asset Color 안에 둡니다.
+
+`gold100`·`blue100` 등은 위 네이밍 규칙을 따르는 **후보일 뿐 아직 Asset에 없습니다**. 새 색이
+필요하면 그때 Color Set으로 추가합니다. 실제 RGB 값은 문서나 Swift helper가 아니라 Asset
+Color 안에 둡니다.
 
 사용 방식:
 
@@ -116,7 +119,7 @@ UI 작업 전후로 확인합니다.
 
 - 이 입력/선택/탐색에 맞는 기본 iOS 컴포넌트를 먼저 검토했는가.
 - HIG와 iOS 26.0 UI/UX에서 어색한 커스텀 컨트롤이 없는가.
-- 공용 가능성이 있는 UI를 `Views/Component/`로 추출할지 판단했는가.
+- 공용 가능성이 있는 UI를 `Presentation/Component/`로 추출할지 판단했는가.
 - 새 색상을 Asset Color로 추가했는가.
 - Dynamic Type, VoiceOver, hit target, 색 대비가 깨지지 않는가.
 - GoldTime다운 톤이 선택의 명료함을 가리지 않는가.
