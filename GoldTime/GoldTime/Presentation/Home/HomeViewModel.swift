@@ -292,6 +292,9 @@ struct HomeViewModel {
             return limitLabel(group.dailyLimitMinutes)
         case .timeWindows:
             return timeWindowsSummary(group.timeWindows)
+        case .cooldown:
+            // 쿨다운 모드 요약 문구는 Stage 4에서 구현한다.
+            return "\(group.cooldownUsageMinutes)분 사용 · \(group.cooldownDurationMinutes)분 휴식"
         }
     }
 

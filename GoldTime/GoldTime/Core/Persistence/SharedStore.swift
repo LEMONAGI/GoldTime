@@ -114,7 +114,12 @@ enum SharedStore {
         enum RuleKind: String, Codable {
             case dailyLimit
             case timeWindows
+            case cooldown
         }
+
+        /// 쿨다운 모드 기본 상수. custom Codable 부재 시 기본값과 반드시 동일해야 한다.
+        static let defaultCooldownUsageMinutes: Int = 10
+        static let defaultCooldownDurationMinutes: Int = 300
 
         var id: UUID
         var name: String
@@ -123,6 +128,10 @@ enum SharedStore {
         var ruleKind: RuleKind?
         var timeWindows: [TimeWindow]
         var isApplied: Bool
+        /// 쿨다운 모드: 사용 예산(분). ruleKind == .cooldown 일 때 유효.
+        var cooldownUsageMinutes: Int
+        /// 쿨다운 모드: 강제 휴식(분). ruleKind == .cooldown 일 때 유효.
+        var cooldownDurationMinutes: Int
 
         init(
             id: UUID = UUID(),
@@ -131,7 +140,9 @@ enum SharedStore {
             dailyLimitMinutes: Int = 30,
             ruleKind: RuleKind? = .dailyLimit,
             timeWindows: [TimeWindow] = [],
-            isApplied: Bool = true
+            isApplied: Bool = true,
+            cooldownUsageMinutes: Int = defaultCooldownUsageMinutes,
+            cooldownDurationMinutes: Int = defaultCooldownDurationMinutes
         ) {
             self.id = id
             self.name = name
@@ -140,6 +151,8 @@ enum SharedStore {
             self.ruleKind = ruleKind
             self.timeWindows = timeWindows
             self.isApplied = isApplied
+            self.cooldownUsageMinutes = cooldownUsageMinutes
+            self.cooldownDurationMinutes = cooldownDurationMinutes
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -150,6 +163,8 @@ enum SharedStore {
             case ruleKind
             case timeWindows
             case isApplied
+            case cooldownUsageMinutes
+            case cooldownDurationMinutes
         }
 
         // 새 필드는 어떤 페이로드에서도 throw하지 않아야 한다.
@@ -171,11 +186,15 @@ enum SharedStore {
                     ruleKind = nil
                 }
                 timeWindows = (try? container.decodeIfPresent([TimeWindow].self, forKey: .timeWindows)) ?? nil ?? []
+                cooldownUsageMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownUsageMinutes)) ?? nil ?? Self.defaultCooldownUsageMinutes
+                cooldownDurationMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownDurationMinutes)) ?? nil ?? Self.defaultCooldownDurationMinutes
             } else {
                 // isApplied 키 부재 = 구버전 페이로드. 기존 사용자 그룹은 일일 한도 규칙이 이미 적용된 상태.
                 isApplied = true
                 ruleKind = .dailyLimit
                 timeWindows = []
+                cooldownUsageMinutes = Self.defaultCooldownUsageMinutes
+                cooldownDurationMinutes = Self.defaultCooldownDurationMinutes
             }
         }
 
@@ -189,6 +208,8 @@ enum SharedStore {
             try container.encode(isApplied, forKey: .isApplied)
             try container.encodeIfPresent(ruleKind, forKey: .ruleKind)
             try container.encode(timeWindows, forKey: .timeWindows)
+            try container.encode(cooldownUsageMinutes, forKey: .cooldownUsageMinutes)
+            try container.encode(cooldownDurationMinutes, forKey: .cooldownDurationMinutes)
         }
 
         var appCount: Int {

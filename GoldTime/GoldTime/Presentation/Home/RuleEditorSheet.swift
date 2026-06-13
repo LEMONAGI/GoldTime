@@ -93,6 +93,9 @@ struct RuleEditorSheet: View {
                 windows: $timeWindows,
                 onConfirm: confirm(as: .timeWindows)
             )
+        case .cooldown:
+            // 쿨다운 모드 설정 UI는 Stage 3에서 구현한다.
+            EmptyView()
         }
     }
 

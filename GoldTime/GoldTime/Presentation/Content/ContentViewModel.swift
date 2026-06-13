@@ -302,6 +302,9 @@ final class ContentViewModel {
             commitDailyLimitRule()
         case .timeWindows:
             commitTimeWindowsRule()
+        case .cooldown:
+            // 쿨다운 모드 커밋 로직은 Stage 3에서 구현한다.
+            break
         }
     }
 

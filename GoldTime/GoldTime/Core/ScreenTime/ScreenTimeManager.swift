@@ -701,7 +701,9 @@ extension SharedStore.ScreenTimeGroup {
             dailyLimitMinutes: dailyLimitMinutes,
             ruleKind: ruleKind,
             timeWindows: timeWindows,
-            isApplied: isApplied
+            isApplied: isApplied,
+            cooldownUsageMinutes: cooldownUsageMinutes,
+            cooldownDurationMinutes: cooldownDurationMinutes
         )
     }
 }
