@@ -26,8 +26,8 @@ struct RuleEditorSheet: View {
                     ruleRow(
                         kind: .dailyLimit,
                         systemName: "hourglass",
-                        title: "일일 한도",
-                        subtitle: "하루에 정한 시간을 넘기면 잠가요"
+                        title: "일일 한도 제한",
+                        subtitle: "하루에 정한 시간을 넘기면 잠겨요"
                     )
                     ruleRow(
                         kind: .timeWindows,
@@ -41,8 +41,6 @@ struct RuleEditorSheet: View {
                         title: "쿨다운 잠금",
                         subtitle: "정한 만큼 쓰면 한동안 쉬어야 해요"
                     )
-                } header: {
-                    Text("차단 규칙")
                 } footer: {
                     Text("적용된 그룹은 규칙을 바꾸면 바로 반영돼요.")
                 }
@@ -155,7 +153,7 @@ private struct DailyLimitDetailView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-        .navigationTitle("일일 한도")
+        .navigationTitle("일일 한도 제한")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
@@ -190,18 +188,19 @@ private struct TimeWindowsDetailView: View {
                     windows.remove(atOffsets: offsets)
                 }
 
-                Button {
-                    addWindow()
-                } label: {
-                    Label("시간대 추가", systemImage: "plus")
+                if canAddWindow {
+                    Button {
+                        addWindow()
+                    } label: {
+                        Label("시간대 추가", systemImage: "plus")
+                    }
                 }
-                .disabled(!canAddWindow)
             } footer: {
                 if let invalidReason {
                     Text(invalidReason.userMessage)
                         .foregroundStyle(.red)
                 } else {
-                    Text("정한 시간대 동안에는 그룹이 잠겨요. 최대 \(TimeWindowPolicy.maxWindowCount)개까지 추가할 수 있어요.")
+                    Text("정한 시간대 동안에는 그룹이 잠겨요. 시간대를 왼쪽으로 밀면 삭제할 수 있어요. 최대 \(TimeWindowPolicy.maxWindowCount)개까지 추가할 수 있어요.")
                 }
             }
         }
@@ -258,7 +257,8 @@ private struct CooldownDetailView: View {
     let onConfirm: () -> Void
 
     // 사용 시간 5분 단위(5분~2시간), 휴식 간격 10분 단위(30분~6시간).
-    private let usagePresets = Array(stride(from: 5, through: 120, by: 5))
+    // TODO: 테스트용 임시 — 1분 프리셋 추가 (원래 stride(from: 5, ...))
+    private let usagePresets = [1] + Array(stride(from: 5, through: 120, by: 5))
     private let durationPresets = Array(stride(from: 30, through: 360, by: 10))
 
     private var invalidReason: CooldownPolicy.InvalidReason? {
