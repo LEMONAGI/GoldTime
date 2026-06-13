@@ -8,10 +8,10 @@
 import Foundation
 
 enum CooldownPolicy {
-    static let minUsageMinutes = 1
-    static let maxUsageMinutes = 480     // 8시간
+    static let minUsageMinutes = 5
+    static let maxUsageMinutes = 120     // 2시간
     static let minCooldownMinutes = 30
-    static let maxCooldownMinutes = 1440 // 24시간
+    static let maxCooldownMinutes = 360  // 6시간
 
     enum InvalidReason: Equatable {
         case usageOutOfRange
@@ -20,9 +20,9 @@ enum CooldownPolicy {
         var userMessage: String {
             switch self {
             case .usageOutOfRange:
-                return "사용 시간은 1분 이상 8시간 이하로 정해 주세요."
+                return "사용 시간은 5분 이상 2시간 이하로 정해 주세요."
             case .cooldownOutOfRange:
-                return "휴식 간격은 30분 이상 24시간 이하로 정해 주세요."
+                return "휴식 간격은 30분 이상 6시간 이하로 정해 주세요."
             }
         }
     }

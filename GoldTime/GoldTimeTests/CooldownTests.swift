@@ -67,23 +67,23 @@ struct CooldownTests {
     // MARK: - CooldownPolicy 경계값
 
     @Test func cooldownPolicyRejectsOutOfRangeUsage() {
-        // 0분 → usageOutOfRange
-        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 0, cooldownMinutes: 300) == .usageOutOfRange)
-        // 481분 → usageOutOfRange
-        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 481, cooldownMinutes: 300) == .usageOutOfRange)
-        // 경계: 1분, 480분 → nil
-        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 1, cooldownMinutes: 300) == nil)
-        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 480, cooldownMinutes: 300) == nil)
+        // 4분(최소 미만) → usageOutOfRange
+        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 4, cooldownMinutes: 300) == .usageOutOfRange)
+        // 121분(2시간 초과) → usageOutOfRange
+        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 121, cooldownMinutes: 300) == .usageOutOfRange)
+        // 경계: 5분, 120분 → nil
+        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 5, cooldownMinutes: 300) == nil)
+        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 120, cooldownMinutes: 300) == nil)
     }
 
     @Test func cooldownPolicyRejectsOutOfRangeCooldown() {
-        // 29분 → cooldownOutOfRange
+        // 29분(최소 미만) → cooldownOutOfRange
         #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 10, cooldownMinutes: 29) == .cooldownOutOfRange)
-        // 1441분 → cooldownOutOfRange
-        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 10, cooldownMinutes: 1441) == .cooldownOutOfRange)
-        // 경계: 30분, 1440분 → nil
+        // 361분(6시간 초과) → cooldownOutOfRange
+        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 10, cooldownMinutes: 361) == .cooldownOutOfRange)
+        // 경계: 30분, 360분 → nil
         #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 10, cooldownMinutes: 30) == nil)
-        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 10, cooldownMinutes: 1440) == nil)
+        #expect(CooldownPolicy.firstInvalidReason(usageMinutes: 10, cooldownMinutes: 360) == nil)
     }
 
     @Test func cooldownPolicyAcceptsDefaultValues() {

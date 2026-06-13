@@ -257,9 +257,9 @@ private struct CooldownDetailView: View {
     @Binding var durationMinutes: Int
     let onConfirm: () -> Void
 
-    // 자잘한 분 단위 선택을 줄이려고 프리셋만 제공한다(설정은 단순하게).
-    private let usagePresets = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 480]
-    private let durationPresets = [30, 60, 90, 120, 180, 240, 300, 360, 480, 600, 720, 1440]
+    // 사용 시간 5분 단위(5분~2시간), 휴식 간격 10분 단위(30분~6시간).
+    private let usagePresets = Array(stride(from: 5, through: 120, by: 5))
+    private let durationPresets = Array(stride(from: 30, through: 360, by: 10))
 
     private var invalidReason: CooldownPolicy.InvalidReason? {
         CooldownPolicy.firstInvalidReason(usageMinutes: usageMinutes, cooldownMinutes: durationMinutes)
