@@ -116,6 +116,7 @@
 			membershipExceptions = (
 				Core/Notification/NotificationService.swift,
 				Core/Persistence/SharedStore.swift,
+				Core/ScreenTime/CooldownMonitor.swift,
 			);
 			target = DF869C5F2FA508430038364B /* DeviceActivityMonitorExtension */;
 		};

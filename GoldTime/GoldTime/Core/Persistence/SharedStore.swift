@@ -25,6 +25,8 @@ enum SharedStore {
         static let isShieldActive = "isShieldActive"
         static let shieldedGroupIDs = "shieldedGroupIDs"
         static let overrideUntilByGroupID = "overrideUntilByGroupID"
+        static let cooldownUntilByGroupID = "cooldownUntilByGroupID"
+        static let cooldownGenerationByID = "cooldownGenerationByID"
         static let overrideDiagnostics = "overrideDiagnostics"
         static let lastRequestedUnlockApplicationToken = "lastRequestedUnlockApplicationToken"
         static let lastRequestedUnlockWebDomainToken = "lastRequestedUnlockWebDomainToken"
@@ -518,6 +520,8 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.screenTimeGroups)
         defaults.removeObject(forKey: Key.shieldedGroupIDs)
         defaults.removeObject(forKey: Key.overrideUntilByGroupID)
+        defaults.removeObject(forKey: Key.cooldownUntilByGroupID)
+        defaults.removeObject(forKey: Key.cooldownGenerationByID)
         defaults.removeObject(forKey: Key.overrideDiagnostics)
         defaults.removeObject(forKey: Key.lastRequestedUnlockApplicationToken)
         defaults.removeObject(forKey: Key.lastRequestedUnlockWebDomainToken)
@@ -591,6 +595,98 @@ enum SharedStore {
         return overrideUntilByGroupID.values
             .filter { $0 > now }
             .max()
+    }
+
+    // MARK: - 쿨다운 상태
+
+    /// 쿨다운 종료 시각. 쿨다운 중인 그룹만 항목이 존재한다.
+    /// overrideUntilByGroupID와 동일한 [String:Date] JSON 인코딩.
+    static var cooldownUntilByGroupID: [UUID: Date] {
+        get {
+            guard let data = defaults.data(forKey: Key.cooldownUntilByGroupID) else {
+                return [:]
+            }
+            let raw = (try? JSONDecoder().decode([String: Date].self, from: data)) ?? [:]
+            return Dictionary(
+                uniqueKeysWithValues: raw.compactMap { key, value in
+                    guard let id = UUID(uuidString: key) else { return nil }
+                    return (id, value)
+                }
+            )
+        }
+        set {
+            let raw = Dictionary(
+                uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) }
+            )
+            let data = try? JSONEncoder().encode(raw)
+            defaults.set(data, forKey: Key.cooldownUntilByGroupID)
+        }
+    }
+
+    /// usage 모니터 재등록 시 activity 이름 충돌 방지용 generation 카운터.
+    /// daily의 lastRegisteredGenerationByID와 동일한 [String:Int] JSON 인코딩.
+    static var cooldownGenerationByID: [UUID: Int] {
+        get {
+            guard let data = defaults.data(forKey: Key.cooldownGenerationByID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+            return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, value) }
+            })
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) })
+            guard let data = try? JSONEncoder().encode(raw) else {
+                defaults.removeObject(forKey: Key.cooldownGenerationByID)
+                return
+            }
+            defaults.set(data, forKey: Key.cooldownGenerationByID)
+        }
+    }
+
+    // MARK: - 쿨다운 헬퍼
+
+    /// 사용 예산 소진 → 쿨다운 시작. Extension threshold에서 호출 예정.
+    static func startCooldown(until: Date, for groupID: UUID) {
+        var map = cooldownUntilByGroupID
+        map[groupID] = until
+        cooldownUntilByGroupID = map
+        markGroupShielded(groupID)
+    }
+
+    /// 쿨다운 종료 → 다음 사이클 generation 증가 후 반환.
+    /// 타이머 종료/앱 복귀 재충전에서 호출 예정.
+    @discardableResult
+    static func endCooldownAndRecharge(for groupID: UUID) -> Int {
+        var map = cooldownUntilByGroupID
+        map.removeValue(forKey: groupID)
+        cooldownUntilByGroupID = map
+        unmarkGroupShielded(groupID)
+        var gens = cooldownGenerationByID
+        let next = (gens[groupID] ?? 0) + 1
+        gens[groupID] = next
+        cooldownGenerationByID = gens
+        return next
+    }
+
+    /// cooldownUntil이 존재하고 미래이면 쿨다운 중.
+    static func isInCooldown(_ groupID: UUID, now: Date = Date()) -> Bool {
+        guard let until = cooldownUntilByGroupID[groupID] else { return false }
+        return until > now
+    }
+
+    /// 쿨다운 종료 예정 시각(없으면 nil).
+    static func cooldownEnd(for groupID: UUID) -> Date? {
+        cooldownUntilByGroupID[groupID]
+    }
+
+    /// 적용된 cooldown 그룹 중 cooldownUntil이 있고 <= now인(만료) 그룹 id 목록.
+    /// 재충전 대상 조회용.
+    static func expiredCooldownGroupIDs(now: Date = Date()) -> [UUID] {
+        screenTimeGroups.compactMap { group in
+            guard group.ruleKind == .cooldown, group.isApplied else { return nil }
+            guard let until = cooldownUntilByGroupID[group.id], until <= now else { return nil }
+            return group.id
+        }
     }
 
     static var overrideDiagnostics: OverrideDiagnostics {
@@ -870,6 +966,9 @@ enum SharedStore {
         overrideBaselineUsedTimeByGroupID = [:]
         overrideGrantedMinutesByGroupID = [:]
         isShieldActive = false
+        // 쿨다운도 일일 한도와 같이 자정 리셋(및 그룹 비움)에서 함께 해제된다.
+        // generation은 monotonic이라 여기서 비우지 않는다.
+        cooldownUntilByGroupID = [:]
     }
 
     // MARK: - 릴레이 경과 시간 추적
@@ -989,12 +1088,22 @@ enum SharedStore {
         let oldOverrides = overrideUntilByGroupID
         let newOverrides = oldOverrides.filter { validGroupIDs.contains($0.key) }
 
+        let oldCooldownUntil = cooldownUntilByGroupID
+        let newCooldownUntil = oldCooldownUntil.filter { validGroupIDs.contains($0.key) }
+
+        let oldCooldownGen = cooldownGenerationByID
+        let newCooldownGen = oldCooldownGen.filter { validGroupIDs.contains($0.key) }
+
         let didChange = newShieldedGroupIDs != oldShieldedGroupIDs
             || newOverrides.count != oldOverrides.count
+            || newCooldownUntil.count != oldCooldownUntil.count
+            || newCooldownGen.count != oldCooldownGen.count
 
         if didChange {
             shieldedGroupIDs = newShieldedGroupIDs
             overrideUntilByGroupID = newOverrides
+            cooldownUntilByGroupID = newCooldownUntil
+            cooldownGenerationByID = newCooldownGen
         }
 
         return didChange

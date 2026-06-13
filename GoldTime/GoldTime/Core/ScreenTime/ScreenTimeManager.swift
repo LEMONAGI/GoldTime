@@ -212,9 +212,10 @@ enum ScreenTimeManager {
         let lastRegistered = SharedStore.lastRegisteredGroupsByID ?? [:]
         var generationByID = SharedStore.lastRegisteredGenerationByID
 
-        // 이번 동기화에서 daily 경로로 등록할 유효 그룹과 시간대 경로로 등록할 유효 그룹을 분리한다.
-        let validDailyGroups = validGroups.filter { $0.ruleKind != .timeWindows }
+        // 이번 동기화에서 daily/시간대/쿨다운 경로로 등록할 유효 그룹을 각각 분리한다.
+        let validDailyGroups = validGroups.filter { $0.ruleKind == .dailyLimit }
         let validWindowGroupIDs = Set(validGroups.filter { $0.ruleKind == .timeWindows }.map(\.id))
+        let validCooldownGroupIDs = Set(validGroups.filter { $0.ruleKind == .cooldown }.map(\.id))
 
         // 삭제/무효화/dailyLimit 전환된 그룹의 stale daily activity 정리.
         // (이전에 daily로 등록됐다가 timeWindows로 바뀐 그룹의 daily activity도 여기서 멈춘다)
@@ -238,8 +239,21 @@ enum ScreenTimeManager {
             return (0..<maxTimeWindowsPerGroup).map { DeviceActivityName.timeWindow(for: groupID, index: $0) }
         }
 
+        // 쿨다운 그룹이 변경/무효화/삭제됐거나 새로 들어온 경우, 사용 예산·휴식 타이머 activity를
+        // 멈췄다가 필요 시 아래에서 다시 등록한다(변경 없는 쿨다운 그룹은 건드리지 않음).
+        let previousCooldownGroupIDs = Set(lastRegistered.filter { $0.value.ruleKind == .cooldown }.map(\.key))
+        let cooldownGroupIDsToResetMonitoring = previousCooldownGroupIDs.union(validCooldownGroupIDs)
+        let staleCooldownActivities = cooldownGroupIDsToResetMonitoring.flatMap { groupID -> [DeviceActivityName] in
+            if validCooldownGroupIDs.contains(groupID),
+               lastRegistered[groupID] == validGroups.first(where: { $0.id == groupID }) {
+                return []
+            }
+            let gen = SharedStore.cooldownGenerationByID[groupID] ?? 0
+            return [.cooldownUsage(for: groupID, generation: gen), .cooldownTimer(for: groupID)]
+        }
+
         SharedStore.screenTimeGroups = sanitizedGroups
-        let activitiesToStop = staleOverrideActivities + staleGroupActivities + staleWindowActivities
+        let activitiesToStop = staleOverrideActivities + staleGroupActivities + staleWindowActivities + staleCooldownActivities
         if !activitiesToStop.isEmpty {
             center.stopMonitoring(activitiesToStop)
         }
@@ -273,6 +287,19 @@ enum ScreenTimeManager {
                 generationByID.removeValue(forKey: group.id)
                 do {
                     try registerTimeWindowGroup(group)
+                    newRegistered[group.id] = group
+                } catch {
+                    firstError = firstError ?? error
+                }
+                continue
+            }
+
+            // 쿨다운 그룹: daily tick/generation 경로를 건너뛰고 사용 예산 모니터로 등록한다.
+            // (stale 사용 예산/휴식 타이머 activity는 위에서 이미 stop했다)
+            if group.ruleKind == .cooldown {
+                generationByID.removeValue(forKey: group.id)
+                do {
+                    try registerCooldownGroup(group)
                     newRegistered[group.id] = group
                 } catch {
                     firstError = firstError ?? error
@@ -347,6 +374,22 @@ enum ScreenTimeManager {
                 events: [:]
             )
         }
+    }
+
+    /// 쿨다운 그룹의 사용 예산 모니터를 등록한다. 이미 휴식 중이면 등록하지 않는다(휴식 타이머가
+    /// 끝나면 extension이 재충전). 만료된 휴식 상태가 남아 있으면(타이머 놓침) 정리하고 새 사이클로
+    /// 충전한다. usage 모니터는 cooldownUsageMinutes분 사용 시 cdtick 이벤트로 잠금을 트리거한다.
+    private static func registerCooldownGroup(_ group: SharedStore.ScreenTimeGroup) throws {
+        if SharedStore.isInCooldown(group.id) { return }
+
+        let generation: Int
+        if SharedStore.cooldownEnd(for: group.id) != nil {
+            // 만료된 휴식 상태가 남아 있음(타이머 놓침) → 정리 + generation 증가 후 새 사이클.
+            generation = SharedStore.endCooldownAndRecharge(for: group.id)
+        } else {
+            generation = SharedStore.cooldownGenerationByID[group.id] ?? 0
+        }
+        try CooldownMonitor.startUsageMonitoring(center: center, group: group, generation: generation)
     }
 
     static func validDailyMonitoringGroups(
@@ -649,15 +692,37 @@ enum ScreenTimeManager {
 
     @discardableResult
     static func reapplyShieldIfOverrideExpired(now: Date = Date()) -> Bool {
-        // override 만료뿐 아니라 시간대 진입/이탈도 foreground 복귀 시 보정한다.
+        // override 만료뿐 아니라 시간대 진입/이탈, 휴식 종료도 foreground 복귀 시 보정한다.
         let overrideChanged = SharedStore.clearExpiredOverrides(now: now)
         let windowChanged = SharedStore.resyncTimeWindowLocks(now: now).changed
-        guard overrideChanged || windowChanged else {
+        let cooldownChanged = rechargeExpiredCooldowns(now: now)
+        guard overrideChanged || windowChanged || cooldownChanged else {
             return false
         }
 
         applyShield()
         return SharedStore.isShieldActive
+    }
+
+    /// 휴식이 끝났는데 타이머 콜백을 놓친 쿨다운 그룹을 foreground 복귀 시 정리·재충전한다.
+    /// (백그라운드에서 앱이 죽어 extension 타이머가 동작하지 못한 경우의 자가 치유 경로)
+    @discardableResult
+    private static func rechargeExpiredCooldowns(now: Date = Date()) -> Bool {
+        let expired = SharedStore.expiredCooldownGroupIDs(now: now)
+        guard !expired.isEmpty else { return false }
+
+        for groupID in expired {
+            let generation = SharedStore.endCooldownAndRecharge(for: groupID)
+            center.stopMonitoring([.cooldownTimer(for: groupID)])
+            if let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 {
+                try? CooldownMonitor.startUsageMonitoring(
+                    center: center,
+                    group: group,
+                    generation: generation
+                )
+            }
+        }
+        return true
     }
 
     // MARK: - 1분 카운터

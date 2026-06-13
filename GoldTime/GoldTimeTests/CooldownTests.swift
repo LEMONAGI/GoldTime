@@ -125,4 +125,146 @@ struct CooldownTests {
         ]
         #expect(ScreenTimeGroupPolicy.firstInvalidReason(for: groups) == nil)
     }
+
+    // MARK: - SharedStore 쿨다운 상태 헬퍼
+
+    private func makeCooldownGroup(id: UUID = UUID(), isApplied: Bool = true) -> SharedStore.ScreenTimeGroup {
+        SharedStore.ScreenTimeGroup(
+            id: id,
+            name: "쿨다운 그룹",
+            ruleKind: .cooldown,
+            isApplied: isApplied,
+            cooldownUsageMinutes: 10,
+            cooldownDurationMinutes: 300
+        )
+    }
+
+    private func futureDate(byMinutes minutes: Double) -> Date {
+        Date().addingTimeInterval(minutes * 60)
+    }
+
+    private func pastDate(byMinutes minutes: Double) -> Date {
+        Date().addingTimeInterval(-minutes * 60)
+    }
+
+    // 1. startCooldown → isInCooldown true(until 전) / false(until 후) + shieldedGroupIDs 포함.
+    @Test func startCooldownMarksShieldedAndIsInCooldown() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        let future = futureDate(byMinutes: 60)
+
+        SharedStore.startCooldown(until: future, for: id)
+
+        #expect(SharedStore.isInCooldown(id))
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+        #expect(SharedStore.cooldownEnd(for: id) == future)
+
+        // until 이후에는 isInCooldown이 false(만료 판정)
+        let afterUntil = future.addingTimeInterval(1)
+        #expect(!SharedStore.isInCooldown(id, now: afterUntil))
+    }
+
+    // 2. endCooldownAndRecharge → cooldownUntil 제거, shielded 해제, generation 0→1→2 증가.
+    @Test func endCooldownAndRechargeIncrementsGeneration() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: id)
+        #expect(SharedStore.isInCooldown(id))
+
+        // generation: 0 → 1
+        let gen1 = SharedStore.endCooldownAndRecharge(for: id)
+        #expect(gen1 == 1)
+        #expect(!SharedStore.isInCooldown(id))
+        #expect(!SharedStore.shieldedGroupIDs.contains(id))
+        #expect(SharedStore.cooldownEnd(for: id) == nil)
+
+        // generation: 1 → 2 (두 번째 사이클)
+        SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: id)
+        let gen2 = SharedStore.endCooldownAndRecharge(for: id)
+        #expect(gen2 == 2)
+        #expect(SharedStore.cooldownGenerationByID[id] == 2)
+    }
+
+    // 3. 자정 시뮬레이션: 쿨다운은 일일 한도와 같이 자정 리셋에서 함께 해제된다.
+    //    (23:45 잠금 → 자정에 풀리고 예산 새로 충전되는 동작)
+    @Test func midnightResetClearsCooldown() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let calendar = Calendar.current
+        let today = calendar.date(from: DateComponents(year: 2026, month: 6, day: 13, hour: 23, minute: 0))!
+        let tomorrow = calendar.date(from: DateComponents(year: 2026, month: 6, day: 14, hour: 0, minute: 1))!
+        let cooldownUntil = calendar.date(from: DateComponents(year: 2026, month: 6, day: 14, hour: 4, minute: 0))!
+
+        let id = UUID()
+        SharedStore.screenTimeGroups = [makeCooldownGroup(id: id)]
+        SharedStore.oneMinuteCounterDate = today
+
+        // 쿨다운 시작(원래 새벽 4시까지)
+        SharedStore.startCooldown(until: cooldownUntil, for: id)
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+
+        // 자정 리셋 트리거 → 쿨다운이 끝나기 전이라도 자정에 함께 해제된다.
+        let didReset = SharedStore.resetDailyProtectionStateIfNeeded(now: tomorrow)
+        #expect(didReset)
+
+        #expect(SharedStore.cooldownEnd(for: id) == nil)
+        #expect(!SharedStore.shieldedGroupIDs.contains(id))
+    }
+
+    // 6. pruneShieldState: 삭제된 그룹의 cooldownUntil/generation 제거, 유효 그룹은 유지.
+    @Test func pruneShieldStateRemovesDeletedCooldownGroup() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let keepID = UUID()
+        let removeID = UUID()
+
+        SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: keepID)
+        SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: removeID)
+        _ = SharedStore.endCooldownAndRecharge(for: removeID)
+
+        #expect(SharedStore.cooldownUntilByGroupID[keepID] != nil)
+        // removeID는 endCooldownAndRecharge로 until이 제거됐지만 generation은 남아있음
+        #expect(SharedStore.cooldownGenerationByID[removeID] != nil)
+
+        // keepID만 유효 그룹으로 전달
+        let changed = SharedStore.pruneShieldState(keepingGroupIDs: [keepID])
+        #expect(changed)
+
+        // keepID: until/generation 유지
+        #expect(SharedStore.cooldownUntilByGroupID[keepID] != nil)
+        // removeID: generation 제거
+        #expect(SharedStore.cooldownGenerationByID[removeID] == nil)
+    }
+
+    // 7. expiredCooldownGroupIDs: 과거 until 그룹만 반환, 미래 until·비-cooldown 그룹은 제외.
+    @Test func expiredCooldownGroupIDsReturnsOnlyExpired() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let activeID = UUID()
+        let expiredID = UUID()
+        let dailyID = UUID()
+
+        SharedStore.screenTimeGroups = [
+            makeCooldownGroup(id: activeID),
+            makeCooldownGroup(id: expiredID),
+            SharedStore.ScreenTimeGroup(id: dailyID, name: "게임", ruleKind: .dailyLimit, isApplied: true)
+        ]
+
+        SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: activeID)
+        SharedStore.startCooldown(until: pastDate(byMinutes: 1), for: expiredID)
+        // dailyID는 cooldownUntil 없음
+
+        let expired = SharedStore.expiredCooldownGroupIDs()
+        #expect(expired.count == 1)
+        #expect(expired.contains(expiredID))
+        #expect(!expired.contains(activeID))
+        #expect(!expired.contains(dailyID))
+    }
 }
