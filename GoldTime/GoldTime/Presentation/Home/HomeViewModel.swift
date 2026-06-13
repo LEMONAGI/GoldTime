@@ -70,7 +70,7 @@ struct HomeViewModel {
 
     var protectionStatusTitle: String {
         if isMonitoring {
-            return "자동 적용 중"
+            return "차단 규칙 적용 중"
         }
         if groups.isEmpty {
             return "설정 필요"
@@ -78,7 +78,7 @@ struct HomeViewModel {
         if validMonitoringGroups.isEmpty {
             return "설정 필요"
         }
-        return "자동 적용 대기"
+        return "차단 규칙 대기"
     }
 
     var protectionStatusCaption: String {
@@ -92,7 +92,7 @@ struct HomeViewModel {
         if validMonitoringGroups.isEmpty {
             return "항목과 규칙을 정해 적용한 그룹이 필요해요"
         }
-        return "자동 적용을 준비하고 있어요"
+        return "차단 규칙을 준비하고 있어요"
     }
 
     var protectionStatusIcon: String {
@@ -120,7 +120,7 @@ struct HomeViewModel {
             return "아직 적용할 수 있는 그룹이 없어요. 앱이나 웹 사이트를 하나 이상 담고 규칙을 정해 적용해 주세요."
         }
 
-        return "\(invalidCount)개 그룹은 설정이 덜 끝나서 자동 적용에서 제외됐어요."
+        return "\(invalidCount)개 그룹은 설정이 덜 끝나서 차단 규칙 적용에서 제외됐어요."
     }
 
     var billTotalText: String {
