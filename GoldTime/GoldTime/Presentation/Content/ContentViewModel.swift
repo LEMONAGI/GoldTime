@@ -83,6 +83,8 @@ final class ContentViewModel {
     var ruleEditorTimeWindows: [TimeWindow] = []
     var limitPickerHours = 0
     var limitPickerMinutes = 30
+    var ruleEditorCooldownUsageMinutes = SharedStore.ScreenTimeGroup.defaultCooldownUsageMinutes
+    var ruleEditorCooldownDurationMinutes = SharedStore.ScreenTimeGroup.defaultCooldownDurationMinutes
 
     var isShieldActive: Bool
     var oneMinuteRemaining: Int
@@ -284,6 +286,8 @@ final class ContentViewModel {
         limitPickerMinutes = (rawMinutes / 5) * 5
         ruleEditorSelectedKind = group.ruleKind ?? .dailyLimit
         ruleEditorTimeWindows = group.timeWindows
+        ruleEditorCooldownUsageMinutes = group.cooldownUsageMinutes
+        ruleEditorCooldownDurationMinutes = group.cooldownDurationMinutes
         ruleEditorGroupID = group.id
     }
 
@@ -303,9 +307,31 @@ final class ContentViewModel {
         case .timeWindows:
             commitTimeWindowsRule()
         case .cooldown:
-            // 쿨다운 모드 커밋 로직은 Stage 3에서 구현한다.
-            break
+            commitCooldownRule()
         }
+    }
+
+    private func commitCooldownRule() {
+        guard let id = ruleEditorGroupID else { return }
+        let usage = ruleEditorCooldownUsageMinutes
+        let duration = ruleEditorCooldownDurationMinutes
+
+        // 뷰에서 저장 버튼을 막아도, VM에서 한 번 더 검증한다.
+        if let reason = CooldownPolicy.firstInvalidReason(usageMinutes: usage, cooldownMinutes: duration) {
+            alertMessage = GoldTimeAlertMessage(title: "쿨다운 확인", message: reason.userMessage)
+            return
+        }
+
+        updateGroup(id) { groups in
+            manageGroupsUseCase.updateRule(
+                id: id,
+                kind: .cooldown,
+                cooldownUsageMinutes: usage,
+                cooldownDurationMinutes: duration,
+                in: &groups
+            )
+        }
+        ruleEditorGroupID = nil
     }
 
     private func commitDailyLimitRule() {

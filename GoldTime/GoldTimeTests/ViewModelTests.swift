@@ -1029,6 +1029,65 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
+    @Test func cooldownRuleWithValidValuesUpdatesGroupAndSyncs() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 15
+        viewModel.ruleEditorCooldownDurationMinutes = 240
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.alertMessage == nil)
+        #expect(viewModel.groups.first?.ruleKind == .cooldown)
+        #expect(viewModel.groups.first?.cooldownUsageMinutes == 15)
+        #expect(viewModel.groups.first?.cooldownDurationMinutes == 240)
+        #expect(groupRepo.screenTimeGroups.first?.cooldownUsageMinutes == 15)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func cooldownRuleWithInvalidValuesAlertsAndDoesNotChangeGroup() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 0          // 범위 밖
+        viewModel.ruleEditorCooldownDurationMinutes = 240
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.alertMessage != nil)
+        #expect(viewModel.groups.first?.ruleKind == .dailyLimit)   // 미변경
+        #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
     @Test func switchingToTimeWindowsPreservesDailyLimitMinutes() {
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(),

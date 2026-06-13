@@ -147,6 +147,8 @@ struct ContentView: View {
                 hours: $viewModel.limitPickerHours,
                 minutes: $viewModel.limitPickerMinutes,
                 timeWindows: $viewModel.ruleEditorTimeWindows,
+                cooldownUsageMinutes: $viewModel.ruleEditorCooldownUsageMinutes,
+                cooldownDurationMinutes: $viewModel.ruleEditorCooldownDurationMinutes,
                 currentKind: viewModel.ruleEditorSelectedKind,
                 onConfirm: {
                     viewModel.commitRuleSelection()
