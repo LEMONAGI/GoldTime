@@ -88,13 +88,25 @@
 		DF8697DB2FA5075C0038364B /* Exceptions for "GoldTime" folder in "GoldTime" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				App/AGENTS.md,
+				App/CLAUDE.md,
+				Core/AGENTS.md,
+				Core/CLAUDE.md,
+				Data/AGENTS.md,
+				Data/CLAUDE.md,
+				Domain/AGENTS.md,
+				Domain/CLAUDE.md,
 				Info.plist,
+				Presentation/AGENTS.md,
+				Presentation/CLAUDE.md,
 			);
 			target = DF8697792FA4FDB30038364B /* GoldTime */;
 		};
 		DF869C6F2FA508440038364B /* Exceptions for "DeviceActivityMonitorExtension" folder in "DeviceActivityMonitorExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AGENTS.md,
+				CLAUDE.md,
 				Info.plist,
 			);
 			target = DF869C5F2FA508430038364B /* DeviceActivityMonitorExtension */;
@@ -110,6 +122,8 @@
 		DF869C872FA5098A0038364B /* Exceptions for "ShieldConfigurationExtension" folder in "ShieldConfigurationExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AGENTS.md,
+				CLAUDE.md,
 				Info.plist,
 			);
 			target = DF869C762FA5098A0038364B /* ShieldConfigurationExtension */;
@@ -117,6 +131,8 @@
 		DF869C992FA509AF0038364B /* Exceptions for "ShieldActionExtension" folder in "ShieldActionExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AGENTS.md,
+				CLAUDE.md,
 				Info.plist,
 			);
 			target = DF869C8B2FA509AF0038364B /* ShieldActionExtension */;
