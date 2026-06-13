@@ -23,33 +23,17 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             }
             return Date().timeIntervalSince(startedAt) <= pendingWindow
         }
-
-        /// 쿨다운 종료 시각 맵(`cooldownUntilByGroupID`)에 미래 항목이 하나라도 있으면
-        /// 휴식 중인 잠금이 포함된 상태. SharedStore를 끌어오지 않고 원시 UserDefaults만 읽는다.
-        static var hasActiveCooldown: Bool {
-            guard let data = defaults.data(forKey: "cooldownUntilByGroupID"),
-                  let raw = try? JSONDecoder().decode([String: Date].self, from: data) else {
-                return false
-            }
-            let now = Date()
-            return raw.values.contains { $0 > now }
-        }
     }
 
+    /// 잠금 모드(일일 한도·시간대 차단·쿨다운)와 무관하게 쓰는 모드 중립 문구 풀.
+    /// extension은 막힌 앱이 어느 모드인지 알 수 없으므로(타겟에 SharedStore 없음) 모드 특정
+    /// 표현 대신 세 모드 공통 분모(막혀 있고·내가 정했고·더 쓰려면 광고)만 담아 단일화한다.
     private let shieldMessages = [
-        "오늘 한도 다 썼어요.",
-        "지금 나가면 광고는 없어요.",
+        "여기까지 쓰기로 했어요.",
+        "지금은 멈출 시간이에요.",
         "더 쓰려면 광고가 필요해요.",
-        "광고 없이 나가는 방법도 있어요.",
+        "광고 없이 멈추는 방법도 있어요.",
         "멈추거나, 광고를 보거나."
-    ]
-
-    private let cooldownMessages = [
-        "쉬는 시간이에요.",
-        "잠깐 쉬었다 가요.",
-        "더 쓰려면 광고가 필요해요.",
-        "광고 없이 기다리는 방법도 있어요.",
-        "기다리거나, 광고를 보거나."
     ]
 
     private func makeConfiguration() -> ShieldConfiguration {
@@ -57,9 +41,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             return makeOpenRequestConfiguration()
         }
 
-        // 휴식 중인 잠금이 있으면 "한도 초과"가 아니라 쿨다운 문구로 바꾼다.
-        let pool = OpenRequestStore.hasActiveCooldown ? cooldownMessages : shieldMessages
-        let title = pool.randomElement() ?? "오늘 한도를 다 썼어요."
+        let title = shieldMessages.randomElement() ?? "지금은 멈출 시간이에요."
         return ShieldConfiguration(
             backgroundBlurStyle: .systemMaterialDark,
             backgroundColor: UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 0.85),
