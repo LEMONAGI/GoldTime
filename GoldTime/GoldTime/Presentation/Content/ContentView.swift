@@ -79,6 +79,7 @@ struct ContentView: View {
                     usedTimeByGroupID: viewModel.usedTimeByGroupID,
                     overrideBaselineUsedTimeByGroupID: viewModel.overrideBaselineUsedTimeByGroupID,
                     overrideGrantedMinutesByGroupID: viewModel.overrideGrantedMinutesByGroupID,
+                    cooldownEndByGroupID: viewModel.cooldownEndByGroupID,
                     oneMinuteRemaining: viewModel.oneMinuteRemaining,
                     oneMinuteDailyLimit: viewModel.oneMinuteDailyLimit,
                     onAddGroup: viewModel.addGroup,

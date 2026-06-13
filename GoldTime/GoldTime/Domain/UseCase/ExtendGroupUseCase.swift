@@ -7,6 +7,7 @@ struct LockedGroupsState {
     let oneMinuteRemaining: Int
     let requestedToken: ApplicationToken?
     let requestedWebDomainToken: WebDomainToken?
+    let cooldownEndByGroupID: [UUID: Date]
 }
 
 final class ExtendGroupUseCase {
@@ -46,7 +47,8 @@ final class ExtendGroupUseCase {
             lockedGroups: locked,
             oneMinuteRemaining: shieldRepository.oneMinuteRemaining,
             requestedToken: token,
-            requestedWebDomainToken: webDomainToken
+            requestedWebDomainToken: webDomainToken,
+            cooldownEndByGroupID: shieldRepository.cooldownEndByGroupID
         )
     }
 

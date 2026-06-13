@@ -89,7 +89,7 @@ struct LockOptionsView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                if let caption = viewModel.selectedWindowLockCaption {
+                if let caption = viewModel.selectedWindowLockCaption ?? viewModel.selectedCooldownLockCaption {
                     Text(caption)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.red)

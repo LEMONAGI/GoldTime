@@ -23,6 +23,17 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             }
             return Date().timeIntervalSince(startedAt) <= pendingWindow
         }
+
+        /// 쿨다운 종료 시각 맵(`cooldownUntilByGroupID`)에 미래 항목이 하나라도 있으면
+        /// 휴식 중인 잠금이 포함된 상태. SharedStore를 끌어오지 않고 원시 UserDefaults만 읽는다.
+        static var hasActiveCooldown: Bool {
+            guard let data = defaults.data(forKey: "cooldownUntilByGroupID"),
+                  let raw = try? JSONDecoder().decode([String: Date].self, from: data) else {
+                return false
+            }
+            let now = Date()
+            return raw.values.contains { $0 > now }
+        }
     }
 
     private let shieldMessages = [
@@ -33,12 +44,22 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         "멈추거나, 광고를 보거나."
     ]
 
+    private let cooldownMessages = [
+        "쉬는 시간이에요.",
+        "잠깐 쉬었다 가요.",
+        "더 쓰려면 광고가 필요해요.",
+        "광고 없이 기다리는 방법도 있어요.",
+        "기다리거나, 광고를 보거나."
+    ]
+
     private func makeConfiguration() -> ShieldConfiguration {
         if OpenRequestStore.isPending {
             return makeOpenRequestConfiguration()
         }
 
-        let title = shieldMessages.randomElement() ?? "오늘 한도를 다 썼어요."
+        // 휴식 중인 잠금이 있으면 "한도 초과"가 아니라 쿨다운 문구로 바꾼다.
+        let pool = OpenRequestStore.hasActiveCooldown ? cooldownMessages : shieldMessages
+        let title = pool.randomElement() ?? "오늘 한도를 다 썼어요."
         return ShieldConfiguration(
             backgroundBlurStyle: .systemMaterialDark,
             backgroundColor: UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 0.85),

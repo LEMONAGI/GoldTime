@@ -24,6 +24,7 @@ struct HomeViewModel {
     let overrideGrantedMinutesByGroupID: [UUID: Int]
     let oneMinuteRemaining: Int
     let oneMinuteDailyLimit: Int
+    let cooldownEndByGroupID: [UUID: Date]
 
     init(
         groups: [ScreenTimeGroup],
@@ -40,6 +41,7 @@ struct HomeViewModel {
         usedTimeByGroupID: [UUID: Int] = [:],
         overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:],
         overrideGrantedMinutesByGroupID: [UUID: Int] = [:],
+        cooldownEndByGroupID: [UUID: Date] = [:],
         oneMinuteRemaining: Int = 0,
         oneMinuteDailyLimit: Int = ScreenTimeGroupPolicy.oneMinuteDailyLimit
     ) {
@@ -57,6 +59,7 @@ struct HomeViewModel {
         self.usedTimeByGroupID = usedTimeByGroupID
         self.overrideBaselineUsedTimeByGroupID = overrideBaselineUsedTimeByGroupID
         self.overrideGrantedMinutesByGroupID = overrideGrantedMinutesByGroupID
+        self.cooldownEndByGroupID = cooldownEndByGroupID
         self.oneMinuteRemaining = oneMinuteRemaining
         self.oneMinuteDailyLimit = oneMinuteDailyLimit
     }
@@ -159,9 +162,19 @@ struct HomeViewModel {
             if locked.count > 1 {
                 return "\(locked.count)개 그룹이 잠겨 있어요"
             }
-            // 잠금 사유에 맞는 문구: 시간대 차단은 한도 초과가 아니다.
-            if let group = locked.first, (group.ruleKind ?? .dailyLimit) == .timeWindows {
-                return "차단 시간대예요"
+            // 잠금 사유에 맞는 문구: 시간대 차단·쿨다운은 한도 초과가 아니다.
+            if let group = locked.first {
+                switch group.ruleKind ?? .dailyLimit {
+                case .timeWindows:
+                    return "차단 시간대예요"
+                case .cooldown:
+                    if let end = cooldownEndByGroupID[group.id] {
+                        return "\(goldTimeClockText(date: end))까지 쉬는 중"
+                    }
+                    return "쉬는 중이에요"
+                case .dailyLimit:
+                    break
+                }
             }
             return "한도를 넘겼어요"
         }
@@ -293,8 +306,9 @@ struct HomeViewModel {
         case .timeWindows:
             return timeWindowsSummary(group.timeWindows)
         case .cooldown:
-            // 쿨다운 모드 요약 문구는 Stage 4에서 구현한다.
-            return "\(group.cooldownUsageMinutes)분 사용 · \(group.cooldownDurationMinutes)분 휴식"
+            let usage = goldTimeDurationText(seconds: group.cooldownUsageMinutes * 60)
+            let rest = goldTimeDurationText(seconds: group.cooldownDurationMinutes * 60)
+            return "\(usage) 쓰면 \(rest) 휴식"
         }
     }
 
@@ -320,6 +334,14 @@ struct HomeViewModel {
             return nil
         }
         return "\(goldTimeClockText(minuteOfDay: end))까지 잠겨요"
+    }
+
+    /// 쿨다운 그룹이 지금 휴식 중일 때 "HH:mm까지 쉬어요" 캡션. 그 외엔 nil.
+    func activeCooldownLockCaption(for group: ScreenTimeGroup) -> String? {
+        guard (group.ruleKind ?? .dailyLimit) == .cooldown,
+              lockedGroupIDs.contains(group.id),
+              let end = cooldownEndByGroupID[group.id] else { return nil }
+        return "\(goldTimeClockText(date: end))까지 쉬어요"
     }
 
     func usesDailyLimit(_ group: ScreenTimeGroup) -> Bool {
