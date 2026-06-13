@@ -15,7 +15,8 @@ struct RuleEditorSheet: View {
     @Binding var timeWindows: [TimeWindow]
     @Binding var cooldownUsageMinutes: Int
     @Binding var cooldownDurationMinutes: Int
-    let currentKind: GroupRuleKind
+    /// 그룹에 이미 커밋된 규칙. 아직 규칙을 고르지 않은(새) 그룹은 nil이라 체크표시가 없다.
+    let currentKind: GroupRuleKind?
     let onConfirm: () -> Void
     let onCancel: () -> Void
 

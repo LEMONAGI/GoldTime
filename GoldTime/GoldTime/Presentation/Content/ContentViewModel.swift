@@ -80,6 +80,8 @@ final class ContentViewModel {
 
     var ruleEditorGroupID: UUID?
     var ruleEditorSelectedKind: GroupRuleKind = .dailyLimit
+    /// 편집 대상 그룹에 이미 커밋된 규칙(없으면 nil). 시트의 체크표시 표시에만 쓴다.
+    var ruleEditorCurrentKind: GroupRuleKind?
     var ruleEditorTimeWindows: [TimeWindow] = []
     var limitPickerHours = 0
     var limitPickerMinutes = 30
@@ -286,6 +288,7 @@ final class ContentViewModel {
         let rawMinutes = clamped % 60
         limitPickerMinutes = (rawMinutes / 5) * 5
         ruleEditorSelectedKind = group.ruleKind ?? .dailyLimit
+        ruleEditorCurrentKind = group.ruleKind
         ruleEditorTimeWindows = group.timeWindows
         ruleEditorCooldownUsageMinutes = group.cooldownUsageMinutes
         ruleEditorCooldownDurationMinutes = group.cooldownDurationMinutes
