@@ -377,19 +377,19 @@ private struct PermissionPreviewCard: View {
                     .multilineTextAlignment(.center)
 
                 VStack(spacing: 6) {
+                    Text("앱에서 추적 금지")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(.tertiarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
                     Text("추적 허용")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.accent)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(Color.accent.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                    Text("앱에서 추적 금지")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color(.tertiarySystemGroupedBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .padding(.top, 4)
