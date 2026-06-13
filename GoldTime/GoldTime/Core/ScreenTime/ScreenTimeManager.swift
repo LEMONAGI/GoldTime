@@ -353,8 +353,10 @@ enum ScreenTimeManager {
     }
 
     /// 시간대 차단 그룹을 timeWindows 개수만큼 window activity로 등록한다.
-    /// 각 시간대는 [start, end) 구간을 repeats:true로 도는 schedule이고, threshold 이벤트는 없다
-    /// (잠금은 intervalDidStart에서 resync로, 해제는 intervalDidEnd에서 resync로 처리).
+    /// TimeWindow의 endMinuteOfDay는 inclusive(차단되는 마지막 분)이므로 스케줄의 intervalEnd는
+    /// "차단이 끝나는 순간" = endMinuteOfDay + 1로 변환한다(예: 12:59 차단 → intervalEnd 13:00).
+    /// 각 시간대는 repeats:true로 돌고 threshold 이벤트는 없다(잠금은 intervalDidStart에서 resync로,
+    /// 해제는 intervalDidEnd에서 resync로 처리).
     private static func registerTimeWindowGroup(_ group: SharedStore.ScreenTimeGroup) throws {
         for (index, window) in group.timeWindows.enumerated() {
             let schedule = DeviceActivitySchedule(
@@ -362,10 +364,7 @@ enum ScreenTimeManager {
                     hour: window.startMinuteOfDay / 60,
                     minute: window.startMinuteOfDay % 60
                 ),
-                intervalEnd: DateComponents(
-                    hour: window.endMinuteOfDay / 60,
-                    minute: window.endMinuteOfDay % 60
-                ),
+                intervalEnd: timeWindowIntervalEnd(forInclusiveEndMinute: window.endMinuteOfDay),
                 repeats: true
             )
             try center.startMonitoring(
@@ -374,6 +373,17 @@ enum ScreenTimeManager {
                 events: [:]
             )
         }
+    }
+
+    /// inclusive 종료분(E)을 스케줄 intervalEnd(차단 종료 순간 = E+1)로 변환한다.
+    /// E가 23:59(1439)면 다음 분이 24:00(DateComponents hour:24 불가)이라 dailySchedule과 동일하게
+    /// 23:59:59(하루의 끝)로 표현한다.
+    private static func timeWindowIntervalEnd(forInclusiveEndMinute end: Int) -> DateComponents {
+        let exclusiveEnd = end + 1
+        guard exclusiveEnd < 24 * 60 else {
+            return DateComponents(hour: 23, minute: 59, second: 59)
+        }
+        return DateComponents(hour: exclusiveEnd / 60, minute: exclusiveEnd % 60)
     }
 
     /// 쿨다운 그룹의 사용 예산 모니터를 등록한다. 이미 휴식 중이면 등록하지 않는다(휴식 타이머가

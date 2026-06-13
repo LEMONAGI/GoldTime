@@ -52,7 +52,7 @@ enum TimeWindowPolicy {
             if window.startMinuteOfDay < 0 || window.endMinuteOfDay >= minutesPerDay {
                 return .outOfRange
             }
-            if window.startMinuteOfDay >= window.endMinuteOfDay {
+            if window.startMinuteOfDay > window.endMinuteOfDay {
                 return .crossesMidnight
             }
             if window.durationMinutes < minWindowMinutes {
@@ -60,8 +60,10 @@ enum TimeWindowPolicy {
             }
         }
 
+        // end가 inclusive(차단되는 마지막 분)이므로, 다음 시작이 현재 종료와 같거나 빠르면 겹침.
+        // 예) 12:00–13:00 + 13:00–14:00 → 13:00을 둘 다 차단하므로 거부. 연속 차단은 12:00–12:59 + 13:00–14:00.
         let sorted = windows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
-        for (current, next) in zip(sorted, sorted.dropFirst()) where next.startMinuteOfDay < current.endMinuteOfDay {
+        for (current, next) in zip(sorted, sorted.dropFirst()) where next.startMinuteOfDay <= current.endMinuteOfDay {
             return .overlapping
         }
 
@@ -84,14 +86,15 @@ enum TimeWindowPolicy {
         windows.first { $0.contains(minuteOfDay: minute) }?.endMinuteOfDay
     }
 
-    /// 지금 속한 시간대부터 끝==다음 시작으로 인접하게 이어지는 마지막 시간대의 종료 분.
-    /// 예: 21:00–22:00, 22:00–23:00이 붙어 있으면 23:00 반환. 어디에도 안 속하면 nil.
+    /// 지금 속한 시간대부터 (종료 분 + 1 == 다음 시작)으로 인접하게 이어지는 마지막 시간대의
+    /// inclusive 종료 분. 예: 21:00–21:59, 22:00–22:59가 붙어 있으면 22:59(1379) 반환.
+    /// end가 inclusive이므로 인접 조건은 `window.start == end + 1`. 어디에도 안 속하면 nil.
     static func contiguousWindowEnd(minuteOfDay minute: Int, windows: [TimeWindow]) -> Int? {
         let sorted = windows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
         guard var end = sorted.first(where: { $0.contains(minuteOfDay: minute) })?.endMinuteOfDay else {
             return nil
         }
-        for window in sorted where window.startMinuteOfDay == end {
+        for window in sorted where window.startMinuteOfDay == end + 1 {
             end = window.endMinuteOfDay
         }
         return end

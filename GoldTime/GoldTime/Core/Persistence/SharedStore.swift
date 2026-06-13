@@ -90,7 +90,10 @@ enum SharedStore {
     static let maxAppsPerGroup = 9
     static let maxShieldApplicationCount = 49
 
-    /// 하루 안의 차단 시간대. 분 단위(0...1439), start 포함·end 미포함, 자정 넘김 금지(start < end).
+    /// 하루 안의 차단 시간대. 분 단위(0...1439), start·end 모두 포함(inclusive: end가 차단되는
+    /// 마지막 분), 자정 넘김 금지(start <= end). 예: 12:00–12:59는 12:00:00~12:59:59 차단.
+    /// DeviceActivitySchedule 등록 시에는 intervalEnd = endMinuteOfDay + 1로 변환한다
+    /// (ScreenTimeManager.registerTimeWindowGroup 참조).
     struct TimeWindow: Codable, Equatable, Hashable, Identifiable {
         var id: UUID
         var startMinuteOfDay: Int
@@ -103,11 +106,11 @@ enum SharedStore {
         }
 
         var durationMinutes: Int {
-            endMinuteOfDay - startMinuteOfDay
+            endMinuteOfDay - startMinuteOfDay + 1
         }
 
         func contains(minuteOfDay minute: Int) -> Bool {
-            minute >= startMinuteOfDay && minute < endMinuteOfDay
+            minute >= startMinuteOfDay && minute <= endMinuteOfDay
         }
     }
 

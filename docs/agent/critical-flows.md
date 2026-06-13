@@ -52,6 +52,7 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 ## 시간대 차단 흐름
 
 1. 시간대 그룹은 시간대마다 `window.<groupID>.<index>` activity가 `repeats: true`로 등록됩니다 (그룹당 최대 3개, 시간대는 15분 이상·자정 넘김 금지).
+   - **시간대 경계 계약(inclusive)**: `TimeWindow.endMinuteOfDay`는 *차단되는 마지막 분*이다(`contains`는 `start <= m <= end`). 그래서 `12:00–13:00`+`13:00–14:00`은 13:00을 둘 다 차단 → 겹침으로 거부되고, 연속 차단은 `12:00–12:59`+`13:00–14:00`로 표현한다. DeviceActivitySchedule 등록 시에는 *차단이 끝나는 순간* = `intervalEnd = endMinuteOfDay + 1`로 변환한다(`23:59`은 `23:59:59`로). 잠금 뱃지의 "HH:mm까지 잠금"도 inclusive 종료분(예: 12:59)을 표기한다.
 2. 잠김 판정은 이벤트가 아니라 "현재 시각이 시간대 안인지"라는 지속 조건입니다. `SharedStore.resyncTimeWindowLocks(now:)`가 이 판정을 `shieldedGroupIDs`에 반영하며, 일일 한도 그룹과 draft 그룹은 건드리지 않습니다.
 3. resync는 모든 경계 지점에서 호출됩니다: `syncDailyMonitoring` 말미(적용/앱 복귀 시 즉시 판정), extension의 window `intervalDidStart`/`intervalDidEnd`, 일일 리셋 직후, override 종료 경로(연장 소진 재잠금 시 시간대가 끝난 그룹 오잠금 방지), `reapplyShieldIfOverrideExpired`(foreground 1초 보정).
 4. 시간대 잠금도 기존 `shieldedGroupIDs`를 그대로 쓰므로 광고 10분/1분 연장 흐름이 수정 없이 동작합니다.

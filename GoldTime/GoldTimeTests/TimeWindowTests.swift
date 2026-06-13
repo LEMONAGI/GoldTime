@@ -16,14 +16,14 @@ struct TimeWindowTests {
 
     // MARK: - TimeWindow 판정
 
-    @Test func timeWindowContainsIsStartInclusiveEndExclusive() {
-        let window = SharedStore.TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720) // 10:00-12:00
+    @Test func timeWindowContainsIsBothInclusive() {
+        let window = SharedStore.TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 719) // 10:00-11:59(inclusive)
 
-        #expect(window.contains(minuteOfDay: 600))
-        #expect(window.contains(minuteOfDay: 719))
-        #expect(!window.contains(minuteOfDay: 599))
-        #expect(!window.contains(minuteOfDay: 720))
-        #expect(window.durationMinutes == 120)
+        #expect(window.contains(minuteOfDay: 600))   // 시작 분 포함
+        #expect(window.contains(minuteOfDay: 719))   // 종료 분(11:59) 포함
+        #expect(!window.contains(minuteOfDay: 599))  // 시작 직전 미포함
+        #expect(!window.contains(minuteOfDay: 720))  // 종료 다음 분(12:00) 미포함
+        #expect(window.durationMinutes == 120)       // 600...719 = 120분
     }
 
     @Test func minuteOfDayConvertsClockTime() {
@@ -48,12 +48,13 @@ struct TimeWindowTests {
     }
 
     @Test func timeWindowPolicyRejectsMidnightCrossingAndShortWindows() {
-        // 22:00-02:00처럼 start >= end는 자정 넘김으로 본다.
+        // 22:00-02:00처럼 start > end는 자정 넘김으로 본다.
         let crossing = [TimeWindow(startMinuteOfDay: 22 * 60, endMinuteOfDay: 2 * 60)]
         #expect(TimeWindowPolicy.firstInvalidReason(for: crossing) == .crossesMidnight)
 
-        let zeroLength = [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 600)]
-        #expect(TimeWindowPolicy.firstInvalidReason(for: zeroLength) == .crossesMidnight)
+        // start == end는 inclusive 1분짜리 시간대 → 자정 넘김이 아니라 너무 짧음으로 본다.
+        let oneMinute = [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 600)]
+        #expect(TimeWindowPolicy.firstInvalidReason(for: oneMinute) == .tooShort)
 
         // DeviceActivity 최소 interval(15분) 미만은 등록이 실패하므로 사전 차단.
         let short = [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 610)]
@@ -69,19 +70,26 @@ struct TimeWindowTests {
         #expect(TimeWindowPolicy.firstInvalidReason(for: pastMidnight) == .outOfRange)
     }
 
-    @Test func timeWindowPolicyRejectsOverlapButAllowsTouching() {
+    @Test func timeWindowPolicyRejectsOverlapAndBoundarySharing() {
         let overlapping = [
             TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720),
             TimeWindow(startMinuteOfDay: 700, endMinuteOfDay: 780)
         ]
         #expect(TimeWindowPolicy.firstInvalidReason(for: overlapping) == .overlapping)
 
-        // 12:00 종료 + 12:00 시작처럼 맞닿은 시간대는 허용 (contains가 end 미포함이라 중복 잠금 없음).
-        let touching = [
-            TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720),
-            TimeWindow(startMinuteOfDay: 720, endMinuteOfDay: 18 * 60)
+        // end가 inclusive이므로 12:00–13:00 + 13:00–14:00은 13:00을 둘 다 차단 → 겹침으로 거부.
+        let boundarySharing = [
+            TimeWindow(startMinuteOfDay: 12 * 60, endMinuteOfDay: 13 * 60),
+            TimeWindow(startMinuteOfDay: 13 * 60, endMinuteOfDay: 14 * 60)
         ]
-        #expect(TimeWindowPolicy.firstInvalidReason(for: touching) == nil)
+        #expect(TimeWindowPolicy.firstInvalidReason(for: boundarySharing) == .overlapping)
+
+        // 연속 차단은 12:00–12:59 + 13:00–14:00처럼 1분 띄워 표현하면 허용된다(겹침 없음).
+        let contiguous = [
+            TimeWindow(startMinuteOfDay: 12 * 60, endMinuteOfDay: 13 * 60 - 1),
+            TimeWindow(startMinuteOfDay: 13 * 60, endMinuteOfDay: 14 * 60)
+        ]
+        #expect(TimeWindowPolicy.firstInvalidReason(for: contiguous) == nil)
     }
 
     @Test func timeWindowPolicyAcceptsUnsortedValidWindows() {
@@ -309,22 +317,28 @@ struct TimeWindowTests {
         #expect(!SharedStore.shieldedGroupIDs.contains(id))
     }
 
-    @Test func resyncBoundaryStartInclusiveEndExclusive() {
+    @Test func resyncBoundaryIsBothInclusive() {
         SharedStore.clearGroupStateForTesting()
         defer { SharedStore.clearGroupStateForTesting() }
 
         let id = UUID()
+        // 10:00–11:59(inclusive) 차단 시간대.
         SharedStore.screenTimeGroups = [
-            makeWindowGroup(id: id, windows: [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720)])
+            makeWindowGroup(id: id, windows: [TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 719)])
         ]
 
         // 시작 정각(10:00) 포함 → 잠금.
         _ = SharedStore.resyncTimeWindowLocks(now: date(10, 0))
         #expect(SharedStore.shieldedGroupIDs.contains(id))
 
-        // 종료 정각(12:00) 미포함 → 해제.
-        let end = SharedStore.resyncTimeWindowLocks(now: date(12, 0))
-        #expect(end.changed)
+        // 종료 분(11:59) 포함 → 계속 잠금.
+        let atEnd = SharedStore.resyncTimeWindowLocks(now: date(11, 59))
+        #expect(!atEnd.changed)
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+
+        // 종료 다음 분(12:00) 미포함 → 해제.
+        let after = SharedStore.resyncTimeWindowLocks(now: date(12, 0))
+        #expect(after.changed)
         #expect(!SharedStore.shieldedGroupIDs.contains(id))
     }
 
@@ -362,19 +376,20 @@ struct TimeWindowTests {
         #expect(!SharedStore.shieldedGroupIDs.contains(id))
     }
 
-    @Test func resyncKeepsLockAtTouchingWindowBoundary() {
+    @Test func resyncKeepsLockAcrossContiguousWindowBoundary() {
         SharedStore.clearGroupStateForTesting()
         defer { SharedStore.clearGroupStateForTesting() }
 
         let id = UUID()
+        // 10:00–11:59 + 12:00–12:59 연속(end+1 == next.start) → 경계에서 끊김 없이 잠금.
         SharedStore.screenTimeGroups = [
             makeWindowGroup(id: id, windows: [
-                TimeWindow(startMinuteOfDay: 10 * 60, endMinuteOfDay: 12 * 60),
-                TimeWindow(startMinuteOfDay: 12 * 60, endMinuteOfDay: 13 * 60)
+                TimeWindow(startMinuteOfDay: 10 * 60, endMinuteOfDay: 12 * 60 - 1),
+                TimeWindow(startMinuteOfDay: 12 * 60, endMinuteOfDay: 13 * 60 - 1)
             ])
         ]
 
-        // 12:00은 첫 시간대 종료(미포함)이자 둘째 시간대 시작(포함) → 잠금 유지.
+        // 11:59는 첫 시간대 종료(포함), 12:00은 둘째 시간대 시작(포함) → 경계 넘어도 잠금 유지.
         _ = SharedStore.resyncTimeWindowLocks(now: date(11, 30))
         #expect(SharedStore.shieldedGroupIDs.contains(id))
         let atBoundary = SharedStore.resyncTimeWindowLocks(now: date(12, 0))
