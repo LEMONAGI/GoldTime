@@ -243,12 +243,12 @@ private struct TimeWindowsDetailView: View {
     private func addWindow() {
         guard canAddWindow else { return }
         // endMinuteOfDay는 inclusive라 직전 종료 분 +1에서 시작해야 겹치지 않는다.
-        // 비면 21:00~21:59. 직전이 12:00–12:59면 새 시간대는 13:00–13:59.
+        // 비면 08:00~08:59. 직전이 12:00–12:59면 새 시간대는 13:00–13:59.
         let start: Int
         if let lastEnd = windows.map(\.endMinuteOfDay).max() {
             start = min(lastEnd + 1, 23 * 60)
         } else {
-            start = 21 * 60
+            start = 8 * 60
         }
         let end = min(start + 59, 24 * 60 - 1)
         windows.append(TimeWindow(startMinuteOfDay: start, endMinuteOfDay: end))
