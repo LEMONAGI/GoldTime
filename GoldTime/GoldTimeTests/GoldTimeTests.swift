@@ -482,58 +482,7 @@ struct GoldTimeTests {
         #expect(registrar.lastSchedule?.warningTime == nil)
     }
 
-    @Test func oneMinuteExtensionNearMidnightRegistersScheduleLongEnoughToCrossMidnight() {
-        SharedStore.clearGroupStateForTesting()
-        SharedStore.clearDailyStatsForTesting()
-        defer {
-            SharedStore.clearGroupStateForTesting()
-            SharedStore.clearDailyStatsForTesting()
-        }
-
-        let calendar = Calendar.current
-        let now = calendar.date(from: DateComponents(
-            year: 2026,
-            month: 5,
-            day: 19,
-            hour: 23,
-            minute: 50,
-            second: 0
-        ))!
-        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
-        SharedStore.screenTimeGroups = [group]
-        SharedStore.shieldedGroupIDs = [group.id]
-        SharedStore.oneMinuteUsedToday = 0
-        SharedStore.oneMinuteCounterDate = now
-        SharedStore.isShieldActive = true
-        let registrar = FakeOverrideMonitorRegistrar()
-        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
-        ScreenTimeManager.overrideMonitorRegistrar = registrar
-        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
-
-        let outcome = ScreenTimeManager.extendGroup(
-            groupID: group.id,
-            duration: 60,
-            source: .oneMinute,
-            now: now
-        )
-
-        guard case .success(let result) = outcome else {
-            #expect(Bool(false), "자정 직전 1분 연장은 성공해야 합니다.")
-            return
-        }
-        guard let schedule = registrar.lastSchedule,
-              let dates = scheduleDates(from: schedule, calendar: calendar) else {
-            #expect(Bool(false), "등록된 override schedule을 Date로 복원할 수 있어야 합니다.")
-            return
-        }
-        #expect(result.overrideUntil == now.addingTimeInterval(60))
-        #expect(SharedStore.overrideUntilByGroupID[group.id] == result.overrideUntil)
-        #expect(dates.end.timeIntervalSince(dates.start) >= 15 * 60)
-        #expect(calendar.component(.day, from: dates.end) == 20)
-        #expect(schedule.warningTime == nil)
-    }
-
-    @Test func oneMinuteExtensionDuringDayKeepsScheduleUntilEndOfDay() {
+    @Test func oneMinuteExtensionRegistersDateLessScheduleUntilEndOfDay() {
         SharedStore.clearGroupStateForTesting()
         SharedStore.clearDailyStatsForTesting()
         defer {
@@ -568,23 +517,27 @@ struct GoldTimeTests {
             now: now
         )
 
-        guard case .success = outcome else {
+        guard case .success(let result) = outcome else {
             #expect(Bool(false), "낮 시간대 1분 연장은 성공해야 합니다.")
             return
         }
-        guard let schedule = registrar.lastSchedule,
-              let dates = scheduleDates(from: schedule, calendar: calendar) else {
-            #expect(Bool(false), "등록된 override schedule을 Date로 복원할 수 있어야 합니다.")
+        guard let schedule = registrar.lastSchedule else {
+            #expect(Bool(false), "override schedule이 등록되어야 합니다.")
             return
         }
-        let endComponents = calendar.dateComponents(
-            [.year, .month, .day, .hour, .minute, .second],
-            from: dates.end
-        )
-        #expect(calendar.isDate(dates.end, inSameDayAs: now))
-        #expect(endComponents.hour == 23)
-        #expect(endComponents.minute == 59)
-        #expect(endComponents.second == 59)
+        // 측정창은 date-less여야 한다(.day/절대 날짜 컴포넌트는 threshold 즉시·배치 발화 유발).
+        // intervalStart = now의 시:분:초, intervalEnd = 23:59:59, 둘 다 year/month/day 없음.
+        #expect(result.overrideUntil == now.addingTimeInterval(60))
+        #expect(SharedStore.overrideUntilByGroupID[group.id] == result.overrideUntil)
+        #expect(schedule.intervalStart.year == nil)
+        #expect(schedule.intervalStart.day == nil)
+        #expect(schedule.intervalStart.hour == 10)
+        #expect(schedule.intervalStart.minute == 0)
+        #expect(schedule.intervalEnd.year == nil)
+        #expect(schedule.intervalEnd.day == nil)
+        #expect(schedule.intervalEnd.hour == 23)
+        #expect(schedule.intervalEnd.minute == 59)
+        #expect(schedule.intervalEnd.second == 59)
         #expect(schedule.warningTime == nil)
     }
 
@@ -800,56 +753,6 @@ struct GoldTimeTests {
         #expect(SharedStore.lockedGroups(now: now).map(\.id) == [group.id])
     }
 
-    @Test func overrideScheduleWindowStartsInFutureAndDoesNotEndEarly() {
-        let calendar = Calendar(identifier: .gregorian)
-        let now = calendar.date(from: DateComponents(
-            year: 2026,
-            month: 5,
-            day: 19,
-            hour: 10,
-            minute: 0,
-            second: 0
-        ))!.addingTimeInterval(0.25)
-        let overrideUntil = now.addingTimeInterval(60)
-
-        let window = ScreenTimeManager.overrideScheduleWindow(
-            now: now,
-            overrideUntil: overrideUntil,
-            calendar: calendar
-        )
-
-        #expect(window.start > now)
-        #expect(window.end >= overrideUntil)
-        #expect(window.end.timeIntervalSince(window.start) >= 15 * 60)
-        #expect(window.warningTimeComponents != nil)
-        #expect(calendar.date(from: window.startComponents) == window.start)
-        #expect(calendar.date(from: window.endComponents) == window.end)
-    }
-
-    @Test func overrideScheduleWindowCanCrossMidnight() {
-        let calendar = Calendar(identifier: .gregorian)
-        let now = calendar.date(from: DateComponents(
-            year: 2026,
-            month: 5,
-            day: 19,
-            hour: 23,
-            minute: 59,
-            second: 30
-        ))!
-        let overrideUntil = now.addingTimeInterval(15 * 60)
-
-        let window = ScreenTimeManager.overrideScheduleWindow(
-            now: now,
-            overrideUntil: overrideUntil,
-            calendar: calendar
-        )
-
-        #expect(window.start > now)
-        #expect(window.end >= overrideUntil)
-        #expect(window.end.timeIntervalSince(window.start) >= 15 * 60)
-        #expect(calendar.component(.day, from: window.end) == 20)
-    }
-
     @Test func oneMinuteExtensionFailureDoesNotConsumeCounter() {
         SharedStore.clearGroupStateForTesting()
         SharedStore.clearDailyStatsForTesting()
@@ -907,17 +810,6 @@ struct GoldTimeTests {
         #expect(SharedStore.oneMinuteRemaining == 0)
     }
 
-}
-
-private func scheduleDates(
-    from schedule: DeviceActivitySchedule,
-    calendar: Calendar
-) -> (start: Date, end: Date)? {
-    guard let start = calendar.date(from: schedule.intervalStart),
-          let end = calendar.date(from: schedule.intervalEnd) else {
-        return nil
-    }
-    return (start, end)
 }
 
 private struct TestRelockError: LocalizedError {

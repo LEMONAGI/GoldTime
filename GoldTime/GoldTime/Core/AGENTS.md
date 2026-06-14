@@ -43,4 +43,4 @@ Extension은 메인 앱 API에 의존하지 않고 `SharedStore` + 알림으로�
 - 쿨다운 모드 등록은 `CooldownMonitor`(이 폴더, `ScreenTime/`)에 있고 **메인 앱·extension 두 타겟에 모두 포함**된다(extension은 ScreenTimeManager를 못 보므로 재충전 등록을 위해 공유). 이 파일을 옮기거나 import를 늘릴 때 extension 빌드 영향을 확인할 것.
 - 쿨다운 사용량은 `usedTimeByGroupID`를 daily와 공유한다(한 그룹은 daily이거나 cooldown이지 둘 다는 아님). 사이클 시작 시 0으로 리셋해야 진행바·잠금 판정이 맞음 → `endCooldownAndRecharge`가 usedTime을 비운다.
 - 쿨다운도 자정 리셋 대상이다. `clearAllShieldState`가 `cooldownUntilByGroupID`를 비우므로, 자정 보존이 필요한 새 상태를 여기 추가하지 말 것. `cooldownGenerationByID`는 monotonic이라 의도적으로 비우지 않는다.
-- `releaseShield` override 모니터는 자정 직전에도 DeviceActivity 최소 15분 interval을 만족해야 한다. 저장되는 `overrideUntil`(사용자 부여 시간)과 등록용 schedule window를 분리하고, `overrideScheduleWindow`로 자정 넘김을 허용한다.
+- `releaseShield` override 측정창은 반드시 **date-less**(`[.hour,.minute,.second]`, end 23:59:59, `repeats:false`)여야 한다 — `freshDailyWindow`·`CooldownMonitor.usageSchedule`과 동일. intervalStart/End에 `.day`(절대 날짜) 컴포넌트를 넣으면 iOS가 threshold를 **즉시·배치 발화**시켜 연장 직후 m=2,3,4…가 한꺼번에 터진다(Apple Forums 확인, 회귀 커밋 `204a691`). 자정 직전(끝 ~15분) 연장은 측정창이 15분 미만이라 등록 실패할 수 있으나(1.0.2 동작), 자정 넘김(`end<start`) 보장은 `repeats:false`에서 불안정해 적용하지 않는다.

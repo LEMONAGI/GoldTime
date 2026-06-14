@@ -141,19 +141,9 @@ enum ScreenTimeManager {
         let remainingLockedGroups: [SharedStore.ScreenTimeGroup]
     }
 
-    struct OverrideScheduleWindow {
-        let start: Date
-        let end: Date
-        let startComponents: DateComponents
-        let endComponents: DateComponents
-        let warningTimeComponents: DateComponents?
-    }
-
     private static var center: DeviceActivityCenter { DeviceActivityCenter() }
     private static var store: ManagedSettingsStore { ManagedSettingsStore(named: .goldtime) }
     static var overrideMonitorRegistrar: any OverrideMonitorRegistering = DeviceActivityOverrideMonitorRegistrar()
-    private static let overrideMonitorStartDelay: TimeInterval = 1
-    private static let minimumOverrideMonitorDuration: TimeInterval = 15 * 60
     /// 한 그룹이 가질 수 있는 시간대 최대 개수(TimeWindowPolicy와 동일). 그룹이 시간대를 줄이거나
     /// dailyLimit으로 바뀌어도 잔여 window activity가 남지 않도록, 정리 시 0...max-1을 전부 stop한다.
     static let maxTimeWindowsPerGroup = 3
@@ -494,76 +484,6 @@ enum ScreenTimeManager {
         SharedStore.isShieldActive = false
     }
 
-    static func overrideScheduleWindow(
-        now: Date,
-        overrideUntil: Date,
-        calendar: Calendar = .current
-    ) -> OverrideScheduleWindow {
-        let start = roundedUpToWholeSecond(
-            now.addingTimeInterval(overrideMonitorStartDelay),
-            calendar: calendar
-        )
-        let minimumEnd = max(
-            overrideUntil,
-            start.addingTimeInterval(minimumOverrideMonitorDuration)
-        )
-        let end = roundedUpToWholeSecond(minimumEnd, calendar: calendar)
-        let warningTimeComponents = warningTimeComponents(
-            from: end,
-            warningAt: overrideUntil
-        )
-
-        return OverrideScheduleWindow(
-            start: start,
-            end: end,
-            startComponents: calendar.dateComponents(
-                [.year, .month, .day, .hour, .minute, .second],
-                from: start
-            ),
-            endComponents: calendar.dateComponents(
-                [.year, .month, .day, .hour, .minute, .second],
-                from: end
-            ),
-            warningTimeComponents: warningTimeComponents
-        )
-    }
-
-    private static func warningTimeComponents(
-        from intervalEnd: Date,
-        warningAt: Date
-    ) -> DateComponents? {
-        let secondsBeforeEnd = Int(ceil(intervalEnd.timeIntervalSince(warningAt)))
-        guard secondsBeforeEnd > 0 else { return nil }
-
-        return DateComponents(
-            minute: secondsBeforeEnd / 60,
-            second: secondsBeforeEnd % 60
-        )
-    }
-
-    private static func roundedUpToWholeSecond(
-        _ date: Date,
-        calendar: Calendar
-    ) -> Date {
-        let components = calendar.dateComponents(
-            [.year, .month, .day, .hour, .minute, .second, .nanosecond],
-            from: date
-        )
-        var roundedComponents = DateComponents()
-        roundedComponents.year = components.year
-        roundedComponents.month = components.month
-        roundedComponents.day = components.day
-        roundedComponents.hour = components.hour
-        roundedComponents.minute = components.minute
-        roundedComponents.second = components.second
-        let base = calendar.date(from: roundedComponents) ?? date
-
-        if (components.nanosecond ?? 0) == 0 {
-            return base
-        }
-        return calendar.date(byAdding: .second, value: 1, to: base) ?? date
-    }
-
     /// 특정 그룹의 쉴드를 해제하고 사용량 기반으로 재잠금한다.
     /// 그 그룹의 앱을 누적 N분(=seconds/60) 사용하면 즉시 다시 잠긴다.
     /// 시간이 흘러도 사용하지 않으면 잠기지 않는다 (자정 daily reset 때까지 유지).
@@ -585,20 +505,14 @@ enum ScreenTimeManager {
         // relay가 연쇄 발화(runaway)하므로, daily와 동일하게 최대 10개의 1회성 이벤트를 한 번에 등록한다.
         // 각 이벤트는 딱 한 번만 발화하므로 재등록(relay)이 없어 폭주가 구조적으로 불가능하다.
         // 분배 마지막 원소가 항상 minutes(=granted)라 마지막 이벤트에서 정확히 재잠금된다.
+        //
+        // 측정창은 반드시 date-less(`[.hour,.minute,.second]`, end 23:59:59)여야 한다.
+        // intervalEnd에 `.day`/절대 날짜 컴포넌트를 넣으면 iOS가 threshold를 즉시·배치 발화시켜
+        // 연장 직후 m=2,3,4,…가 한꺼번에 터진다(Apple Forums 확인, 회귀 204a691). freshDailyWindow와 동일 형태.
         let calendar = Calendar.current
-        var endOfDayComponents = calendar.dateComponents([.year, .month, .day], from: now)
-        endOfDayComponents.hour = 23
-        endOfDayComponents.minute = 59
-        endOfDayComponents.second = 59
-        let endOfDay = calendar.date(from: endOfDayComponents) ?? end
-        let window = overrideScheduleWindow(
-            now: now,
-            overrideUntil: endOfDay,
-            calendar: calendar
-        )
         let schedule = DeviceActivitySchedule(
-            intervalStart: window.startComponents,
-            intervalEnd: window.endComponents,
+            intervalStart: calendar.dateComponents([.hour, .minute, .second], from: now),
+            intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
             repeats: false
         )
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]

@@ -23,4 +23,4 @@ DeviceActivity interval·threshold 콜백에서 Shield 적용·해제와 일일 
 - 쿨다운 사용 tick(`cdtick.*`, activity `cooldownUsage.*`)은 매 tick마다 `raiseUsedTime`으로 진행바를 갱신하고, 마지막(=`cooldownUsageMinutes`)에서만 잠금+휴식 타이머(`cooldownTimer.*`)를 건다. `cooldownUsage` activity의 `intervalDidEnd`는 daily처럼 무시(23:59:59 자연 종료, 자정 리셋이 재등록).
 - `cooldownTimer` `intervalDidEnd`(휴식 종료)는 재충전 전에 `cooldownEnd != nil` 가드로 자정 등에 이미 풀린 경우 중복 재충전을 막는다. 재충전 시 직전 generation의 `cooldownUsage`를 stop한 뒤 새 generation으로 재등록.
 - 재충전 등록은 `CooldownMonitor`(메인 앱과 공유)를 호출한다. extension에서 직접 DeviceActivity 이름을 문자열로 만들지 말고 이 헬퍼를 쓸 것.
-- 자정 직전 override schedule은 최소 15분 보장을 위해 다음 날까지 열릴 수 있다. `usageTick`이 자정 리셋 이후 늦게 도착하면 stale tick으로 보고 monitor만 멈추며, metadata가 없는 그룹을 재잠금하지 않는다.
+- override 측정창(`releaseShield`)은 date-less(end 23:59:59, 자정을 넘기지 않음)이다. `handleOverrideTick`의 stale-tick 가드(`usageBasedOverride`/`overrideUntil` metadata 없으면 monitor만 멈추고 재잠금 안 함)는 자정 리셋 직후 늦게 도착한 tick에 대한 방어로 그대로 유지한다.
