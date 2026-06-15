@@ -267,4 +267,50 @@ struct CooldownTests {
         #expect(!expired.contains(activeID))
         #expect(!expired.contains(dailyID))
     }
+
+    // MARK: - 편집 시 즉시 잠금 결정 (cooldownEditAction 순수 판정)
+
+    /// 사용자 시나리오: 쿨다운 20분/1시간휴식, 15분 사용 후 예산을 5분으로 변경.
+    /// 평소(자정 아님)엔 예산 소진이므로 즉시 휴식 진입.
+    @Test func cooldownEditActionEntersRestWhenBudgetExceededNormally() {
+        let action = ScreenTimeManager.cooldownEditAction(
+            isInCooldown: false, usedMinutes: 15, budgetMinutes: 5, nearMidnight: false
+        )
+        #expect(action == .enterCooldownRest)
+    }
+
+    /// 같은 입력이라도 자정 직전이면 휴식 타이머 없이 잠금만(자정 리셋이 재충전).
+    @Test func cooldownEditActionLocksUntilMidnightWhenBudgetExceededNearMidnight() {
+        let action = ScreenTimeManager.cooldownEditAction(
+            isInCooldown: false, usedMinutes: 15, budgetMinutes: 5, nearMidnight: true
+        )
+        #expect(action == .lockUntilMidnight)
+    }
+
+    /// 경계: used == budget도 소진으로 본다(>=).
+    @Test func cooldownEditActionTreatsEqualUsageAsExceeded() {
+        #expect(ScreenTimeManager.cooldownEditAction(
+            isInCooldown: false, usedMinutes: 5, budgetMinutes: 5, nearMidnight: false
+        ) == .enterCooldownRest)
+    }
+
+    /// 예산이 남으면 평소엔 정상 등록, 자정 직전엔 미추적 스킵.
+    @Test func cooldownEditActionRegistersOrSkipsWhenBudgetRemains() {
+        #expect(ScreenTimeManager.cooldownEditAction(
+            isInCooldown: false, usedMinutes: 3, budgetMinutes: 5, nearMidnight: false
+        ) == .register)
+        #expect(ScreenTimeManager.cooldownEditAction(
+            isInCooldown: false, usedMinutes: 3, budgetMinutes: 5, nearMidnight: true
+        ) == .skipUntracked)
+    }
+
+    /// 이미 휴식 중이면 예산/시각과 무관하게 .register(registerCooldownGroup이 early-return).
+    @Test func cooldownEditActionDefersToRegisterWhenAlreadyResting() {
+        #expect(ScreenTimeManager.cooldownEditAction(
+            isInCooldown: true, usedMinutes: 99, budgetMinutes: 5, nearMidnight: true
+        ) == .register)
+        #expect(ScreenTimeManager.cooldownEditAction(
+            isInCooldown: true, usedMinutes: 0, budgetMinutes: 5, nearMidnight: false
+        ) == .register)
+    }
 }

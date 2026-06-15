@@ -205,7 +205,7 @@ enum ScreenTimeManager {
         return set.sorted()
     }
 
-    static func syncDailyMonitoring(groups: [SharedStore.ScreenTimeGroup]) throws {
+    static func syncDailyMonitoring(groups: [SharedStore.ScreenTimeGroup], now: Date = Date()) throws {
         resetDailyProtectionStateIfNeeded()
 
         let sanitizedGroups = sanitized(groups)
@@ -306,11 +306,33 @@ enum ScreenTimeManager {
             // (stale 사용 예산/휴식 타이머 activity는 위에서 이미 stop했다)
             if group.ruleKind == .cooldown {
                 generationByID.removeValue(forKey: group.id)
-                do {
-                    try registerCooldownGroup(group)
+                let used = SharedStore.usedTimeByGroupID[group.id] ?? 0
+                let action = cooldownEditAction(
+                    isInCooldown: SharedStore.isInCooldown(group.id, now: now),
+                    usedMinutes: used,
+                    budgetMinutes: group.cooldownUsageMinutes,
+                    nearMidnight: overrideWindowTooShort(now: now)
+                )
+                switch action {
+                case .enterCooldownRest:
+                    // 평소 예산 소진 편집 → 즉시 휴식 진입(cdtick 잠금과 동일, 휴식 후 재충전).
+                    enterCooldownRest(group, now: now)
                     newRegistered[group.id] = group
-                } catch {
-                    firstError = firstError ?? error
+                case .lockUntilMidnight:
+                    // 자정 직전 예산 소진 → 타이머 없이 잠금만(자정 리셋이 해제·재충전).
+                    SharedStore.markGroupShielded(group.id)
+                    newRegistered.removeValue(forKey: group.id)   // 자정 후 fresh 재등록 보장
+                case .skipUntracked:
+                    // 자정 직전 + 예산 남음 → 사용 예산 모니터 등록 불가 → 미추적, 자정 후 재등록.
+                    SharedStore.unmarkGroupShielded(group.id)
+                    newRegistered.removeValue(forKey: group.id)
+                case .register:
+                    do {
+                        try registerCooldownGroup(group)
+                        newRegistered[group.id] = group
+                    } catch {
+                        firstError = firstError ?? error
+                    }
                 }
                 continue
             }
@@ -332,14 +354,22 @@ enum ScreenTimeManager {
                 // 그대로 유지되어 1분 만에 잠기는 버그가 발생한다. 새 generation으로 등록해 시스템
                 // 카운터를 분리한다.
                 center.stopMonitoring([.dailyGroup(for: group.id, generation: currentGen)])
-                SharedStore.unmarkGroupShielded(group.id)
-                let nextGen = (last == nil) ? currentGen : currentGen + 1
-                do {
-                    try registerGroup(group, generation: nextGen)
-                    generationByID[group.id] = nextGen
-                    newRegistered[group.id] = group
-                } catch {
-                    firstError = firstError ?? error
+                SharedStore.unmarkGroupShielded(group.id)   // 여기 도달 = usedMinutes < limit → 미잠금
+                if overrideWindowTooShort(now: now) {
+                    // 자정 직전: freshDailyWindow(now~23:59:59)가 15분 미만이라 startMonitoring이
+                    // intervalTooShort로 실패한다. 모니터 등록을 건너뛰고(미추적) 자정 후 첫 sync가
+                    // 새로 등록하게 한다. stop한 generation 재사용 금지로 +1 미리 올려둔다.
+                    generationByID[group.id] = currentGen + 1
+                    newRegistered.removeValue(forKey: group.id)   // last==nil → 자정 후 fresh 재등록
+                } else {
+                    let nextGen = (last == nil) ? currentGen : currentGen + 1
+                    do {
+                        try registerGroup(group, generation: nextGen)
+                        generationByID[group.id] = nextGen
+                        newRegistered[group.id] = group
+                    } catch {
+                        firstError = firstError ?? error
+                    }
                 }
             } else {
                 // 이름만 변경(selection·한도 동일): DeviceActivity 재시작 없이 등록 정보만 갱신.
@@ -408,6 +438,47 @@ enum ScreenTimeManager {
             generation = SharedStore.cooldownGenerationByID[group.id] ?? 0
         }
         try CooldownMonitor.startUsageMonitoring(center: center, group: group, generation: generation)
+    }
+
+    /// 쿨다운 그룹을 즉시 휴식 진입시킨다(편집으로 사용 예산이 현재 사용량 이하로 바뀐 경우 등).
+    /// extension의 `handleCooldownUsageTick` 잠금부와 동일하게 휴식 타이머까지 등록한다. 단 편집
+    /// 트리거 잠금이라 분석 shield_hit은 남기지 않는다(사용 중 막힘이 아니라 설정 변경). 자정 직전엔
+    /// 호출하지 않는다(타이머 자정 넘김 회피 — 호출부에서 markGroupShielded만).
+    private static func enterCooldownRest(_ group: SharedStore.ScreenTimeGroup, now: Date) {
+        let until = now.addingTimeInterval(TimeInterval(group.cooldownDurationMinutes * 60))
+        SharedStore.startCooldown(until: until, for: group.id)   // 내부에서 markGroupShielded
+        try? CooldownMonitor.startCooldownTimer(
+            center: center,
+            groupID: group.id,
+            until: until,
+            now: now
+        )
+    }
+
+    /// 쿨다운 그룹 편집/재동기화 시 어떤 조치를 취할지 결정한다(Apple framework 호출 없는 순수 판정).
+    /// daily의 `usedMinutes >= limit → 즉시 잠금`에 대응해, 쿨다운도 예산 소진이면 즉시 잠금한다.
+    /// - 휴식 중: `.register`(registerCooldownGroup이 early-return하므로 무해, 모니터 미등록).
+    /// - 예산 소진(`used >= budget`): 평소 `.enterCooldownRest`(휴식 진입+타이머), 자정 직전
+    ///   `.lockUntilMidnight`(타이머 자정 넘김 회피 + 자정 리셋이 재충전하므로 markGroupShielded만).
+    /// - 예산 남음: 평소 `.register`, 자정 직전 `.skipUntracked`(사용 예산 모니터 등록 불가 → 미추적).
+    enum MonitorEditAction: Equatable {
+        case register
+        case skipUntracked
+        case lockUntilMidnight
+        case enterCooldownRest
+    }
+
+    nonisolated static func cooldownEditAction(
+        isInCooldown: Bool,
+        usedMinutes: Int,
+        budgetMinutes: Int,
+        nearMidnight: Bool
+    ) -> MonitorEditAction {
+        if isInCooldown { return .register }
+        if usedMinutes >= budgetMinutes {
+            return nearMidnight ? .lockUntilMidnight : .enterCooldownRest
+        }
+        return nearMidnight ? .skipUntracked : .register
     }
 
     static func validDailyMonitoringGroups(
