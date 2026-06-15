@@ -180,8 +180,8 @@ struct ContentView: View {
                 )
             case .applyConfirmation(let confirmation):
                 Alert(
-                    title: Text("그룹을 적용할까요?"),
-                    message: Text("‘\(confirmation.groupName)’ 그룹을 적용하면 바로 보호가 시작돼요. 이후 규칙 변경, 제한 항목 수정, 삭제에는 광고 시청이 필요해요."),
+                    title: Text("차단 규칙을 적용할까요?"),
+                    message: Text("‘\(confirmation.groupName)’에 지금부터 적용돼요. 이후 규칙이나 항목을 바꾸거나 삭제하려면 광고를 봐야 해요."),
                     primaryButton: .default(Text("적용하기")) {
                         viewModel.confirmApplyGroup(confirmation)
                     },
