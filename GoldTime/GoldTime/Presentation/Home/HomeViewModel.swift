@@ -68,61 +68,6 @@ struct HomeViewModel {
     var maxAppsPerGroup: Int { ScreenTimeGroupPolicy.maxAppsPerGroup }
     var isAtGroupLimit: Bool { groups.count >= maxGroupCount }
 
-    var protectionStatusTitle: String {
-        if isMonitoring {
-            return "차단 규칙 적용 중"
-        }
-        if groups.isEmpty {
-            return "설정 필요"
-        }
-        if validMonitoringGroups.isEmpty {
-            return "설정 필요"
-        }
-        return "차단 규칙 대기"
-    }
-
-    var protectionStatusCaption: String {
-        if isMonitoring {
-            let count = validMonitoringGroups.count
-            return count > 1 ? "\(count)개 유효 그룹에 규칙을 적용 중이에요" : "유효한 그룹에 규칙을 적용 중이에요"
-        }
-        if groups.isEmpty {
-            return "그룹을 만들고 적용하면 보호가 시작돼요"
-        }
-        if validMonitoringGroups.isEmpty {
-            return "항목과 규칙을 정해 적용한 그룹이 필요해요"
-        }
-        return "차단 규칙을 준비하고 있어요"
-    }
-
-    var protectionStatusIcon: String {
-        isMonitoring ? "checkmark.shield.fill" : "shield"
-    }
-
-    var protectionStatusTint: Color {
-        if isMonitoring {
-            return .green
-        }
-        return validMonitoringGroups.isEmpty ? .secondary : Color.accent
-    }
-
-    var protectionSetupMessage: String? {
-        guard !groups.isEmpty else {
-            return nil
-        }
-
-        let invalidCount = invalidMonitoringGroups.count
-        guard invalidCount > 0 else {
-            return nil
-        }
-
-        if validMonitoringGroups.isEmpty {
-            return "아직 적용할 수 있는 그룹이 없어요. 앱이나 웹 사이트를 하나 이상 담고 규칙을 정해 적용해 주세요."
-        }
-
-        return "\(invalidCount)개 그룹은 설정이 덜 끝나서 차단 규칙 적용에서 제외됐어요."
-    }
-
     var billTotalText: String {
         let total = todayStats.totalUnlockedSeconds
         guard total > 0 else { return "0분" }
@@ -148,7 +93,7 @@ struct HomeViewModel {
 
     func statusTitle(for group: ScreenTimeGroup) -> String {
         if !group.isApplied {
-            return "설정 중"
+            return "설정 필요"
         }
         if lockedGroupIDs.contains(group.id) {
             return lockedBadgeTitle(for: group)
@@ -209,9 +154,25 @@ struct HomeViewModel {
         return "사용 가능"
     }
 
+    /// 그룹 카드 아이콘. 색을 칠하는 statusTint(for:)와 같은 분기 순서를 따른다.
+    /// orange 상태(설정 중/설정 필요)는 빈 방패, 그 외(잠금·추가사용·사용 가능)는 체크 방패.
+    /// 잠금/추가사용은 invalidReason보다 먼저 잡아 색(red/blue)과 아이콘이 어긋나지 않게 한다.
+    func statusIcon(for group: ScreenTimeGroup) -> String {
+        if !group.isApplied {
+            return "shield"
+        }
+        if lockedGroupIDs.contains(group.id) || overrideGroupIDs.contains(group.id) {
+            return "checkmark.shield.fill"
+        }
+        if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
+            return "shield"
+        }
+        return "checkmark.shield.fill"
+    }
+
     func statusTint(for group: ScreenTimeGroup) -> Color {
         if !group.isApplied {
-            return .secondary
+            return .orange
         }
         if lockedGroupIDs.contains(group.id) {
             return .red
@@ -358,19 +319,6 @@ struct HomeViewModel {
         return sorted
             .map { "\(goldTimeClockText(minuteOfDay: $0.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: $0.endMinuteOfDay))" }
             .joined(separator: ", ")
-    }
-
-    private var validMonitoringGroups: [ScreenTimeGroup] {
-        groups.filter { validGroupIDs.contains($0.id) }
-    }
-
-    /// 적용된 그룹 중 설정 미비로 모니터링에서 빠진 그룹.
-    /// draft(미적용)는 "설정이 덜 끝난 그룹"이 아니라 적용 대기 상태이므로 제외한다.
-    private var invalidMonitoringGroups: [ScreenTimeGroup] {
-        groups.filter { group in
-            group.isApplied
-                && ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil
-        }
     }
 
     var hasBillCost: Bool {

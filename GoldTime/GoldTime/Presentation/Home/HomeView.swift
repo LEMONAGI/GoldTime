@@ -186,9 +186,7 @@ struct HomeView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(viewModel.isAtGroupLimit ? .orange : .secondary)
             }
-            
-            monitoringControls
-            
+
             if viewModel.groups.isEmpty {
                 emptyGroupState
             } else {
@@ -252,32 +250,6 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .cardContainer(padding: 20)
-    }
-    
-    private var monitoringControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                IconTile(
-                    systemName: viewModel.protectionStatusIcon,
-                    tint: viewModel.protectionStatusTint
-                )
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(viewModel.protectionStatusTitle)
-                        .font(.body.weight(.semibold))
-                    Text(viewModel.protectionStatusCaption)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            
-            if let setupMessage = viewModel.protectionSetupMessage {
-                Text(setupMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .cardContainer()
     }
     
     private func statusSection(_ message: String, tint: Color, systemName: String) -> some View {

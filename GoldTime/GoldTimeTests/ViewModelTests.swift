@@ -6,6 +6,7 @@
 import Foundation
 import FamilyControls
 import ManagedSettings
+import SwiftUI
 import Testing
 import UIKit
 @testable import GoldTime
@@ -1185,7 +1186,8 @@ struct ViewModelTests {
             validGroupIDs: [lockedGroup.id]
         )
 
-        #expect(viewModel.protectionStatusTitle == "차단 규칙 적용 중")
+        #expect(viewModel.statusIcon(for: lockedGroup) == "checkmark.shield.fill")
+        #expect(viewModel.statusTint(for: lockedGroup) == .red)
         #expect(viewModel.statusTitle(for: lockedGroup) == "23:59까지 잠금")
     }
 

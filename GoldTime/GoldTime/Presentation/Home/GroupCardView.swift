@@ -65,8 +65,11 @@ struct GroupCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
-                IconTile(systemName: "app.badge", tint: Color.accent)
-                    .padding(.trailing, 12)
+                IconTile(
+                    systemName: viewModel.statusIcon(for: group),
+                    tint: viewModel.statusTint(for: group)
+                )
+                .padding(.trailing, 12)
 
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("그룹명", text: Binding(
