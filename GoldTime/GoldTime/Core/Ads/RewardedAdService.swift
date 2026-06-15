@@ -72,13 +72,18 @@ final class RewardedAdService: NSObject {
     }
 
     private func adUnitID(for placement: Placement) -> String {
+        #if DEBUG
+        // Debug 빌드는 테스트 기기 등록과 무관하게 항상 Google 공식 테스트 보상형 광고를 띄운다.
+        // 실제 광고 단위로 테스트 클릭하면 정책 위반(무효 트래픽)이 되므로 Debug에서는 절대 실 단위를 쓰지 않는다.
+        return "ca-app-pub-3940256099942544/1712485313"
+        #else
         switch placement {
         case .shieldUnlock:
-            // 실제 광고 단위. Debug 빌드에서는 ConsentService에 등록된 테스트 기기에서만 테스트 광고가 노출된다.
             return "ca-app-pub-7955752005034474/4426609987"
         case .groupEditGate:
             return "ca-app-pub-7955752005034474/7898408564"
         }
+        #endif
     }
 }
 
