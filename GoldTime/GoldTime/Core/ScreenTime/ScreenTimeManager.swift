@@ -598,6 +598,10 @@ enum ScreenTimeManager {
                 registeredAt: now,
                 message: "failed to register override monitor: \(error.localizedDescription)"
             )
+            SharedStore.enqueueScreenTimeError(
+                context: "overrideMonitor",
+                message: error.localizedDescription
+            )
             print("Failed to start override monitoring: \(error.localizedDescription)")
             return .failure(.relockTimerRegistrationFailed)
         }

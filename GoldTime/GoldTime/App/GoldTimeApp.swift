@@ -15,6 +15,9 @@ struct GoldTimeApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        // Firebase Analytics/Crashlytics 부트스트랩. 모든 Analytics 호출보다 먼저 1회.
+        AnalyticsService.shared.configure()
+
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: MonitoringBackgroundTask.identifier,
             using: nil

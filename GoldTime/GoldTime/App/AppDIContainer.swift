@@ -17,6 +17,7 @@ final class AppDIContainer {
         AuthorizationRepositoryImpl(service: authorizationService)
     private lazy var notificationRepository: any NotificationRepository = NotificationRepositoryImpl()
     private lazy var adRepository: any AdRepository = AdRepositoryImpl(service: rewardedAdService)
+    private lazy var analyticsRepository: any AnalyticsRepository = AnalyticsRepositoryImpl()
 
     // MARK: - UseCase 팩토리
 
@@ -69,7 +70,8 @@ final class AppDIContainer {
         AppLifecycleViewModel(
             authorizeUseCase: makeAuthorizeUseCase(),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
-            shieldRepository: shieldRepository
+            shieldRepository: shieldRepository,
+            analyticsRepository: analyticsRepository
         )
     }
 
@@ -78,12 +80,16 @@ final class AppDIContainer {
             manageGroupsUseCase: makeManageGroupsUseCase(),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase()
+            authorizeUseCase: makeAuthorizeUseCase(),
+            analyticsRepository: analyticsRepository
         )
     }
 
     func makeLockOptionsViewModel() -> LockOptionsViewModel {
-        LockOptionsViewModel(extendGroupUseCase: makeExtendGroupUseCase())
+        LockOptionsViewModel(
+            extendGroupUseCase: makeExtendGroupUseCase(),
+            analyticsRepository: analyticsRepository
+        )
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {
@@ -93,6 +99,7 @@ final class AppDIContainer {
     func makeOnboardingViewModel(onAuthorized: @escaping () -> Void) -> OnboardingViewModel {
         OnboardingViewModel(
             authorizeUseCase: makeAuthorizeUseCase(),
+            analyticsRepository: analyticsRepository,
             onAuthorized: onAuthorized
         )
     }

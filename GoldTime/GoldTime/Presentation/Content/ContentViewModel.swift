@@ -115,6 +115,7 @@ final class ContentViewModel {
     private let syncProtectionUseCase: SyncProtectionUseCase
     private let loadDashboardUseCase: LoadDashboardUseCase
     private let authorizeUseCase: AuthorizeUseCase
+    private let analyticsRepository: any AnalyticsRepository
     private let userDefaults: UserDefaults
     private var authorizationObservation: AuthorizationObservation?
 
@@ -123,6 +124,7 @@ final class ContentViewModel {
         syncProtectionUseCase: SyncProtectionUseCase? = nil,
         loadDashboardUseCase: LoadDashboardUseCase? = nil,
         authorizeUseCase: AuthorizeUseCase? = nil,
+        analyticsRepository: (any AnalyticsRepository)? = nil,
         userDefaults: UserDefaults = .standard
     ) {
         let groupRepo = GroupRepositoryImpl()
@@ -149,6 +151,7 @@ final class ContentViewModel {
             authRepository: authRepo,
             notificationRepository: notifRepo
         )
+        self.analyticsRepository = analyticsRepository ?? AnalyticsRepositoryImpl()
         self.userDefaults = userDefaults
 
         isAuthorized = self.authorizeUseCase.isAuthorized
@@ -256,6 +259,7 @@ final class ContentViewModel {
             let newGroup = try manageGroupsUseCase.makeNewGroup(currentCount: groups.count)
             groups.append(newGroup)
             persistGroups(shouldSyncProtection: false)
+            analyticsRepository.log(.groupCreated(groupCount: groups.count))
             successMessage = nil
             errorMessage = nil
         } catch {
@@ -497,6 +501,8 @@ final class ContentViewModel {
         updateGroup(confirmation.groupID) { groups in
             manageGroupsUseCase.markApplied(id: confirmation.groupID, in: &groups)
         }
+        let ruleKind = groups.first { $0.id == confirmation.groupID }?.ruleKind?.rawValue ?? "unknown"
+        analyticsRepository.log(.groupApplied(ruleKind: ruleKind))
     }
 
     func cancelApplyGroup() {
@@ -537,7 +543,9 @@ final class ContentViewModel {
 
     private func persistGroups(shouldSyncProtection: Bool = true) {
         if shouldSyncProtection {
-            syncProtectionRules()
+            // 사용자가 그룹을 편집해 모니터링을 재적용하는 경로. foreground 진입 경로
+            // (requestScreenTimeAuthorizationOnEntry)와 달리 분석 이벤트를 남긴다.
+            syncProtectionRules(logMonitoringSync: true)
         } else {
             manageGroupsUseCase.persist(groups)
             groups = manageGroupsUseCase.currentGroups()
@@ -556,7 +564,7 @@ final class ContentViewModel {
         persistGroups(shouldSyncProtection: shouldSyncProtection)
     }
 
-    private func syncProtectionRules() {
+    private func syncProtectionRules(logMonitoringSync: Bool = false) {
         do {
             try manageGroupsUseCase.persistAndSync(groups)
             groups = manageGroupsUseCase.currentGroups()
@@ -564,6 +572,10 @@ final class ContentViewModel {
             let state = loadDashboardUseCase.refresh(groups: groups)
             isMonitoring = state.isDailyMonitoringEnabled
             applyDashboardState(state)
+            if logMonitoringSync {
+                let appliedCount = groups.filter { $0.isApplied }.count
+                analyticsRepository.log(.monitoringSynced(appliedGroupCount: appliedCount))
+            }
         } catch {
             successMessage = nil
             errorMessage = "자동 적용 실패: \(error.localizedDescription)"

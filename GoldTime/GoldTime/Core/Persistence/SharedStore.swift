@@ -44,6 +44,7 @@ enum SharedStore {
         static let lastMorningNotificationDate = "lastMorningNotificationDate"
         static let isDailyMorningNotificationEnabled = "isDailyMorningNotificationEnabled"
         static let statsTrackingStartDate = "statsTrackingStartDate"
+        static let pendingAnalyticsEvents = "pendingAnalyticsEvents"
     }
 
     /// 하루 요약(오전 9시) 알림 수신 여부. 기본값 On.
@@ -512,6 +513,63 @@ enum SharedStore {
         updateStatsForToday { stats in
             stats.walkAwayCount += 1
         }
+    }
+
+    // MARK: - Analytics 대기 큐 (extension → 메인 앱)
+
+    /// extension에서 발생한 분석 이벤트를 임시 보관하는 페이로드.
+    /// extension은 Firebase를 링크하지 않으므로, 여기에 쌓아두면 메인 앱이 foreground 진입 시
+    /// 드레인해서 전송한다. 값은 모두 문자열로 직렬화해 Codable 안정성을 확보한다.
+    struct PendingAnalyticsEvent: Codable {
+        let name: String
+        let parameters: [String: String]
+        let timestamp: Date
+    }
+
+    /// 큐 무한 증가 방지를 위한 상한. 초과 시 가장 오래된 항목부터 버린다.
+    private static let pendingAnalyticsEventsCap = 200
+
+    /// 큐 디코딩은 절대 throw하지 않는다(실패 시 빈 배열). key/구조 변경 시 하위 호환 주의.
+    private static var pendingAnalyticsEvents: [PendingAnalyticsEvent] {
+        get {
+            guard let data = defaults.data(forKey: Key.pendingAnalyticsEvents) else { return [] }
+            return (try? JSONDecoder().decode([PendingAnalyticsEvent].self, from: data)) ?? []
+        }
+        set {
+            let data = try? JSONEncoder().encode(newValue)
+            defaults.set(data, forKey: Key.pendingAnalyticsEvents)
+        }
+    }
+
+    static func enqueueAnalyticsEvent(name: String, parameters: [String: String] = [:]) {
+        var events = pendingAnalyticsEvents
+        events.append(PendingAnalyticsEvent(name: name, parameters: parameters, timestamp: Date()))
+        if events.count > pendingAnalyticsEventsCap {
+            events = Array(events.suffix(pendingAnalyticsEventsCap))
+        }
+        pendingAnalyticsEvents = events
+    }
+
+    /// Shield 진입. ruleKind = dailyLimit/timeWindows/cooldown.
+    static func enqueueShieldHit(ruleKind: String) {
+        enqueueAnalyticsEvent(name: "shield_hit", parameters: ["rule_kind": ruleKind])
+    }
+
+    /// Screen Time API 실패. context = 발생 지점, message = 오류 요약(100자 제한).
+    static func enqueueScreenTimeError(context: String, message: String) {
+        enqueueAnalyticsEvent(
+            name: "screen_time_error",
+            parameters: ["context": context, "message": String(message.prefix(100))]
+        )
+    }
+
+    /// 큐를 비우고 보관 중이던 이벤트를 반환한다(메인 앱 드레인용).
+    static func drainPendingAnalyticsEvents() -> [PendingAnalyticsEvent] {
+        let events = pendingAnalyticsEvents
+        if !events.isEmpty {
+            defaults.removeObject(forKey: Key.pendingAnalyticsEvents)
+        }
+        return events
     }
 
     #if DEBUG

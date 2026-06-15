@@ -88,6 +88,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             let result = SharedStore.resyncTimeWindowLocks()
             if !result.newlyLocked.isEmpty {
                 SharedStore.recordShieldHit()
+                SharedStore.enqueueShieldHit(ruleKind: "timeWindows")
             }
             applyShieldFromGroups()
         } else if activity.dailyGroupID != nil {
@@ -191,6 +192,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
         if willLock {
             SharedStore.recordShieldHit()
+            SharedStore.enqueueShieldHit(ruleKind: "dailyLimit")
             SharedStore.markGroupShielded(groupID)
             applyShieldFromGroups()
         }
@@ -256,11 +258,19 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         let until = Date().addingTimeInterval(TimeInterval(group.cooldownDurationMinutes * 60))
         SharedStore.startCooldown(until: until, for: groupID)
         SharedStore.recordShieldHit()
-        try? CooldownMonitor.startCooldownTimer(
-            center: DeviceActivityCenter(),
-            groupID: groupID,
-            until: until
-        )
+        SharedStore.enqueueShieldHit(ruleKind: "cooldown")
+        do {
+            try CooldownMonitor.startCooldownTimer(
+                center: DeviceActivityCenter(),
+                groupID: groupID,
+                until: until
+            )
+        } catch {
+            SharedStore.enqueueScreenTimeError(
+                context: "cooldownTimer",
+                message: error.localizedDescription
+            )
+        }
         applyShieldFromGroups()
     }
 
@@ -279,11 +289,18 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // 직전 사이클의 사용 예산 activity를 멈춘 뒤 새 generation으로 재등록.
         center.stopMonitoring([.cooldownUsage(for: groupID, generation: generation - 1)])
         if let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 {
-            try? CooldownMonitor.startUsageMonitoring(
-                center: center,
-                group: group,
-                generation: generation
-            )
+            do {
+                try CooldownMonitor.startUsageMonitoring(
+                    center: center,
+                    group: group,
+                    generation: generation
+                )
+            } catch {
+                SharedStore.enqueueScreenTimeError(
+                    context: "cooldownRecharge",
+                    message: error.localizedDescription
+                )
+            }
         }
         applyShieldFromGroups()
     }

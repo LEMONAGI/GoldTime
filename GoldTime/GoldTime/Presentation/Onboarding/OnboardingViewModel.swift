@@ -29,11 +29,13 @@ final class OnboardingViewModel {
     var isRequesting = false
 
     private let authorizeUseCase: AuthorizeUseCase
+    private let analyticsRepository: any AnalyticsRepository
     private let onAuthorized: () -> Void
     private let userDefaults: UserDefaults
 
     init(
         authorizeUseCase: AuthorizeUseCase? = nil,
+        analyticsRepository: (any AnalyticsRepository)? = nil,
         startStep: OnboardingStep = .intro,
         userDefaults: UserDefaults = .standard,
         onAuthorized: @escaping () -> Void
@@ -42,6 +44,7 @@ final class OnboardingViewModel {
             authRepository: AuthorizationRepositoryImpl(),
             notificationRepository: NotificationRepositoryImpl()
         )
+        self.analyticsRepository = analyticsRepository ?? AnalyticsRepositoryImpl()
         self.currentStep = startStep
         self.userDefaults = userDefaults
         self.onAuthorized = onAuthorized
@@ -57,13 +60,16 @@ final class OnboardingViewModel {
         do {
             try await authorizeUseCase.requestScreenTime()
         } catch {
+            analyticsRepository.log(.authorizationResult(granted: false))
             errorMessage = "스크린타임 권한이 필요해요. 다시 한 번 버튼을 눌러 권한을 허용해주세요."
             return
         }
         if authorizeUseCase.isAuthorized {
+            analyticsRepository.log(.authorizationResult(granted: true))
             errorMessage = nil
             currentStep = .notificationPermission
         } else {
+            analyticsRepository.log(.authorizationResult(granted: false))
             errorMessage = "스크린타임 권한이 필요해요. 다시 한 번 버튼을 눌러 권한을 허용해주세요."
         }
     }

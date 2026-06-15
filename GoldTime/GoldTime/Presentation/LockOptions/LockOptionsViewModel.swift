@@ -40,6 +40,7 @@ final class LockOptionsViewModel {
     private var isExtending = false
 
     private let extendGroupUseCase: ExtendGroupUseCase
+    private let analyticsRepository: any AnalyticsRepository
     private let relockRetryDelays: [UInt64] = [
         300_000_000,
         700_000_000,
@@ -54,11 +55,15 @@ final class LockOptionsViewModel {
         "멈추거나, 광고를 보거나."
     ]
 
-    init(extendGroupUseCase: ExtendGroupUseCase? = nil) {
+    init(
+        extendGroupUseCase: ExtendGroupUseCase? = nil,
+        analyticsRepository: (any AnalyticsRepository)? = nil
+    ) {
         self.extendGroupUseCase = extendGroupUseCase ?? ExtendGroupUseCase(
             shieldRepository: ShieldRepositoryImpl(),
             screenTimeRepository: ScreenTimeRepositoryImpl()
         )
+        self.analyticsRepository = analyticsRepository ?? AnalyticsRepositoryImpl()
     }
 
     var selectedGroup: ScreenTimeGroup? {
@@ -153,6 +158,9 @@ final class LockOptionsViewModel {
 
     func tapWalkAway() -> Bool {
         extendGroupUseCase.walkAway(lockedGroups: lockedGroups)
+        if !lockedGroups.isEmpty {
+            analyticsRepository.log(.walkAway(lockedCount: lockedGroups.count))
+        }
         return true
     }
 
@@ -232,6 +240,12 @@ final class LockOptionsViewModel {
 
         switch outcome {
         case .success(let result):
+            switch source {
+            case .adReward:
+                analyticsRepository.log(.adUnlock(seconds: result.durationSeconds))
+            case .oneMinute:
+                analyticsRepository.log(.oneMinuteUnlock)
+            }
             pendingRetry = nil
             retryTask?.cancel()
             retryTask = nil
