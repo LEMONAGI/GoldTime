@@ -68,5 +68,6 @@ struct AppPickerSheet: View {
             .navigationTitle("항목 선택")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .interactiveDismissDisabled()
     }
 }

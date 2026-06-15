@@ -57,6 +57,7 @@ struct RuleEditorSheet: View {
                 }
             }
         }
+        .interactiveDismissDisabled()
     }
 
     @ViewBuilder

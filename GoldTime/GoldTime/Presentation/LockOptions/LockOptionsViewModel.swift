@@ -325,12 +325,12 @@ final class LockOptionsViewModel {
         if isNearMidnightCutoff {
             // 자정 근처는 사용량이 아니라 "자정까지" 시간 기반으로 열린다.
             let endText = goldTimeClockText(date: result.overrideUntil)
-            message = "\(result.group.displayName) 잠금을 풀었어요.\n\(endText)까지 사용할 수 있어요. 자정에는 새로 시작돼요."
+            message = "\(result.group.displayName) 잠금을 풀었어요. \(endText)까지 사용할 수 있어요. 자정에는 새로 시작돼요."
         } else {
             let duration = result.durationSeconds == 60 ? "1분" : "\(result.durationSeconds / 60)분"
             message = source == .adReward
-                ? "\(result.group.displayName) \(duration)을 구매했어요.\n\(duration) 더 쓰면 다시 잠겨요."
-                : "\(result.group.displayName)을 \(duration) 연장했어요.\n\(duration) 더 쓰면 다시 잠겨요."
+                ? "\(result.group.displayName) \(duration)을 구매했어요. \(duration) 더 쓰면 다시 잠겨요."
+                : "\(result.group.displayName)을 \(duration) 연장했어요. \(duration) 더 쓰면 다시 잠겨요."
         }
 
         if let token = requestedApplicationToken {
@@ -340,7 +340,7 @@ final class LockOptionsViewModel {
                 requestedWebDomainToken: nil
             )
             if let remainingGroup = remaining.first {
-                message += "\n\(remainingGroup.displayName)는 아직 잠겨 있어요."
+                message += " 다른 그룹은 아직 잠겨 있어요."
             }
         } else if let requestedWebDomainToken {
             let remaining = extendGroupUseCase.lockedGroupsAfterExtension(
@@ -349,10 +349,10 @@ final class LockOptionsViewModel {
                 requestedWebDomainToken: requestedWebDomainToken
             )
             if let remainingGroup = remaining.first {
-                message += "\n\(remainingGroup.displayName)는 아직 잠겨 있어요."
+                message += " 다른 그룹은 아직 잠겨 있어요."
             }
         } else if let remainingGroup = result.remainingLockedGroups.first {
-            message += "\n\(remainingGroup.displayName)는 아직 잠겨 있어요."
+            message += " 다른 그룹은 아직 잠겨 있어요."
         }
 
         return message
