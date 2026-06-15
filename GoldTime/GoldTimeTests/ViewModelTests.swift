@@ -1168,6 +1168,31 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 0)
     }
 
+    @Test func nearMidnightEditNoticeShownOnlyWithinCutoff() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+
+        // 자정 직전이 아니면 안내 없음.
+        screenTimeRepo.nearMidnightCutoff = false
+        #expect(viewModel.nearMidnightEditNotice == nil)
+
+        // 자정 직전(23:45+)이면 안내 노출.
+        screenTimeRepo.nearMidnightCutoff = true
+        #expect(viewModel.nearMidnightEditNotice == "23:45부터는 사용량 추적이 어려워요. 지금 바꾼 규칙은 00:00부터 다시 정확히 적용됩니다.")
+    }
+
     @Test func switchingToTimeWindowsPreservesDailyLimitMinutes() {
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(),
@@ -2086,7 +2111,7 @@ struct ViewModelTests {
         #expect(viewModel.isNearMidnightCutoff)
         #expect(!viewModel.canExtendOneMinute)
         #expect(viewModel.canExtendWithAd)
-        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량을 추적할 수 없어서, 광고로 잠금 해제하면 자정까지 열려요. 00:00에 규칙이 다시 적용됩니다.")
+        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량 추적이 어려워요. 광고를 보면 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
         #expect(viewModel.adButtonTitle == "광고 보고 자정까지 열기")
     }
 
@@ -2107,7 +2132,7 @@ struct ViewModelTests {
         viewModel.onAppear()
 
         #expect(!viewModel.isNearMidnightCutoff)
-        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량을 추적할 수 없어서, 광고로 잠금 해제하면 자정까지 열려요. 00:00에 규칙이 다시 적용됩니다.")
+        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량 추적이 어려워요. 광고를 보면 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
         #expect(viewModel.canExtendOneMinute)
         #expect(viewModel.canExtendWithAd)
         #expect(viewModel.adButtonTitle == "광고 보고 10분 구매하기")

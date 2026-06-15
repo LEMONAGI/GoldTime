@@ -94,4 +94,10 @@ final class ManageGroupsUseCase {
         let saved = groupRepository.screenTimeGroups
         try screenTimeRepository.syncDailyMonitoring(groups: saved)
     }
+
+    /// 자정 직전(23:45+)이라 그룹을 편집해도 사용량 추적 모니터를 재등록할 수 없는 구간인지.
+    /// 편집 화면에서 안내 문구를 띄울지 판단하는 데 쓴다(연장 cutoff와 동일 경계).
+    func isNearMidnightEditCutoff(now: Date = Date()) -> Bool {
+        screenTimeRepository.isNearMidnightOverrideCutoff(now: now)
+    }
 }

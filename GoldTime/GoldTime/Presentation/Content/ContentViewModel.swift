@@ -198,6 +198,13 @@ final class ContentViewModel {
         ruleEditorGroupID != nil
     }
 
+    /// 자정 직전(23:45+)이라 편집해도 사용량 추적이 자정까지 불가능할 때 편집 상세에 띄울 안내.
+    /// 일일 한도·쿨다운 상세에서만 노출한다(시간대별 차단은 영향 없음 — View에서 분기).
+    var nearMidnightEditNotice: String? {
+        guard manageGroupsUseCase.isNearMidnightEditCutoff() else { return nil }
+        return "23:45부터는 사용량 추적이 어려워요. 지금 바꾼 규칙은 00:00부터 다시 정확히 적용됩니다."
+    }
+
     func setRuleEditorPresented(_ isPresented: Bool) {
         if !isPresented {
             ruleEditorGroupID = nil
