@@ -9,8 +9,8 @@ final class AdRepositoryImpl: AdRepository {
         self.service = service
     }
 
-    var loadState: AdLoadState {
-        switch service.loadState {
+    func loadState(for placement: RewardedAdPlacement) -> AdLoadState {
+        switch service.loadState(for: placement.servicePlacement) {
         case .idle: return .idle
         case .loading: return .loading
         case .ready: return .ready
@@ -18,12 +18,28 @@ final class AdRepositoryImpl: AdRepository {
         }
     }
 
-    func loadAd() { service.loadAd() }
+    func loadAd(for placement: RewardedAdPlacement) {
+        service.loadAd(for: placement.servicePlacement)
+    }
 
     func present(
         from viewController: UIViewController,
+        placement: RewardedAdPlacement,
         onDismissed: @escaping (Bool) -> Void
     ) {
-        service.present(from: viewController, onDismissed: onDismissed)
+        service.present(
+            from: viewController,
+            placement: placement.servicePlacement,
+            onDismissed: onDismissed
+        )
+    }
+}
+
+private extension RewardedAdPlacement {
+    var servicePlacement: RewardedAdService.Placement {
+        switch self {
+        case .shieldUnlock: return .shieldUnlock
+        case .groupEditGate: return .groupEditGate
+        }
     }
 }

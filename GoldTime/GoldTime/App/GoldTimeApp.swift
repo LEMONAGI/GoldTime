@@ -46,6 +46,7 @@ struct GoldTimeApp: App {
                 contentViewModel.handleAdGateDismiss()
             }) {
                 RewardedAdView(
+                    placement: .groupEditGate,
                     fallbackLabel: contentViewModel.adGateFallbackLabel,
                     onComplete: contentViewModel.adGateCompleted,
                     onCancel: contentViewModel.adGateCancelled

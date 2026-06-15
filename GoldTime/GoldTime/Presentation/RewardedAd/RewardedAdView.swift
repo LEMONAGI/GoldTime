@@ -14,12 +14,14 @@ struct RewardedAdView: View {
     private let fallbackLabel: String
 
     init(
+        placement: RewardedAdPlacement = .shieldUnlock,
         fallbackLabel: String = "그래도 10분 사용하기",
         onComplete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.fallbackLabel = fallbackLabel
         _viewModel = State(initialValue: RewardedAdViewModel(
+            placement: placement,
             onComplete: onComplete,
             onCancel: onCancel
         ))

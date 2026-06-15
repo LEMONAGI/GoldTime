@@ -11,39 +11,53 @@ final class RewardedAdService: NSObject {
     static let shared = RewardedAdService()
 
     enum LoadState: Equatable { case idle, loading, ready, failed }
-    private(set) var loadState: LoadState = .idle
+    enum Placement: Hashable {
+        case shieldUnlock
+        case groupEditGate
+    }
 
-    private var rewardedAd: RewardedAd?
-    // 실제 광고 단위. Debug 빌드에서는 ConsentService에 등록된 테스트 기기에서만 테스트 광고가 노출된다.
-    private let adUnitID = "ca-app-pub-7955752005034474/4426609987"
+    private var loadStates: [Placement: LoadState] = [
+        .shieldUnlock: .idle,
+        .groupEditGate: .idle
+    ]
+    private var rewardedAds: [Placement: RewardedAd] = [:]
 
     private var dismissCallback: ((_ didEarnReward: Bool) -> Void)?
     private var didEarnReward = false
+    private var presentingPlacement: Placement?
 
     private override init() { super.init() }
 
-    func loadAd() {
-        guard case .idle = loadState else { return }
-        loadState = .loading
-        RewardedAd.load(with: adUnitID, request: Request()) { [weak self] ad, error in
+    func loadState(for placement: Placement) -> LoadState {
+        loadStates[placement] ?? .idle
+    }
+
+    func loadAd(for placement: Placement) {
+        guard case .idle = loadState(for: placement) else { return }
+        loadStates[placement] = .loading
+        RewardedAd.load(with: adUnitID(for: placement), request: Request()) { [weak self] ad, error in
             DispatchQueue.main.async {
                 guard let self else { return }
                 if let error = error {
                     print("[AdMob] 광고 로드 실패: \(error.localizedDescription)")
-                    self.loadState = .failed
-                    self.rewardedAd = nil
+                    self.loadStates[placement] = .failed
+                    self.rewardedAds[placement] = nil
                 } else {
-                    self.rewardedAd = ad
-                    self.rewardedAd?.fullScreenContentDelegate = self
-                    self.loadState = .ready
+                    self.rewardedAds[placement] = ad
+                    self.rewardedAds[placement]?.fullScreenContentDelegate = self
+                    self.loadStates[placement] = .ready
                 }
             }
         }
     }
 
-    func present(from viewController: UIViewController, onDismissed: @escaping (_ didEarnReward: Bool) -> Void) {
-        guard let ad = rewardedAd, case .ready = loadState else {
-            loadState = .idle
+    func present(
+        from viewController: UIViewController,
+        placement: Placement,
+        onDismissed: @escaping (_ didEarnReward: Bool) -> Void
+    ) {
+        guard let ad = rewardedAds[placement], case .ready = loadState(for: placement) else {
+            loadStates[placement] = .idle
             DispatchQueue.main.async {
                 onDismissed(false)
             }
@@ -51,8 +65,19 @@ final class RewardedAdService: NSObject {
         }
         dismissCallback = onDismissed
         didEarnReward = false
+        presentingPlacement = placement
         ad.present(from: viewController) { [weak self] in
             self?.didEarnReward = true
+        }
+    }
+
+    private func adUnitID(for placement: Placement) -> String {
+        switch placement {
+        case .shieldUnlock:
+            // 실제 광고 단위. Debug 빌드에서는 ConsentService에 등록된 테스트 기기에서만 테스트 광고가 노출된다.
+            return "ca-app-pub-7955752005034474/4426609987"
+        case .groupEditGate:
+            return "ca-app-pub-7955752005034474/7898408564"
         }
     }
 }
@@ -60,21 +85,30 @@ final class RewardedAdService: NSObject {
 extension RewardedAdService: FullScreenContentDelegate {
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         DispatchQueue.main.async {
+            let placement = self.presentingPlacement
             let earned = self.didEarnReward
-            self.rewardedAd = nil
-            self.loadState = .idle
+            if let placement {
+                self.rewardedAds[placement] = nil
+                self.loadStates[placement] = .idle
+            }
             self.dismissCallback?(earned)
             self.dismissCallback = nil
-            self.loadAd()
+            self.presentingPlacement = nil
+            if let placement {
+                self.loadAd(for: placement)
+            }
         }
     }
 
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         DispatchQueue.main.async {
-            self.rewardedAd = nil
-            self.loadState = .failed
+            if let placement = self.presentingPlacement {
+                self.rewardedAds[placement] = nil
+                self.loadStates[placement] = .failed
+            }
             self.dismissCallback?(false)
             self.dismissCallback = nil
+            self.presentingPlacement = nil
         }
     }
 }

@@ -22,7 +22,7 @@ final class ConsentService {
         await requestATTIfNeeded()
         await startMobileAds()
         isAdSdkReady = true
-        RewardedAdService.shared.loadAd()
+        RewardedAdService.shared.loadAd(for: .shieldUnlock)
     }
 
     // MARK: - Private

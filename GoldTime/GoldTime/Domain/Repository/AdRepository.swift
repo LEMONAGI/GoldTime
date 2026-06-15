@@ -9,11 +9,17 @@ enum AdLoadState: Equatable {
     case failed
 }
 
+enum RewardedAdPlacement: Equatable {
+    case shieldUnlock
+    case groupEditGate
+}
+
 protocol AdRepository {
-    var loadState: AdLoadState { get }
-    func loadAd()
+    func loadState(for placement: RewardedAdPlacement) -> AdLoadState
+    func loadAd(for placement: RewardedAdPlacement)
     func present(
         from viewController: UIViewController,
+        placement: RewardedAdPlacement,
         onDismissed: @escaping (_ didEarnReward: Bool) -> Void
     )
 }

@@ -13,32 +13,35 @@ final class RewardedAdViewModel {
     var isPresenting = false
     var showFallback = false
 
+    private let placement: RewardedAdPlacement
     private let adRepository: any AdRepository
     private let onComplete: () -> Void
     private let onCancel: () -> Void
 
     init(
+        placement: RewardedAdPlacement = .shieldUnlock,
         adRepository: (any AdRepository)? = nil,
         onComplete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
+        self.placement = placement
         self.adRepository = adRepository ?? AdRepositoryImpl()
         self.onComplete = onComplete
         self.onCancel = onCancel
     }
 
     var loadState: AdLoadState {
-        adRepository.loadState
+        adRepository.loadState(for: placement)
     }
 
     func onAppear() {
-        switch adRepository.loadState {
+        switch adRepository.loadState(for: placement) {
         case .ready:
             break
         case .failed:
             showFallback = true
         default:
-            adRepository.loadAd()
+            adRepository.loadAd(for: placement)
         }
     }
 
@@ -54,9 +57,14 @@ final class RewardedAdViewModel {
     }
 
     func presentIfReady(from viewController: UIViewController?) {
-        guard let viewController, case .ready = adRepository.loadState, !isPresenting else { return }
+        guard let viewController,
+              case .ready = adRepository.loadState(for: placement),
+              !isPresenting
+        else {
+            return
+        }
         isPresenting = true
-        adRepository.present(from: viewController) { [weak self] earned in
+        adRepository.present(from: viewController, placement: placement) { [weak self] earned in
             guard let self else { return }
             Task { @MainActor in
                 earned ? self.onComplete() : self.onCancel()

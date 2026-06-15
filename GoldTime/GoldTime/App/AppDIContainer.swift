@@ -98,10 +98,12 @@ final class AppDIContainer {
     }
 
     func makeRewardedAdViewModel(
+        placement: RewardedAdPlacement,
         onComplete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) -> RewardedAdViewModel {
         RewardedAdViewModel(
+            placement: placement,
             adRepository: adRepository,
             onComplete: onComplete,
             onCancel: onCancel

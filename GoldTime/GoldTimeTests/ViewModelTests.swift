@@ -2144,9 +2144,40 @@ struct ViewModelTests {
 
     // MARK: - RewardedAdViewModel
 
+    @Test func rewardedAdViewModelLoadsShieldUnlockPlacement() {
+        let adRepo = FakeAdRepository(loadState: .idle)
+        let viewModel = RewardedAdViewModel(
+            placement: .shieldUnlock,
+            adRepository: adRepo,
+            onComplete: {},
+            onCancel: {}
+        )
+
+        viewModel.onAppear()
+
+        #expect(adRepo.loadCallPlacements == [.shieldUnlock])
+        #expect(adRepo.presentCallPlacements.isEmpty)
+    }
+
+    @Test func rewardedAdViewModelLoadsGroupEditGatePlacement() {
+        let adRepo = FakeAdRepository(loadState: .idle)
+        let viewModel = RewardedAdViewModel(
+            placement: .groupEditGate,
+            adRepository: adRepo,
+            onComplete: {},
+            onCancel: {}
+        )
+
+        viewModel.onAppear()
+
+        #expect(adRepo.loadCallPlacements == [.groupEditGate])
+        #expect(adRepo.presentCallPlacements.isEmpty)
+    }
+
     @Test func rewardedAdViewModelShowsFallbackWhenLoadFails() {
         let adRepo = FakeAdRepository(loadState: .failed)
         let viewModel = RewardedAdViewModel(
+            placement: .groupEditGate,
             adRepository: adRepo,
             onComplete: {},
             onCancel: {}
@@ -2163,6 +2194,7 @@ struct ViewModelTests {
         var didComplete = false
         var didCancel = false
         let viewModel = RewardedAdViewModel(
+            placement: .shieldUnlock,
             adRepository: adRepo,
             onComplete: { didComplete = true },
             onCancel: { didCancel = true }
@@ -2172,6 +2204,27 @@ struct ViewModelTests {
         try await Task.sleep(for: .milliseconds(10))
 
         #expect(adRepo.presentCallCount == 1)
+        #expect(adRepo.presentCallPlacements == [.shieldUnlock])
+        #expect(didComplete)
+        #expect(!didCancel)
+    }
+
+    @Test func rewardedAdViewModelPresentsGroupEditGatePlacement() async throws {
+        let adRepo = FakeAdRepository(loadState: .ready)
+        var didComplete = false
+        var didCancel = false
+        let viewModel = RewardedAdViewModel(
+            placement: .groupEditGate,
+            adRepository: adRepo,
+            onComplete: { didComplete = true },
+            onCancel: { didCancel = true }
+        )
+
+        viewModel.presentIfReady(from: UIViewController())
+        try await Task.sleep(for: .milliseconds(10))
+
+        #expect(adRepo.presentCallCount == 1)
+        #expect(adRepo.presentCallPlacements == [.groupEditGate])
         #expect(didComplete)
         #expect(!didCancel)
     }
@@ -2449,22 +2502,31 @@ private final class FakeNotificationRepository: NotificationRepository {
 
 @MainActor
 private final class FakeAdRepository: AdRepository {
-    var loadState: AdLoadState
+    var loadStateValue: AdLoadState
     var shouldEarnReward = true
-    private(set) var loadCallCount = 0
-    private(set) var presentCallCount = 0
+    private(set) var loadCallPlacements: [RewardedAdPlacement] = []
+    private(set) var presentCallPlacements: [RewardedAdPlacement] = []
+    var loadCallCount: Int { loadCallPlacements.count }
+    var presentCallCount: Int { presentCallPlacements.count }
 
     init(loadState: AdLoadState) {
-        self.loadState = loadState
+        self.loadStateValue = loadState
     }
 
-    func loadAd() { loadCallCount += 1 }
+    func loadState(for placement: RewardedAdPlacement) -> AdLoadState {
+        loadStateValue
+    }
+
+    func loadAd(for placement: RewardedAdPlacement) {
+        loadCallPlacements.append(placement)
+    }
 
     func present(
         from viewController: UIViewController,
+        placement: RewardedAdPlacement,
         onDismissed: @escaping (Bool) -> Void
     ) {
-        presentCallCount += 1
+        presentCallPlacements.append(placement)
         onDismissed(shouldEarnReward)
     }
 }

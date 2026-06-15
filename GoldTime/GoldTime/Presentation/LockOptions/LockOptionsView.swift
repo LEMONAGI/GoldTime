@@ -57,6 +57,7 @@ struct LockOptionsView: View {
             viewModel.rewardedAdDismissed()
         }) {
             RewardedAdView(
+                placement: .shieldUnlock,
                 onComplete: viewModel.rewardedAdDidComplete,
                 onCancel: viewModel.rewardedAdDidCancel
             )
