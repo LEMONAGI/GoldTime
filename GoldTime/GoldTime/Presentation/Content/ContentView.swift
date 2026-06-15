@@ -169,8 +169,8 @@ struct ContentView: View {
                 )
             case .limitWarning(let warning):
                 Alert(
-                    title: Text("한도 변경 확인"),
-                    message: Text("이미 \(warning.usedMinutes)분 사용해서, \(warning.minutes)분으로 바꾸면 한도를 ‘\(warning.groupName)’ 그룹이 바로 잠겨요. 변경할까요?"),
+                    title: Text(limitWarningTitle(warning)),
+                    message: Text(limitWarningMessage(warning)),
                     primaryButton: .destructive(Text("변경")) {
                         viewModel.confirmLimitLockChange(warning)
                     },
@@ -202,6 +202,22 @@ struct ContentView: View {
         }
         .onReceive(refreshTimer) { _ in
             viewModel.refreshDashboardState()
+        }
+    }
+
+    private func limitWarningTitle(_ warning: LimitLockWarning) -> String {
+        switch warning.rule {
+        case .dailyLimit: return "한도 변경 확인"
+        case .cooldown: return "쿨다운 변경 확인"
+        }
+    }
+
+    private func limitWarningMessage(_ warning: LimitLockWarning) -> String {
+        switch warning.rule {
+        case .dailyLimit(let minutes):
+            return "이미 \(warning.usedMinutes)분 사용해서, \(minutes)분으로 바꾸면 ‘\(warning.groupName)’ 그룹이 바로 잠겨요. 변경할까요?"
+        case .cooldown(let usage, _):
+            return "이미 \(warning.usedMinutes)분 사용해서, 사용 시간을 \(usage)분으로 바꾸면 ‘\(warning.groupName)’ 그룹이 바로 휴식에 들어가요. 변경할까요?"
         }
     }
 }

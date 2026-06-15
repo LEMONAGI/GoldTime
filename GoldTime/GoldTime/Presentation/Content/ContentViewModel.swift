@@ -24,11 +24,16 @@ struct GoldTimeAlertMessage: Identifiable, Equatable {
 
 /// 이미 사용한 시간보다 작은 한도로 바꿔 즉시 잠기게 될 때 띄우는 확인 경고.
 struct LimitLockWarning: Identifiable {
+    /// 즉시 잠금이 일어나는 규칙 종류. 일일 한도는 자정까지 잠금, 쿨다운은 휴식 진입.
+    enum Rule: Equatable {
+        case dailyLimit(minutes: Int)
+        case cooldown(usageMinutes: Int, durationMinutes: Int)
+    }
     let id = UUID()
     let groupID: UUID
     let groupName: String
-    let minutes: Int
     let usedMinutes: Int
+    let rule: Rule
 }
 
 /// draft 그룹을 "적용하기"로 commit하기 전, 이후 수정에 광고가 필요함을 안내하는 확인.
@@ -330,6 +335,26 @@ final class ContentViewModel {
             return
         }
 
+        let used = usedTimeByGroupID[id] ?? 0
+        // 이미 사용한 시간보다 작은 예산이면 즉시 휴식에 들어간다(일일 한도 즉시 잠금과 동일 패턴).
+        // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
+        if used > 0 && usage <= used {
+            let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
+            stagedLimitLockWarning = LimitLockWarning(
+                groupID: id,
+                groupName: name,
+                usedMinutes: used,
+                rule: .cooldown(usageMinutes: usage, durationMinutes: duration)
+            )
+            ruleEditorGroupID = nil
+            return
+        }
+
+        applyCooldownRule(id: id, usage: usage, duration: duration)
+        ruleEditorGroupID = nil
+    }
+
+    private func applyCooldownRule(id: UUID, usage: Int, duration: Int) {
         updateGroup(id) { groups in
             manageGroupsUseCase.updateRule(
                 id: id,
@@ -339,7 +364,6 @@ final class ContentViewModel {
                 in: &groups
             )
         }
-        ruleEditorGroupID = nil
     }
 
     private func commitDailyLimitRule() {
@@ -354,8 +378,8 @@ final class ContentViewModel {
             stagedLimitLockWarning = LimitLockWarning(
                 groupID: id,
                 groupName: name,
-                minutes: minutes,
-                usedMinutes: used
+                usedMinutes: used,
+                rule: .dailyLimit(minutes: minutes)
             )
             ruleEditorGroupID = nil
             return
@@ -410,7 +434,12 @@ final class ContentViewModel {
     // 상태에서 다시 읽으면 nil이 되기 때문(early-return 버그 방지).
     func confirmLimitLockChange(_ warning: LimitLockWarning) {
         pendingLimitLockWarning = nil
-        applyDailyLimitRule(id: warning.groupID, minutes: warning.minutes)
+        switch warning.rule {
+        case .dailyLimit(let minutes):
+            applyDailyLimitRule(id: warning.groupID, minutes: minutes)
+        case .cooldown(let usage, let duration):
+            applyCooldownRule(id: warning.groupID, usage: usage, duration: duration)
+        }
     }
 
     func cancelLimitLockChange() {

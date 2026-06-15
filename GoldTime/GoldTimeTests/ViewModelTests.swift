@@ -860,7 +860,7 @@ struct ViewModelTests {
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.pendingLimitLockWarning != nil)
-        #expect(viewModel.pendingLimitLockWarning?.minutes == 10)
+        #expect(viewModel.pendingLimitLockWarning?.rule == .dailyLimit(minutes: 10))
         #expect(viewModel.pendingLimitLockWarning?.usedMinutes == 20)
         #expect(viewModel.groups.first?.dailyLimitMinutes == 30)   // 아직 미적용
         #expect(screenTimeRepo.syncCallCount == 0)
@@ -1058,6 +1058,85 @@ struct ViewModelTests {
         #expect(viewModel.groups.first?.cooldownUsageMinutes == 15)
         #expect(viewModel.groups.first?.cooldownDurationMinutes == 240)
         #expect(groupRepo.screenTimeGroups.first?.cooldownUsageMinutes == 15)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func cooldownRuleWarnsAndDefersWhenNewBudgetBelowUsedTime() {
+        // 사용자 시나리오: 쿨다운 20분/1시간휴식, 15분 사용 후 예산 5분으로 변경.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 20, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 15]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 5
+        viewModel.ruleEditorCooldownDurationMinutes = 60
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        // 즉시 적용하지 않고 휴식 진입 경고를 대기시킨다.
+        #expect(viewModel.pendingLimitLockWarning != nil)
+        #expect(viewModel.pendingLimitLockWarning?.rule == .cooldown(usageMinutes: 5, durationMinutes: 60))
+        #expect(viewModel.pendingLimitLockWarning?.usedMinutes == 15)
+        #expect(viewModel.groups.first?.cooldownUsageMinutes == 20)   // 아직 미적용
+        #expect(screenTimeRepo.syncCallCount == 0)
+
+        // 변경 확정 → 적용.
+        let warning = viewModel.pendingLimitLockWarning!
+        viewModel.pendingLimitLockWarning = nil
+        viewModel.confirmLimitLockChange(warning)
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.groups.first?.cooldownUsageMinutes == 5)
+        #expect(groupRepo.screenTimeGroups.first?.cooldownUsageMinutes == 5)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func cooldownRuleAppliesWithoutWarningWhenBudgetAboveUsedTime() {
+        // 예산이 사용량보다 크면 경고 없이 즉시 적용(회귀 가드).
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 20, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 5]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 30
+        viewModel.ruleEditorCooldownDurationMinutes = 60
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.groups.first?.cooldownUsageMinutes == 30)
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
