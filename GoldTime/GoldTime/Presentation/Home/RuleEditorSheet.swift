@@ -46,7 +46,17 @@ struct RuleEditorSheet: View {
                         subtitle: "정한 만큼 쓰면 한동안 쉬어야 해요"
                     )
                 } footer: {
-                    Text("적용된 그룹은 규칙을 바꾸면 바로 반영돼요.")
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("적용된 그룹은 규칙을 바꾸면 바로 반영돼요.")
+                        if let nearMidnightNotice,
+                           selectedKind == .dailyLimit || selectedKind == .cooldown {
+                            Label {
+                                Text(nearMidnightNotice)
+                            } icon: {
+                                Image(systemName: "moon.stars")
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("차단 규칙")
@@ -97,7 +107,6 @@ struct RuleEditorSheet: View {
             DailyLimitDetailView(
                 hours: $hours,
                 minutes: $minutes,
-                nearMidnightNotice: nearMidnightNotice,
                 onConfirm: confirm(as: .dailyLimit)
             )
         case .timeWindows:
@@ -109,7 +118,6 @@ struct RuleEditorSheet: View {
             CooldownDetailView(
                 usageMinutes: $cooldownUsageMinutes,
                 durationMinutes: $cooldownDurationMinutes,
-                nearMidnightNotice: nearMidnightNotice,
                 onConfirm: confirm(as: .cooldown)
             )
         }
@@ -123,23 +131,11 @@ struct RuleEditorSheet: View {
     }
 }
 
-/// 자정 직전 편집 안내 문구(일일 한도·쿨다운 상세 공용). 보조 톤(빨강 아님).
-@ViewBuilder
-private func nearMidnightEditNoticeText(_ text: String) -> some View {
-    Text(text)
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .multilineTextAlignment(.center)
-        .padding(.top, 12)
-        .padding(.horizontal, 8)
-}
-
 // MARK: - 일일 한도 본문
 
 private struct DailyLimitDetailView: View {
     @Binding var hours: Int
     @Binding var minutes: Int
-    let nearMidnightNotice: String?
     let onConfirm: () -> Void
 
     var body: some View {
@@ -168,10 +164,6 @@ private struct DailyLimitDetailView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.top, 12)
-
-            if let nearMidnightNotice {
-                nearMidnightEditNoticeText(nearMidnightNotice)
-            }
 
             Spacer()
         }
@@ -282,7 +274,6 @@ private struct TimeWindowsDetailView: View {
 private struct CooldownDetailView: View {
     @Binding var usageMinutes: Int
     @Binding var durationMinutes: Int
-    let nearMidnightNotice: String?
     let onConfirm: () -> Void
 
     // 사용 시간 5분 단위(5분~2시간), 휴식 간격 10분 단위(30분~6시간).
@@ -338,10 +329,6 @@ private struct CooldownDetailView: View {
             .multilineTextAlignment(.center)
             .padding(.top, 12)
             .padding(.horizontal, 8)
-
-            if let nearMidnightNotice {
-                nearMidnightEditNoticeText(nearMidnightNotice)
-            }
 
             Spacer()
         }
