@@ -419,6 +419,9 @@ enum ScreenTimeManager {
     }
 
     static func reconnectMonitoring() throws {
+        // stopMonitoring()은 override activity도 함께 멈춘다. 사용량 기반 override 메타데이터를
+        // 보존하면 해당 그룹이 Shield union에서 계속 제외되어 재잠금될 수 없다.
+        SharedStore.clearAllOverrideState()
         center.stopMonitoring()
         SharedStore.lastRegisteredGroupsByID = nil
         SharedStore.lastRegisteredGenerationByID = [:]

@@ -323,6 +323,10 @@ struct GoldTimeTests {
         SharedStore.shieldedGroupIDs = [keptID, removedID]
         SharedStore.setOverride(until: now.addingTimeInterval(60), for: keptID)
         SharedStore.setOverride(until: now.addingTimeInterval(120), for: removedID)
+        SharedStore.markUsageBasedOverride(keptID)
+        SharedStore.markUsageBasedOverride(removedID)
+        SharedStore.recordOverrideBaseline(groupID: keptID, baseline: 3, grantedMinutes: 1)
+        SharedStore.recordOverrideBaseline(groupID: removedID, baseline: 4, grantedMinutes: 10)
 
         let didChange = SharedStore.pruneShieldState(keepingGroupIDs: [keptID])
 
@@ -330,6 +334,35 @@ struct GoldTimeTests {
         #expect(SharedStore.shieldedGroupIDs == [keptID])
         #expect(SharedStore.overrideUntilByGroupID[keptID] != nil)
         #expect(SharedStore.overrideUntilByGroupID[removedID] == nil)
+        #expect(SharedStore.usageBasedOverrideGroupIDs == [keptID])
+        #expect(SharedStore.overrideBaselineUsedTimeByGroupID == [keptID: 3])
+        #expect(SharedStore.overrideGrantedMinutesByGroupID == [keptID: 1])
+    }
+
+    @Test func clearAllOverrideStateKeepsLockedGroupsAndUsedTime() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let groupID = UUID()
+        SharedStore.screenTimeGroups = [
+            SharedStore.ScreenTimeGroup(id: groupID, name: "SNS", dailyLimitMinutes: 0)
+        ]
+        SharedStore.shieldedGroupIDs = [groupID]
+        SharedStore.setOverride(until: Date().addingTimeInterval(60), for: groupID)
+        SharedStore.markUsageBasedOverride(groupID)
+        SharedStore.recordOverrideBaseline(groupID: groupID, baseline: 2, grantedMinutes: 1)
+        SharedStore.usedTimeByGroupID = [groupID: 2]
+
+        #expect(SharedStore.lockedGroups().isEmpty)
+        #expect(SharedStore.clearAllOverrideState())
+
+        #expect(SharedStore.shieldedGroupIDs == [groupID])
+        #expect(SharedStore.usedTimeByGroupID == [groupID: 2])
+        #expect(SharedStore.overrideUntilByGroupID.isEmpty)
+        #expect(SharedStore.usageBasedOverrideGroupIDs.isEmpty)
+        #expect(SharedStore.overrideBaselineUsedTimeByGroupID.isEmpty)
+        #expect(SharedStore.overrideGrantedMinutesByGroupID.isEmpty)
+        #expect(SharedStore.lockedGroups().map(\.id) == [groupID])
     }
 
     @Test func firstDailyProtectionCheckPreservesExistingShieldState() {

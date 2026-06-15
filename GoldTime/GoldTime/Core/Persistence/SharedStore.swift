@@ -769,6 +769,21 @@ enum SharedStore {
         overrideGrantedMinutesByGroupID = grants
     }
 
+    @discardableResult
+    static func clearAllOverrideState() -> Bool {
+        let didChange = !overrideUntilByGroupID.isEmpty
+            || !usageBasedOverrideGroupIDs.isEmpty
+            || !overrideBaselineUsedTimeByGroupID.isEmpty
+            || !overrideGrantedMinutesByGroupID.isEmpty
+
+        overrideUntilByGroupID = [:]
+        usageBasedOverrideGroupIDs = []
+        overrideBaselineUsedTimeByGroupID = [:]
+        overrideGrantedMinutesByGroupID = [:]
+
+        return didChange
+    }
+
     /// override 시작 시점의 누적 사용 분(`usedTimeByGroupID` 스냅샷). UI 잔여 계산에 사용.
     static var overrideBaselineUsedTimeByGroupID: [UUID: Int] {
         get {
@@ -1094,6 +1109,12 @@ enum SharedStore {
 
         let oldOverrides = overrideUntilByGroupID
         let newOverrides = oldOverrides.filter { validGroupIDs.contains($0.key) }
+        let oldUsageBasedOverrides = usageBasedOverrideGroupIDs
+        let newUsageBasedOverrides = oldUsageBasedOverrides.intersection(validGroupIDs)
+        let oldOverrideBaselines = overrideBaselineUsedTimeByGroupID
+        let newOverrideBaselines = oldOverrideBaselines.filter { validGroupIDs.contains($0.key) }
+        let oldOverrideGrants = overrideGrantedMinutesByGroupID
+        let newOverrideGrants = oldOverrideGrants.filter { validGroupIDs.contains($0.key) }
 
         let oldCooldownUntil = cooldownUntilByGroupID
         let newCooldownUntil = oldCooldownUntil.filter { validGroupIDs.contains($0.key) }
@@ -1103,12 +1124,18 @@ enum SharedStore {
 
         let didChange = newShieldedGroupIDs != oldShieldedGroupIDs
             || newOverrides.count != oldOverrides.count
+            || newUsageBasedOverrides != oldUsageBasedOverrides
+            || newOverrideBaselines.count != oldOverrideBaselines.count
+            || newOverrideGrants.count != oldOverrideGrants.count
             || newCooldownUntil.count != oldCooldownUntil.count
             || newCooldownGen.count != oldCooldownGen.count
 
         if didChange {
             shieldedGroupIDs = newShieldedGroupIDs
             overrideUntilByGroupID = newOverrides
+            usageBasedOverrideGroupIDs = newUsageBasedOverrides
+            overrideBaselineUsedTimeByGroupID = newOverrideBaselines
+            overrideGrantedMinutesByGroupID = newOverrideGrants
             cooldownUntilByGroupID = newCooldownUntil
             cooldownGenerationByID = newCooldownGen
         }
