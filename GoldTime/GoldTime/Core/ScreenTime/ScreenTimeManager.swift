@@ -169,6 +169,24 @@ enum ScreenTimeManager {
         )
     }
 
+    /// override 측정창(now ~ 당일 23:59:59)이 DeviceActivity 최소(15분) 미만인지. = 23:45부터 true.
+    /// true면 `startMonitoring`이 intervalTooShort로 실패하므로 모니터 없는 시간기반 fallback을 쓴다.
+    nonisolated static func overrideWindowTooShort(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: now) else {
+            return false
+        }
+        return endOfDay.timeIntervalSince(now) < 15 * 60
+    }
+
+    /// 자정 근처 안내 문구를 보여줄 구간인지. = 자정까지 < 30분, 즉 23:30부터 true.
+    /// 행동 변화(23:45) 전에 미리 알려, 23:44에 연장 시작 후 광고 중 23:45를 넘겨도 당황하지 않게 한다.
+    nonisolated static func withinNearMidnightNoticeWindow(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: now) else {
+            return false
+        }
+        return endOfDay.timeIntervalSince(now) < 30 * 60
+    }
+
     /// daily 한도(분)에 대한 1회성 threshold 목록. 한도가 maxEvents 이하면 1,2,…,limit
     /// (1분 단위), 초과하면 maxEvents개로 균등 분배하되 마지막은 정확히 limit.
     /// 이벤트를 한 번에 다 등록(no relay)하므로 iOS 26 즉시발화 regression에 면역.
@@ -510,6 +528,28 @@ enum ScreenTimeManager {
         // intervalEnd에 `.day`/절대 날짜 컴포넌트를 넣으면 iOS가 threshold를 즉시·배치 발화시켜
         // 연장 직후 m=2,3,4,…가 한꺼번에 터진다(Apple Forums 확인, 회귀 204a691). freshDailyWindow와 동일 형태.
         let calendar = Calendar.current
+
+        // 자정 직전(측정창 < 15분, 23:45부터)엔 DeviceActivity 최소 제약 때문에 startMonitoring이
+        // intervalTooShort로 실패한다(Apple Forums 확인). 모니터를 포기하고 "자정까지" 시간기반
+        // override로 해제한다. grant와 무관하게 23:59:59까지 풀어주고(보너스), 재잠금은
+        // reapplyShieldIfOverrideExpired(foreground) + 자정 daily 리셋이 보장한다.
+        // usageBasedOverride로 표시하지 않아야 clearExpiredOverrides가 시간 만료로 정리할 수 있다.
+        if overrideWindowTooShort(now: now) {
+            let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: now) ?? end
+            let activity = DeviceActivityName.override(for: groupID)
+            overrideMonitorRegistrar.stopMonitoring([activity])
+            SharedStore.setOverride(until: endOfDay, for: groupID)
+            applyShield()
+            SharedStore.recordOverrideRegistration(
+                activityName: activity.rawValue,
+                groupID: groupID,
+                overrideUntil: endOfDay,
+                registeredAt: now,
+                message: "near-midnight time-based override (until 23:59:59, no monitor)"
+            )
+            return .success(endOfDay)
+        }
+
         let schedule = DeviceActivitySchedule(
             intervalStart: calendar.dateComponents([.hour, .minute, .second], from: now),
             intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
@@ -599,7 +639,11 @@ enum ScreenTimeManager {
             SharedStore.oneMinuteUsedToday += 1
             SharedStore.recordOneMinuteUnlock(seconds: seconds)
         case .adReward:
-            SharedStore.recordAdUnlock(seconds: seconds)
+            // 통계 시간 = 실제 해제 지속 시간 = overrideUntil - now.
+            // 정상 경로는 overrideUntil=now+seconds라 곧 seconds. 자정 직전 fallback은 overrideUntil=자정이라
+            // "자정까지 남은 시간"이 그대로 기록된다(23:45→약 15분, 23:55→약 5분). 횟수는 함수 내부에서 항상 +1.
+            let usableSeconds = max(0, Int(overrideUntil.timeIntervalSince(now)))
+            SharedStore.recordAdUnlock(seconds: usableSeconds)
         }
 
         return .success(

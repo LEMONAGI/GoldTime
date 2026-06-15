@@ -619,6 +619,141 @@ struct GoldTimeTests {
         #expect(registrar.startCallCount == 1)
     }
 
+    // MARK: - 자정 근처 연장 (intervalTooShort 우회)
+
+    // 시간 기반 fallback override는 usage-based가 아니라, applyShield 내부의
+    // clearExpiredOverrides(now: Date())(실제 현재시각)에 의해 정리될 수 있다.
+    // 따라서 endOfDay가 실제 현재보다 미래여야(=오늘 날짜) override가 유지된다.
+    private func makeTime(hour: Int, minute: Int, second: Int = 0) -> Date {
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: second, of: Date())!
+    }
+
+    @Test func overrideWindowTooShortBoundaryIs2345() {
+        #expect(ScreenTimeManager.overrideWindowTooShort(now: makeTime(hour: 23, minute: 44, second: 59)) == false)
+        #expect(ScreenTimeManager.overrideWindowTooShort(now: makeTime(hour: 23, minute: 45, second: 0)) == true)
+        #expect(ScreenTimeManager.overrideWindowTooShort(now: makeTime(hour: 14, minute: 0)) == false)
+    }
+
+    @Test func nearMidnightNoticeWindowBoundaryIs2330() {
+        #expect(ScreenTimeManager.withinNearMidnightNoticeWindow(now: makeTime(hour: 23, minute: 29, second: 59)) == false)
+        #expect(ScreenTimeManager.withinNearMidnightNoticeWindow(now: makeTime(hour: 23, minute: 30, second: 0)) == true)
+        #expect(ScreenTimeManager.withinNearMidnightNoticeWindow(now: makeTime(hour: 23, minute: 45, second: 0)) == true)
+        #expect(ScreenTimeManager.withinNearMidnightNoticeWindow(now: makeTime(hour: 14, minute: 0)) == false)
+    }
+
+    @Test func nearMidnightAdExtensionReleasesShieldWithoutMonitorUntilEndOfDay() {
+        SharedStore.clearGroupStateForTesting()
+        SharedStore.clearDailyStatsForTesting()
+        defer {
+            SharedStore.clearGroupStateForTesting()
+            SharedStore.clearDailyStatsForTesting()
+        }
+
+        let now = makeTime(hour: 23, minute: 55)
+        let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: now)!
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.isShieldActive = true
+        let registrar = FakeOverrideMonitorRegistrar()
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
+
+        let outcome = ScreenTimeManager.extendGroup(
+            groupID: group.id,
+            duration: 10 * 60,
+            source: .adReward,
+            now: now
+        )
+
+        guard case .success(let result) = outcome else {
+            #expect(Bool(false), "자정 근처 광고 연장은 성공해야 합니다.")
+            return
+        }
+        // 모니터 등록 없이(시간기반 fallback) shield만 해제, override는 자정까지.
+        #expect(registrar.startCallCount == 0)
+        #expect(result.overrideUntil == endOfDay)
+        #expect(SharedStore.overrideUntilByGroupID[group.id] == endOfDay)
+        #expect(!SharedStore.usageBasedOverrideGroupIDs.contains(group.id))
+        #expect(SharedStore.lockedGroups(now: now).isEmpty)
+        #expect(!SharedStore.isShieldActive)
+        // 통계: 횟수 +1, 시간은 자정까지 남은 만큼(= min(600, 299) = 299초).
+        let secondsToMidnight = Int(endOfDay.timeIntervalSince(now))
+        #expect(SharedStore.todayStats.adWatchCount == 1)
+        #expect(SharedStore.todayStats.adUnlockedSeconds == secondsToMidnight)
+        #expect(secondsToMidnight < 10 * 60)
+    }
+
+    @Test func nearMidnightAdExtensionRecordsTimeUntilMidnight() {
+        SharedStore.clearGroupStateForTesting()
+        SharedStore.clearDailyStatsForTesting()
+        defer {
+            SharedStore.clearGroupStateForTesting()
+            SharedStore.clearDailyStatsForTesting()
+        }
+
+        let now = makeTime(hour: 23, minute: 45)
+        let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: now)!
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.isShieldActive = true
+        let registrar = FakeOverrideMonitorRegistrar()
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
+
+        let outcome = ScreenTimeManager.extendGroup(
+            groupID: group.id,
+            duration: 10 * 60,
+            source: .adReward,
+            now: now
+        )
+
+        guard case .success = outcome else {
+            #expect(Bool(false), "23:45 광고 연장은 성공해야 합니다.")
+            return
+        }
+        #expect(registrar.startCallCount == 0)
+        // 통계 시간 = 자정까지 남은 시간(23:45 → 899초 ≈ 15분). grant(10분)로 cap하지 않는다.
+        let secondsToMidnight = Int(endOfDay.timeIntervalSince(now))
+        #expect(SharedStore.todayStats.adWatchCount == 1)
+        #expect(SharedStore.todayStats.adUnlockedSeconds == secondsToMidnight)
+        #expect(secondsToMidnight > 10 * 60)
+    }
+
+    @Test func nearMidnightTimeBasedOverrideRelocksAfterExpiry() {
+        SharedStore.clearGroupStateForTesting()
+        SharedStore.clearDailyStatsForTesting()
+        defer {
+            SharedStore.clearGroupStateForTesting()
+            SharedStore.clearDailyStatsForTesting()
+        }
+
+        let now = makeTime(hour: 23, minute: 55)
+        let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: now)!
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        SharedStore.screenTimeGroups = [group]
+        SharedStore.shieldedGroupIDs = [group.id]
+        SharedStore.isShieldActive = true
+        let registrar = FakeOverrideMonitorRegistrar()
+        let originalRegistrar = ScreenTimeManager.overrideMonitorRegistrar
+        ScreenTimeManager.overrideMonitorRegistrar = registrar
+        defer { ScreenTimeManager.overrideMonitorRegistrar = originalRegistrar }
+
+        _ = ScreenTimeManager.extendGroup(groupID: group.id, duration: 10 * 60, source: .adReward, now: now)
+        #expect(SharedStore.lockedGroups(now: now).isEmpty)
+
+        // override 만료(자정 직후 시점) → foreground 복귀 보정이 시간 기반 override를 정리하고 재잠금.
+        // (테스트 그룹은 토큰이 비어 있어 isShieldActive 자체는 false다. 재잠금은 lockedGroups로 검증.)
+        let afterExpiry = endOfDay.addingTimeInterval(1)
+        let overrideChanged = ScreenTimeManager.reapplyShieldIfOverrideExpired(now: afterExpiry)
+        _ = overrideChanged
+        #expect(SharedStore.overrideUntilByGroupID[group.id] == nil)
+        #expect(SharedStore.lockedGroups(now: afterExpiry).map(\.id) == [group.id])
+    }
+
     @Test func extendingOneGroupLeavesOtherLockedGroups() {
         SharedStore.clearGroupStateForTesting()
         defer { SharedStore.clearGroupStateForTesting() }

@@ -80,4 +80,12 @@ struct ScreenTimeRepositoryImpl: ScreenTimeRepository {
         case .failure(let f): return .failure(f.domain)
         }
     }
+
+    func isNearMidnightOverrideCutoff(now: Date) -> Bool {
+        ScreenTimeManager.overrideWindowTooShort(now: now)
+    }
+
+    func isWithinNearMidnightNoticeWindow(now: Date) -> Bool {
+        ScreenTimeManager.withinNearMidnightNoticeWindow(now: now)
+    }
 }

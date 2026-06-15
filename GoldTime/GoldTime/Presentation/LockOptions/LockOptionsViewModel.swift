@@ -103,12 +103,35 @@ final class LockOptionsViewModel {
         return "\(goldTimeClockText(date: end))까지 쉬어요"
     }
 
+    /// 자정까지 < 15분이라 정확한 사용량 추적이 불가능한 시점(23:45부터). 1분 연장을 막는다.
+    var isNearMidnightCutoff: Bool {
+        extendGroupUseCase.isNearMidnightCutoff()
+    }
+
     var canExtendOneMinute: Bool {
-        selectedGroup != nil && oneMinuteRemaining > 0 && !isExtending
+        selectedGroup != nil && oneMinuteRemaining > 0 && !isExtending && !isNearMidnightCutoff
     }
 
     var canExtendWithAd: Bool {
         selectedGroup != nil && !isExtending
+    }
+
+    /// 자정 근처는 광고를 봐도 10분이 아니라 "자정까지"만 열리므로 버튼 제목을 정직하게 바꾼다.
+    var adButtonTitle: String {
+        isNearMidnightCutoff ? "광고 보고 자정까지 열기" : "광고 보고 10분 구매하기"
+    }
+
+    /// 자정 근처 안내를 보여줄 구간(23:30부터). 행동 변화(23:45)보다 일찍 알려, 23:44에 연장 시작 후
+    /// 광고를 보는 동안 23:45를 넘겨 갑자기 자정까지 열리는 상황에 당황하지 않게 한다.
+    var showsNearMidnightNotice: Bool {
+        extendGroupUseCase.isNearMidnightNoticeWindow()
+    }
+
+    /// 자정 근처 상황을 설명하는 안내 문구. 문구가 "23:45부터는…"이라 23:30~23:45 사이에 떠도
+    /// 미리 알림으로 정확하다.
+    var nearMidnightNotice: String? {
+        guard showsNearMidnightNotice else { return nil }
+        return "23:45부터는 사용량을 추적할 수 없어서, 광고로 잠금 해제하면 자정까지 열려요. 00:00에 규칙이 다시 적용됩니다."
     }
 
     var maxAppsPerGroup: Int { SharedStore.maxAppsPerGroup }
@@ -284,10 +307,17 @@ final class LockOptionsViewModel {
     }
 
     private func completionMessage(for result: GroupExtensionResult, source: ExtensionSource) -> String {
-        let duration = result.durationSeconds == 60 ? "1분" : "\(result.durationSeconds / 60)분"
-        var message = source == .adReward
-            ? "\(result.group.displayName) \(duration)을 구매했어요.\n\(duration) 더 쓰면 다시 잠겨요."
-            : "\(result.group.displayName)을 \(duration) 연장했어요.\n\(duration) 더 쓰면 다시 잠겨요."
+        var message: String
+        if isNearMidnightCutoff {
+            // 자정 근처는 사용량이 아니라 "자정까지" 시간 기반으로 열린다.
+            let endText = goldTimeClockText(date: result.overrideUntil)
+            message = "\(result.group.displayName) 잠금을 풀었어요.\n\(endText)까지 사용할 수 있어요. 자정에는 새로 시작돼요."
+        } else {
+            let duration = result.durationSeconds == 60 ? "1분" : "\(result.durationSeconds / 60)분"
+            message = source == .adReward
+                ? "\(result.group.displayName) \(duration)을 구매했어요.\n\(duration) 더 쓰면 다시 잠겨요."
+                : "\(result.group.displayName)을 \(duration) 연장했어요.\n\(duration) 더 쓰면 다시 잠겨요."
+        }
 
         if let token = requestedApplicationToken {
             let remaining = extendGroupUseCase.lockedGroupsAfterExtension(

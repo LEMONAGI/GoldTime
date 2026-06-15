@@ -154,6 +154,13 @@ struct HomeViewModel {
             return lockedBadgeTitle(for: group)
         }
         if overrideGroupIDs.contains(group.id) {
+            // 자정 직전 광고 연장은 모니터 없이 "자정까지" 풀리는 시간 기반 override라
+            // 부여 분 개념이 없다(granted 미기록). 분 대신 "23:59까지 추가 사용"으로 표기.
+            if isNearMidnightOverride(group) {
+                let until = overrideUntilByGroupID[group.id]
+                let endText = until.map { goldTimeClockText(date: $0) } ?? "자정"
+                return "\(endText)까지 추가 사용"
+            }
             // 부여된 분(진행바가 나타내는 총 시간)을 함께 표기. 실시간 갱신 아님.
             let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
             return "\(granted)분 추가 사용"
@@ -263,8 +270,17 @@ struct HomeViewModel {
         )
     }
 
+    /// 자정 직전 광고 연장으로 생긴 시간 기반 override인지. 이 override만 `recordOverrideBaseline`을
+    /// 호출하지 않아 granted가 비어 있다(`clearOverride`가 종료 시 granted를 지우므로 stale 오염 없음).
+    /// 분 진행 개념이 없으므로 "남은 한도" 바를 숨기고 배지를 "자정까지" 형태로 바꾸는 데 쓴다.
+    func isNearMidnightOverride(_ group: ScreenTimeGroup) -> Bool {
+        overrideGroupIDs.contains(group.id) && overrideGrantedMinutesByGroupID[group.id] == nil
+    }
+
     func overrideProgress(for group: ScreenTimeGroup) -> SegmentProgress? {
         guard overrideGroupIDs.contains(group.id) else { return nil }
+        // 시간 기반(자정까지) override는 분 진행 개념이 없어 진행바를 숨긴다.
+        guard !isNearMidnightOverride(group) else { return nil }
         let baseline = overrideBaselineUsedTimeByGroupID[group.id] ?? 0
         let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
         let consumed = max(0, (usedTimeByGroupID[group.id] ?? 0) - baseline)

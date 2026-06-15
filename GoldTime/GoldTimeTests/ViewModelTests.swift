@@ -1309,6 +1309,30 @@ struct ViewModelTests {
         #expect(progress?.remaining == 1)
     }
 
+    @Test func homeViewModelNearMidnightOverrideShowsClockBadgeAndHidesProgress() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: Date())!
+        let viewModel = HomeViewModel(
+            groups: [group],
+            todayStats: DailyStats(dateKey: "2026-05-30"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil,
+            overrideGroupIDs: [group.id],
+            overrideUntilByGroupID: [group.id: endOfDay],
+            usedTimeByGroupID: [group.id: 30]
+            // 자정 fallback override는 granted/baseline을 기록하지 않는다.
+        )
+
+        // 시간 기반 override → "23:59까지 추가 사용" 배지, 진행바는 숨김.
+        // (배지 색은 기존 override와 동일한 .blue로 변경 없음.)
+        #expect(viewModel.isNearMidnightOverride(group))
+        #expect(viewModel.statusTitle(for: group) == "23:59까지 추가 사용")
+        #expect(viewModel.overrideProgress(for: group) == nil)
+    }
+
     @Test func homeViewModelBillCommentTier1Under15Min() {
         let viewModel = HomeViewModel(
             groups: [],
@@ -1961,6 +1985,129 @@ struct ViewModelTests {
         #expect(shieldRepo.recordWalkAwayCallCount == 1)
     }
 
+    @Test func lockOptionsViewModelDisablesOneMinuteNearMidnight() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        shieldRepo.oneMinuteRemainingValue = 5
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightCutoff = true
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            )
+        )
+
+        viewModel.onAppear()
+
+        // 자정 직전: 1분 연장은 막히고(남은 횟수가 있어도), 광고 연장은 계속 가능.
+        #expect(viewModel.isNearMidnightCutoff)
+        #expect(!viewModel.canExtendOneMinute)
+        #expect(viewModel.canExtendWithAd)
+        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량을 추적할 수 없어서, 광고로 잠금 해제하면 자정까지 열려요. 00:00에 규칙이 다시 적용됩니다.")
+        #expect(viewModel.adButtonTitle == "광고 보고 자정까지 열기")
+    }
+
+    @Test func lockOptionsViewModelShowsNearMidnightNoticeBeforeCutoffWithoutChangingActions() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        shieldRepo.oneMinuteRemainingValue = 5
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightNoticeWindow = true
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            )
+        )
+
+        viewModel.onAppear()
+
+        #expect(!viewModel.isNearMidnightCutoff)
+        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량을 추적할 수 없어서, 광고로 잠금 해제하면 자정까지 열려요. 00:00에 규칙이 다시 적용됩니다.")
+        #expect(viewModel.canExtendOneMinute)
+        #expect(viewModel.canExtendWithAd)
+        #expect(viewModel.adButtonTitle == "광고 보고 10분 구매하기")
+    }
+
+    @Test func lockOptionsViewModelBlocksOneMinuteIfCutoffBeginsAfterScreenAppears() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        shieldRepo.oneMinuteRemainingValue = 5
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            )
+        )
+
+        viewModel.onAppear()
+        #expect(viewModel.canExtendOneMinute)
+
+        screenTimeRepo.nearMidnightCutoff = true
+        viewModel.tapOneMinute()
+
+        #expect(screenTimeRepo.extendCallCount == 0)
+        #expect(!viewModel.canExtendOneMinute)
+    }
+
+    @Test func lockOptionsViewModelNearMidnightCompletionMessageUsesClockTime() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: Date())!
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightCutoff = true
+        screenTimeRepo.extendResult = .success(GroupExtensionResult(
+            group: group,
+            durationSeconds: 10 * 60,
+            overrideUntil: endOfDay,
+            remainingLockedGroups: []
+        ))
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            )
+        )
+
+        viewModel.onAppear()
+        viewModel.startAdFlow()      // 광고 표시
+        viewModel.rewardedAdDismissed()   // 광고 완료 → 연장 수행
+
+        // 자정 근처 완료 문구는 "분 더 쓰면 잠김"이 아니라 "23:59까지 사용할 수 있어요".
+        let message = viewModel.completionAlert?.message ?? ""
+        #expect(message.contains("23:59까지 사용할 수 있어요"))
+        #expect(!message.contains("더 쓰면"))
+    }
+
+    @Test func lockOptionsViewModelStillPresentsAdNearMidnight() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightCutoff = true
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            )
+        )
+
+        viewModel.onAppear()
+        viewModel.startAdFlow()
+
+        // 자정 근처에도 광고를 띄우고(rewarded 표시), 광고 완료 전에는 연장하지 않는다.
+        #expect(viewModel.isRewardedAdPresented)
+        #expect(screenTimeRepo.extendCallCount == 0)
+        // 버튼 제목은 "자정까지"로 정직하게 표기하되 광고는 필수.
+        #expect(viewModel.adButtonTitle == "광고 보고 자정까지 열기")
+    }
+
     // MARK: - OnboardingViewModel
 
     @Test func onboardingViewModelScreenTimeApprovalMovesToNotificationStep() async {
@@ -2394,6 +2541,8 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     var syncError: Error?
     var extendResult: Result<GroupExtensionResult, ExtensionFailure>?
     var extendResults: [Result<GroupExtensionResult, ExtensionFailure>] = []
+    var nearMidnightCutoff = false
+    var nearMidnightNoticeWindow = false
 
     func rolloverCounterIfNeeded() {}
 
@@ -2422,6 +2571,12 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
             return extendResults.removeFirst()
         }
         return extendResult ?? .failure(.groupNotFound)
+    }
+
+    func isNearMidnightOverrideCutoff(now: Date) -> Bool { nearMidnightCutoff }
+
+    func isWithinNearMidnightNoticeWindow(now: Date) -> Bool {
+        nearMidnightCutoff || nearMidnightNoticeWindow
     }
 }
 

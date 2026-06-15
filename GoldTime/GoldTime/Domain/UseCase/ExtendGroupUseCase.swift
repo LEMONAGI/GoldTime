@@ -60,6 +60,16 @@ final class ExtendGroupUseCase {
         screenTimeRepository.extendGroup(groupID: groupID, duration: 10 * 60, source: .adReward)
     }
 
+    /// 자정까지 < 15분이라 1분 연장(정확 차감)이 불가능한 시점인지. = 23:45부터.
+    func isNearMidnightCutoff(now: Date = Date()) -> Bool {
+        screenTimeRepository.isNearMidnightOverrideCutoff(now: now)
+    }
+
+    /// 자정 근처 안내 문구를 보여줄 구간인지. = 23:30부터(행동 변화 23:45 전 미리 알림).
+    func isNearMidnightNoticeWindow(now: Date = Date()) -> Bool {
+        screenTimeRepository.isWithinNearMidnightNoticeWindow(now: now)
+    }
+
     func walkAway(lockedGroups: [ScreenTimeGroup]) {
         if !lockedGroups.isEmpty {
             shieldRepository.recordWalkAway()

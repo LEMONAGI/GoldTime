@@ -108,6 +108,10 @@ struct LockOptionsView: View {
 
             walkAwayButton
 
+            if let notice = viewModel.nearMidnightNotice {
+                nearMidnightNoticeBanner(notice)
+            }
+
             VStack(spacing: 10) {
                 extensionOptionButton(
                     systemName: "timer",
@@ -119,7 +123,7 @@ struct LockOptionsView: View {
 
                 extensionOptionButton(
                     systemName: "play.rectangle",
-                    title: "광고 보고 10분 구매하기",
+                    title: viewModel.adButtonTitle,
                     subtitle: adSubtitle,
                     enabled: viewModel.canExtendWithAd,
                     action: viewModel.startAdFlow
@@ -162,6 +166,9 @@ struct LockOptionsView: View {
     }
 
     private var oneMinuteSubtitle: Text {
+        if viewModel.isNearMidnightCutoff {
+            return Text("23:45부터는 1분 연장을 사용할 수 없어요").foregroundColor(.secondary)
+        }
         if viewModel.oneMinuteRemaining > 0 {
             var str = AttributedString("무료")
             str.swiftUI.foregroundColor = .green
@@ -173,14 +180,36 @@ struct LockOptionsView: View {
     }
 
     private var adSubtitle: Text {
-        if let name = viewModel.selectedGroupName {
-            var str = AttributedString("광고 1회")
-            str.swiftUI.foregroundColor = .red
-            str += AttributedString(" · \(name) 10분 연장")
-            return Text(str)
-        } else {
+        guard let name = viewModel.selectedGroupName else {
             return Text("풀 그룹을 먼저 고르세요").foregroundColor(.orange)
         }
+        if viewModel.isNearMidnightCutoff {
+            var str = AttributedString("광고 1회")
+            str.swiftUI.foregroundColor = .red
+            str += AttributedString(" · \(name) 자정까지 열려요")
+            return Text(str)
+        }
+        var str = AttributedString("광고 1회")
+        str.swiftUI.foregroundColor = .red
+        str += AttributedString(" · \(name) 10분 연장")
+        return Text(str)
+    }
+
+    private func nearMidnightNoticeBanner(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "moon.stars")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     @ViewBuilder
