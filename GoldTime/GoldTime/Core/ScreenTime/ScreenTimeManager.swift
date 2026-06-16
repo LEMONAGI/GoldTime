@@ -326,7 +326,17 @@ enum ScreenTimeManager {
                     // 자정 직전 + 예산 남음 → 사용 예산 모니터 등록 불가 → 미추적, 자정 후 재등록.
                     SharedStore.unmarkGroupShielded(group.id)
                     newRegistered.removeValue(forKey: group.id)
-                case .register:
+                case .registerAvailable:
+                    // 일일 한도 잠금 등 기존 shield가 있어도 쿨다운 예산이 남았다면 새 규칙 기준으로
+                    // 남은 시간만 측정하며 사용 가능 상태로 전환한다.
+                    SharedStore.unmarkGroupShielded(group.id)
+                    do {
+                        try registerCooldownGroup(group)
+                        newRegistered[group.id] = group
+                    } catch {
+                        firstError = firstError ?? error
+                    }
+                case .keepCooldownRest:
                     do {
                         try registerCooldownGroup(group)
                         newRegistered[group.id] = group
@@ -457,12 +467,14 @@ enum ScreenTimeManager {
 
     /// 쿨다운 그룹 편집/재동기화 시 어떤 조치를 취할지 결정한다(Apple framework 호출 없는 순수 판정).
     /// daily의 `usedMinutes >= limit → 즉시 잠금`에 대응해, 쿨다운도 예산 소진이면 즉시 잠금한다.
-    /// - 휴식 중: `.register`(registerCooldownGroup이 early-return하므로 무해, 모니터 미등록).
+    /// - 휴식 중: `.keepCooldownRest`(registerCooldownGroup이 early-return하므로 무해, 모니터 미등록).
     /// - 예산 소진(`used >= budget`): 평소 `.enterCooldownRest`(휴식 진입+타이머), 자정 직전
     ///   `.lockUntilMidnight`(타이머 자정 넘김 회피 + 자정 리셋이 재충전하므로 markGroupShielded만).
-    /// - 예산 남음: 평소 `.register`, 자정 직전 `.skipUntracked`(사용 예산 모니터 등록 불가 → 미추적).
+    /// - 예산 남음: 평소 `.registerAvailable`(기존 잠금 해제 후 남은 예산 측정), 자정 직전
+    ///   `.skipUntracked`(사용 예산 모니터 등록 불가 → 미추적).
     enum MonitorEditAction: Equatable {
-        case register
+        case registerAvailable
+        case keepCooldownRest
         case skipUntracked
         case lockUntilMidnight
         case enterCooldownRest
@@ -474,11 +486,11 @@ enum ScreenTimeManager {
         budgetMinutes: Int,
         nearMidnight: Bool
     ) -> MonitorEditAction {
-        if isInCooldown { return .register }
+        if isInCooldown { return .keepCooldownRest }
         if usedMinutes >= budgetMinutes {
             return nearMidnight ? .lockUntilMidnight : .enterCooldownRest
         }
-        return nearMidnight ? .skipUntracked : .register
+        return nearMidnight ? .skipUntracked : .registerAvailable
     }
 
     static func validDailyMonitoringGroups(

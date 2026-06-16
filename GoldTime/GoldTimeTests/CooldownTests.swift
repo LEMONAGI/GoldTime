@@ -330,23 +330,23 @@ struct CooldownTests {
         ) == .enterCooldownRest)
     }
 
-    /// 예산이 남으면 평소엔 정상 등록, 자정 직전엔 미추적 스킵.
-    @Test func cooldownEditActionRegistersOrSkipsWhenBudgetRemains() {
+    /// 예산이 남으면 평소엔 기존 잠금을 풀고 남은 예산을 측정, 자정 직전엔 미추적 스킵.
+    @Test func cooldownEditActionRegistersAvailableOrSkipsWhenBudgetRemains() {
         #expect(ScreenTimeManager.cooldownEditAction(
             isInCooldown: false, usedMinutes: 3, budgetMinutes: 5, nearMidnight: false
-        ) == .register)
+        ) == .registerAvailable)
         #expect(ScreenTimeManager.cooldownEditAction(
             isInCooldown: false, usedMinutes: 3, budgetMinutes: 5, nearMidnight: true
         ) == .skipUntracked)
     }
 
-    /// 이미 휴식 중이면 예산/시각과 무관하게 .register(registerCooldownGroup이 early-return).
-    @Test func cooldownEditActionDefersToRegisterWhenAlreadyResting() {
+    /// 이미 휴식 중이면 예산/시각과 무관하게 휴식을 유지한다(registerCooldownGroup이 early-return).
+    @Test func cooldownEditActionKeepsCooldownRestWhenAlreadyResting() {
         #expect(ScreenTimeManager.cooldownEditAction(
             isInCooldown: true, usedMinutes: 99, budgetMinutes: 5, nearMidnight: true
-        ) == .register)
+        ) == .keepCooldownRest)
         #expect(ScreenTimeManager.cooldownEditAction(
             isInCooldown: true, usedMinutes: 0, budgetMinutes: 5, nearMidnight: false
-        ) == .register)
+        ) == .keepCooldownRest)
     }
 }
