@@ -19,6 +19,9 @@ struct DashboardState {
     let lockedGroupIDs: Set<UUID>
     let overrideGroupIDs: Set<UUID>
     let validGroupIDs: Set<UUID>
+    /// 유효 그룹이지만 현재 모니터가 등록돼 있지 않아 사용량 추적이 멈춘 그룹(자정 직전 편집 스킵 등).
+    /// "남은 한도" 바를 숨기고 "23:59까지 사용 가능" 배지로 바꾸는 데 쓴다.
+    let untrackedGroupIDs: Set<UUID>
 }
 
 final class LoadDashboardUseCase {
@@ -73,7 +76,9 @@ final class LoadDashboardUseCase {
             isDailyMonitoringEnabled: screenTimeRepository.isDailyMonitoringEnabled,
             lockedGroupIDs: Set(shieldRepository.lockedGroups().map(\.id)),
             overrideGroupIDs: Set(shieldRepository.groupsInOverride().map(\.id)),
-            validGroupIDs: Set(validGroups.map(\.id))
+            validGroupIDs: Set(validGroups.map(\.id)),
+            untrackedGroupIDs: Set(validGroups.map(\.id))
+                .subtracting(screenTimeRepository.monitoredGroupIDs())
         )
     }
 

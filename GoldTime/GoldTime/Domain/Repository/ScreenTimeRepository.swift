@@ -9,6 +9,9 @@ protocol ScreenTimeRepository {
     func syncDailyMonitoring(groups: [ScreenTimeGroup]) throws
     func reconnectMonitoring() throws
     func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup]
+    /// 현재 사용량 추적 모니터가 등록돼 있는 그룹 id 집합(`lastRegisteredGroupsByID` 기준).
+    /// 자정 직전 편집 스킵·등록 실패 등으로 추적이 멈춘 그룹은 여기서 빠진다.
+    func monitoredGroupIDs() -> Set<UUID>
     func extendGroup(
         groupID: UUID,
         duration seconds: Int,

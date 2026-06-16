@@ -17,6 +17,9 @@ struct RuleEditorSheet: View {
     @Binding var cooldownDurationMinutes: Int
     /// 그룹에 이미 커밋된 규칙. 아직 규칙을 고르지 않은(새) 그룹은 nil이라 체크표시가 없다.
     let currentKind: GroupRuleKind?
+    /// 자정 직전(23:45+) 편집 안내. nil이면 미노출. 일일 한도·쿨다운 상세에서만 쓴다
+    /// (시간대별 차단은 모니터 영향이 없어 전달하지 않는다).
+    let nearMidnightNotice: String?
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
@@ -43,7 +46,17 @@ struct RuleEditorSheet: View {
                         subtitle: "정한 만큼 쓰면 한동안 쉬어야 해요"
                     )
                 } footer: {
-                    Text("적용된 그룹은 규칙을 바꾸면 바로 반영돼요.")
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("적용된 그룹은 규칙을 바꾸면 바로 반영돼요.")
+                        if let nearMidnightNotice,
+                           selectedKind == .dailyLimit || selectedKind == .cooldown {
+                            Label {
+                                Text(nearMidnightNotice)
+                            } icon: {
+                                Image(systemName: "moon.stars")
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("차단 규칙")
@@ -54,6 +67,7 @@ struct RuleEditorSheet: View {
                 }
             }
         }
+        .interactiveDismissDisabled()
     }
 
     @ViewBuilder

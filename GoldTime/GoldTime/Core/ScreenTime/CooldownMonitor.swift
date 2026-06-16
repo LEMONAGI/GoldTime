@@ -87,9 +87,24 @@ enum CooldownMonitor {
         return set.sorted()
     }
 
-    /// 사용 예산 모니터 등록. 누적 사용 분이 각 threshold에 닿을 때마다 cdtick이 1회씩 발화한다.
-    /// 진행바(남은 시간)를 위해 최대 10개 threshold를 한 번에 등록(no relay)하며, 마지막
-    /// threshold(=cooldownUsageMinutes)에서 잠금이 트리거된다. 사이클마다 새 window라 baseline 불필요.
+    /// 이미 쓴 사용량을 제외한 남은 예산에 대한 상대 threshold 목록.
+    /// 예: 30분 예산에서 5분 사용 후 재등록하면 마지막 threshold는 25분이다.
+    nonisolated static func usageThresholds(
+        forBudget budget: Int,
+        baseline: Int,
+        maxEvents: Int = 10
+    ) -> [Int] {
+        usageThresholds(forBudget: budget - max(0, baseline), maxEvents: maxEvents)
+    }
+
+    /// cooldownUsage tick의 상대 분을 사이클 전체 사용량으로 복원한다.
+    nonisolated static func absoluteUsedMinutes(baseline: Int, tickMinute: Int) -> Int {
+        max(0, baseline) + max(0, tickMinute)
+    }
+
+    /// 사용 예산 모니터 등록. 등록 시점까지의 누적 사용량을 baseline으로 저장하고, 남은 예산에
+    /// 대한 상대 threshold를 건다. 진행바(남은 시간)를 위해 최대 10개 threshold를 한 번에 등록
+    /// (no relay)하며, 마지막 threshold에서 `baseline + tick == cooldownUsageMinutes`가 되어 잠금된다.
     nonisolated static func startUsageMonitoring(
         center: DeviceActivityCenter,
         group: SharedStore.ScreenTimeGroup,
@@ -98,8 +113,10 @@ enum CooldownMonitor {
     ) throws {
         let budget = group.cooldownUsageMinutes
         guard budget > 0 else { return }
-        let thresholds = usageThresholds(forBudget: budget)
+        let baseline = max(0, SharedStore.usedTimeByGroupID[group.id] ?? 0)
+        let thresholds = usageThresholds(forBudget: budget, baseline: baseline)
         guard !thresholds.isEmpty else { return }
+        SharedStore.cooldownBaselineByGroupID[group.id] = baseline
 
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
         for minute in thresholds {

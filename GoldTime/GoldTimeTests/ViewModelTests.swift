@@ -860,7 +860,7 @@ struct ViewModelTests {
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.pendingLimitLockWarning != nil)
-        #expect(viewModel.pendingLimitLockWarning?.minutes == 10)
+        #expect(viewModel.pendingLimitLockWarning?.rule == .dailyLimit(minutes: 10))
         #expect(viewModel.pendingLimitLockWarning?.usedMinutes == 20)
         #expect(viewModel.groups.first?.dailyLimitMinutes == 30)   // 아직 미적용
         #expect(screenTimeRepo.syncCallCount == 0)
@@ -1061,6 +1061,224 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
+    @Test func cooldownRuleWarnsAndDefersWhenNewBudgetBelowUsedTime() {
+        // 사용자 시나리오: 쿨다운 20분/1시간휴식, 15분 사용 후 예산 5분으로 변경.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 20, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 15]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 5
+        viewModel.ruleEditorCooldownDurationMinutes = 60
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        // 즉시 적용하지 않고 휴식 진입 경고를 대기시킨다.
+        #expect(viewModel.pendingLimitLockWarning != nil)
+        #expect(viewModel.pendingLimitLockWarning?.rule == .cooldown(usageMinutes: 5, durationMinutes: 60))
+        #expect(viewModel.pendingLimitLockWarning?.usedMinutes == 15)
+        #expect(viewModel.groups.first?.cooldownUsageMinutes == 20)   // 아직 미적용
+        #expect(screenTimeRepo.syncCallCount == 0)
+
+        // 변경 확정 → 적용.
+        let warning = viewModel.pendingLimitLockWarning!
+        viewModel.pendingLimitLockWarning = nil
+        viewModel.confirmLimitLockChange(warning)
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.groups.first?.cooldownUsageMinutes == 5)
+        #expect(groupRepo.screenTimeGroups.first?.cooldownUsageMinutes == 5)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func cooldownRuleAppliesWithoutWarningWhenBudgetAboveUsedTime() {
+        // 예산이 사용량보다 크면 경고 없이 즉시 적용(회귀 가드).
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 20, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 5]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 30
+        viewModel.ruleEditorCooldownDurationMinutes = 60
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.groups.first?.cooldownUsageMinutes == 30)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func cooldownRuleSkipsWarningWhenAlreadyResting() {
+        // 이미 휴식 중(잠김)인 그룹은 휴식 간격만 바꿔도(예산 ≤ used여도) 경고 없이 바로 적용.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 5, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 7]
+        viewModel.lockedGroupIDs = [group.id]   // 이미 휴식 중 → 잠김 집합에 포함
+        viewModel.cooldownEndByGroupID = [group.id: Date().addingTimeInterval(600)]  // 휴식 진행 중
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 5     // 예산 그대로(5 ≤ used 7)
+        viewModel.ruleEditorCooldownDurationMinutes = 90  // 휴식 간격만 변경
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)   // 즉시 잠금 경고 없음
+        #expect(viewModel.groups.first?.cooldownDurationMinutes == 90)   // 바로 적용
+        #expect(screenTimeRepo.syncCallCount == 1)
+        // 휴식 중 변경 → "다음 주기부터 적용" 안내 알럿(예산·휴식 어느 쪽이든).
+        #expect(viewModel.alertMessage?.message == "변경된 설정은 다음 주기부터 적용돼요.")
+    }
+
+    @Test func cooldownRestingBudgetOnlyChangeShowsInfoAlert() {
+        // 휴식 중엔 예산만 바꿔도 다음 주기부터 적용 → 동일 안내 알럿.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 5, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 7]
+        viewModel.lockedGroupIDs = [group.id]
+        viewModel.cooldownEndByGroupID = [group.id: Date().addingTimeInterval(600)]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 20    // 예산만 변경
+        viewModel.ruleEditorCooldownDurationMinutes = 60  // 휴식 간격 동일
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.alertMessage?.message == "변경된 설정은 다음 주기부터 적용돼요.")
+    }
+
+    @Test func cooldownRestingNoChangeShowsNoInfoAlert() {
+        // 휴식 중에 아무것도 안 바꾸고 닫으면 안내 없음.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 5, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 7]
+        viewModel.lockedGroupIDs = [group.id]
+        viewModel.cooldownEndByGroupID = [group.id: Date().addingTimeInterval(600)]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 5     // 동일
+        viewModel.ruleEditorCooldownDurationMinutes = 60  // 동일
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.alertMessage == nil)
+    }
+
+    @Test func dailyLimitRuleSkipsWarningWhenAlreadyLocked() {
+        // 이미 잠긴 일일 한도 그룹은 한도를 더 낮춰도 경고 없이 바로 적용(잠금 유지).
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 30]
+        viewModel.lockedGroupIDs = [group.id]   // 이미 잠김
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 0
+        viewModel.limitPickerMinutes = 5
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)   // 경고 없음
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 5)   // 바로 적용
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
     @Test func cooldownRuleWithInvalidValuesAlertsAndDoesNotChangeGroup() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
         let groupRepo = FakeGroupRepository()
@@ -1087,6 +1305,31 @@ struct ViewModelTests {
         #expect(viewModel.alertMessage != nil)
         #expect(viewModel.groups.first?.ruleKind == .dailyLimit)   // 미변경
         #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
+    @Test func nearMidnightEditNoticeShownOnlyWithinCutoff() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+
+        // 자정 직전이 아니면 안내 없음.
+        screenTimeRepo.nearMidnightCutoff = false
+        #expect(viewModel.nearMidnightEditNotice == nil)
+
+        // 자정 직전(23:45+)이면 안내 노출.
+        screenTimeRepo.nearMidnightCutoff = true
+        #expect(viewModel.nearMidnightEditNotice == "23:45부터는 사용량 추적이 어려워요. 지금 바꾼 규칙은 00:00부터 다시 정확히 적용됩니다.")
     }
 
     @Test func switchingToTimeWindowsPreservesDailyLimitMinutes() {
@@ -1333,6 +1576,69 @@ struct ViewModelTests {
         #expect(viewModel.isNearMidnightOverride(group))
         #expect(viewModel.statusTitle(for: group) == "23:59까지 추가 사용")
         #expect(viewModel.overrideProgress(for: group) == nil)
+    }
+
+    @Test func homeViewModelUntrackedGroupHidesBarAndShowsAvailableBadge() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let viewModel = HomeViewModel(
+            groups: [group],
+            todayStats: DailyStats(dateKey: "2026-05-30"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil,
+            validGroupIDs: [group.id],
+            untrackedGroupIDs: [group.id],   // 자정 직전 편집으로 추적 멈춤
+            usedTimeByGroupID: [group.id: 10]
+        )
+
+        // 추적이 멈췄으니 "남은 한도" 바 숨김 + "23:59까지 사용 가능" 배지.
+        #expect(viewModel.isUntrackedNearMidnight(group))
+        #expect(viewModel.lockProgress(for: group) == nil)
+        #expect(viewModel.statusTitle(for: group) == "23:59까지 사용 가능")
+    }
+
+    @Test func homeViewModelTrackedGroupKeepsBarAndAvailableBadge() {
+        // 회귀 가드: untrackedGroupIDs에 없으면 바 유지 + "사용 가능".
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let viewModel = HomeViewModel(
+            groups: [group],
+            todayStats: DailyStats(dateKey: "2026-05-30"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil,
+            validGroupIDs: [group.id],
+            usedTimeByGroupID: [group.id: 10]
+        )
+
+        #expect(!viewModel.isUntrackedNearMidnight(group))
+        #expect(viewModel.lockProgress(for: group) != nil)   // 바 유지
+        // tracked 그룹엔 untracked 배지가 붙지 않는다(토큰 없는 테스트 그룹은 "설정 필요" 반환).
+        #expect(viewModel.statusTitle(for: group) != "23:59까지 사용 가능")
+    }
+
+    @Test func homeViewModelUntrackedButLockedKeepsLockBadge() {
+        // 추적 멈춤이어도 잠긴 그룹은 잠금 배지가 우선, 사용가능 배지 미적용.
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let viewModel = HomeViewModel(
+            groups: [group],
+            todayStats: DailyStats(dateKey: "2026-05-30"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil,
+            lockedGroupIDs: [group.id],
+            validGroupIDs: [group.id],
+            untrackedGroupIDs: [group.id],
+            usedTimeByGroupID: [group.id: 30]
+        )
+
+        #expect(!viewModel.isUntrackedNearMidnight(group))
+        #expect(viewModel.statusTitle(for: group) == "23:59까지 잠금")
     }
 
     @Test func homeViewModelBillCommentTier1Under15Min() {
@@ -2007,7 +2313,7 @@ struct ViewModelTests {
         #expect(viewModel.isNearMidnightCutoff)
         #expect(!viewModel.canExtendOneMinute)
         #expect(viewModel.canExtendWithAd)
-        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량을 추적할 수 없어서, 광고로 잠금 해제하면 자정까지 열려요. 00:00에 규칙이 다시 적용됩니다.")
+        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량 추적이 어려워요. 광고를 보면 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
         #expect(viewModel.adButtonTitle == "광고 보고 자정까지 열기")
     }
 
@@ -2028,7 +2334,7 @@ struct ViewModelTests {
         viewModel.onAppear()
 
         #expect(!viewModel.isNearMidnightCutoff)
-        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량을 추적할 수 없어서, 광고로 잠금 해제하면 자정까지 열려요. 00:00에 규칙이 다시 적용됩니다.")
+        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량 추적이 어려워요. 광고를 보면 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
         #expect(viewModel.canExtendOneMinute)
         #expect(viewModel.canExtendWithAd)
         #expect(viewModel.adButtonTitle == "광고 보고 10분 구매하기")
@@ -2545,6 +2851,7 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     var extendResults: [Result<GroupExtensionResult, ExtensionFailure>] = []
     var nearMidnightCutoff = false
     var nearMidnightNoticeWindow = false
+    var monitoredIDs: Set<UUID> = []
 
     func rolloverCounterIfNeeded() {}
 
@@ -2557,6 +2864,8 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     }
 
     func reconnectMonitoring() throws {}
+
+    func monitoredGroupIDs() -> Set<UUID> { monitoredIDs }
 
     func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] {
         groups.filter { $0.selectionCount > 0 && $0.dailyLimitMinutes >= 0 }

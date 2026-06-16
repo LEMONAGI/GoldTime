@@ -24,11 +24,16 @@ struct GoldTimeAlertMessage: Identifiable, Equatable {
 
 /// 이미 사용한 시간보다 작은 한도로 바꿔 즉시 잠기게 될 때 띄우는 확인 경고.
 struct LimitLockWarning: Identifiable {
+    /// 즉시 잠금이 일어나는 규칙 종류. 일일 한도는 자정까지 잠금, 쿨다운은 휴식 진입.
+    enum Rule: Equatable {
+        case dailyLimit(minutes: Int)
+        case cooldown(usageMinutes: Int, durationMinutes: Int)
+    }
     let id = UUID()
     let groupID: UUID
     let groupName: String
-    let minutes: Int
     let usedMinutes: Int
+    let rule: Rule
 }
 
 /// draft 그룹을 "적용하기"로 commit하기 전, 이후 수정에 광고가 필요함을 안내하는 확인.
@@ -72,6 +77,8 @@ final class ContentViewModel {
     var pendingLimitLockWarning: LimitLockWarning?
     var pendingApplyConfirmation: ApplyGroupConfirmation?
     private var stagedLimitLockWarning: LimitLockWarning?
+    /// 규칙 편집 적용 후 시트가 닫히면 띄울 단순 안내(예: 휴식 중 휴식 시간 변경).
+    private var stagedRuleEditInfo: GoldTimeAlertMessage?
     private var pendingDeletedGroupName: String?
     var isReconnecting = false
     var isScreenTimeRecoveryPresented = false
@@ -99,6 +106,7 @@ final class ContentViewModel {
     var lockedGroupIDs: Set<UUID> = []
     var overrideGroupIDs: Set<UUID> = []
     var validGroupIDs: Set<UUID> = []
+    var untrackedGroupIDs: Set<UUID> = []
     var overrideUntilByGroupID: [UUID: Date] = [:]
     var usedTimeByGroupID: [UUID: Int] = [:]
     var overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:]
@@ -191,6 +199,13 @@ final class ContentViewModel {
 
     var isRuleEditorPresented: Bool {
         ruleEditorGroupID != nil
+    }
+
+    /// 자정 직전(23:45+)이라 편집해도 사용량 추적이 자정까지 불가능할 때 편집 상세에 띄울 안내.
+    /// 일일 한도·쿨다운 상세에서만 노출한다(시간대별 차단은 영향 없음 — View에서 분기).
+    var nearMidnightEditNotice: String? {
+        guard manageGroupsUseCase.isNearMidnightEditCutoff() else { return nil }
+        return "23:45부터는 사용량 추적이 어려워요. 지금 바꾼 규칙은 00:00부터 다시 정확히 적용됩니다."
     }
 
     func setRuleEditorPresented(_ isPresented: Bool) {
@@ -319,6 +334,12 @@ final class ContentViewModel {
         }
     }
 
+    /// 그룹이 현재 자유롭게 사용 가능한(잠김X·휴식X·override X) 상태인지.
+    /// 편집으로 "즉시 잠금/휴식 진입" 확인 알럿을 띄울지 판단하는 데 쓴다(전환이 실제로 일어날 때만).
+    private func isGroupCurrentlyOpen(_ id: UUID) -> Bool {
+        !lockedGroupIDs.contains(id) && !overrideGroupIDs.contains(id)
+    }
+
     private func commitCooldownRule() {
         guard let id = ruleEditorGroupID else { return }
         let usage = ruleEditorCooldownUsageMinutes
@@ -330,6 +351,40 @@ final class ContentViewModel {
             return
         }
 
+        let used = usedTimeByGroupID[id] ?? 0
+        // 이미 사용한 시간보다 작은 예산이면 즉시 휴식에 들어간다(일일 한도 즉시 잠금과 동일 패턴).
+        // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
+        // 단, 이미 잠김/휴식/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
+        if isGroupCurrentlyOpen(id) && used > 0 && usage <= used {
+            let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
+            stagedLimitLockWarning = LimitLockWarning(
+                groupID: id,
+                groupName: name,
+                usedMinutes: used,
+                rule: .cooldown(usageMinutes: usage, durationMinutes: duration)
+            )
+            ruleEditorGroupID = nil
+            return
+        }
+
+        // 휴식 중에는 예산/휴식 간격을 바꿔도 진행 중인 휴식은 그대로고, 새 값은 다음 주기부터 적용된다.
+        // (적용 전 상태로 판단 — applyCooldownRule이 dashboard를 갱신하기 전에 캡처)
+        let oldGroup = groups.first(where: { $0.id == id })
+        let isResting = (cooldownEndByGroupID[id].map { $0 > Date() }) ?? false
+        let settingsChangedWhileResting = isResting && oldGroup != nil
+            && (oldGroup!.cooldownUsageMinutes != usage || oldGroup!.cooldownDurationMinutes != duration)
+
+        applyCooldownRule(id: id, usage: usage, duration: duration)
+        if settingsChangedWhileResting {
+            stagedRuleEditInfo = GoldTimeAlertMessage(
+                title: "변경 안내",
+                message: "변경된 설정은 다음 주기부터 적용돼요."
+            )
+        }
+        ruleEditorGroupID = nil
+    }
+
+    private func applyCooldownRule(id: UUID, usage: Int, duration: Int) {
         updateGroup(id) { groups in
             manageGroupsUseCase.updateRule(
                 id: id,
@@ -339,7 +394,6 @@ final class ContentViewModel {
                 in: &groups
             )
         }
-        ruleEditorGroupID = nil
     }
 
     private func commitDailyLimitRule() {
@@ -349,13 +403,14 @@ final class ContentViewModel {
 
         // 이미 사용한 시간보다 작은 한도면 즉시 잠긴다(syncDailyMonitoring의 used >= limit 분기).
         // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
-        if used > 0 && minutes <= used {
+        // 단, 이미 잠김/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
+        if isGroupCurrentlyOpen(id) && used > 0 && minutes <= used {
             let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
             stagedLimitLockWarning = LimitLockWarning(
                 groupID: id,
                 groupName: name,
-                minutes: minutes,
-                usedMinutes: used
+                usedMinutes: used,
+                rule: .dailyLimit(minutes: minutes)
             )
             ruleEditorGroupID = nil
             return
@@ -401,16 +456,27 @@ final class ContentViewModel {
     /// 규칙 편집기 시트가 닫힌 뒤 호출. 즉시 잠금 경고가 대기 중이면 alert로 띄운다
     /// (시트 dismiss와 alert를 동시에 표시하면 alert가 누락될 수 있어 순서를 분리).
     func handleRuleEditorDismiss() {
-        guard let staged = stagedLimitLockWarning else { return }
-        stagedLimitLockWarning = nil
-        pendingLimitLockWarning = staged
+        if let staged = stagedLimitLockWarning {
+            stagedLimitLockWarning = nil
+            pendingLimitLockWarning = staged
+            return
+        }
+        if let info = stagedRuleEditInfo {
+            stagedRuleEditInfo = nil
+            alertMessage = info
+        }
     }
 
     // warning을 인자로 받는다: .alert(item:)이 버튼 액션 전에 바인딩을 nil로 만들어
     // 상태에서 다시 읽으면 nil이 되기 때문(early-return 버그 방지).
     func confirmLimitLockChange(_ warning: LimitLockWarning) {
         pendingLimitLockWarning = nil
-        applyDailyLimitRule(id: warning.groupID, minutes: warning.minutes)
+        switch warning.rule {
+        case .dailyLimit(let minutes):
+            applyDailyLimitRule(id: warning.groupID, minutes: minutes)
+        case .cooldown(let usage, let duration):
+            applyCooldownRule(id: warning.groupID, usage: usage, duration: duration)
+        }
     }
 
     func cancelLimitLockChange() {
@@ -596,6 +662,7 @@ final class ContentViewModel {
         lockedGroupIDs = state.lockedGroupIDs
         overrideGroupIDs = state.overrideGroupIDs
         validGroupIDs = state.validGroupIDs
+        untrackedGroupIDs = state.untrackedGroupIDs
         overrideUntilByGroupID = state.overrideUntilByGroupID
         usedTimeByGroupID = state.usedTimeByGroupID
         overrideBaselineUsedTimeByGroupID = state.overrideBaselineUsedTimeByGroupID

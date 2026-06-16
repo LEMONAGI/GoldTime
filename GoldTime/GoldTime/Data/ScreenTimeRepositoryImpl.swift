@@ -65,6 +65,11 @@ struct ScreenTimeRepositoryImpl: ScreenTimeRepository {
         ScreenTimeManager.validDailyMonitoringGroups(from: groups)
     }
 
+    func monitoredGroupIDs() -> Set<UUID> {
+        guard let registered = SharedStore.lastRegisteredGroupsByID else { return [] }
+        return Set(registered.keys)
+    }
+
     func extendGroup(
         groupID: UUID,
         duration seconds: Int,
