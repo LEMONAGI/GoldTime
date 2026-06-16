@@ -104,6 +104,7 @@ final class ContentViewModel {
     var lockedGroupIDs: Set<UUID> = []
     var overrideGroupIDs: Set<UUID> = []
     var validGroupIDs: Set<UUID> = []
+    var untrackedGroupIDs: Set<UUID> = []
     var overrideUntilByGroupID: [UUID: Date] = [:]
     var usedTimeByGroupID: [UUID: Int] = [:]
     var overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:]
@@ -632,6 +633,7 @@ final class ContentViewModel {
         lockedGroupIDs = state.lockedGroupIDs
         overrideGroupIDs = state.overrideGroupIDs
         validGroupIDs = state.validGroupIDs
+        untrackedGroupIDs = state.untrackedGroupIDs
         overrideUntilByGroupID = state.overrideUntilByGroupID
         usedTimeByGroupID = state.usedTimeByGroupID
         overrideBaselineUsedTimeByGroupID = state.overrideBaselineUsedTimeByGroupID

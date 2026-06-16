@@ -1439,6 +1439,69 @@ struct ViewModelTests {
         #expect(viewModel.overrideProgress(for: group) == nil)
     }
 
+    @Test func homeViewModelUntrackedGroupHidesBarAndShowsAvailableBadge() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let viewModel = HomeViewModel(
+            groups: [group],
+            todayStats: DailyStats(dateKey: "2026-05-30"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil,
+            validGroupIDs: [group.id],
+            untrackedGroupIDs: [group.id],   // 자정 직전 편집으로 추적 멈춤
+            usedTimeByGroupID: [group.id: 10]
+        )
+
+        // 추적이 멈췄으니 "남은 한도" 바 숨김 + "23:59까지 사용 가능" 배지.
+        #expect(viewModel.isUntrackedNearMidnight(group))
+        #expect(viewModel.lockProgress(for: group) == nil)
+        #expect(viewModel.statusTitle(for: group) == "23:59까지 사용 가능")
+    }
+
+    @Test func homeViewModelTrackedGroupKeepsBarAndAvailableBadge() {
+        // 회귀 가드: untrackedGroupIDs에 없으면 바 유지 + "사용 가능".
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let viewModel = HomeViewModel(
+            groups: [group],
+            todayStats: DailyStats(dateKey: "2026-05-30"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil,
+            validGroupIDs: [group.id],
+            usedTimeByGroupID: [group.id: 10]
+        )
+
+        #expect(!viewModel.isUntrackedNearMidnight(group))
+        #expect(viewModel.lockProgress(for: group) != nil)   // 바 유지
+        // tracked 그룹엔 untracked 배지가 붙지 않는다(토큰 없는 테스트 그룹은 "설정 필요" 반환).
+        #expect(viewModel.statusTitle(for: group) != "23:59까지 사용 가능")
+    }
+
+    @Test func homeViewModelUntrackedButLockedKeepsLockBadge() {
+        // 추적 멈춤이어도 잠긴 그룹은 잠금 배지가 우선, 사용가능 배지 미적용.
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let viewModel = HomeViewModel(
+            groups: [group],
+            todayStats: DailyStats(dateKey: "2026-05-30"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil,
+            lockedGroupIDs: [group.id],
+            validGroupIDs: [group.id],
+            untrackedGroupIDs: [group.id],
+            usedTimeByGroupID: [group.id: 30]
+        )
+
+        #expect(!viewModel.isUntrackedNearMidnight(group))
+        #expect(viewModel.statusTitle(for: group) == "23:59까지 잠금")
+    }
+
     @Test func homeViewModelBillCommentTier1Under15Min() {
         let viewModel = HomeViewModel(
             groups: [],
@@ -2649,6 +2712,7 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     var extendResults: [Result<GroupExtensionResult, ExtensionFailure>] = []
     var nearMidnightCutoff = false
     var nearMidnightNoticeWindow = false
+    var monitoredIDs: Set<UUID> = []
 
     func rolloverCounterIfNeeded() {}
 
@@ -2661,6 +2725,8 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     }
 
     func reconnectMonitoring() throws {}
+
+    func monitoredGroupIDs() -> Set<UUID> { monitoredIDs }
 
     func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] {
         groups.filter { $0.selectionCount > 0 && $0.dailyLimitMinutes >= 0 }

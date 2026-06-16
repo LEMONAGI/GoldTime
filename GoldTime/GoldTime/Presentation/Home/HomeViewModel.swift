@@ -18,6 +18,7 @@ struct HomeViewModel {
     let lockedGroupIDs: Set<UUID>
     let overrideGroupIDs: Set<UUID>
     let validGroupIDs: Set<UUID>
+    let untrackedGroupIDs: Set<UUID>
     let overrideUntilByGroupID: [UUID: Date]
     let usedTimeByGroupID: [UUID: Int]
     let overrideBaselineUsedTimeByGroupID: [UUID: Int]
@@ -37,6 +38,7 @@ struct HomeViewModel {
         lockedGroupIDs: Set<UUID> = [],
         overrideGroupIDs: Set<UUID> = [],
         validGroupIDs: Set<UUID> = [],
+        untrackedGroupIDs: Set<UUID> = [],
         overrideUntilByGroupID: [UUID: Date] = [:],
         usedTimeByGroupID: [UUID: Int] = [:],
         overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:],
@@ -55,6 +57,7 @@ struct HomeViewModel {
         self.lockedGroupIDs = lockedGroupIDs
         self.overrideGroupIDs = overrideGroupIDs
         self.validGroupIDs = validGroupIDs
+        self.untrackedGroupIDs = untrackedGroupIDs
         self.overrideUntilByGroupID = overrideUntilByGroupID
         self.usedTimeByGroupID = usedTimeByGroupID
         self.overrideBaselineUsedTimeByGroupID = overrideBaselineUsedTimeByGroupID
@@ -109,6 +112,10 @@ struct HomeViewModel {
             // 부여된 분(진행바가 나타내는 총 시간)을 함께 표기. 실시간 갱신 아님.
             let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
             return "\(granted)분 추가 사용"
+        }
+        // 자정 직전 편집으로 추적이 멈춘 그룹: 분 진행 개념이 없어 바 대신 "23:59까지 사용 가능"으로.
+        if isUntrackedNearMidnight(group) {
+            return "23:59까지 사용 가능"
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return "설정 필요"
@@ -220,7 +227,8 @@ struct HomeViewModel {
         }
         guard validGroupIDs.contains(group.id),
               !lockedGroupIDs.contains(group.id),
-              !overrideGroupIDs.contains(group.id) else { return nil }
+              !overrideGroupIDs.contains(group.id),
+              !untrackedGroupIDs.contains(group.id) else { return nil }
         let used = usedTimeByGroupID[group.id] ?? 0
         let remainingMin = budget - used
         guard remainingMin > 0 else { return nil }
@@ -236,6 +244,20 @@ struct HomeViewModel {
     /// 분 진행 개념이 없으므로 "남은 한도" 바를 숨기고 배지를 "자정까지" 형태로 바꾸는 데 쓴다.
     func isNearMidnightOverride(_ group: ScreenTimeGroup) -> Bool {
         overrideGroupIDs.contains(group.id) && overrideGrantedMinutesByGroupID[group.id] == nil
+    }
+
+    /// 자정 직전 편집으로 모니터가 빠져 사용량 추적이 멈춘(잠기지도 않는) 일일/쿨다운 그룹인지.
+    /// 연장의 `isNearMidnightOverride`와 같은 역할 — "남은 한도" 바를 숨기고 "23:59까지 사용 가능"
+    /// 배지로 바꾸는 데 쓴다. 바가 있던(잠금·override 아님) 자리에만 적용된다.
+    func isUntrackedNearMidnight(_ group: ScreenTimeGroup) -> Bool {
+        guard untrackedGroupIDs.contains(group.id),
+              validGroupIDs.contains(group.id),
+              !lockedGroupIDs.contains(group.id),
+              !overrideGroupIDs.contains(group.id) else { return false }
+        switch group.ruleKind ?? .dailyLimit {
+        case .dailyLimit, .cooldown: return true
+        case .timeWindows: return false
+        }
     }
 
     func overrideProgress(for group: ScreenTimeGroup) -> SegmentProgress? {

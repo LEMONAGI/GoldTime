@@ -75,6 +75,7 @@ struct ContentView: View {
                     lockedGroupIDs: viewModel.lockedGroupIDs,
                     overrideGroupIDs: viewModel.overrideGroupIDs,
                     validGroupIDs: viewModel.validGroupIDs,
+                    untrackedGroupIDs: viewModel.untrackedGroupIDs,
                     overrideUntilByGroupID: viewModel.overrideUntilByGroupID,
                     usedTimeByGroupID: viewModel.usedTimeByGroupID,
                     overrideBaselineUsedTimeByGroupID: viewModel.overrideBaselineUsedTimeByGroupID,
