@@ -77,8 +77,11 @@ final class LoadDashboardUseCase {
             lockedGroupIDs: Set(shieldRepository.lockedGroups().map(\.id)),
             overrideGroupIDs: Set(shieldRepository.groupsInOverride().map(\.id)),
             validGroupIDs: Set(validGroups.map(\.id)),
-            untrackedGroupIDs: Set(validGroups.map(\.id))
-                .subtracting(screenTimeRepository.monitoredGroupIDs())
+            // 모니터링이 꺼져 있으면 "일부 그룹만 추적이 빠진" 개념이 성립하지 않는다
+            // (전부 멈춘 것 → "대기 중"이 맞다). 켜진 상태에서만 빠진 그룹을 골라낸다.
+            untrackedGroupIDs: screenTimeRepository.isDailyMonitoringEnabled
+                ? Set(validGroups.map(\.id)).subtracting(screenTimeRepository.monitoredGroupIDs())
+                : []
         )
     }
 

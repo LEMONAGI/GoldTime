@@ -1641,6 +1641,27 @@ struct ViewModelTests {
         #expect(viewModel.statusTitle(for: group) == "23:59까지 잠금")
     }
 
+    @Test func dashboardUntrackedEmptyWhenMonitoringDisabled() {
+        // 회귀 가드: 모니터링이 꺼져 있으면(등록 그룹 0) 유효 그룹을 untracked로 잡지 않는다.
+        // 잡으면 "대기 중"이어야 할 카드에 "23:59까지 사용 가능" 배지가 잘못 뜬다.
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임", dailyLimitMinutes: 30)
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.validGroupsOverride = [group]
+        screenTimeRepo.monitoredIDs = []   // 등록된 모니터 없음
+        let useCase = LoadDashboardUseCase(
+            shieldRepository: FakeShieldRepository(),
+            statsRepository: FakeStatsRepository(),
+            screenTimeRepository: screenTimeRepo
+        )
+
+        screenTimeRepo.isDailyMonitoringEnabled = false
+        #expect(useCase.load(groups: [group]).untrackedGroupIDs.isEmpty)
+
+        // 모니터링이 켜진 뒤 등록에서 빠진 그룹은 정상적으로 untracked로 잡힌다.
+        screenTimeRepo.isDailyMonitoringEnabled = true
+        #expect(useCase.load(groups: [group]).untrackedGroupIDs == [group.id])
+    }
+
     @Test func homeViewModelBillCommentTier1Under15Min() {
         let viewModel = HomeViewModel(
             groups: [],
@@ -2852,6 +2873,7 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     var nearMidnightCutoff = false
     var nearMidnightNoticeWindow = false
     var monitoredIDs: Set<UUID> = []
+    var validGroupsOverride: [ScreenTimeGroup]?
 
     func rolloverCounterIfNeeded() {}
 
@@ -2868,7 +2890,8 @@ private final class FakeScreenTimeRepository: ScreenTimeRepository {
     func monitoredGroupIDs() -> Set<UUID> { monitoredIDs }
 
     func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] {
-        groups.filter { $0.selectionCount > 0 && $0.dailyLimitMinutes >= 0 }
+        if let validGroupsOverride { return validGroupsOverride }
+        return groups.filter { $0.selectionCount > 0 && $0.dailyLimitMinutes >= 0 }
     }
 
     func extendGroup(
