@@ -246,8 +246,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             clearSystemShield()
         }
         guard let group = SharedStore.group(id: groupID) else { return }
-        // 사이클 사용량을 minute로 끌어올린다(역행 방지) → 홈 진행바가 남은 시간을 보여준다.
-        let used = SharedStore.raiseUsedTime(to: minute, for: groupID)
+        // tick 분은 cooldown baseline(등록 시점 usedTime) 기준 상대값이므로
+        // 사이클 전체 사용량으로 복원해 올린다(역행 방지).
+        let baseline = SharedStore.cooldownBaselineByGroupID[groupID] ?? 0
+        let used = SharedStore.raiseUsedTime(
+            to: CooldownMonitor.absoluteUsedMinutes(baseline: baseline, tickMinute: minute),
+            for: groupID
+        )
 
         // 이미 휴식 중이거나 결제(override) 중이면 잠금 트리거를 건너뛴다(진행만 갱신).
         guard !SharedStore.isInCooldown(groupID),

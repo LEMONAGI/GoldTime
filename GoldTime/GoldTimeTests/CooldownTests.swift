@@ -166,13 +166,15 @@ struct CooldownTests {
         #expect(!SharedStore.isInCooldown(id, now: afterUntil))
     }
 
-    // 2. endCooldownAndRecharge → cooldownUntil 제거, shielded 해제, generation 0→1→2 증가.
+    // 2. endCooldownAndRecharge → cooldownUntil 제거, shielded 해제, used/baseline 초기화, generation 0→1→2 증가.
     @Test func endCooldownAndRechargeIncrementsGeneration() {
         SharedStore.clearGroupStateForTesting()
         defer { SharedStore.clearGroupStateForTesting() }
 
         let id = UUID()
         SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: id)
+        SharedStore.usedTimeByGroupID = [id: 10]
+        SharedStore.cooldownBaselineByGroupID = [id: 5]
         #expect(SharedStore.isInCooldown(id))
 
         // generation: 0 → 1
@@ -181,6 +183,8 @@ struct CooldownTests {
         #expect(!SharedStore.isInCooldown(id))
         #expect(!SharedStore.shieldedGroupIDs.contains(id))
         #expect(SharedStore.cooldownEnd(for: id) == nil)
+        #expect(SharedStore.usedTimeByGroupID[id] == nil)
+        #expect(SharedStore.cooldownBaselineByGroupID[id] == nil)
 
         // generation: 1 → 2 (두 번째 사이클)
         SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: id)
@@ -227,6 +231,7 @@ struct CooldownTests {
         SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: keepID)
         SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: removeID)
         _ = SharedStore.endCooldownAndRecharge(for: removeID)
+        SharedStore.cooldownBaselineByGroupID = [keepID: 3, removeID: 7]
 
         #expect(SharedStore.cooldownUntilByGroupID[keepID] != nil)
         // removeID는 endCooldownAndRecharge로 until이 제거됐지만 generation은 남아있음
@@ -240,6 +245,7 @@ struct CooldownTests {
         #expect(SharedStore.cooldownUntilByGroupID[keepID] != nil)
         // removeID: generation 제거
         #expect(SharedStore.cooldownGenerationByID[removeID] == nil)
+        #expect(SharedStore.cooldownBaselineByGroupID == [keepID: 3])
     }
 
     // 7. expiredCooldownGroupIDs: 과거 until 그룹만 반환, 미래 until·비-cooldown 그룹은 제외.
@@ -266,6 +272,36 @@ struct CooldownTests {
         #expect(expired.contains(expiredID))
         #expect(!expired.contains(activeID))
         #expect(!expired.contains(dailyID))
+    }
+
+    // MARK: - 쿨다운 baseline 보정
+
+    @Test func cooldownUsageThresholdsSubtractExistingUsageBaseline() {
+        // 30분 예산에서 이미 5분 사용했으면 변경 후 새 모니터는 남은 25분만 측정한다.
+        let thresholds = CooldownMonitor.usageThresholds(forBudget: 30, baseline: 5)
+        #expect(thresholds.last == 25)
+        #expect(thresholds.allSatisfy { $0 <= 25 })
+
+        // 이미 예산을 다 쓴 상태는 등록할 threshold가 없다(상위 sync가 즉시 휴식 처리).
+        #expect(CooldownMonitor.usageThresholds(forBudget: 30, baseline: 30).isEmpty)
+        #expect(CooldownMonitor.usageThresholds(forBudget: 30, baseline: 35).isEmpty)
+    }
+
+    @Test func cooldownTickRestoresAbsoluteUsedTimeFromBaseline() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.cooldownBaselineByGroupID = [id: 5]
+
+        let baseline = SharedStore.cooldownBaselineByGroupID[id] ?? 0
+        let used = SharedStore.raiseUsedTime(
+            to: CooldownMonitor.absoluteUsedMinutes(baseline: baseline, tickMinute: 25),
+            for: id
+        )
+
+        #expect(used == 30)
+        #expect(SharedStore.usedTimeByGroupID[id] == 30)
     }
 
     // MARK: - 편집 시 즉시 잠금 결정 (cooldownEditAction 순수 판정)

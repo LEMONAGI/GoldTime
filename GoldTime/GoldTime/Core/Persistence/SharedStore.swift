@@ -36,6 +36,7 @@ enum SharedStore {
         static let weekStartDay = "weekStartDay"
         static let usedTimeByGroupID = "usedTimeByGroupID"
         static let dailyBaselineByGroupID = "dailyBaselineByGroupID"
+        static let cooldownBaselineByGroupID = "cooldownBaselineByGroupID"
         static let lastRegisteredGroupsByID = "lastRegisteredGroupsByID"
         static let lastRegisteredGenerationByID = "lastRegisteredGenerationByID"
         static let usageBasedOverrideGroupIDs = "usageBasedOverrideGroupIDs"
@@ -593,6 +594,7 @@ enum SharedStore {
         defaults.removeObject(forKey: Key.dailyProtectionStateDate)
         defaults.removeObject(forKey: Key.usedTimeByGroupID)
         defaults.removeObject(forKey: Key.dailyBaselineByGroupID)
+        defaults.removeObject(forKey: Key.cooldownBaselineByGroupID)
         defaults.removeObject(forKey: Key.lastRegisteredGroupsByID)
         defaults.removeObject(forKey: Key.lastRegisteredGenerationByID)
         defaults.removeObject(forKey: Key.usageBasedOverrideGroupIDs)
@@ -726,6 +728,9 @@ enum SharedStore {
         var used = usedTimeByGroupID
         used.removeValue(forKey: groupID)
         usedTimeByGroupID = used
+        var baselines = cooldownBaselineByGroupID
+        baselines.removeValue(forKey: groupID)
+        cooldownBaselineByGroupID = baselines
         var gens = cooldownGenerationByID
         let next = (gens[groupID] ?? 0) + 1
         gens[groupID] = next
@@ -898,6 +903,27 @@ enum SharedStore {
                 return
             }
             defaults.set(data, forKey: Key.dailyBaselineByGroupID)
+        }
+    }
+
+    /// 쿨다운 사용 예산 모니터 등록 시점의 누적 사용 분(`usedTimeByGroupID` 스냅샷).
+    /// cooldownUsage 창은 등록 시점부터 측정하므로, extension은 이 baseline에 상대 tick 분을
+    /// 더해 사이클 전체 사용량을 복원한다. 사용 시간 변경 시 이미 쓴 분이 보존된다.
+    static var cooldownBaselineByGroupID: [UUID: Int] {
+        get {
+            guard let data = defaults.data(forKey: Key.cooldownBaselineByGroupID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
+            return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, value) }
+            })
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, $0.value) })
+            guard let data = try? JSONEncoder().encode(raw) else {
+                defaults.removeObject(forKey: Key.cooldownBaselineByGroupID)
+                return
+            }
+            defaults.set(data, forKey: Key.cooldownBaselineByGroupID)
         }
     }
 
@@ -1114,6 +1140,7 @@ enum SharedStore {
     static func clearAllUsedTime() {
         defaults.removeObject(forKey: Key.usedTimeByGroupID)
         defaults.removeObject(forKey: Key.dailyBaselineByGroupID)
+        defaults.removeObject(forKey: Key.cooldownBaselineByGroupID)
         lastRegisteredGroupsByID = nil
         lastRegisteredGenerationByID = [:]
     }
@@ -1179,6 +1206,8 @@ enum SharedStore {
 
         let oldCooldownGen = cooldownGenerationByID
         let newCooldownGen = oldCooldownGen.filter { validGroupIDs.contains($0.key) }
+        let oldCooldownBaselines = cooldownBaselineByGroupID
+        let newCooldownBaselines = oldCooldownBaselines.filter { validGroupIDs.contains($0.key) }
 
         let didChange = newShieldedGroupIDs != oldShieldedGroupIDs
             || newOverrides.count != oldOverrides.count
@@ -1187,6 +1216,7 @@ enum SharedStore {
             || newOverrideGrants.count != oldOverrideGrants.count
             || newCooldownUntil.count != oldCooldownUntil.count
             || newCooldownGen.count != oldCooldownGen.count
+            || newCooldownBaselines.count != oldCooldownBaselines.count
 
         if didChange {
             shieldedGroupIDs = newShieldedGroupIDs
@@ -1196,6 +1226,7 @@ enum SharedStore {
             overrideGrantedMinutesByGroupID = newOverrideGrants
             cooldownUntilByGroupID = newCooldownUntil
             cooldownGenerationByID = newCooldownGen
+            cooldownBaselineByGroupID = newCooldownBaselines
         }
 
         return didChange

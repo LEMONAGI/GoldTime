@@ -34,17 +34,20 @@ struct GoldTimeTests {
         #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 5) == [1, 2, 3, 4, 5])
     }
 
-    @Test func dailyBaselinePersistsAndClearsWithUsedTime() {
+    @Test func usageBaselinesPersistAndClearWithUsedTime() {
         SharedStore.clearGroupStateForTesting()
         defer { SharedStore.clearGroupStateForTesting() }
 
         let groupID = UUID()
         SharedStore.dailyBaselineByGroupID = [groupID: 15]
+        SharedStore.cooldownBaselineByGroupID = [groupID: 7]
         #expect(SharedStore.dailyBaselineByGroupID[groupID] == 15)
+        #expect(SharedStore.cooldownBaselineByGroupID[groupID] == 7)
 
-        // 자정 리셋 등에서 호출되는 clearAllUsedTime이 baseline도 함께 초기화해야 한다.
+        // 자정 리셋 등에서 호출되는 clearAllUsedTime이 daily/cooldown baseline도 함께 초기화해야 한다.
         SharedStore.clearAllUsedTime()
         #expect(SharedStore.dailyBaselineByGroupID[groupID] == nil)
+        #expect(SharedStore.cooldownBaselineByGroupID[groupID] == nil)
     }
 
     @Test func estimatedRevenueUsesConfiguredAdPrice() {
