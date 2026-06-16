@@ -1140,6 +1140,145 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
+    @Test func cooldownRuleSkipsWarningWhenAlreadyResting() {
+        // 이미 휴식 중(잠김)인 그룹은 휴식 간격만 바꿔도(예산 ≤ used여도) 경고 없이 바로 적용.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 5, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 7]
+        viewModel.lockedGroupIDs = [group.id]   // 이미 휴식 중 → 잠김 집합에 포함
+        viewModel.cooldownEndByGroupID = [group.id: Date().addingTimeInterval(600)]  // 휴식 진행 중
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 5     // 예산 그대로(5 ≤ used 7)
+        viewModel.ruleEditorCooldownDurationMinutes = 90  // 휴식 간격만 변경
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)   // 즉시 잠금 경고 없음
+        #expect(viewModel.groups.first?.cooldownDurationMinutes == 90)   // 바로 적용
+        #expect(screenTimeRepo.syncCallCount == 1)
+        // 휴식 중 변경 → "다음 주기부터 적용" 안내 알럿(예산·휴식 어느 쪽이든).
+        #expect(viewModel.alertMessage?.message == "변경된 설정은 다음 주기부터 적용돼요.")
+    }
+
+    @Test func cooldownRestingBudgetOnlyChangeShowsInfoAlert() {
+        // 휴식 중엔 예산만 바꿔도 다음 주기부터 적용 → 동일 안내 알럿.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 5, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 7]
+        viewModel.lockedGroupIDs = [group.id]
+        viewModel.cooldownEndByGroupID = [group.id: Date().addingTimeInterval(600)]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 20    // 예산만 변경
+        viewModel.ruleEditorCooldownDurationMinutes = 60  // 휴식 간격 동일
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)
+        #expect(viewModel.alertMessage?.message == "변경된 설정은 다음 주기부터 적용돼요.")
+    }
+
+    @Test func cooldownRestingNoChangeShowsNoInfoAlert() {
+        // 휴식 중에 아무것도 안 바꾸고 닫으면 안내 없음.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 5, cooldownDurationMinutes: 60
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 7]
+        viewModel.lockedGroupIDs = [group.id]
+        viewModel.cooldownEndByGroupID = [group.id: Date().addingTimeInterval(600)]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 5     // 동일
+        viewModel.ruleEditorCooldownDurationMinutes = 60  // 동일
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.alertMessage == nil)
+    }
+
+    @Test func dailyLimitRuleSkipsWarningWhenAlreadyLocked() {
+        // 이미 잠긴 일일 한도 그룹은 한도를 더 낮춰도 경고 없이 바로 적용(잠금 유지).
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 30]
+        viewModel.lockedGroupIDs = [group.id]   // 이미 잠김
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 0
+        viewModel.limitPickerMinutes = 5
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.pendingLimitLockWarning == nil)   // 경고 없음
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 5)   // 바로 적용
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
     @Test func cooldownRuleWithInvalidValuesAlertsAndDoesNotChangeGroup() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
         let groupRepo = FakeGroupRepository()
