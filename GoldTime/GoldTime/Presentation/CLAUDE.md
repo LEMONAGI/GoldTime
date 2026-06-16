@@ -35,4 +35,13 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
 
 ## 주의사항 (작업 중 발견 시 누적)
 
-- (작업 중 발견한 Presentation 함정을 한 줄씩 누적)
+- **[해결 불가 / API 한계] FamilyControls `Label(token)` 아이콘 크기**: 시스템이 렌더하는 뷰라
+  `.frame`·`.font`은 무시되고 `.scaleEffect`만 먹힌다(확대 시 흐려짐). 게다가 기본 렌더 크기·여백이
+  **토큰 종류(앱/웹)·기기·OS마다 제각각**이다(애플 포럼 thread 721432: iPhone 14 Pro ~20px+여백,
+  XS/iPad ~40px+여백없음 / thread 731387: 애플도 미해결, Feedback Assistant 권장). 시도해 본 우회책
+  모두 다른 문제를 유발 → 고정 `scaleEffect` 값은 OS별로 잘림/축소, GeometryReader 동적 측정은
+  앱/웹 시각 크기 불일치, `fillScale` 여백 보정은 기기마다 깨짐. **완벽한 크기 통일은 불가능**으로
+  결론. GroupCardView·LockOptionsView 모두 각자 `tokenIcon(_:)` 헬퍼로 OS별 라벨 체인을 통째로
+  분기한다: iOS 26+는 `scaleEffect+frame+clip`(기본이 작아 키움), iOS 26 미만은 쌩 라벨 +
+  `padding`(기본이 커서 키우면 잘리므로 간격만). 크기만 화면별로 다르다(GroupCard 28, LockOptions는
+  작은 요약이라 20). 애플이 토큰 아이콘 크기 제어 API를 제공하기 전까지 더 손대지 말 것.

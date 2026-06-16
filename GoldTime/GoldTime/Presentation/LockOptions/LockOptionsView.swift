@@ -222,14 +222,19 @@ struct LockOptionsView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else if viewModel.lockedGroups.count == 1, let group = viewModel.lockedGroups.first {
-                HStack(alignment: .center, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .center, spacing: 10) {
                         groupTitle(for: group)
-                        groupTokenIcons(for: group)
+                        Spacer(minLength: 8)
                     }
-                    Spacer(minLength: 8)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
+
+                    groupTokenIcons(for: group)
                 }
-                .rowContainer()
+                .padding(.bottom, 12)
+                .background(Color(.tertiarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 Text("잠긴 그룹이 여러 개예요")
                     .font(.subheadline.weight(.semibold))
@@ -247,17 +252,22 @@ struct LockOptionsView: View {
                                     viewModel.selectGroup(group.id)
                                 }
                             } label: {
-                                HStack(alignment: .center, spacing: 10) {
-                                    VStack(alignment: .leading, spacing: 6) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(alignment: .center, spacing: 10) {
                                         groupTitle(for: group)
-                                        groupTokenIcons(for: group)
+                                        Spacer(minLength: 8)
+                                        Image(systemName: viewModel.selectedGroupID == group.id ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(viewModel.selectedGroupID == group.id ? Color.accent : .secondary)
+                                            .frame(width: 22, height: 22)
                                     }
-                                    Spacer(minLength: 8)
-                                    Image(systemName: viewModel.selectedGroupID == group.id ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(viewModel.selectedGroupID == group.id ? Color.accent : .secondary)
-                                        .frame(width: 22, height: 22)
+                                    .padding(.horizontal, 12)
+                                    .padding(.top, 12)
+
+                                    groupTokenIcons(for: group)
                                 }
-                                .rowContainer()
+                                .padding(.bottom, 12)
+                                .background(Color(.tertiarySystemGroupedBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
                             }
                             .buttonStyle(.plain)
                         }
@@ -289,27 +299,43 @@ struct LockOptionsView: View {
             Text("항목 없음")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
         } else {
-            HStack(spacing: 4) {
-                ForEach(
-                    group.selection.applicationTokens.sorted(by: tokenSort),
-                    id: \.self
-                ) { token in
-                    Label(token)
-                        .labelStyle(.iconOnly)
-                        .scaleEffect(0.95)
-                        .frame(width: 20, height: 20)
-                }
-                ForEach(
-                    group.selection.webDomainTokens.sorted(by: tokenSort),
-                    id: \.self
-                ) { token in
-                    Label(token)
-                        .labelStyle(.iconOnly)
-                        .scaleEffect(0.95)
-                        .frame(width: 20, height: 20)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    ForEach(
+                        group.selection.applicationTokens.sorted(by: tokenSort),
+                        id: \.self
+                    ) { token in
+                        tokenIcon(Label(token).labelStyle(.iconOnly))
+                    }
+                    ForEach(
+                        group.selection.webDomainTokens.sorted(by: tokenSort),
+                        id: \.self
+                    ) { token in
+                        tokenIcon(Label(token).labelStyle(.iconOnly))
+                    }
                 }
             }
+            .contentMargins(.leading, 12)
+        }
+    }
+
+    /// GroupCardView와 동일한 OS 분기 방식(FamilyControls Label 크기 함정은 Presentation
+    /// CLAUDE.md 주의사항 참고). LockOptions는 작은 요약 미리보기라 크기만 작게(20) 둔다:
+    /// iOS 26+는 기본 아이콘이 작아 scaleEffect로 키워 칸에 맞추고, iOS 26 미만은 기본이 커서
+    /// 키우면 잘리므로 쌩 라벨에 간격만 준다.
+    @ViewBuilder
+    private func tokenIcon(_ label: some View) -> some View {
+        if #available(iOS 26.0, *) {
+            label
+                .scaleEffect(0.95)
+                .frame(width: 20, height: 20)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        } else {
+            label
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .padding(.trailing, 4)
         }
     }
 

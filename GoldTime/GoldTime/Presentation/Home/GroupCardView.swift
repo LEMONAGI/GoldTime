@@ -62,6 +62,31 @@ struct GroupCardView: View {
         "\(group.selectionCount)/\(viewModel.maxAppsPerGroup)"
     }
 
+    /// FamilyControls Label 아이콘 크기는 제어 불가하고 기본 크기가 OS마다 다르다(Presentation
+    /// CLAUDE.md 주의사항 참고). OS별로 라벨 체인을 통째로 다르게 적용한다.
+    @ViewBuilder
+    private func tokenIcon(_ label: some View) -> some View {
+        if #available(iOS 26.0, *) {
+            // iOS 26+: 기본 아이콘이 작아 scaleEffect로 키워 칸에 맞춘다.
+            label
+                .scaleEffect(1.3)
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .padding(.trailing, 6)
+        } else {
+            // iOS 26 미만: 기본 아이콘이 커서 키우면 잘리므로 쌩 라벨에 간격만 준다.
+            label
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .padding(.trailing, 8)
+        }
+    }
+
+    /// 앱 토큰 묶음과 웹 토큰 묶음 사이 간격. 기본 아이콘 크기가 OS마다 달라 버전별로 조절한다.
+    private var tokenGroupSpacing: CGFloat {
+        if #available(iOS 26.0, *) { return 0 }
+        return 0
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
@@ -275,8 +300,10 @@ struct GroupCardView: View {
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 12)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 0) {
                             ForEach(
                                 group.selection.applicationTokens.sorted {
                                     ((try? JSONEncoder().encode($0)) ?? Data())
@@ -284,12 +311,10 @@ struct GroupCardView: View {
                                 },
                                 id: \.self
                             ) { token in
-                                Label(token)
-                                    .labelStyle(.iconOnly)
-                                    .scaleEffect(1.3)
-                                    .frame(width: 28, height: 28)
-                                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                                tokenIcon(Label(token).labelStyle(.iconOnly))
                             }
+                            Spacer()
+                                .frame(width: tokenGroupSpacing)
                             ForEach(
                                 group.selection.webDomainTokens.sorted {
                                     ((try? JSONEncoder().encode($0)) ?? Data())
@@ -297,19 +322,18 @@ struct GroupCardView: View {
                                 },
                                 id: \.self
                             ) { token in
-                                Label(token)
-                                    .labelStyle(.iconOnly)
-                                    .scaleEffect(1.3)
-                                    .frame(width: 28, height: 28)
-                                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                                tokenIcon(Label(token).labelStyle(.iconOnly))
                             }
                         }
                     }
+                    .contentMargins(.leading, 12)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .rowContainer()
+            .padding(.bottom, 12)
+            .background(Color(.tertiarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 }
