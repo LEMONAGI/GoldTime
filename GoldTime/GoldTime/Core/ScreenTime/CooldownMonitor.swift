@@ -102,6 +102,27 @@ enum CooldownMonitor {
         max(0, baseline) + max(0, tickMinute)
     }
 
+    /// 휴식 타이머 종료 콜백에서 실제로 재충전해야 하는지 판정한다(Apple framework 호출 없는 순수 판정).
+    /// `cooldownEnd`가 없으면(이미 해제됐거나 자정 리셋) false, 종료 예정 시각이 아직 미래면(설정 변경
+    /// 재동기화 등으로 타이머가 휴식 종료보다 일찍 멈춘 경우) false → 둘 다 현재 휴식을 보존해야 한다.
+    nonisolated static func shouldRechargeOnTimerEnd(cooldownEnd: Date?, now: Date) -> Bool {
+        guard let end = cooldownEnd else { return false }
+        return end <= now
+    }
+
+    /// 휴식 종료 시각. 쿨다운은 매일 자정에 새로 시작하므로 휴식이 내일로 넘어가면 오늘 23:59:59로 자른다.
+    nonisolated static func cooldownEnd(
+        now: Date = Date(),
+        durationMinutes: Int,
+        calendar: Calendar = .current
+    ) -> Date {
+        let unclamped = now.addingTimeInterval(TimeInterval(max(0, durationMinutes) * 60))
+        guard !calendar.isDate(unclamped, inSameDayAs: now) else {
+            return unclamped
+        }
+        return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: now) ?? unclamped
+    }
+
     /// 사용 예산 모니터 등록. 등록 시점까지의 누적 사용량을 baseline으로 저장하고, 남은 예산에
     /// 대한 상대 threshold를 건다. 진행바(남은 시간)를 위해 최대 10개 threshold를 한 번에 등록
     /// (no relay)하며, 마지막 threshold에서 `baseline + tick == cooldownUsageMinutes`가 되어 잠금된다.
@@ -135,7 +156,7 @@ enum CooldownMonitor {
     }
 
     /// 휴식 타이머 등록. now ~ until 1회성 창(이벤트 없음). 종료 시 intervalDidEnd로 재충전한다.
-    /// 자정을 넘을 수 있으므로 절대 시각(year~second)으로 등록한다(override 패턴과 동일).
+    /// until은 `cooldownEnd`로 당일 23:59:59 안에 clamp한 값을 전달한다.
     nonisolated static func startCooldownTimer(
         center: DeviceActivityCenter,
         groupID: UUID,

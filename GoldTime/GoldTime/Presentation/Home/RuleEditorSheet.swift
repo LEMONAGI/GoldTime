@@ -17,7 +17,7 @@ struct RuleEditorSheet: View {
     @Binding var cooldownDurationMinutes: Int
     /// 그룹에 이미 커밋된 규칙. 아직 규칙을 고르지 않은(새) 그룹은 nil이라 체크표시가 없다.
     let currentKind: GroupRuleKind?
-    /// 자정 직전(23:45+) 편집 안내. nil이면 미노출. 일일 한도·쿨다운 상세에서만 쓴다
+    /// 자정 근처(23:30+) 편집 안내. nil이면 미노출. 일일 한도·쿨다운 상세 본문에서만 띄운다
     /// (시간대별 차단은 모니터 영향이 없어 전달하지 않는다).
     let nearMidnightNotice: String?
     let onConfirm: () -> Void
@@ -46,17 +46,7 @@ struct RuleEditorSheet: View {
                         subtitle: "정한 만큼 쓰면 한동안 쉬어야 해요"
                     )
                 } footer: {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("적용된 그룹은 규칙을 바꾸면 바로 반영돼요.")
-                        if let nearMidnightNotice,
-                           selectedKind == .dailyLimit || selectedKind == .cooldown {
-                            Label {
-                                Text(nearMidnightNotice)
-                            } icon: {
-                                Image(systemName: "moon.stars")
-                            }
-                        }
-                    }
+                    Text("이미 규칙이 적용된 그룹은 변경된 규칙도 바로 반영돼요.")
                 }
             }
             .navigationTitle("차단 규칙")
@@ -107,6 +97,7 @@ struct RuleEditorSheet: View {
             DailyLimitDetailView(
                 hours: $hours,
                 minutes: $minutes,
+                nearMidnightNotice: nearMidnightNotice,
                 onConfirm: confirm(as: .dailyLimit)
             )
         case .timeWindows:
@@ -118,6 +109,7 @@ struct RuleEditorSheet: View {
             CooldownDetailView(
                 usageMinutes: $cooldownUsageMinutes,
                 durationMinutes: $cooldownDurationMinutes,
+                nearMidnightNotice: nearMidnightNotice,
                 onConfirm: confirm(as: .cooldown)
             )
         }
@@ -136,6 +128,7 @@ struct RuleEditorSheet: View {
 private struct DailyLimitDetailView: View {
     @Binding var hours: Int
     @Binding var minutes: Int
+    let nearMidnightNotice: String?
     let onConfirm: () -> Void
 
     var body: some View {
@@ -160,10 +153,15 @@ private struct DailyLimitDetailView: View {
             .frame(height: 216)
             .padding(.top, 24)
 
-            Text("이 시간을 넘기면 그룹이 잠겨요.")
+            Text("이 시간을 넘기면 그룹이 잠겨요. 매일 자정에 새로 시작해요.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.top, 12)
+
+            if let nearMidnightNotice {
+                NearMidnightNoticeBanner(text: nearMidnightNotice)
+                    .padding(.top, 16)
+            }
 
             Spacer()
         }
@@ -216,6 +214,7 @@ private struct TimeWindowsDetailView: View {
                         .foregroundStyle(.red)
                 } else {
                     Text("정한 시간대 동안에는 그룹이 잠겨요. 시간대를 왼쪽으로 밀면 삭제할 수 있어요. 최대 \(TimeWindowPolicy.maxWindowCount)개까지 추가할 수 있어요.")
+                        .multilineTextAlignment(.leading)
                 }
             }
         }
@@ -274,6 +273,7 @@ private struct TimeWindowsDetailView: View {
 private struct CooldownDetailView: View {
     @Binding var usageMinutes: Int
     @Binding var durationMinutes: Int
+    let nearMidnightNotice: String?
     let onConfirm: () -> Void
 
     // 사용 시간 5분 단위(5분~2시간), 휴식 간격 10분 단위(30분~6시간).
@@ -321,14 +321,20 @@ private struct CooldownDetailView: View {
                     Text(invalidReason.userMessage)
                         .foregroundStyle(.red)
                 } else {
-                    Text("이만큼 쓰면 잠기고, 휴식이 끝나면 다시 충전돼요. 매일 자정에도 새로 시작해요.")
+                    Text("사용 시간만큼 쓰면 잠기고, 휴식 간격만큼 지나면 다시 충전돼요. 매일 자정에도 새로 시작해요.")
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
                 }
             }
             .font(.footnote)
             .multilineTextAlignment(.center)
             .padding(.top, 12)
             .padding(.horizontal, 8)
+
+            if let nearMidnightNotice {
+                NearMidnightNoticeBanner(text: nearMidnightNotice)
+                    .padding(.top, 16)
+            }
 
             Spacer()
         }
@@ -350,6 +356,30 @@ private struct CooldownDetailView: View {
         let hours = minutes / 60
         let mins = minutes % 60
         return mins == 0 ? "\(hours)시간" : "\(hours)시간 \(mins)분"
+    }
+}
+
+// MARK: - 자정 근처 편집 안내 배너
+
+/// 일일 한도·쿨다운 상세에서 자정 근처(23:30+) 편집임을 알리는 배너.
+private struct NearMidnightNoticeBanner: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "moon.stars")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.secondary.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

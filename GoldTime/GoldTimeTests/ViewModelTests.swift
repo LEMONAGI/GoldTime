@@ -1587,7 +1587,7 @@ struct ViewModelTests {
             validGroupIDs: [lockedGroup.id]
         )
 
-        #expect(viewModel.statusIcon(for: lockedGroup) == "checkmark.shield.fill")
+        #expect(viewModel.statusIcon(for: lockedGroup) == "lock.shield.fill")
         #expect(viewModel.statusTint(for: lockedGroup) == .red)
         #expect(viewModel.statusTitle(for: lockedGroup) == "23:59까지 잠금")
     }
@@ -2418,6 +2418,114 @@ struct ViewModelTests {
         #expect(screenTimeRepo.lastExtensionSource == .oneMinute)
         #expect(viewModel.completionAlert?.title == "연장 완료")
         #expect(viewModel.lockedGroups.isEmpty)
+    }
+
+    @Test func lockOptionsViewModelDoesNotLogAdUnlockForOneMinuteExtension() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        shieldRepo.oneMinuteRemainingValue = 5
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.extendResult = .success(GroupExtensionResult(
+            group: group,
+            durationSeconds: 60,
+            overrideUntil: Date().addingTimeInterval(60),
+            remainingLockedGroups: []
+        ))
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            analyticsRepository: analyticsRepo
+        )
+
+        viewModel.onAppear()
+        viewModel.tapOneMinute()
+
+        #expect(analyticsRepo.parameters(for: "one_minute_unlock") != nil)
+        #expect(analyticsRepo.parameters(for: "ad_unlock") == nil)
+    }
+
+    @Test func lockOptionsViewModelLogsAdUnlockWithRulePayload() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "게임",
+            ruleKind: .cooldown,
+            cooldownUsageMinutes: 30,
+            cooldownDurationMinutes: 90
+        )
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.extendResult = .success(GroupExtensionResult(
+            group: group,
+            durationSeconds: 10 * 60,
+            overrideUntil: Date().addingTimeInterval(10 * 60),
+            remainingLockedGroups: []
+        ))
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            analyticsRepository: analyticsRepo
+        )
+
+        viewModel.onAppear()
+        viewModel.startAdFlow()
+        viewModel.rewardedAdDismissed()
+
+        let event = analyticsRepo.parameters(for: "ad_unlock")
+        #expect(event?["seconds"] as? Int == 10 * 60)
+        #expect(event?["rule_kind"] as? String == "cooldown")
+        #expect(event?["rule_config_bucket"] as? String == "usage_16_30m_rest_61_120m")
+    }
+
+    @Test func lockOptionsViewModelDoesNotLogAdUnlockWhenAdCancelled() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            analyticsRepository: analyticsRepo
+        )
+
+        viewModel.onAppear()
+        viewModel.startAdFlow()
+        viewModel.rewardedAdDidCancel()
+        viewModel.rewardedAdDismissed()
+
+        #expect(analyticsRepo.parameters(for: "ad_unlock") == nil)
+    }
+
+    @Test func lockOptionsViewModelDoesNotLogAdUnlockWhenAdExtensionFails() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.extendResult = .failure(.groupNotFound)
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            analyticsRepository: analyticsRepo
+        )
+
+        viewModel.onAppear()
+        viewModel.startAdFlow()
+        viewModel.rewardedAdDismissed()
+
+        #expect(screenTimeRepo.extendCallCount == 1)
+        #expect(analyticsRepo.parameters(for: "ad_unlock") == nil)
     }
 
     @Test func lockOptionsViewModelCanRetryRelockRegistrationFailure() {

@@ -63,10 +63,10 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 사용 예산(N분)을 다 쓰면 잠기고, 강제 휴식(M분) 뒤 자동 해제·재충전되는 사이클. 기존 두 메커니즘의 재조합입니다(사용량 threshold로 잠금 = daily tick, 시간 기반 종료로 휴식 해제 = override).
 
 1. 쿨다운 그룹은 사이클마다 `cooldownUsage.<groupID>.<generation>` activity에 `cdtick.<groupID>.<minute>` 이벤트(최대 10개, no-relay)로 등록됩니다. 등록 시점의 `usedTimeByGroupID`를 `cooldownBaselineByGroupID`에 저장하고 남은 예산만 threshold로 걸기 때문에, 사용 시간을 바꿔도 이미 쓴 분이 이어집니다. tick이 오면 extension이 `baseline + tick minute`으로 `usedTimeByGroupID`를 갱신(홈 초록 진행바)하고, 복원된 사용량이 `cooldownUsageMinutes` 이상이면 잠금합니다.
-2. 잠금 시 `SharedStore.startCooldown(until: now+M)`으로 종료 시각을 기록하고 `shieldedGroupIDs`에 추가한 뒤, `cooldownTimer.<groupID>` activity(절대 시각, `repeats:false`)를 등록합니다.
+2. 잠금 시 `SharedStore.startCooldown(until: min(now+M, 오늘 23:59:59))`으로 종료 시각을 기록하고 `shieldedGroupIDs`에 추가한 뒤, 같은 종료 시각으로 `cooldownTimer.<groupID>` activity(절대 시각, `repeats:false`)를 등록합니다. 쿨다운 휴식은 다음날로 넘기지 않습니다.
 3. 휴식 종료(`cooldownTimer`의 `intervalDidEnd`)에 `endCooldownAndRecharge`가 잠금 해제 + 사용량 0 리셋 + generation +1을 하고, 새 generation으로 `cooldownUsage` 모니터를 재등록합니다(다음 사이클 시작).
 4. 휴식 중에도 광고/1분 연장은 기존 override 레이어가 그대로 처리합니다. override 동안 그룹은 `shieldedGroupIDs`에 유지되고, override 종료 후 휴식이 남아 있으면 다시 Shield됩니다.
-5. **쿨다운도 자정 리셋이 그대로 적용됩니다**(`clearAllShieldState`가 `cooldownUntilByGroupID`를 비움). 23:45에 잠겼어도 자정에 풀리고 예산이 새로 충전됩니다 — daily 한도와 동일한 "하루 단위 새 출발".
+5. **쿨다운도 자정 리셋이 그대로 적용됩니다**(`clearAllShieldState`가 `cooldownUntilByGroupID`를 비움). 23:45에 잠겼어도 `cooldownUntil`은 23:59:59로 잘리고, 자정에 풀리고 예산이 새로 충전됩니다 — daily 한도와 동일한 "하루 단위 새 출발".
 6. 백그라운드에서 앱이 죽어 `cooldownTimer` 콜백을 놓친 경우, foreground 복귀 시 `reapplyShieldIfOverrideExpired` → `rechargeExpiredCooldowns`(만료 쿨다운 정리·재충전)가 자가 치유합니다. `cooldownUsage`/`cooldownTimer` 이름 규약과 등록은 메인 앱·extension이 공유하는 `CooldownMonitor`에 있습니다(extension은 ScreenTimeManager를 포함하지 않으므로 재충전 등록을 위해 공유 필요).
 
 ## 1분 연장 흐름

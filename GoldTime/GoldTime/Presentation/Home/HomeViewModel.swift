@@ -162,13 +162,16 @@ struct HomeViewModel {
     }
 
     /// 그룹 카드 아이콘. 색을 칠하는 statusTint(for:)와 같은 분기 순서를 따른다.
-    /// orange 상태(설정 중/설정 필요)는 빈 방패, 그 외(잠금·추가사용·사용 가능)는 체크 방패.
+    /// orange 상태(설정 중/설정 필요)는 빈 방패, 잠금은 자물쇠 방패, 나머지는 체크 방패.
     /// 잠금/추가사용은 invalidReason보다 먼저 잡아 색(red/blue)과 아이콘이 어긋나지 않게 한다.
     func statusIcon(for group: ScreenTimeGroup) -> String {
         if !group.isApplied {
             return "shield"
         }
-        if lockedGroupIDs.contains(group.id) || overrideGroupIDs.contains(group.id) {
+        if lockedGroupIDs.contains(group.id) {
+            return "lock.shield.fill"
+        }
+        if overrideGroupIDs.contains(group.id) {
             return "checkmark.shield.fill"
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
