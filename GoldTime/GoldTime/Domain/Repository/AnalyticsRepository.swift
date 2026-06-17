@@ -12,7 +12,7 @@ enum AnalyticsEvent {
     case ruleMonitoringRegistered(payload: RuleAnalyticsPayload)
     case monitoringSynced(appliedGroupCount: Int)
     case authorizationResult(granted: Bool)
-    case adUnlock(seconds: Int)
+    case adUnlock(seconds: Int, payload: RuleAnalyticsPayload)
     case oneMinuteUnlock
     case walkAway(lockedCount: Int)
     case custom(name: String, parameters: [String: Any])
@@ -38,7 +38,10 @@ enum AnalyticsEvent {
         case .ruleMonitoringRegistered(let payload): return payload.parameters
         case .monitoringSynced(let count): return ["applied_group_count": count]
         case .authorizationResult(let granted): return ["granted": granted]
-        case .adUnlock(let seconds): return ["seconds": seconds]
+        case .adUnlock(let seconds, let payload):
+            var parameters = payload.parameters
+            parameters["seconds"] = seconds
+            return parameters
         case .oneMinuteUnlock: return [:]
         case .walkAway(let count): return ["locked_count": count]
         case .custom(_, let parameters): return parameters

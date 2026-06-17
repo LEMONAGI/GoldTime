@@ -1060,6 +1060,43 @@ struct GoldTimeTests {
         #expect(payload.ruleConfigBucket == "usage_16_30m_rest_61_120m")
     }
 
+    @Test func adUnlockAnalyticsIncludesRulePayload() {
+        let dailyGroup = SharedStore.ScreenTimeGroup(
+            name: "SNS",
+            dailyLimitMinutes: 75,
+            ruleKind: .dailyLimit
+        )
+        let windowGroup = SharedStore.ScreenTimeGroup(
+            name: "수면",
+            ruleKind: .timeWindows,
+            timeWindows: [
+                TimeWindow(startMinuteOfDay: 8 * 60, endMinuteOfDay: 8 * 60 + 59)
+            ]
+        )
+        let cooldownGroup = SharedStore.ScreenTimeGroup(
+            name: "게임",
+            ruleKind: .cooldown,
+            cooldownUsageMinutes: 30,
+            cooldownDurationMinutes: 90
+        )
+
+        let daily = AnalyticsEvent.adUnlock(seconds: 600, payload: RuleAnalyticsPayload(group: dailyGroup)).parameters
+        let timeWindows = AnalyticsEvent.adUnlock(seconds: 300, payload: RuleAnalyticsPayload(group: windowGroup)).parameters
+        let cooldown = AnalyticsEvent.adUnlock(seconds: 120, payload: RuleAnalyticsPayload(group: cooldownGroup)).parameters
+
+        #expect(daily["seconds"] as? Int == 600)
+        #expect(daily["rule_kind"] as? String == "dailyLimit")
+        #expect(daily["rule_config_bucket"] as? String == "daily_61_120m")
+
+        #expect(timeWindows["seconds"] as? Int == 300)
+        #expect(timeWindows["rule_kind"] as? String == "timeWindows")
+        #expect(timeWindows["rule_config_bucket"] as? String == "windows_1_total_15_60m")
+
+        #expect(cooldown["seconds"] as? Int == 120)
+        #expect(cooldown["rule_kind"] as? String == "cooldown")
+        #expect(cooldown["rule_config_bucket"] as? String == "usage_16_30m_rest_61_120m")
+    }
+
 }
 
 private struct TestRelockError: LocalizedError {

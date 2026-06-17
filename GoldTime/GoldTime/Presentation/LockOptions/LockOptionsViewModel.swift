@@ -242,7 +242,10 @@ final class LockOptionsViewModel {
         case .success(let result):
             switch source {
             case .adReward:
-                analyticsRepository.log(.adUnlock(seconds: result.durationSeconds))
+                analyticsRepository.log(.adUnlock(
+                    seconds: result.durationSeconds,
+                    payload: RuleAnalyticsPayload(group: result.group)
+                ))
             case .oneMinute:
                 analyticsRepository.log(.oneMinuteUnlock)
             }
