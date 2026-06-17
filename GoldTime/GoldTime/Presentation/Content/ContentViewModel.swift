@@ -245,16 +245,28 @@ final class ContentViewModel {
         isRequestingScreenTimeAuthorization = true
         defer { isRequestingScreenTimeAuthorization = false }
 
+        authorizeUseCase.refresh()
+        if authorizeUseCase.isAuthorized {
+            completeScreenTimeAuthorizationRestore()
+            return
+        }
+
         do {
             try await authorizeUseCase.requestScreenTime()
-            applyScreenTimeAuthorization(true)
-            markInitialHomeEntryIfReady()
-            groups = manageGroupsUseCase.currentGroups()
-            syncProtectionRules()
         } catch {
-            applyScreenTimeAuthorization(false)
-            screenTimeRecoveryErrorMessage = "스크린타임 권한을 다시 허용해야 앱 한도를 적용할 수 있어요."
-            refreshDashboardState()
+            authorizeUseCase.refresh()
+            if authorizeUseCase.isAuthorized {
+                completeScreenTimeAuthorizationRestore()
+            } else {
+                presentScreenTimeRecovery()
+            }
+            return
+        }
+
+        if authorizeUseCase.isAuthorized {
+            completeScreenTimeAuthorizationRestore()
+        } else {
+            presentScreenTimeRecovery()
         }
     }
 
@@ -670,14 +682,30 @@ final class ContentViewModel {
         cooldownEndByGroupID = state.cooldownEndByGroupID
     }
 
-    private func applyScreenTimeAuthorization(_ authorized: Bool) {
+    private func applyScreenTimeAuthorization(
+        _ authorized: Bool,
+        presentsRecoveryIfMissing: Bool = false
+    ) {
         isAuthorized = authorized
         if authorized {
             isScreenTimeRecoveryPresented = false
             screenTimeRecoveryErrorMessage = nil
-        } else if hasCompletedInitialHomeEntry {
+        } else if presentsRecoveryIfMissing && hasCompletedInitialHomeEntry {
             isScreenTimeRecoveryPresented = true
         }
+    }
+
+    private func completeScreenTimeAuthorizationRestore() {
+        applyScreenTimeAuthorization(true)
+        markInitialHomeEntryIfReady()
+        groups = manageGroupsUseCase.currentGroups()
+        syncProtectionRules()
+    }
+
+    private func presentScreenTimeRecovery() {
+        screenTimeRecoveryErrorMessage = "스크린타임 권한을 다시 허용해야 앱 한도를 적용할 수 있어요."
+        applyScreenTimeAuthorization(false, presentsRecoveryIfMissing: true)
+        refreshDashboardState()
     }
 
     private func markInitialHomeEntryIfReady() {

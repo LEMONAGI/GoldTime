@@ -134,6 +134,28 @@ struct ViewModelTests {
         #expect(viewModel.onboardingStartStep == .notificationPermission)
     }
 
+    @Test func contentViewModelDoesNotShowRecoveryForTransientMissingScreenTimeState() {
+        let defaults = makeUserDefaults(hasCompletedInitialHomeEntry: true)
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        let viewModel = ContentViewModel(
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            ),
+            userDefaults: defaults
+        )
+
+        #expect(!viewModel.shouldShowInitialOnboarding)
+        #expect(!viewModel.isScreenTimeRecoveryPresented)
+
+        authRepo.setAuthorized(true)
+
+        #expect(viewModel.isAuthorized)
+        #expect(!viewModel.isScreenTimeRecoveryPresented)
+    }
+
     @Test func contentViewModelShowsRecoveryAfterStartedUserLosesScreenTime() async throws {
         let defaults = makeUserDefaults(hasCompletedInitialHomeEntry: true)
         let authRepo = FakeAuthorizationRepository(isAuthorized: false)
@@ -186,7 +208,7 @@ struct ViewModelTests {
         #expect(!viewModel.isScreenTimeRecoveryPresented)
     }
 
-    @Test func contentViewModelRequestsScreenTimeOnHomeLoadForStartedUser() async throws {
+    @Test func contentViewModelSkipsScreenTimeRequestOnHomeLoadWhenAlreadyAuthorized() async throws {
         let defaults = makeUserDefaults(hasCompletedInitialHomeEntry: true)
         let authRepo = FakeAuthorizationRepository(isAuthorized: true)
         authRepo.requestResultIsAuthorized = true
@@ -208,7 +230,7 @@ struct ViewModelTests {
         viewModel.loadState()
         try await Task.sleep(for: .milliseconds(10))
 
-        #expect(authRepo.requestCallCount == 1)
+        #expect(authRepo.requestCallCount == 0)
     }
 
     // MARK: - SettingsViewModel

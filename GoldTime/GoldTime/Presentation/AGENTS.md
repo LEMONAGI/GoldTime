@@ -45,3 +45,6 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   분기한다: iOS 26+는 `scaleEffect+frame+clip`(기본이 작아 키움), iOS 26 미만은 쌩 라벨 +
   `padding`(기본이 커서 키우면 잘리므로 간격만). 크기만 화면별로 다르다(GroupCard 28, LockOptions는
   작은 요약이라 20). 애플이 토큰 아이콘 크기 제어 API를 제공하기 전까지 더 손대지 말 것.
+- Screen Time 복구 full-screen cover는 `AuthorizationCenter` 상태를 refresh하는 중의 transient
+  `false`에 반응하면 깜빡인다. 초기 체크·observer 초기 콜백·`loadState()` refresh는 상태만 갱신하고,
+  복구 UI는 홈 진입 후 재확인/권한 요청까지 실패해 미승인이 확정된 경로에서만 띄운다.
