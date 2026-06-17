@@ -30,4 +30,6 @@
   `rule_kind`/설정값 bucket만 보내고, 사용자별 그룹 이름·선택 앱/웹사이트·UUID는 보내지 않는다.
   `rule_monitoring_registered`는 사용자가 적용/편집한 그룹이 sync 후 유효 모니터링 대상일 때만
   남기며, foreground/lifecycle 재동기화는 사용 집계에서 제외한다.
+- 광고 연장 분석도 수익 추정/실제 paid revenue 없이 `ad_unlock` 횟수와 익명 rule bucket만
+  남긴다. `estimatedWonPerAd`·`estimatedAdRevenueWon`은 분석 이벤트에서 참조하지 않는다.
 - **Crashlytics는 메인 앱만**. extension 타겟에 Firebase를 링크하지 말 것(바이너리/메모리).

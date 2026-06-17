@@ -186,12 +186,15 @@ enum ScreenTimeManager {
         let previousCooldownGroupIDs = Set(lastRegistered.filter { $0.value.ruleKind == .cooldown }.map(\.key))
         let cooldownGroupIDsToResetMonitoring = previousCooldownGroupIDs.union(validCooldownGroupIDs)
         let staleCooldownActivities = cooldownGroupIDsToResetMonitoring.flatMap { groupID -> [DeviceActivityName] in
-            if validCooldownGroupIDs.contains(groupID),
-               lastRegistered[groupID] == validGroups.first(where: { $0.id == groupID }) {
-                return []
-            }
-            let gen = SharedStore.cooldownGenerationByID[groupID] ?? 0
-            return [.cooldownUsage(for: groupID, generation: gen), .cooldownTimer(for: groupID)]
+            let isStillCooldown = validCooldownGroupIDs.contains(groupID)
+            let isUnchanged = lastRegistered[groupID] == validGroups.first(where: { $0.id == groupID })
+            return cooldownActivitiesToStop(
+                groupID: groupID,
+                generation: SharedStore.cooldownGenerationByID[groupID] ?? 0,
+                isStillCooldown: isStillCooldown,
+                isUnchanged: isUnchanged,
+                isInCooldownRest: SharedStore.isInCooldown(groupID, now: now)
+            )
         }
 
         SharedStore.screenTimeGroups = sanitizedGroups
@@ -403,10 +406,10 @@ enum ScreenTimeManager {
 
     /// 쿨다운 그룹을 즉시 휴식 진입시킨다(편집으로 사용 예산이 현재 사용량 이하로 바뀐 경우 등).
     /// extension의 `handleCooldownUsageTick` 잠금부와 동일하게 휴식 타이머까지 등록한다. 단 편집
-    /// 트리거 잠금이라 분석 shield_hit은 남기지 않는다(사용 중 막힘이 아니라 설정 변경). 자정 직전엔
-    /// 호출하지 않는다(타이머 자정 넘김 회피 — 호출부에서 markGroupShielded만).
+    /// 트리거 잠금이라 분석 shield_hit은 남기지 않는다(사용 중 막힘이 아니라 설정 변경).
+    /// 휴식 종료가 내일로 넘어가면 당일 23:59:59로 잘라 자정 리셋 정책과 맞춘다.
     private static func enterCooldownRest(_ group: SharedStore.ScreenTimeGroup, now: Date) {
-        let until = now.addingTimeInterval(TimeInterval(group.cooldownDurationMinutes * 60))
+        let until = CooldownMonitor.cooldownEnd(now: now, durationMinutes: group.cooldownDurationMinutes)
         SharedStore.startCooldown(until: until, for: group.id)   // 내부에서 markGroupShielded
         try? CooldownMonitor.startCooldownTimer(
             center: center,
@@ -442,6 +445,27 @@ enum ScreenTimeManager {
             return nearMidnight ? .lockUntilMidnight : .enterCooldownRest
         }
         return nearMidnight ? .skipUntracked : .registerAvailable
+    }
+
+    /// 재동기화 시 쿨다운 그룹의 어떤 모니터 activity를 멈출지 결정한다(Apple framework 호출 없는 순수 판정).
+    /// - 변경 없는 유효 쿨다운 그룹: 아무것도 멈추지 않는다(재등록 churn 방지).
+    /// - 휴식 중인 쿨다운 그룹 편집: 현재 휴식을 보존하기 위해 휴식 타이머(`cooldownTimer`)는 멈추지
+    ///   않고, 누적 카운터 분리를 위해 stale 사용 예산(`cooldownUsage`) activity만 정리한다. 변경된
+    ///   설정은 휴식 종료 후 재충전(`handleCooldownTimerEnded`) 시점부터 적용된다.
+    /// - 그 외(삭제/규칙 전환/휴식 아님): 둘 다 멈췄다가 필요 시 새 generation으로 재등록한다.
+    nonisolated static func cooldownActivitiesToStop(
+        groupID: UUID,
+        generation: Int,
+        isStillCooldown: Bool,
+        isUnchanged: Bool,
+        isInCooldownRest: Bool
+    ) -> [DeviceActivityName] {
+        if isStillCooldown && isUnchanged { return [] }
+        if isStillCooldown && isInCooldownRest {
+            return [.cooldownUsage(for: groupID, generation: generation)]
+        }
+        return [.cooldownUsage(for: groupID, generation: generation),
+                .cooldownTimer(for: groupID)]
     }
 
     static func validDailyMonitoringGroups(

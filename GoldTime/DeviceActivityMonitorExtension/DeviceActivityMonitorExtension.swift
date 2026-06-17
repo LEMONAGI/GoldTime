@@ -296,7 +296,8 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // 아직 예산이 남았으면 진행바만 갱신하고 끝.
         guard used >= group.cooldownUsageMinutes else { return }
 
-        let until = Date().addingTimeInterval(TimeInterval(group.cooldownDurationMinutes * 60))
+        let now = Date()
+        let until = CooldownMonitor.cooldownEnd(now: now, durationMinutes: group.cooldownDurationMinutes)
         SharedStore.startCooldown(until: until, for: groupID)
         SharedStore.recordShieldHit()
         SharedStore.enqueueShieldHit(ruleKind: "cooldown")
@@ -304,7 +305,8 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             try CooldownMonitor.startCooldownTimer(
                 center: DeviceActivityCenter(),
                 groupID: groupID,
-                until: until
+                until: until,
+                now: now
             )
         } catch {
             SharedStore.enqueueScreenTimeError(
@@ -320,8 +322,18 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         if SharedStore.resetDailyProtectionStateIfNeeded() {
             clearSystemShield()
         }
-        // 자정 리셋 등으로 이미 휴식이 풀렸으면 중복 재충전하지 않는다.
+        // 자정 리셋 등으로 이미 휴식이 풀렸거나(cooldownEnd == nil), 설정 변경 재동기화 등으로
+        // 타이머가 휴식 종료 예정 시각보다 일찍 멈춘 경우(cooldownEnd > now)에는 재충전하지 않고
+        // Shield만 다시 적용해 현재 휴식을 보존한다. nil과 미래는 둘 다 재충전 금지지만 의미가
+        // 달라 단일 가드로 합치지 않는다(isInCooldown은 nil도 false라 합치면 nil일 때 통과한다).
         guard SharedStore.cooldownEnd(for: groupID) != nil else {
+            applyShieldFromGroups()
+            return
+        }
+        guard CooldownMonitor.shouldRechargeOnTimerEnd(
+            cooldownEnd: SharedStore.cooldownEnd(for: groupID),
+            now: Date()
+        ) else {
             applyShieldFromGroups()
             return
         }

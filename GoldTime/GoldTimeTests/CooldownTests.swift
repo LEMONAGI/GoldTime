@@ -304,6 +304,43 @@ struct CooldownTests {
         #expect(SharedStore.usedTimeByGroupID[id] == 30)
     }
 
+    // MARK: - 쿨다운 휴식 종료 자정 clamp
+
+    @Test func cooldownEndKeepsSameDayRestEnd() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 6, day: 17, hour: 23, minute: 0))!
+        let expected = calendar.date(from: DateComponents(year: 2026, month: 6, day: 17, hour: 23, minute: 30))!
+
+        let end = CooldownMonitor.cooldownEnd(now: now, durationMinutes: 30, calendar: calendar)
+
+        #expect(end == expected)
+    }
+
+    @Test func cooldownEndClampsRestThatCrossesMidnight() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 6, day: 17, hour: 23, minute: 45))!
+        let expected = calendar.date(
+            from: DateComponents(year: 2026, month: 6, day: 17, hour: 23, minute: 59, second: 59)
+        )!
+
+        let end = CooldownMonitor.cooldownEnd(now: now, durationMinutes: 60, calendar: calendar)
+
+        #expect(end == expected)
+    }
+
+    @Test func cooldownEndKeepsEarlyMorningSameDayRestEnd() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 6, day: 17, hour: 0, minute: 10))!
+        let expected = calendar.date(from: DateComponents(year: 2026, month: 6, day: 17, hour: 0, minute: 40))!
+
+        let end = CooldownMonitor.cooldownEnd(now: now, durationMinutes: 30, calendar: calendar)
+
+        #expect(end == expected)
+    }
+
     // MARK: - 편집 시 즉시 잠금 결정 (cooldownEditAction 순수 판정)
 
     /// 사용자 시나리오: 쿨다운 20분/1시간휴식, 15분 사용 후 예산을 5분으로 변경.
@@ -348,5 +385,73 @@ struct CooldownTests {
         #expect(ScreenTimeManager.cooldownEditAction(
             isInCooldown: true, usedMinutes: 0, budgetMinutes: 5, nearMidnight: false
         ) == .keepCooldownRest)
+    }
+
+    // MARK: - 재동기화 stop 대상 결정 (cooldownActivitiesToStop 순수 판정)
+
+    /// 변경 없는 유효 쿨다운 그룹은 재등록 churn 방지를 위해 아무것도 멈추지 않는다.
+    @Test func cooldownActivitiesToStopReturnsNothingWhenUnchanged() {
+        let id = UUID()
+        let stop = ScreenTimeManager.cooldownActivitiesToStop(
+            groupID: id, generation: 3,
+            isStillCooldown: true, isUnchanged: true, isInCooldownRest: false
+        )
+        #expect(stop.isEmpty)
+    }
+
+    /// 핵심: 휴식 중인 쿨다운 그룹을 편집하면 휴식 타이머는 보존하고 사용 예산 activity만 멈춘다.
+    @Test func cooldownActivitiesToStopPreservesTimerWhileResting() {
+        let id = UUID()
+        let stop = ScreenTimeManager.cooldownActivitiesToStop(
+            groupID: id, generation: 2,
+            isStillCooldown: true, isUnchanged: false, isInCooldownRest: true
+        )
+        #expect(stop == [.cooldownUsage(for: id, generation: 2)])
+        #expect(!stop.contains(.cooldownTimer(for: id)))
+    }
+
+    /// 휴식이 아닌 변경(예산만 조정 등)은 사용 예산·휴식 타이머를 둘 다 멈췄다가 재등록한다.
+    @Test func cooldownActivitiesToStopStopsBothWhenChangedAndNotResting() {
+        let id = UUID()
+        let stop = ScreenTimeManager.cooldownActivitiesToStop(
+            groupID: id, generation: 1,
+            isStillCooldown: true, isUnchanged: false, isInCooldownRest: false
+        )
+        #expect(stop.contains(.cooldownUsage(for: id, generation: 1)))
+        #expect(stop.contains(.cooldownTimer(for: id)))
+    }
+
+    /// 쿨다운에서 벗어난(삭제/규칙 전환) 그룹은 휴식 중이어도 타이머까지 정리한다.
+    @Test func cooldownActivitiesToStopStopsBothWhenNoLongerCooldown() {
+        let id = UUID()
+        let stop = ScreenTimeManager.cooldownActivitiesToStop(
+            groupID: id, generation: 0,
+            isStillCooldown: false, isUnchanged: false, isInCooldownRest: true
+        )
+        #expect(stop.contains(.cooldownUsage(for: id, generation: 0)))
+        #expect(stop.contains(.cooldownTimer(for: id)))
+    }
+
+    // MARK: - 타이머-종료 재충전 판정 (shouldRechargeOnTimerEnd 순수 판정)
+
+    /// cooldownEnd가 없으면(이미 해제/자정 리셋) 중복 재충전하지 않는다.
+    @Test func shouldRechargeOnTimerEndIsFalseWhenNoCooldownEnd() {
+        #expect(CooldownMonitor.shouldRechargeOnTimerEnd(cooldownEnd: nil, now: Date()) == false)
+    }
+
+    /// 종료 예정 시각이 미래면(설정 변경 등으로 일찍 멈춤) 휴식을 보존하고 재충전하지 않는다.
+    @Test func shouldRechargeOnTimerEndIsFalseWhenEndInFuture() {
+        #expect(CooldownMonitor.shouldRechargeOnTimerEnd(
+            cooldownEnd: futureDate(byMinutes: 10), now: Date()
+        ) == false)
+    }
+
+    /// 종료 예정 시각이 과거이거나 현재면(실제 휴식 종료) 재충전한다.
+    @Test func shouldRechargeOnTimerEndIsTrueWhenEndPassed() {
+        #expect(CooldownMonitor.shouldRechargeOnTimerEnd(
+            cooldownEnd: pastDate(byMinutes: 1), now: Date()
+        ) == true)
+        let now = Date()
+        #expect(CooldownMonitor.shouldRechargeOnTimerEnd(cooldownEnd: now, now: now) == true)
     }
 }
