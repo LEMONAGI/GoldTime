@@ -15,23 +15,52 @@ struct GoldTimeTests {
 
     @Test func dailyThresholdMinutesPlacesTenEvenEventsForTenMinuteMultiples() {
         // 10분 단위 한도는 정확히 10개 이벤트가 limit/10분 간격으로 균등 배치된다.
-        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 10) == Array(1...10))
-        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 20) == [2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
-        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 60) == [6, 12, 18, 24, 30, 36, 42, 48, 54, 60])
+        #expect(DailyMonitor.dailyThresholdMinutes(limit: 10) == Array(1...10))
+        #expect(DailyMonitor.dailyThresholdMinutes(limit: 20) == [2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
+        #expect(DailyMonitor.dailyThresholdMinutes(limit: 60) == [6, 12, 18, 24, 30, 36, 42, 48, 54, 60])
 
         for limit in stride(from: 10, through: 410, by: 10) {
-            let thresholds = ScreenTimeManager.dailyThresholdMinutes(limit: limit)
+            let thresholds = DailyMonitor.dailyThresholdMinutes(limit: limit)
             #expect(thresholds.count == 10)
             #expect(thresholds.last == limit)
         }
     }
 
     @Test func dailyThresholdMinutesHandlesEdgeLimits() {
-        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 0).isEmpty)
+        #expect(DailyMonitor.dailyThresholdMinutes(limit: 0).isEmpty)
         // 1분 연장(override) 등 maxEvents 이하 한도는 1분 단위 그대로.
-        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 1) == [1])
+        #expect(DailyMonitor.dailyThresholdMinutes(limit: 1) == [1])
         // 한도 변경 시 남은 예산(remaining)으로 재분배: 30분에 15분 쓰고 20분으로 바꾸면 remaining 5.
-        #expect(ScreenTimeManager.dailyThresholdMinutes(limit: 5) == [1, 2, 3, 4, 5])
+        #expect(DailyMonitor.dailyThresholdMinutes(limit: 5) == [1, 2, 3, 4, 5])
+    }
+
+    @Test func dailyHeartbeatScheduleIsCanonicalRepeatingMidnightWindow() {
+        // 자정 재무장의 주 경로: 00:00~23:59:59, repeats:true, 이벤트 없음.
+        // (date-less repeats:false 측정창의 undocumented 재무장에 의존하지 않기 위함)
+        let schedule = DailyMonitor.heartbeatSchedule
+        #expect(schedule.repeats == true)
+        #expect(schedule.intervalStart.hour == 0)
+        #expect(schedule.intervalStart.minute == 0)
+        #expect(schedule.intervalEnd.hour == 23)
+        #expect(schedule.intervalEnd.minute == 59)
+        #expect(schedule.intervalEnd.second == 59)
+    }
+
+    @Test func heartbeatNeededOnlyWhenDailyOrCooldownGroupExists() {
+        // 시간대 그룹은 window+override로 그룹당 최대 4개 activity → 5그룹 전부 시간대면 20.
+        // 하트비트(+1)가 상한을 넘기지 않도록, daily/cooldown이 있을 때만 등록한다.
+        func group(_ rule: SharedStore.ScreenTimeGroup.RuleKind?) -> SharedStore.ScreenTimeGroup {
+            SharedStore.ScreenTimeGroup(name: "g", ruleKind: rule)
+        }
+        // 시간대-only / draft-only → 불필요.
+        #expect(DailyMonitor.needsHeartbeat(for: []) == false)
+        #expect(DailyMonitor.needsHeartbeat(for: [group(.timeWindows)]) == false)
+        #expect(DailyMonitor.needsHeartbeat(for: [group(.timeWindows), group(.timeWindows)]) == false)
+        #expect(DailyMonitor.needsHeartbeat(for: [group(nil)]) == false)
+        // daily 또는 cooldown이 하나라도 있으면 필요.
+        #expect(DailyMonitor.needsHeartbeat(for: [group(.dailyLimit)]) == true)
+        #expect(DailyMonitor.needsHeartbeat(for: [group(.cooldown)]) == true)
+        #expect(DailyMonitor.needsHeartbeat(for: [group(.timeWindows), group(.cooldown)]) == true)
     }
 
     @Test func usageBaselinesPersistAndClearWithUsedTime() {

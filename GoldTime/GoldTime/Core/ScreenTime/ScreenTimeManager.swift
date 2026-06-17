@@ -10,23 +10,9 @@ import FamilyControls
 import Foundation
 import ManagedSettings
 
+// daily/dailyGroup/dailyGroupID/dailyHeartbeat 및 DeviceActivityEvent.Name.tick/tickInfo는
+// DailyMonitor.swift로 이동(앱·extension 공유 단일 출처). 여기서 다시 선언하지 말 것.
 extension DeviceActivityName {
-    static let daily = Self("daily")
-
-    /// `daily.<UUID>.<generation>` 형식. 재시작 시 generation을 +1 해서 시스템 카운터를 분리한다.
-    nonisolated static func dailyGroup(for groupID: UUID, generation: Int) -> Self {
-        Self("daily.\(groupID.uuidString).\(generation)")
-    }
-
-    /// 옛 형식(`daily.<UUID>`)과 새 형식(`daily.<UUID>.<gen>`) 모두 인식.
-    var dailyGroupID: UUID? {
-        let prefix = "daily."
-        guard rawValue.hasPrefix(prefix), rawValue != "daily" else { return nil }
-        let body = String(rawValue.dropFirst(prefix.count))
-        let firstSegment = body.split(separator: ".").first.map(String.init) ?? body
-        return UUID(uuidString: firstSegment)
-    }
-
     nonisolated static func override(for groupID: UUID) -> Self {
         Self("override.\(groupID.uuidString)")
     }
@@ -47,12 +33,6 @@ extension DeviceActivityName {
 }
 
 extension DeviceActivityEvent.Name {
-    /// daily 한도 추적 1회성 이벤트. `tick.<gid>.<minute>` 형식으로 등록 시점부터 누적
-    /// minute분 사용 시 한 번 발화한다 (relay 없음 → iOS 26 즉시발화 regression에 면역).
-    nonisolated static func tick(for groupID: UUID, minute: Int) -> Self {
-        Self("tick.\(groupID.uuidString).\(minute)")
-    }
-
     /// 광고/1분 연장 중 사용량 추적 1회성 이벤트. `usageTick.<gid>.<minute>` 형식으로
     /// override 시작 시점부터 누적 minute분 사용 시 한 번 발화한다 (relay 없음).
     nonisolated static func usageTick(for groupID: UUID, minute: Int) -> Self {
@@ -62,18 +42,6 @@ extension DeviceActivityEvent.Name {
     /// `usageTick.<gid>.<minute>`에서 (groupID, minute) 추출.
     var usageTickInfo: (groupID: UUID, minute: Int)? {
         let prefix = "usageTick."
-        guard rawValue.hasPrefix(prefix) else { return nil }
-        let body = rawValue.dropFirst(prefix.count)
-        let parts = body.split(separator: ".")
-        guard parts.count == 2,
-              let groupID = UUID(uuidString: String(parts[0])),
-              let minute = Int(parts[1]) else { return nil }
-        return (groupID, minute)
-    }
-
-    /// `tick.<gid>.<minute>`에서 (groupID, minute) 추출.
-    var tickInfo: (groupID: UUID, minute: Int)? {
-        let prefix = "tick."
         guard rawValue.hasPrefix(prefix) else { return nil }
         let body = rawValue.dropFirst(prefix.count)
         let parts = body.split(separator: ".")
@@ -150,24 +118,8 @@ enum ScreenTimeManager {
 
     // MARK: - 일일 모니터링 동기화
 
-    private static var dailySchedule: DeviceActivitySchedule {
-        DeviceActivitySchedule(
-            intervalStart: DateComponents(hour: 0, minute: 0),
-            intervalEnd: DateComponents(hour: 23, minute: 59),
-            repeats: true
-        )
-    }
-
-    /// "지금"부터 오늘 23:59:59까지의 1회성 창. intervalStart가 now라 그 이전 사용량(앱을
-    /// 그룹에 추가하기 전 사용분)은 측정에서 제외된다.
-    nonisolated static func freshDailyWindow(now: Date = Date()) -> DeviceActivitySchedule {
-        let calendar = Calendar.current
-        return DeviceActivitySchedule(
-            intervalStart: calendar.dateComponents([.hour, .minute, .second], from: now),
-            intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
-            repeats: false
-        )
-    }
+    // dailySchedule(repeats:true)는 제거됨 — 자정 콜백은 DailyMonitor.dailyHeartbeat가 담당.
+    // freshDailyWindow/dailyThresholdMinutes는 DailyMonitor.swift로 이동(앱·extension 공유 단일 출처).
 
     /// override 측정창(now ~ 당일 23:59:59)이 DeviceActivity 최소(15분) 미만인지. = 23:45부터 true.
     /// true면 `startMonitoring`이 intervalTooShort로 실패하므로 모니터 없는 시간기반 fallback을 쓴다.
@@ -185,24 +137,6 @@ enum ScreenTimeManager {
             return false
         }
         return endOfDay.timeIntervalSince(now) < 30 * 60
-    }
-
-    /// daily 한도(분)에 대한 1회성 threshold 목록. 한도가 maxEvents 이하면 1,2,…,limit
-    /// (1분 단위), 초과하면 maxEvents개로 균등 분배하되 마지막은 정확히 limit.
-    /// 이벤트를 한 번에 다 등록(no relay)하므로 iOS 26 즉시발화 regression에 면역.
-    /// 한도가 maxEvents의 배수면 정확히 maxEvents개가 limit/maxEvents분 간격으로 균등 배치된다.
-    nonisolated static func dailyThresholdMinutes(limit: Int, maxEvents: Int = 10) -> [Int] {
-        guard limit > 0 else { return [] }
-        if limit <= maxEvents {
-            return Array(1...limit)
-        }
-        var set = Set<Int>()
-        for i in 1...maxEvents {
-            let m = Int((Double(limit) * Double(i) / Double(maxEvents)).rounded())
-            if m >= 1 { set.insert(min(m, limit)) }
-        }
-        set.insert(limit)
-        return set.sorted()
     }
 
     static func syncDailyMonitoring(groups: [SharedStore.ScreenTimeGroup], now: Date = Date()) throws {
@@ -284,6 +218,23 @@ enum ScreenTimeManager {
         // 그룹별 변경 감지: 변경된 그룹만 재시작 (usedTime은 SharedStore에 보존)
         var newRegistered = lastRegistered.filter { validGroupIDs.contains($0.key) }
         var firstError: Error?
+
+        // 자정 하트비트는 daily/cooldown 그룹이 있을 때만 등록한다(자정 재무장의 주 경로).
+        // 시간대-only 구성은 window가 repeats:true라 불필요하고, 시간대 그룹은 window+override로
+        // 그룹당 최대 4개 activity를 쓸 수 있어(5그룹×4=20) 하트비트를 더하면 동시 모니터링 상한을
+        // 넘길 수 있으므로 등록하지 않는다(DailyMonitor.needsHeartbeat 참조). 유효 그룹이 0이면 위
+        // 가드의 stopMonitoring()이 하트비트까지 함께 멈춘다. 등록 실패는 이 변경의 핵심 경로가
+        // 사라지는 것이므로 try?로 삼키지 않고 firstError로 전파한다(관측 가능).
+        if DailyMonitor.needsHeartbeat(for: validGroups) {
+            do {
+                try center.startMonitoring(.dailyHeartbeat, during: DailyMonitor.heartbeatSchedule, events: [:])
+            } catch {
+                firstError = firstError ?? error
+            }
+        } else {
+            // 시간대-only(또는 daily/cooldown 없음) → 하트비트 불필요. 이전에 등록됐다면 멈춘다.
+            center.stopMonitoring([.dailyHeartbeat])
+        }
 
         for group in validGroups {
             let last = lastRegistered[group.id]
@@ -374,7 +325,7 @@ enum ScreenTimeManager {
                 } else {
                     let nextGen = (last == nil) ? currentGen : currentGen + 1
                     do {
-                        try registerGroup(group, generation: nextGen)
+                        try DailyMonitor.startUsageMonitoring(center: center, group: group, generation: nextGen)
                         generationByID[group.id] = nextGen
                         newRegistered[group.id] = group
                     } catch {
@@ -531,39 +482,7 @@ enum ScreenTimeManager {
         }
     }
 
-    // 그룹당 독립 daily.<groupID>.<generation> 활동.
-    // no-relay multi-event: 남은 예산을 maxEvents개로 나눈 threshold 이벤트를 한 번에 등록.
-    // 재등록을 안 하므로 iOS 26 "즉시발화" regression에 면역 (override와 동일 구조).
-    // freshDailyWindow(intervalStart=now)로 등록 시점부터 카운트하고, baseline(=등록 시점
-    // usedTime)을 깔아 이미 쓴 분을 보존한다. 한도 변경 시 재등록해도 baseline이 보존되므로
-    // 남은 예산만큼만 다시 측정한다. extension은 raiseUsedTime(to: baseline+틱분)으로 복원.
-    private static func registerGroup(
-        _ group: SharedStore.ScreenTimeGroup,
-        generation: Int
-    ) throws {
-        let baseline = SharedStore.usedTimeByGroupID[group.id] ?? 0
-        let remaining = group.dailyLimitMinutes - baseline
-        guard remaining > 0 else { return }
-
-        SharedStore.dailyBaselineByGroupID[group.id] = baseline
-        let thresholds = dailyThresholdMinutes(limit: remaining)
-        guard !thresholds.isEmpty else { return }
-
-        var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
-        for minute in thresholds {
-            events[.tick(for: group.id, minute: minute)] = DeviceActivityEvent(
-                applications: group.selection.applicationTokens,
-                categories: [],
-                webDomains: group.selection.webDomainTokens,
-                threshold: DateComponents(minute: minute)
-            )
-        }
-        try center.startMonitoring(
-            .dailyGroup(for: group.id, generation: generation),
-            during: freshDailyWindow(),
-            events: events
-        )
-    }
+    // daily 그룹 등록(registerGroup)은 DailyMonitor.startUsageMonitoring으로 이동(앱·extension 공유).
 
     // MARK: - 쉴드 제어
 
@@ -642,7 +561,7 @@ enum ScreenTimeManager {
             repeats: false
         )
         var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
-        for m in dailyThresholdMinutes(limit: minutes, maxEvents: 10) {
+        for m in DailyMonitor.dailyThresholdMinutes(limit: minutes, maxEvents: 10) {
             events[.usageTick(for: groupID, minute: m)] = DeviceActivityEvent(
                 applications: group.selection.applicationTokens,
                 categories: [],
@@ -817,26 +736,4 @@ enum ScreenTimeManager {
     }
 }
 
-extension Array where Element == SharedStore.ScreenTimeGroup {
-    var policySnapshots: [ScreenTimeGroupPolicy.GroupSnapshot<ApplicationToken>] {
-        map(\.policySnapshot)
-    }
-}
-
-extension SharedStore.ScreenTimeGroup {
-    var policySnapshot: ScreenTimeGroupPolicy.GroupSnapshot<ApplicationToken> {
-        ScreenTimeGroupPolicy.GroupSnapshot(
-            id: id,
-            name: displayName,
-            appTokens: selection.applicationTokens,
-            webDomainTokenCount: selection.webDomainTokens.count,
-            hasNonAppTokens: hasNonAppTokens,
-            dailyLimitMinutes: dailyLimitMinutes,
-            ruleKind: ruleKind,
-            timeWindows: timeWindows,
-            isApplied: isApplied,
-            cooldownUsageMinutes: cooldownUsageMinutes,
-            cooldownDurationMinutes: cooldownDurationMinutes
-        )
-    }
-}
+// policySnapshot / policySnapshots 어댑터는 DailyMonitor.swift로 이동(앱·extension 공유).
