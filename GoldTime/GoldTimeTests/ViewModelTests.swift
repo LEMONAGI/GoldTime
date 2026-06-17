@@ -1587,7 +1587,7 @@ struct ViewModelTests {
             validGroupIDs: [lockedGroup.id]
         )
 
-        #expect(viewModel.statusIcon(for: lockedGroup) == "checkmark.shield.fill")
+        #expect(viewModel.statusIcon(for: lockedGroup) == "lock.shield.fill")
         #expect(viewModel.statusTint(for: lockedGroup) == .red)
         #expect(viewModel.statusTitle(for: lockedGroup) == "23:59까지 잠금")
     }

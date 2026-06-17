@@ -47,7 +47,7 @@ struct RuleEditorSheet: View {
                     )
                 } footer: {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("적용된 그룹은 규칙을 바꾸면 바로 반영돼요.")
+                        Text("이미 규칙이 적용된 그룹은 변경된 규칙도 바로 반영돼요.")
                         if let nearMidnightNotice,
                            selectedKind == .dailyLimit || selectedKind == .cooldown {
                             Label {
@@ -216,6 +216,7 @@ private struct TimeWindowsDetailView: View {
                         .foregroundStyle(.red)
                 } else {
                     Text("정한 시간대 동안에는 그룹이 잠겨요. 시간대를 왼쪽으로 밀면 삭제할 수 있어요. 최대 \(TimeWindowPolicy.maxWindowCount)개까지 추가할 수 있어요.")
+                        .multilineTextAlignment(.leading)
                 }
             }
         }
@@ -321,8 +322,9 @@ private struct CooldownDetailView: View {
                     Text(invalidReason.userMessage)
                         .foregroundStyle(.red)
                 } else {
-                    Text("이만큼 쓰면 잠기고, 휴식이 끝나면 다시 충전돼요. 매일 자정에도 새로 시작해요.")
+                    Text("사용 시간만큼 쓰면 잠기고, 휴식 간격만큼 지나면 다시 충전돼요. 매일 자정에도 새로 시작해요.")
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
                 }
             }
             .font(.footnote)
