@@ -95,9 +95,9 @@ final class ManageGroupsUseCase {
         try screenTimeRepository.syncDailyMonitoring(groups: saved)
     }
 
-    /// 자정 직전(23:45+)이라 그룹을 편집해도 사용량 추적 모니터를 재등록할 수 없는 구간인지.
-    /// 편집 화면에서 안내 문구를 띄울지 판단하는 데 쓴다(연장 cutoff와 동일 경계).
-    func isNearMidnightEditCutoff(now: Date = Date()) -> Bool {
-        screenTimeRepository.isNearMidnightOverrideCutoff(now: now)
+    /// 자정 근처(23:30+)라 편집해도 곧 사용량 추적이 멈추는 구간인지. 편집 화면에서 안내 문구를
+    /// 띄울지 판단한다. 실제 모니터 재등록 차단은 23:45부터지만 연장 안내처럼 미리 알린다.
+    func isNearMidnightEditNoticeWindow(now: Date = Date()) -> Bool {
+        screenTimeRepository.isWithinNearMidnightNoticeWindow(now: now)
     }
 }
