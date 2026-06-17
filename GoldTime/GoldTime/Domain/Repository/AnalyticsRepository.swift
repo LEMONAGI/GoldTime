@@ -8,7 +8,8 @@ import Foundation
 /// - `custom`은 extension 대기 큐(`SharedStore.PendingAnalyticsEvent`)를 드레인할 때 사용한다.
 enum AnalyticsEvent {
     case groupCreated(groupCount: Int)
-    case groupApplied(ruleKind: String)
+    case groupApplied(payload: RuleAnalyticsPayload)
+    case ruleMonitoringRegistered(payload: RuleAnalyticsPayload)
     case monitoringSynced(appliedGroupCount: Int)
     case authorizationResult(granted: Bool)
     case adUnlock(seconds: Int)
@@ -20,6 +21,7 @@ enum AnalyticsEvent {
         switch self {
         case .groupCreated: return "group_created"
         case .groupApplied: return "group_applied"
+        case .ruleMonitoringRegistered: return "rule_monitoring_registered"
         case .monitoringSynced: return "monitoring_synced"
         case .authorizationResult: return "authorization_result"
         case .adUnlock: return "ad_unlock"
@@ -32,7 +34,8 @@ enum AnalyticsEvent {
     var parameters: [String: Any] {
         switch self {
         case .groupCreated(let count): return ["group_count": count]
-        case .groupApplied(let ruleKind): return ["rule_kind": ruleKind]
+        case .groupApplied(let payload): return payload.parameters
+        case .ruleMonitoringRegistered(let payload): return payload.parameters
         case .monitoringSynced(let count): return ["applied_group_count": count]
         case .authorizationResult(let granted): return ["granted": granted]
         case .adUnlock(let seconds): return ["seconds": seconds]

@@ -981,6 +981,56 @@ struct GoldTimeTests {
         #expect(SharedStore.oneMinuteRemaining == 0)
     }
 
+    @Test func ruleAnalyticsPayloadBucketsDailyLimit() {
+        let group = SharedStore.ScreenTimeGroup(
+            name: "SNS",
+            dailyLimitMinutes: 75,
+            ruleKind: .dailyLimit
+        )
+
+        let payload = RuleAnalyticsPayload(group: group)
+
+        #expect(payload.ruleKind == "dailyLimit")
+        #expect(payload.ruleConfigBucket == "daily_61_120m")
+        #expect(payload.dailyLimitBucket == "daily_61_120m")
+        #expect(payload.parameters["daily_limit_bucket"] as? String == "daily_61_120m")
+        #expect(payload.parameters["selection_count_bucket"] as? String == "selection_0")
+    }
+
+    @Test func ruleAnalyticsPayloadBucketsTimeWindows() {
+        let group = SharedStore.ScreenTimeGroup(
+            name: "수면",
+            ruleKind: .timeWindows,
+            timeWindows: [
+                TimeWindow(startMinuteOfDay: 8 * 60, endMinuteOfDay: 8 * 60 + 59),
+                TimeWindow(startMinuteOfDay: 20 * 60, endMinuteOfDay: 21 * 60 + 59)
+            ]
+        )
+
+        let payload = RuleAnalyticsPayload(group: group)
+
+        #expect(payload.ruleKind == "timeWindows")
+        #expect(payload.timeWindowCountBucket == "windows_2")
+        #expect(payload.timeWindowTotalBucket == "total_61_180m")
+        #expect(payload.ruleConfigBucket == "windows_2_total_61_180m")
+    }
+
+    @Test func ruleAnalyticsPayloadBucketsCooldown() {
+        let group = SharedStore.ScreenTimeGroup(
+            name: "게임",
+            ruleKind: .cooldown,
+            cooldownUsageMinutes: 30,
+            cooldownDurationMinutes: 90
+        )
+
+        let payload = RuleAnalyticsPayload(group: group)
+
+        #expect(payload.ruleKind == "cooldown")
+        #expect(payload.cooldownUsageBucket == "usage_16_30m")
+        #expect(payload.cooldownDurationBucket == "rest_61_120m")
+        #expect(payload.ruleConfigBucket == "usage_16_30m_rest_61_120m")
+    }
+
 }
 
 private struct TestRelockError: LocalizedError {

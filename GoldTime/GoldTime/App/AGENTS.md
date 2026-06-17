@@ -26,4 +26,8 @@
   일관성용으로만 함께 갱신).
 - 메인 앱 흐름 이벤트는 ViewModel에서 `AnalyticsRepository`로 직접 로깅. extension 발생
   이벤트는 `SharedStore` 큐 경유(Core/CLAUDE.md "Analytics 대기 큐" 참조).
+- 규칙 분석은 **익명 전체 집계만** 남긴다. `group_applied`와 `rule_monitoring_registered`는
+  `rule_kind`/설정값 bucket만 보내고, 사용자별 그룹 이름·선택 앱/웹사이트·UUID는 보내지 않는다.
+  `rule_monitoring_registered`는 사용자가 적용/편집한 그룹이 sync 후 유효 모니터링 대상일 때만
+  남기며, foreground/lifecycle 재동기화는 사용 집계에서 제외한다.
 - **Crashlytics는 메인 앱만**. extension 타겟에 Firebase를 링크하지 말 것(바이너리/메모리).

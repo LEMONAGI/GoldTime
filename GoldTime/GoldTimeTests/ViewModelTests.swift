@@ -742,6 +742,76 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
+    @Test func confirmApplyLogsRuleAnalyticsAfterSuccessfulRegistration() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "SNS",
+            dailyLimitMinutes: 75,
+            ruleKind: .dailyLimit,
+            isApplied: false
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.validGroupsOverride = [group]
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        let confirmation = ApplyGroupConfirmation(groupID: group.id, groupName: group.name)
+        viewModel.confirmApplyGroup(confirmation)
+
+        let applied = analyticsRepo.parameters(for: "group_applied")
+        #expect(applied?["rule_kind"] as? String == "dailyLimit")
+        #expect(applied?["rule_config_bucket"] as? String == "daily_61_120m")
+
+        let registered = analyticsRepo.parameters(for: "rule_monitoring_registered")
+        #expect(registered?["rule_kind"] as? String == "dailyLimit")
+        #expect(registered?["rule_config_bucket"] as? String == "daily_61_120m")
+    }
+
+    @Test func confirmApplyDoesNotLogMonitoringRegistrationWhenSyncFails() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "SNS",
+            dailyLimitMinutes: 30,
+            ruleKind: .dailyLimit,
+            isApplied: false
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.syncError = TestScreenTimeError.failed
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.confirmApplyGroup(ApplyGroupConfirmation(groupID: group.id, groupName: group.name))
+
+        #expect(analyticsRepo.parameters(for: "group_applied") != nil)
+        #expect(analyticsRepo.parameters(for: "rule_monitoring_registered") == nil)
+    }
+
     private func makeApplyViewModel(with group: SharedStore.ScreenTimeGroup) -> ContentViewModel {
         let groupRepo = FakeGroupRepository()
         groupRepo.screenTimeGroups = [group]
@@ -853,6 +923,72 @@ struct ViewModelTests {
         #expect(viewModel.groups.first?.ruleKind == .dailyLimit)
         #expect(groupRepo.screenTimeGroups.first?.dailyLimitMinutes == 75)
         #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func appliedRuleEditLogsMonitoringRegistration() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.validGroupsOverride = [group]
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 1
+        viewModel.limitPickerMinutes = 15
+        viewModel.commitRuleSelection()
+
+        let registered = analyticsRepo.parameters(for: "rule_monitoring_registered")
+        #expect(registered?["rule_kind"] as? String == "dailyLimit")
+        #expect(registered?["rule_config_bucket"] as? String == "daily_61_120m")
+    }
+
+    @Test func draftRuleEditDoesNotLogMonitoringRegistration() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(),
+            name: "SNS",
+            dailyLimitMinutes: 30,
+            ruleKind: .dailyLimit,
+            isApplied: false
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.validGroupsOverride = [group]
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 1
+        viewModel.limitPickerMinutes = 15
+        viewModel.commitRuleSelection()
+
+        #expect(analyticsRepo.parameters(for: "rule_monitoring_registered") == nil)
     }
 
     @Test func dailyLimitRuleWarnsAndDefersWhenNewLimitBelowUsedTime() {
@@ -2746,11 +2882,13 @@ struct ViewModelTests {
         )
     }
 
-    private func makeLoadDashboardUseCase() -> LoadDashboardUseCase {
+    private func makeLoadDashboardUseCase(
+        screenTimeRepo: FakeScreenTimeRepository? = nil
+    ) -> LoadDashboardUseCase {
         LoadDashboardUseCase(
             shieldRepository: FakeShieldRepository(),
             statsRepository: FakeStatsRepository(),
-            screenTimeRepository: FakeScreenTimeRepository()
+            screenTimeRepository: screenTimeRepo ?? FakeScreenTimeRepository()
         )
     }
 
@@ -2816,6 +2954,27 @@ struct AppLifecycleViewModelTests {
 
 private enum TestAuthorizationError: Error {
     case denied
+}
+
+private enum TestScreenTimeError: Error {
+    case failed
+}
+
+@MainActor
+private final class FakeAnalyticsRepository: AnalyticsRepository {
+    private(set) var events: [AnalyticsEvent] = []
+
+    func log(_ event: AnalyticsEvent) {
+        events.append(event)
+    }
+
+    func setUserProperty(_ value: String?, for name: String) {}
+
+    func recordError(_ error: Error, context: String) {}
+
+    func parameters(for eventName: String) -> [String: Any]? {
+        events.first { $0.name == eventName }?.parameters
+    }
 }
 
 @MainActor

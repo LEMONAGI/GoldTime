@@ -329,7 +329,8 @@ final class ContentViewModel {
     func commitPickerSelection() {
         guard let groupID = pickerGroupID else { return }
         let selection = pickerSelection
-        updateGroup(groupID) { groups in
+        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(groupID)
+        updateGroup(groupID, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
             manageGroupsUseCase.updateSelection(id: groupID, selection: selection, in: &groups)
         }
     }
@@ -397,7 +398,8 @@ final class ContentViewModel {
     }
 
     private func applyCooldownRule(id: UUID, usage: Int, duration: Int) {
-        updateGroup(id) { groups in
+        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
+        updateGroup(id, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
             manageGroupsUseCase.updateRule(
                 id: id,
                 kind: .cooldown,
@@ -443,7 +445,8 @@ final class ContentViewModel {
         }
 
         // 규칙을 timeWindows로 바꿔도 dailyLimitMinutes는 그대로 보존(되돌릴 때 재사용).
-        updateGroup(id) { groups in
+        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
+        updateGroup(id, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
             manageGroupsUseCase.updateRule(
                 id: id,
                 kind: .timeWindows,
@@ -455,7 +458,8 @@ final class ContentViewModel {
     }
 
     private func applyDailyLimitRule(id: UUID, minutes: Int) {
-        updateGroup(id) { groups in
+        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
+        updateGroup(id, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
             manageGroupsUseCase.updateRule(
                 id: id,
                 kind: .dailyLimit,
@@ -576,11 +580,12 @@ final class ContentViewModel {
     // confirmation을 인자로 받는다: .alert(item:)이 버튼 액션 전에 바인딩을 nil로 만들기 때문.
     func confirmApplyGroup(_ confirmation: ApplyGroupConfirmation) {
         pendingApplyConfirmation = nil
-        updateGroup(confirmation.groupID) { groups in
+        updateGroup(confirmation.groupID, monitoringRegistrationGroupID: confirmation.groupID) { groups in
             manageGroupsUseCase.markApplied(id: confirmation.groupID, in: &groups)
         }
-        let ruleKind = groups.first { $0.id == confirmation.groupID }?.ruleKind?.rawValue ?? "unknown"
-        analyticsRepository.log(.groupApplied(ruleKind: ruleKind))
+        if let group = groups.first(where: { $0.id == confirmation.groupID }) {
+            analyticsRepository.log(.groupApplied(payload: RuleAnalyticsPayload(group: group)))
+        }
     }
 
     func cancelApplyGroup() {
@@ -619,11 +624,17 @@ final class ContentViewModel {
         }
     }
 
-    private func persistGroups(shouldSyncProtection: Bool = true) {
+    private func persistGroups(
+        shouldSyncProtection: Bool = true,
+        monitoringRegistrationGroupID: UUID? = nil
+    ) {
         if shouldSyncProtection {
             // 사용자가 그룹을 편집해 모니터링을 재적용하는 경로. foreground 진입 경로
             // (requestScreenTimeAuthorizationOnEntry)와 달리 분석 이벤트를 남긴다.
-            syncProtectionRules(logMonitoringSync: true)
+            syncProtectionRules(
+                logMonitoringSync: true,
+                monitoringRegistrationGroupID: monitoringRegistrationGroupID
+            )
         } else {
             manageGroupsUseCase.persist(groups)
             groups = manageGroupsUseCase.currentGroups()
@@ -634,15 +645,22 @@ final class ContentViewModel {
     private func updateGroup(
         _ id: UUID,
         shouldSyncProtection: Bool = true,
+        monitoringRegistrationGroupID: UUID? = nil,
         update: (inout [ScreenTimeGroup]) -> Void
     ) {
         update(&groups)
         successMessage = nil
         errorMessage = nil
-        persistGroups(shouldSyncProtection: shouldSyncProtection)
+        persistGroups(
+            shouldSyncProtection: shouldSyncProtection,
+            monitoringRegistrationGroupID: monitoringRegistrationGroupID
+        )
     }
 
-    private func syncProtectionRules(logMonitoringSync: Bool = false) {
+    private func syncProtectionRules(
+        logMonitoringSync: Bool = false,
+        monitoringRegistrationGroupID: UUID? = nil
+    ) {
         do {
             try manageGroupsUseCase.persistAndSync(groups)
             groups = manageGroupsUseCase.currentGroups()
@@ -654,11 +672,26 @@ final class ContentViewModel {
                 let appliedCount = groups.filter { $0.isApplied }.count
                 analyticsRepository.log(.monitoringSynced(appliedGroupCount: appliedCount))
             }
+            logRuleMonitoringRegisteredIfNeeded(
+                groupID: monitoringRegistrationGroupID,
+                validGroupIDs: state.validGroupIDs
+            )
         } catch {
             successMessage = nil
             errorMessage = "자동 적용 실패: \(error.localizedDescription)"
             refreshDashboardState()
         }
+    }
+
+    private func monitoringRegistrationGroupIDIfApplied(_ id: UUID) -> UUID? {
+        groups.first(where: { $0.id == id })?.isApplied == true ? id : nil
+    }
+
+    private func logRuleMonitoringRegisteredIfNeeded(groupID: UUID?, validGroupIDs: Set<UUID>) {
+        guard let groupID,
+              validGroupIDs.contains(groupID),
+              let group = groups.first(where: { $0.id == groupID }) else { return }
+        analyticsRepository.log(.ruleMonitoringRegistered(payload: RuleAnalyticsPayload(group: group)))
     }
 
     private func applyDashboardState(_ state: DashboardState) {
