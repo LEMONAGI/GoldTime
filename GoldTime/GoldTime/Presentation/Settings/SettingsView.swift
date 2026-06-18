@@ -287,7 +287,17 @@ struct SettingsView: View {
                     let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-"
                     let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "-"
                     let device = UIDevice.current
-                    let body = "\n\n---\n앱 버전: \(appVersion) (\(buildNumber))\n기기: \(device.model)\niOS: \(device.systemVersion)"
+                    let body = """
+                    안녕하세요! 보내주신 의견은 빠짐없이 읽고 있어요.
+                    버그는 쏜살같이, 기능 추가는 정확하게!
+
+                    (여기에 의견을 적어주세요)
+
+                    ---
+                    앱 버전: \(appVersion) (\(buildNumber))
+                    기기: \(device.model)
+                    iOS: \(device.systemVersion)
+                    """
                     components.queryItems = [
                         URLQueryItem(name: "subject", value: "GoldTime 피드백"),
                         URLQueryItem(name: "body", value: body)
