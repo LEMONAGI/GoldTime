@@ -276,9 +276,9 @@ private struct CooldownDetailView: View {
     let nearMidnightNotice: String?
     let onConfirm: () -> Void
 
-    // 사용 시간 5분 단위(5분~2시간), 휴식 간격 10분 단위(30분~6시간).
+    // 사용 시간 5분 단위(5분~2시간), 휴식 간격 15분 단위(30분~6시간).
     private let usagePresets = Array(stride(from: 5, through: 120, by: 5))
-    private let durationPresets = Array(stride(from: 30, through: 360, by: 10))
+    private let durationPresets = Array(stride(from: 30, through: 360, by: 15))
 
     private var invalidReason: CooldownPolicy.InvalidReason? {
         CooldownPolicy.firstInvalidReason(usageMinutes: usageMinutes, cooldownMinutes: durationMinutes)
