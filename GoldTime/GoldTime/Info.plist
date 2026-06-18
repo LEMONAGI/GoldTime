@@ -8,6 +8,8 @@
 	</array>
 	<key>GADDelayAppMeasurementInit</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>관련성 높은 광고를 보여주는 데 활용됩니다.</string>
 	<key>GADApplicationIdentifier</key>
