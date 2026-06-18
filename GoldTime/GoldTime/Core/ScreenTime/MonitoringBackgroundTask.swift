@@ -21,12 +21,23 @@ enum MonitoringBackgroundTask {
         // 같은 가드를 공유하므로 그날 이미 예약됐으면 여기선 건너뛴다.
         NotificationService.scheduleDailyMorningNotificationIfNeeded()
 
+        // 동기화 실패를 try?로 삼키면 fallback 복구 경로의 상태를 관측할 수 없다. 실패를 분석 큐에
+        // 기록(다음 active 때 Firebase로 드레인)하고 task 완료 상태에도 반영한다.
+        var syncFailed = false
         if SharedStore.isDailyMonitoringEnabled {
-            try? ScreenTimeManager.syncDailyMonitoring(groups: SharedStore.screenTimeGroups)
+            do {
+                try ScreenTimeManager.syncDailyMonitoring(groups: SharedStore.screenTimeGroups)
+            } catch {
+                SharedStore.enqueueScreenTimeError(
+                    context: "backgroundReconnect",
+                    message: error.localizedDescription
+                )
+                syncFailed = true
+            }
         }
 
         scheduleNext()
-        task.setTaskCompleted(success: true)
+        task.setTaskCompleted(success: !syncFailed)
     }
 
     static func scheduleNext() {

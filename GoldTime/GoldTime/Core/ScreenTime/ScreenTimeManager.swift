@@ -264,6 +264,7 @@ enum ScreenTimeManager {
                     newRegistered[group.id] = group
                 } catch {
                     firstError = firstError ?? error
+                    newRegistered.removeValue(forKey: group.id)   // 등록 실패 = 미추적, stale 표시 방지
                 }
                 continue
             }
@@ -301,6 +302,7 @@ enum ScreenTimeManager {
                         newRegistered[group.id] = group
                     } catch {
                         firstError = firstError ?? error
+                        newRegistered.removeValue(forKey: group.id)   // 등록 실패 = 미추적, stale 표시 방지
                     }
                 case .keepCooldownRest:
                     do {
@@ -308,6 +310,7 @@ enum ScreenTimeManager {
                         newRegistered[group.id] = group
                     } catch {
                         firstError = firstError ?? error
+                        newRegistered.removeValue(forKey: group.id)   // 등록 실패 = 미추적, stale 표시 방지
                     }
                 }
                 continue
@@ -345,6 +348,7 @@ enum ScreenTimeManager {
                         newRegistered[group.id] = group
                     } catch {
                         firstError = firstError ?? error
+                        newRegistered.removeValue(forKey: group.id)   // 등록 실패 = 미추적, stale 표시 방지
                     }
                 }
             } else {
