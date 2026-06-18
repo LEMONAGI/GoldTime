@@ -3043,6 +3043,45 @@ struct AppLifecycleViewModelTests {
         #expect(viewModel.showLockOptions == true)
     }
 
+    @Test func setsCohortUserPropertiesOnActivationWhenAuthorized() {
+        SharedStore.screenTimeGroups = [
+            SharedStore.ScreenTimeGroup(name: "SNS", ruleKind: .dailyLimit),
+            SharedStore.ScreenTimeGroup(name: "게임", ruleKind: .dailyLimit),
+            SharedStore.ScreenTimeGroup(name: "유튜브", ruleKind: .cooldown)
+        ]
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: FakeShieldRepository(),
+            analyticsRepository: analyticsRepo
+        )
+
+        viewModel.appDidBecomeActive()
+
+        #expect(analyticsRepo.userProperties["primary_rule_kind"] == "dailyLimit")
+        #expect(analyticsRepo.userProperties["active_group_count"] == "count_2_3")
+        #expect(analyticsRepo.userProperties["uses_daily"] == "true")
+        #expect(analyticsRepo.userProperties["uses_cooldown"] == "true")
+        #expect(analyticsRepo.userProperties["uses_timewindow"] == "false")
+
+        SharedStore.clearGroupStateForTesting()
+    }
+
+    @Test func doesNotSetCohortUserPropertiesWhenUnauthorized() {
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: false),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: FakeShieldRepository(),
+            analyticsRepository: analyticsRepo
+        )
+
+        viewModel.appDidBecomeActive()
+
+        #expect(analyticsRepo.userProperties.isEmpty)
+    }
+
     private func makeSyncProtectionUseCase() -> SyncProtectionUseCase {
         SyncProtectionUseCase(
             groupRepository: FakeGroupRepository(),
@@ -3050,11 +3089,77 @@ struct AppLifecycleViewModelTests {
         )
     }
 
-    private func makeAuthorizeUseCase() -> AuthorizeUseCase {
+    private func makeAuthorizeUseCase(isAuthorized: Bool = false) -> AuthorizeUseCase {
         AuthorizeUseCase(
-            authRepository: FakeAuthorizationRepository(isAuthorized: false),
+            authRepository: FakeAuthorizationRepository(isAuthorized: isAuthorized),
             notificationRepository: FakeNotificationRepository()
         )
+    }
+}
+
+// MARK: - UserCohortProperties
+
+@MainActor
+struct UserCohortPropertiesTests {
+
+    private func properties(_ groups: [SharedStore.ScreenTimeGroup]) -> [String: String?] {
+        Dictionary(uniqueKeysWithValues: UserCohortProperties(groups: groups).entries.map { ($0.name, $0.value) })
+    }
+
+    @Test func emptyGroupsYieldNoneAndFalseFlags() {
+        let result = properties([])
+
+        #expect(result["primary_rule_kind"] == "none")
+        #expect(result["active_group_count"] == "count_0")
+        #expect(result["uses_daily"] == "false")
+        #expect(result["uses_timewindow"] == "false")
+        #expect(result["uses_cooldown"] == "false")
+    }
+
+    @Test func unappliedGroupsAreExcluded() {
+        let result = properties([
+            SharedStore.ScreenTimeGroup(name: "SNS", ruleKind: .cooldown, isApplied: false)
+        ])
+
+        #expect(result["primary_rule_kind"] == "none")
+        #expect(result["active_group_count"] == "count_0")
+        #expect(result["uses_cooldown"] == "false")
+    }
+
+    @Test func picksMostFrequentRuleAsPrimary() {
+        let result = properties([
+            SharedStore.ScreenTimeGroup(name: "a", ruleKind: .dailyLimit),
+            SharedStore.ScreenTimeGroup(name: "b", ruleKind: .dailyLimit),
+            SharedStore.ScreenTimeGroup(name: "c", ruleKind: .cooldown)
+        ])
+
+        #expect(result["primary_rule_kind"] == "dailyLimit")
+        #expect(result["active_group_count"] == "count_2_3")
+        #expect(result["uses_daily"] == "true")
+        #expect(result["uses_cooldown"] == "true")
+        #expect(result["uses_timewindow"] == "false")
+    }
+
+    @Test func tiedFrequencyYieldsNonePrimary() {
+        let result = properties([
+            SharedStore.ScreenTimeGroup(name: "a", ruleKind: .dailyLimit),
+            SharedStore.ScreenTimeGroup(name: "b", ruleKind: .cooldown)
+        ])
+
+        #expect(result["primary_rule_kind"] == "none")
+        #expect(result["active_group_count"] == "count_2_3")
+    }
+
+    @Test func bucketsLargeGroupCount() {
+        let groups = (0..<4).map {
+            SharedStore.ScreenTimeGroup(name: "g\($0)", ruleKind: .timeWindows)
+        }
+
+        let result = properties(groups)
+
+        #expect(result["active_group_count"] == "count_4_plus")
+        #expect(result["primary_rule_kind"] == "timeWindows")
+        #expect(result["uses_timewindow"] == "true")
     }
 }
 
@@ -3071,12 +3176,15 @@ private enum TestScreenTimeError: Error {
 @MainActor
 private final class FakeAnalyticsRepository: AnalyticsRepository {
     private(set) var events: [AnalyticsEvent] = []
+    private(set) var userProperties: [String: String?] = [:]
 
     func log(_ event: AnalyticsEvent) {
         events.append(event)
     }
 
-    func setUserProperty(_ value: String?, for name: String) {}
+    func setUserProperty(_ value: String?, for name: String) {
+        userProperties[name] = value
+    }
 
     func recordError(_ error: Error, context: String) {}
 

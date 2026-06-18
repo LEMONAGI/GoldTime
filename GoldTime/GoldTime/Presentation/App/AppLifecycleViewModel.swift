@@ -54,6 +54,7 @@ final class AppLifecycleViewModel {
         syncProtectionRulesIfAuthorized()
         refreshLockOptionsPresentation()
         drainPendingAnalyticsEvents()
+        updateCohortUserProperties()
         MonitoringBackgroundTask.scheduleNext()
     }
 
@@ -62,6 +63,17 @@ final class AppLifecycleViewModel {
     private func drainPendingAnalyticsEvents() {
         for event in SharedStore.drainPendingAnalyticsEvents() {
             analyticsRepository.log(.custom(name: event.name, parameters: event.parameters))
+        }
+    }
+
+    /// 적용된 그룹의 규칙 형태를 user property로 심어 코호트 분석 축을 만든다.
+    /// 미승인 유저에는 stale property를 남기지 않도록 권한이 있을 때만 갱신한다.
+    private func updateCohortUserProperties() {
+        guard authorizeUseCase.isAuthorized else { return }
+        let groups = GroupRepositoryImpl().screenTimeGroups
+        let properties = UserCohortProperties(groups: groups)
+        for entry in properties.entries {
+            analyticsRepository.setUserProperty(entry.value, for: entry.name)
         }
     }
 
