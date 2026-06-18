@@ -736,7 +736,13 @@ enum ScreenTimeManager {
 
         for groupID in expired {
             let generation = SharedStore.endCooldownAndRecharge(for: groupID)
-            center.stopMonitoring([.cooldownTimer(for: groupID)])
+            // 정상 타이머 경로(handleCooldownTimerEnded)와 동일하게 직전 사이클의 사용 예산 activity와
+            // 휴식 타이머를 함께 멈춘다. cooldownUsage(generation-1)를 남기면 stale activity가 모니터링
+            // 슬롯을 잠식하고(반복 자가치유 시 excessiveActivities 위험) 두 재충전 경로가 불일치한다.
+            center.stopMonitoring([
+                .cooldownUsage(for: groupID, generation: generation - 1),
+                .cooldownTimer(for: groupID),
+            ])
             guard let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 else { continue }
             if overrideWindowTooShort(now: now) {
                 // 자정 직전: usageSchedule(now~23:59:59)이 15분 미만이라 startMonitoring이 intervalTooShort로
