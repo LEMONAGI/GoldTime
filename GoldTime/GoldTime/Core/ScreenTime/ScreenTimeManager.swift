@@ -207,6 +207,18 @@ enum ScreenTimeManager {
         }
         SharedStore.pruneShieldState(keepingGroupIDs: validGroupIDs)
 
+        // 쿨다운→다른 규칙으로 전환된(삭제 아님) 그룹: 좀비 휴식 상태를 정리한다.
+        // pruneShieldState는 삭제 그룹만 정리하므로 규칙 전환은 여기서 처리해야 한다. 휴식 플래그
+        // (cooldownUntil)가 남으면 다시 쿨다운으로 돌아올 때 cooldownEditAction이 .keepCooldownRest로
+        // 빠지고 registerCooldownGroup이 early-return해 어떤 모니터도 등록되지 않는다(측정·재잠금 불가).
+        // generation도 올라가 위에서 stop한 cooldownUsage activity 이름 재사용(즉시 발화 회귀)을 막는다.
+        let cooldownRuleLeavers = previousCooldownGroupIDs
+            .intersection(validGroupIDs)
+            .subtracting(validCooldownGroupIDs)
+        for groupID in cooldownRuleLeavers {
+            SharedStore.clearCooldownCycle(for: groupID)
+        }
+
         guard !validGroups.isEmpty else {
             center.stopMonitoring()
             store.shield.applications = nil

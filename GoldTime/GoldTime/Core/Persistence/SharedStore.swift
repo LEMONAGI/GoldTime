@@ -738,6 +738,25 @@ enum SharedStore {
         return next
     }
 
+    /// 쿨다운 그룹이 다른 규칙(일일/시간대)으로 전환될 때 쿨다운 휴식 사이클만 정리한다.
+    /// `usedTime`은 보존한다(전환된 규칙이 이어서 사용). `cooldownUntil`/baseline을 비우고
+    /// generation을 올려, 좀비 휴식 플래그(`isInCooldown` 고정)와 동일 activity 이름 재사용을 동시에 막는다.
+    /// shield는 건드리지 않는다 — 전환된 규칙의 분기가 mark/unmark/resync로 결정한다.
+    @discardableResult
+    static func clearCooldownCycle(for groupID: UUID) -> Int {
+        var map = cooldownUntilByGroupID
+        map.removeValue(forKey: groupID)
+        cooldownUntilByGroupID = map
+        var baselines = cooldownBaselineByGroupID
+        baselines.removeValue(forKey: groupID)
+        cooldownBaselineByGroupID = baselines
+        var gens = cooldownGenerationByID
+        let next = (gens[groupID] ?? 0) + 1
+        gens[groupID] = next
+        cooldownGenerationByID = gens
+        return next
+    }
+
     /// cooldownUntil이 존재하고 미래이면 쿨다운 중.
     static func isInCooldown(_ groupID: UUID, now: Date = Date()) -> Bool {
         guard let until = cooldownUntilByGroupID[groupID] else { return false }

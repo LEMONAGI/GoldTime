@@ -248,6 +248,54 @@ struct CooldownTests {
         #expect(SharedStore.cooldownBaselineByGroupID == [keepID: 3])
     }
 
+    // 6-1. clearCooldownCycle: 규칙 전환 시 휴식 사이클만 정리하고 usedTime은 보존, generation은 +1.
+    @Test func clearCooldownCycleClearsRestButKeepsUsedTime() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: id)
+        SharedStore.usedTimeByGroupID = [id: 10]
+        SharedStore.cooldownBaselineByGroupID = [id: 10]
+        #expect(SharedStore.isInCooldown(id))
+
+        let nextGen = SharedStore.clearCooldownCycle(for: id)
+
+        // 휴식 플래그/baseline 제거, generation +1, usedTime은 보존(전환된 규칙이 이어 사용)
+        #expect(nextGen == 1)
+        #expect(!SharedStore.isInCooldown(id))
+        #expect(SharedStore.cooldownEnd(for: id) == nil)
+        #expect(SharedStore.cooldownBaselineByGroupID[id] == nil)
+        #expect(SharedStore.usedTimeByGroupID[id] == 10)
+        #expect(SharedStore.cooldownGenerationByID[id] == 1)
+    }
+
+    // 6-2. 좀비 휴식 회귀: 쿨다운 휴식 중 → 다른 규칙 전환(clearCooldownCycle) 후 다시 쿨다운으로 돌아와도
+    //      isInCooldown이 false라 registerCooldownGroup이 early-return하지 않고 정상 등록될 수 있다.
+    @Test func ruleSwitchAwayFromCooldownClearsZombieRest() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        // 1) 쿨다운 휴식 진입 (10분 사용 후 잠김)
+        SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: id)
+        SharedStore.usedTimeByGroupID = [id: 10]
+        #expect(SharedStore.isInCooldown(id))
+
+        // 2) 일일 등 다른 규칙으로 전환 → 휴식 사이클 정리(usedTime 보존)
+        SharedStore.clearCooldownCycle(for: id)
+
+        // 3) 다시 쿨다운으로 돌아온 시점: 좀비 플래그가 없어 .keepCooldownRest 함정에 빠지지 않는다.
+        #expect(!SharedStore.isInCooldown(id))
+        let action = ScreenTimeManager.cooldownEditAction(
+            isInCooldown: SharedStore.isInCooldown(id),
+            usedMinutes: SharedStore.usedTimeByGroupID[id] ?? 0,
+            budgetMinutes: 15,
+            nearMidnight: false
+        )
+        #expect(action == .registerAvailable)
+    }
+
     // 7. expiredCooldownGroupIDs: 과거 until 그룹만 반환, 미래 until·비-cooldown 그룹은 제외.
     @Test func expiredCooldownGroupIDsReturnsOnlyExpired() {
         SharedStore.clearGroupStateForTesting()
