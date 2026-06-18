@@ -100,14 +100,18 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 if used >= group.dailyLimitMinutes {
                     // 0분 그룹 등 즉시 잠금: 모니터 없이 잠금만(리셋 직후 used=0이라 실질 limit==0).
                     SharedStore.markGroupShielded(group.id)
+                    registered[group.id] = group
                 } else {
+                    // 등록 성공 시에만 registered에 기록한다. 실패한 그룹을 기록하면
+                    // lastRegisteredGroupsByID 기반 churn 가드가 foreground 재등록을 영구 스킵하고
+                    // 대시보드가 미추적을 정상으로 오표시한다(메인 앱 syncDailyMonitoring과 동일 계약).
                     do {
                         try DailyMonitor.startUsageMonitoring(center: center, group: group, generation: newGen)
+                        registered[group.id] = group
                     } catch {
                         SharedStore.enqueueScreenTimeError(context: "heartbeatDaily", message: error.localizedDescription)
                     }
                 }
-                registered[group.id] = group
             case .cooldown:
                 let oldGen = cooldownGenSnapshot[group.id] ?? 0
                 center.stopMonitoring([
@@ -117,13 +121,16 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 let newGen = oldGen + 1
                 cooldownGens[group.id] = newGen
                 if group.cooldownUsageMinutes > 0 {
+                    // dailyLimit과 동일: 등록 성공 시에만 registered에 기록(실패 그룹 박제 방지).
                     do {
                         try CooldownMonitor.startUsageMonitoring(center: center, group: group, generation: newGen)
+                        registered[group.id] = group
                     } catch {
                         SharedStore.enqueueScreenTimeError(context: "heartbeatCooldown", message: error.localizedDescription)
                     }
+                } else {
+                    registered[group.id] = group
                 }
-                registered[group.id] = group
             case .timeWindows:
                 // window activity는 repeats:true로 살아 있어 재등록하지 않는다. 다음 앱 sync의
                 // churn을 줄이려고 등록 기록만 복원한다.
