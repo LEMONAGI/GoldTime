@@ -737,12 +737,32 @@ enum ScreenTimeManager {
         for groupID in expired {
             let generation = SharedStore.endCooldownAndRecharge(for: groupID)
             center.stopMonitoring([.cooldownTimer(for: groupID)])
-            if let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 {
-                try? CooldownMonitor.startUsageMonitoring(
+            guard let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 else { continue }
+            if overrideWindowTooShort(now: now) {
+                // 자정 직전: usageSchedule(now~23:59:59)이 15분 미만이라 startMonitoring이 intervalTooShort로
+                // 실패한다. 등록을 건너뛰고(미추적, syncDailyMonitoring의 .skipUntracked와 동일) 23:59까지 사용
+                // 가능하게 두고 자정 리셋이 재충전하게 한다. 의도된 동작이므로 에러로 기록하지 않는다.
+                continue
+            }
+            do {
+                try CooldownMonitor.startUsageMonitoring(
                     center: center,
                     group: group,
                     generation: generation
                 )
+            } catch {
+                // 진짜 실패(예: excessiveActivities): 무증상으로 삼키지 않고 기록한다. 그리고 churn 가드를
+                // 무효화해 다음 foreground sync가 재등록하게 한다 — 이 경로는 lastRegisteredGroupsByID를
+                // 건드리지 않아 last==group이 남고 syncDailyMonitoring(:256)이 그룹을 스킵, 자정 하트비트까지
+                // (~최대 24h) 재등록되지 못하기 때문이다. 하트비트 경로의 "성공 시에만 기록" 계약과 동일하게
+                // 실패 그룹을 last==nil로 만든다.
+                SharedStore.enqueueScreenTimeError(
+                    context: "cooldownRecharge",
+                    message: error.localizedDescription
+                )
+                var registered = SharedStore.lastRegisteredGroupsByID ?? [:]
+                registered.removeValue(forKey: groupID)
+                SharedStore.lastRegisteredGroupsByID = registered
             }
         }
         return true
