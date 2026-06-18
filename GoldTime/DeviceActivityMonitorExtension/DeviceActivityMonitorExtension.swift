@@ -356,10 +356,15 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                     generation: generation
                 )
             } catch {
+                // 무증상으로 삼키지 않고 기록한다. 그리고 churn 가드를 무효화해 다음 foreground sync가
+                // 재등록하게 한다 — 이 경로는 lastRegisteredGroupsByID를 건드리지 않아 last==group이
+                // 남고 syncDailyMonitoring이 그룹을 스킵, 자정 하트비트까지(~최대 24h) 재등록되지 못한다.
+                // foreground 자가치유(ScreenTimeManager.rechargeExpiredCooldowns)·하트비트 경로와 동일 계약.
                 SharedStore.enqueueScreenTimeError(
                     context: "cooldownRecharge",
                     message: error.localizedDescription
                 )
+                SharedStore.clearRegistration(for: groupID)
             }
         }
         applyShieldFromGroups()

@@ -1156,6 +1156,15 @@ enum SharedStore {
         }
     }
 
+    /// 등록 churn 가드에서 한 그룹의 기록만 비운다. 모니터 재등록 실패 시 last==group이 남아
+    /// syncDailyMonitoring의 `guard last != group`이 다음 foreground sync 재등록을 영구 스킵하는
+    /// 것을 막는다(실패 그룹을 last==nil로 만들어 다음 sync가 즉시 재등록).
+    static func clearRegistration(for groupID: UUID) {
+        guard var registered = lastRegisteredGroupsByID else { return }
+        registered.removeValue(forKey: groupID)
+        lastRegisteredGroupsByID = registered
+    }
+
     static func clearAllUsedTime() {
         defaults.removeObject(forKey: Key.usedTimeByGroupID)
         defaults.removeObject(forKey: Key.dailyBaselineByGroupID)

@@ -766,9 +766,7 @@ enum ScreenTimeManager {
                     context: "cooldownRecharge",
                     message: error.localizedDescription
                 )
-                var registered = SharedStore.lastRegisteredGroupsByID ?? [:]
-                registered.removeValue(forKey: groupID)
-                SharedStore.lastRegisteredGroupsByID = registered
+                SharedStore.clearRegistration(for: groupID)
             }
         }
         return true

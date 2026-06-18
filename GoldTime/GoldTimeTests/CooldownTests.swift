@@ -502,4 +502,35 @@ struct CooldownTests {
         let now = Date()
         #expect(CooldownMonitor.shouldRechargeOnTimerEnd(cooldownEnd: now, now: now) == true)
     }
+
+    // MARK: - 재충전 실패 시 등록 기록 정리 (clearRegistration)
+
+    /// 재충전 등록 실패 경로가 호출하는 clearRegistration은 해당 그룹만 churn 가드에서 비우고
+    /// 나머지 등록은 보존한다 → 다음 foreground sync가 실패 그룹만 즉시 재등록(영구 스킵 방지).
+    @Test func clearRegistrationRemovesOnlyTargetGroup() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let failedID = UUID()
+        let keptID = UUID()
+        SharedStore.lastRegisteredGroupsByID = [
+            failedID: makeCooldownGroup(id: failedID),
+            keptID: makeCooldownGroup(id: keptID)
+        ]
+
+        SharedStore.clearRegistration(for: failedID)
+
+        let registered = SharedStore.lastRegisteredGroupsByID ?? [:]
+        #expect(registered[failedID] == nil)
+        #expect(registered[keptID] != nil)
+    }
+
+    /// 기록이 비어 있어도(nil) clearRegistration은 안전하게 no-op이다.
+    @Test func clearRegistrationIsSafeWhenEmpty() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        SharedStore.clearRegistration(for: UUID())
+        #expect(SharedStore.lastRegisteredGroupsByID == nil)
+    }
 }
