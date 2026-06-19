@@ -1518,6 +1518,7 @@ struct ViewModelTests {
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.alertMessage?.title == "적용 안내")
+        #expect(viewModel.alertMessage?.message == "23:45부터는 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 적용됩니다.")
     }
 
     @Test func dailyLimitRuleEditSkipsApplyNoticeWhenNotNearMidnight() {
@@ -1601,6 +1602,7 @@ struct ViewModelTests {
         try? await Task.sleep(for: .milliseconds(50))
 
         #expect(viewModel.alertMessage?.title == "적용 안내")
+        #expect(viewModel.alertMessage?.message == "23:45부터는 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 적용됩니다.")
     }
 
     @Test func switchingToTimeWindowsPreservesDailyLimitMinutes() {

@@ -358,7 +358,7 @@ final class ContentViewModel {
     private var nearMidnightApplyNotice: GoldTimeAlertMessage {
         GoldTimeAlertMessage(
             title: "적용 안내",
-            message: "방금 설정한 규칙은 23:45 이후라 사용량 추적이 불가능해, 00:00부터 정확히 적용됩니다."
+            message: "23:45부터는 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 적용됩니다."
         )
     }
 
