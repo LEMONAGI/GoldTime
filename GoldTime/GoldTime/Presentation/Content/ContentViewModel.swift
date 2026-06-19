@@ -205,7 +205,7 @@ final class ContentViewModel {
     /// 일일 한도·쿨다운 상세에서만 노출한다(시간대별 차단은 영향 없음 — View에서 분기).
     var nearMidnightEditNotice: String? {
         guard manageGroupsUseCase.isNearMidnightEditNoticeWindow() else { return nil }
-        return "23:45부터는 사용량 추적이 어려워요. 지금 바꾼 규칙은 00:00부터 다시 정확히 적용됩니다."
+        return "23:45부터 설정한 규칙은 사용량 추적이 불가능해 00:00부터 다시 정확히 적용됩니다."
     }
 
     func setRuleEditorPresented(_ isPresented: Bool) {
@@ -353,6 +353,20 @@ final class ContentViewModel {
         !lockedGroupIDs.contains(id) && !overrideGroupIDs.contains(id)
     }
 
+    /// 자정 직전(23:45+) 적용·수정 직후 안내 alert. 모니터 등록이 막혀 규칙이 00:00부터
+    /// 적용되는 상황을 알린다. 일일 한도·쿨다운만 — 시간대 차단은 측정창과 무관해 제외한다.
+    private var nearMidnightApplyNotice: GoldTimeAlertMessage {
+        GoldTimeAlertMessage(
+            title: "적용 안내",
+            message: "방금 설정한 규칙은 23:45 이후라 사용량 추적이 불가능해, 00:00부터 정확히 적용됩니다."
+        )
+    }
+
+    /// 모니터(자정 측정창)에 등록돼 23:45 too short의 영향을 받는 규칙인지(일일 한도·쿨다운).
+    private func isMonitorTrackedRule(_ kind: SharedStore.ScreenTimeGroup.RuleKind?) -> Bool {
+        kind == .dailyLimit || kind == .cooldown
+    }
+
     private func commitCooldownRule() {
         guard let id = ruleEditorGroupID else { return }
         let usage = ruleEditorCooldownUsageMinutes
@@ -393,6 +407,9 @@ final class ContentViewModel {
                 title: "변경 안내",
                 message: "변경된 설정은 다음 주기부터 적용돼요."
             )
+        } else if monitoringRegistrationGroupIDIfApplied(id) != nil
+            && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
+            stagedRuleEditInfo = nearMidnightApplyNotice
         }
         ruleEditorGroupID = nil
     }
@@ -431,6 +448,10 @@ final class ContentViewModel {
         }
 
         applyDailyLimitRule(id: id, minutes: minutes)
+        if monitoringRegistrationGroupIDIfApplied(id) != nil
+            && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
+            stagedRuleEditInfo = nearMidnightApplyNotice
+        }
         ruleEditorGroupID = nil
     }
 
@@ -585,6 +606,13 @@ final class ContentViewModel {
         }
         if let group = groups.first(where: { $0.id == confirmation.groupID }) {
             analyticsRepository.log(.groupApplied(payload: RuleAnalyticsPayload(group: group)))
+            // 자정 직전 적용이면 모니터 등록이 막혀 00:00부터 적용된다. 확인 다이얼로그가
+            // 닫히는 사이클과 겹치면 alert가 누락되므로 다음 런루프로 미뤄 띄운다.
+            if isMonitorTrackedRule(group.ruleKind)
+                && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
+                let notice = nearMidnightApplyNotice
+                Task { @MainActor in self.alertMessage = notice }
+            }
         }
     }
 

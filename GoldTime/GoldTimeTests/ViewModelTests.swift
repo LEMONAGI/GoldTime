@@ -1487,7 +1487,120 @@ struct ViewModelTests {
 
         // 자정 직전(23:45+)이면 안내 노출.
         screenTimeRepo.nearMidnightCutoff = true
-        #expect(viewModel.nearMidnightEditNotice == "23:45부터는 사용량 추적이 어려워요. 지금 바꾼 규칙은 00:00부터 다시 정확히 적용됩니다.")
+        #expect(viewModel.nearMidnightEditNotice == "23:45부터 설정한 규칙은 사용량 추적이 불가능해 00:00부터 다시 정확히 적용됩니다.")
+    }
+
+    @Test func dailyLimitRuleEditShowsApplyNoticeWhenNearMidnightTooShort() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightCutoff = true   // 23:45+ too short
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 5]
+
+        // 5분 사용 < 20분 한도 → 즉시 잠금 경고 없이 적용. 자정 직전이라 적용 안내 alert.
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 0
+        viewModel.limitPickerMinutes = 20
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.alertMessage?.title == "적용 안내")
+    }
+
+    @Test func dailyLimitRuleEditSkipsApplyNoticeWhenNotNearMidnight() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightCutoff = false   // 자정 전 아님
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 5]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 0
+        viewModel.limitPickerMinutes = 20
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.alertMessage == nil)
+    }
+
+    @Test func timeWindowsRuleEditSkipsApplyNoticeEvenWhenNearMidnight() {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightCutoff = true   // too short여도 시간대 차단은 측정창과 무관
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .timeWindows
+        viewModel.ruleEditorTimeWindows = [
+            TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 10 * 60)
+        ]
+        viewModel.commitRuleSelection()
+        viewModel.handleRuleEditorDismiss()
+
+        #expect(viewModel.alertMessage == nil)
+    }
+
+    @Test func applyGroupShowsApplyNoticeWhenNearMidnightTooShort() async {
+        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightCutoff = true   // 23:45+ too short
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        // 적용하기 확정 → 자정 직전이라 적용 안내 alert(확인 다이얼로그 닫힌 뒤 비동기 표시).
+        viewModel.confirmApplyGroup(ApplyGroupConfirmation(groupID: group.id, groupName: group.name))
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(viewModel.alertMessage?.title == "적용 안내")
     }
 
     @Test func switchingToTimeWindowsPreservesDailyLimitMinutes() {
@@ -2600,7 +2713,7 @@ struct ViewModelTests {
         #expect(viewModel.isNearMidnightCutoff)
         #expect(!viewModel.canExtendOneMinute)
         #expect(viewModel.canExtendWithAd)
-        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량 추적이 어려워요. 광고를 보면 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
+        #expect(viewModel.nearMidnightNotice == "23:45부터는 연장 시 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
         #expect(viewModel.adButtonTitle == "광고 보고 자정까지 열기")
     }
 
@@ -2621,7 +2734,7 @@ struct ViewModelTests {
         viewModel.onAppear()
 
         #expect(!viewModel.isNearMidnightCutoff)
-        #expect(viewModel.nearMidnightNotice == "23:45부터는 사용량 추적이 어려워요. 광고를 보면 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
+        #expect(viewModel.nearMidnightNotice == "23:45부터는 연장 시 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
         #expect(viewModel.canExtendOneMinute)
         #expect(viewModel.canExtendWithAd)
         #expect(viewModel.adButtonTitle == "광고 보고 10분 구매하기")

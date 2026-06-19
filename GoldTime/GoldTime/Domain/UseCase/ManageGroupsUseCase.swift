@@ -100,4 +100,12 @@ final class ManageGroupsUseCase {
     func isNearMidnightEditNoticeWindow(now: Date = Date()) -> Bool {
         screenTimeRepository.isWithinNearMidnightNoticeWindow(now: now)
     }
+
+    /// 자정 직전(23:45+)이라 모니터 등록이 intervalTooShort로 막혀, 방금 적용/수정한 규칙이
+    /// 00:00부터야 실제로 추적되는 구간인지. 규칙 적용·수정 직후 확인 alert을 띄울지 판단한다.
+    /// (편집 화면의 사전 인라인 안내 `isNearMidnightEditNoticeWindow`(23:30+)와 달리,
+    ///  실제 등록이 막히는 23:45 경계를 본다.)
+    func isNearMidnightMonitorTooShort(now: Date = Date()) -> Bool {
+        screenTimeRepository.isNearMidnightOverrideCutoff(now: now)
+    }
 }

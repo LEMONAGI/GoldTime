@@ -136,7 +136,7 @@ final class LockOptionsViewModel {
     /// 미리 알림으로 정확하다.
     var nearMidnightNotice: String? {
         guard showsNearMidnightNotice else { return nil }
-        return "23:45부터는 사용량 추적이 어려워요. 광고를 보면 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다."
+        return "23:45부터는 연장 시 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다."
     }
 
     var maxAppsPerGroup: Int { SharedStore.maxAppsPerGroup }

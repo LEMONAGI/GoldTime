@@ -35,6 +35,13 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
 
 ## 주의사항 (작업 중 발견 시 누적)
 
+- **자정 직전 안내는 경계가 둘이고 서로 다르다(헷갈리기 쉬움)**. 편집 중 RuleEditor 안 인라인
+  notice(`ContentViewModel.nearMidnightEditNotice` / `isNearMidnightEditNoticeWindow`)는 **23:30**부터
+  예고용으로 뜨고, 규칙 적용·수정 **직후** alert(`nearMidnightApplyNotice` / UseCase
+  `isNearMidnightMonitorTooShort`)은 실제 모니터 등록이 `intervalTooShort`로 막히는 **23:45**부터만
+  뜬다(Core의 `overrideWindowTooShort` 경유). alert은 **일일 한도·쿨다운만** — 시간대 차단은
+  측정창과 무관해 제외(`commitTimeWindowsRule`은 안 건드림). 적용하기(`confirmApplyGroup`) 경로의
+  alert은 확인 다이얼로그가 닫히는 사이클과 겹쳐 누락되지 않도록 `Task { @MainActor }`로 미뤄 띄운다.
 - **[해결 불가 / API 한계] FamilyControls `Label(token)` 아이콘 크기**: 시스템이 렌더하는 뷰라
   `.frame`·`.font`은 무시되고 `.scaleEffect`만 먹힌다(확대 시 흐려짐). 게다가 기본 렌더 크기·여백이
   **토큰 종류(앱/웹)·기기·OS마다 제각각**이다(애플 포럼 thread 721432: iPhone 14 Pro ~20px+여백,
