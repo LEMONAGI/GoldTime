@@ -80,11 +80,15 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 
 ## 광고 해제 흐름
 
-1. `RewardedAdService`가 AdMob rewarded ad를 로드합니다.
-2. `AdMockView`가 광고 준비 상태를 보고 광고를 표시합니다.
-3. 보상 콜백이 성공하면 앱이 선택된 그룹 id로 `ScreenTimeManager.consumeAdReward(for:)`를 호출합니다.
-4. `consumeAdReward`는 광고 통계를 기록하고 해당 그룹만 10분 동안 override 처리합니다.
-5. `override.<groupID>` 모니터링 종료 시점에 해당 그룹이 다시 Shield union에 포함되어야 합니다.
+1. 온보딩은 `ConsentService.requestConsentAndBeginAdInitialization()`으로 UMP 동의와 ATT 응답까지만
+   기다립니다. ATT 응답 뒤에는 즉시 완료 단계로 이동하고, `MobileAds.start()`와 첫 보상형 광고
+   프리로드는 `ConsentService`가 소유한 별도 Task에서 계속됩니다. 동의 흐름과 SDK 초기화 Task는
+   각각 한 번만 생성되어, 온보딩 직후 `.withConsentFlow()`가 실행돼도 중복 요청하지 않습니다.
+2. `RewardedAdService`가 AdMob rewarded ad를 로드합니다.
+3. `RewardedAdView`가 광고 준비 상태를 보고 광고를 표시합니다.
+4. 보상 콜백이 성공하면 앱이 선택된 그룹 id로 `ScreenTimeManager.consumeAdReward(for:)`를 호출합니다.
+5. `consumeAdReward`는 광고 통계를 기록하고 해당 그룹만 10분 동안 override 처리합니다.
+6. `override.<groupID>` 모니터링 종료 시점에 해당 그룹이 다시 Shield union에 포함되어야 합니다.
 
 ## Shield 복귀 흐름
 

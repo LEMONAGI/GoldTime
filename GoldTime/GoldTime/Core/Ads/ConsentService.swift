@@ -12,17 +12,26 @@ import UserMessagingPlatform
 final class ConsentService {
     static let shared = ConsentService()
     private(set) var isAdSdkReady = false
+    private var consentFlowTask: Task<Void, Never>?
+    private var adInitializationTask: Task<Void, Never>?
 
     private init() {}
 
-    /// UMP 동의 → ATT → MobileAds.start() 순서를 보장하는 전체 흐름.
-    /// 동의 거부, 네트워크 없음 등 어떤 경우에도 MobileAds.start()까지 완료한다.
-    func requestConsentAndInitialize() async {
-        await requestUMPConsent(from: findPresentingViewController())
-        await requestATTIfNeeded()
-        await startMobileAds()
-        isAdSdkReady = true
-        RewardedAdService.shared.loadAd(for: .shieldUnlock)
+    /// UMP 동의 → ATT 순서를 보장한 뒤 AdMob 초기화를 예약한다.
+    /// 호출자는 ATT 응답까지만 기다리며, SDK 초기화와 광고 프리로드는 서비스가 계속 소유한다.
+    func requestConsentAndBeginAdInitialization() async {
+        if let consentFlowTask {
+            await consentFlowTask.value
+            return
+        }
+
+        let task = Task { @MainActor [self] in
+            await requestUMPConsent(from: findPresentingViewController())
+            await requestATTIfNeeded()
+            beginAdInitializationIfNeeded()
+        }
+        consentFlowTask = task
+        await task.value
     }
 
     // MARK: - Private
@@ -55,6 +64,15 @@ final class ConsentService {
             ATTrackingManager.requestTrackingAuthorization { _ in
                 continuation.resume()
             }
+        }
+    }
+
+    private func beginAdInitializationIfNeeded() {
+        guard adInitializationTask == nil else { return }
+        adInitializationTask = Task { @MainActor [self] in
+            await startMobileAds()
+            isAdSdkReady = true
+            RewardedAdService.shared.loadAd(for: .shieldUnlock)
         }
     }
 

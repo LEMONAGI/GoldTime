@@ -9,8 +9,7 @@ private struct ConsentFlowModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task {
-                guard !ConsentService.shared.isAdSdkReady else { return }
-                await ConsentService.shared.requestConsentAndInitialize()
+                await ConsentService.shared.requestConsentAndBeginAdInitialization()
             }
     }
 }

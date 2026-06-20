@@ -91,7 +91,7 @@ final class OnboardingViewModel {
     func requestTracking() async {
         isRequesting = true
         defer { isRequesting = false }
-        await ConsentService.shared.requestConsentAndInitialize()
+        await ConsentService.shared.requestConsentAndBeginAdInitialization()
         currentStep = .completion
     }
 
