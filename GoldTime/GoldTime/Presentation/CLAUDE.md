@@ -19,6 +19,8 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
 - `SharedStore.weekStartDay`를 `SettingsViewModel`·`AppLifecycleViewModel`에서 직접 읽기/쓰기.
 - `SharedStore.suiteName`을 `ContentView`의 `@AppStorage` store로 사용.
 - `SharedStore.max*` 상수를 `AppPickerSheetViewModel`·`LockOptionsViewModel`에서 직접 참조.
+- `ConsentService.shared`(Core/Ads)를 `OnboardingViewModel`·`SettingsViewModel`에서 직접 참조
+  (UMP 동의/철회). UseCase 미경유 — UMP 폼 표시는 부수효과만이라 UseCase가 과해서 둔 예외.
 
 ## UI / 컴포넌트 / 색상
 

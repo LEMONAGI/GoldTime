@@ -17,6 +17,27 @@ final class ConsentService {
 
     private init() {}
 
+    /// EEA/UK 등 동의 관리가 필요한 지역에서만 true. 설정 화면에서 "광고/개인정보 설정"
+    /// 행을 노출할지 결정하는 데 쓴다. 비대상 지역은 false라 행 자체가 숨겨진다.
+    var isPrivacyOptionsRequired: Bool {
+        ConsentInformation.shared.privacyOptionsRequirementStatus == .required
+    }
+
+    /// 사용자가 설정에서 명시적으로 동의를 변경/철회할 때 UMP privacy options 폼을 다시 띄운다.
+    /// 온보딩 흐름(`consentFlowTask`)과 달리 사용자 명시 액션이므로 단일 Task 큐를 거치지 않고
+    /// 매번 즉시 표시한다(설정 진입 시점엔 이미 온보딩이 끝나 동의 정보가 로드돼 있다).
+    func presentPrivacyOptions() async {
+        await presentPrivacyOptions(from: findPresentingViewController())
+    }
+
+    func presentPrivacyOptions(from viewController: UIViewController) async {
+        await withCheckedContinuation { continuation in
+            ConsentForm.presentPrivacyOptionsForm(from: viewController) { _ in
+                continuation.resume()
+            }
+        }
+    }
+
     /// UMP 동의 → ATT 순서를 보장한 뒤 AdMob 초기화를 예약한다.
     /// 호출자는 ATT 응답까지만 기다리며, SDK 초기화와 광고 프리로드는 서비스가 계속 소유한다.
     func requestConsentAndBeginAdInitialization() async {

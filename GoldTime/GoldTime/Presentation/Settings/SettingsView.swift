@@ -19,6 +19,7 @@ struct SettingsView: View {
                 generalCard
                 troubleshootingCard
                 feedbackCard
+                privacyCard
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -343,6 +344,51 @@ struct SettingsView: View {
                     .padding(.vertical, 12)
                 }
                 .buttonStyle(.plain)
+            }
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+        }
+    }
+
+    private var privacyCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "settings.section.privacy")
+            VStack(spacing: 0) {
+                Button {
+                    guard let url = viewModel.privacyPolicyURL else { return }
+                    openURL(url)
+                } label: {
+                    settingsRow(
+                        title: "settings.privacy.policy",
+                        subtitle: String(localized: "settings.privacy.policy.subtitle"),
+                        systemName: "hand.raised.fill",
+                        tint: Color.accent,
+                        showsChevron: true
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                // 광고 개인화 동의 변경은 EEA/UK 등 동의가 필요한 지역에서만 노출한다.
+                if viewModel.isPrivacyOptionsAvailable {
+                    Divider().padding(.horizontal, 20)
+
+                    Button {
+                        Task { await viewModel.presentPrivacyOptions() }
+                    } label: {
+                        settingsRow(
+                            title: "settings.privacy.adChoices",
+                            subtitle: String(localized: "settings.privacy.adChoices.subtitle"),
+                            systemName: "checkmark.shield.fill",
+                            tint: Color.accent,
+                            showsChevron: true
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 20))

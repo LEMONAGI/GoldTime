@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- ATT + AdMob 개인화 광고를 사용하므로 추적함. -->
+	<key>NSPrivacyTracking</key>
+	<true/>
+	<!--
+	  추적 도메인. AdMob/Firebase SDK는 자체 PrivacyInfo.xcprivacy로 도메인을 선언하므로
+	  앱 매니페스트에는 비워 둔다(잘못된 도메인을 넣으면 ATT 미동의 시 정상 연결까지 차단됨).
+	  Archive → Generate Privacy Report로 실제 병합 결과를 확인해 필요 시 보강한다.
+	-->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<!--
+	  앱 코드가 직접 수집하는 데이터 유형. SDK가 수집하는 항목은 각 SDK 매니페스트가 선언한다.
+	  App Store Connect "앱 개인정보(영양 라벨)" 및 docs/privacy-policy.md와 반드시 일치시킬 것.
+	-->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<!-- 광고 식별자(AdMob 개인화 광고). -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeThirdPartyAdvertising</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- 제품 상호작용(Firebase Analytics). -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<!-- 크래시 데이터(Firebase Crashlytics). -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCrashData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+	<!--
+	  Required Reason API. SharedStore가 App Group UserDefaults를 광범위하게 사용한다.
+	  CA92.1 = 앱 자신만 접근 가능한 정보 read/write, 1C8F.1 = App Group 컨테이너 접근.
+	-->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+				<string>1C8F.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
