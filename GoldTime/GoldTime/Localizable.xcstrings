@@ -122,7 +122,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose Items"
+            "value": "Select Items"
           }
         },
         "ja": {
@@ -428,7 +428,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定を開く"
+            "value": "「設定」を開く"
           }
         },
         "ko": {
@@ -589,7 +589,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "23:45以降は使用量を計測できないため23:59までロックが解除され、00:00からルールが適用されます。"
+            "value": "23:45以降は使用量を計測できないため23:59までロックが解除されたままになり、00:00からルールが適用されます。"
           }
         },
         "ko": {
@@ -629,7 +629,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Can't Apply Rule"
+            "value": "Unable to Apply Rule"
           }
         },
         "ja": {
@@ -704,7 +704,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "クールダウンの確認"
+            "value": "クールダウン確認"
           }
         },
         "ko": {
@@ -865,7 +865,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "時間帯の確認"
+            "value": "時間帯確認"
           }
         },
         "ko": {
@@ -1871,7 +1871,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A good day. Not for me, obviously."
+            "value": "A great day. Just not for me."
           }
         },
         "ja": {
@@ -2975,7 +2975,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You've used all of today's 1-minute extensions. Watch an ad or keep the lock."
+            "value": "You've used all your 1-minute extensions for today. Watch an ad or keep the lock."
           }
         },
         "ja": {
@@ -3073,7 +3073,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "上限に達しました"
+            "value": "時間切れです"
           }
         },
         "ko": {
@@ -3372,7 +3372,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "23:45以降は延長しても使用量を計測できないため23:59までロックが解除され、00:00からルールが再び適用されます。"
+            "value": "23:45以降は延長しても使用量を計測できないため23:59までロックが解除されたままになり、00:00からルールが再び適用されます。"
           }
         },
         "ko": {
@@ -3855,7 +3855,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "昨日は上限内でした。"
+            "value": "昨日は上限をキープ！"
           }
         },
         "ko": {
@@ -3918,7 +3918,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time is money, remember?"
+            "value": "Remember, time is money."
           }
         },
         "ja": {

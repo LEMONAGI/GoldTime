@@ -36,7 +36,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "昨日は上限内でした。"
+            "value": "昨日は上限をキープ！"
           }
         },
         "ko": {
@@ -99,7 +99,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time is money, remember?"
+            "value": "Remember, time is money."
           }
         },
         "ja": {

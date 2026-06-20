@@ -36,7 +36,7 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "上限に達しました"
+            "value": "時間切れです"
           }
         },
         "ko": {
