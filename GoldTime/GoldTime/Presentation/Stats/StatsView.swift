@@ -212,8 +212,8 @@ private struct TrendChartSection: View {
         guard total > 0 else { return "0" }
         let hours = total / 60
         let mins = total % 60
-        if hours > 0 && mins > 0 { return String(localized: "common.hourMinute \(hours) \(mins)") }
-        return hours > 0 ? String(localized: "common.hours \(hours)") : String(localized: "common.minutes \(mins)")
+        if hours > 0 && mins > 0 { return String(localized: "stats.chart.yAxis.hourMinute \(hours) \(mins)") }
+        return hours > 0 ? String(localized: "stats.chart.yAxis.hours \(hours)") : String(localized: "stats.chart.yAxis.minutes \(mins)")
     }
 
     /// 기록은 있지만 0분인 날의 스텁 막대 높이(분). 도메인 상단에 비례해 어느 도메인에서든 같은 높이로 보인다.
@@ -301,7 +301,7 @@ private struct TrendChartSection: View {
                 if mode == .weekly {
                     AxisMarks(values: stats.map(\.date)) {
                         AxisGridLine()
-                        AxisValueLabel(format: .dateTime.weekday(.narrow).locale(locale))
+                        AxisValueLabel(format: .dateTime.weekday(.abbreviated).locale(locale))
                     }
                 } else {
                     AxisMarks(values: .stride(by: .day, count: 7)) {
