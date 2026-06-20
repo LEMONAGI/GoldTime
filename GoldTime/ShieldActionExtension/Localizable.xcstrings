@@ -1,0 +1,28 @@
+{
+  "sourceLanguage" : "ko",
+  "strings" : {
+    "notification.openApp.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "더 쓰려면 GoldTime에서 선택하세요. 지금 나가면 광고 없이 끝납니다."
+          }
+        }
+      }
+    },
+    "notification.openApp.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "한도 끝났어요"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

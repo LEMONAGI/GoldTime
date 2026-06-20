@@ -29,11 +29,11 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     /// extension은 막힌 앱이 어느 모드인지 알 수 없으므로(타겟에 SharedStore 없음) 모드 특정
     /// 표현 대신 세 모드 공통 분모(막혀 있고·내가 정했고·더 쓰려면 광고)만 담아 단일화한다.
     private let shieldMessages = [
-        "여기까지 쓰기로 했어요.",
-        "지금은 멈출 시간이에요.",
-        "더 쓰려면 광고가 필요해요.",
-        "광고 없이 멈추는 방법도 있어요.",
-        "멈추거나, 광고를 보거나."
+        String(localized: "shield.message.decided"),
+        String(localized: "shield.message.timeToStop"),
+        String(localized: "shield.message.needAd"),
+        String(localized: "shield.message.stopWithoutAd"),
+        String(localized: "shield.message.stopOrAd")
     ]
 
     private func makeConfiguration() -> ShieldConfiguration {
@@ -41,7 +41,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             return makeOpenRequestConfiguration()
         }
 
-        let title = shieldMessages.randomElement() ?? "지금은 멈출 시간이에요."
+        let title = shieldMessages.randomElement() ?? String(localized: "shield.message.timeToStop")
         return ShieldConfiguration(
             backgroundBlurStyle: .systemMaterialDark,
             backgroundColor: UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 0.85),
@@ -51,16 +51,16 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "더 쓰려면 GoldTime에서 선택하세요.",
+                text: String(localized: "shield.subtitle.chooseInApp"),
                 color: UIColor.white.withAlphaComponent(0.85)
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
-                text: "그만 쓰기",
+                text: String(localized: "shield.button.stop"),
                 color: .black
             ),
             primaryButtonBackgroundColor: UIColor(red: 245 / 255, green: 197 / 255, blue: 24 / 255, alpha: 1.0),
             secondaryButtonLabel: ShieldConfiguration.Label(
-                text: "GoldTime 열기",
+                text: String(localized: "shield.button.openApp"),
                 color: .white
             )
         )
@@ -72,20 +72,20 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             backgroundColor: UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 0.9),
             icon: nil,
             title: ShieldConfiguration.Label(
-                text: "위의 GoldTime 알림을 눌러주세요",
+                text: String(localized: "shield.openRequest.title"),
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "알림이 오지 않는다면\n다시 알림 보내기를 누르거나,\n방해금지 모드를 확인하세요.",
+                text: String(localized: "shield.openRequest.subtitle"),
                 color: UIColor.white.withAlphaComponent(0.72)
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
-                text: "그만 쓰기",
+                text: String(localized: "shield.button.stop"),
                 color: .black
             ),
             primaryButtonBackgroundColor: UIColor(red: 245 / 255, green: 197 / 255, blue: 24 / 255, alpha: 1.0),
             secondaryButtonLabel: ShieldConfiguration.Label(
-                text: "다시 알림 보내기",
+                text: String(localized: "shield.openRequest.resend"),
                 color: .white
             )
         )
