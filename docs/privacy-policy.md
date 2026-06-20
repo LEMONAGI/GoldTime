@@ -30,6 +30,8 @@ GoldTime은 보상형 광고를 제공하기 위해 Google Mobile Ads SDK(AdMob)
 
 GoldTime은 iOS의 App Tracking Transparency 권한 요청을 표시합니다. 사용자가 추적을 허용하지 않아도 앱의 기본 기능은 계속 사용할 수 있으며, 광고가 표시될 수 있지만 개인화 수준은 제한될 수 있습니다.
 
+또한 GoldTime은 앱 사용 통계 분석과 안정성 개선을 위해 Google Firebase(Analytics 및 Crashlytics)를 사용합니다. 이를 통해 화면 이동, 기능 사용 등 익명화된 앱 사용 이벤트와 오류·진단·성능 정보가 Google에 전송되어 처리될 수 있습니다.
+
 Google의 광고 데이터 처리 방식은 다음 문서에서 확인할 수 있습니다.
 
 - Google 개인정보처리방침: https://policies.google.com/privacy
