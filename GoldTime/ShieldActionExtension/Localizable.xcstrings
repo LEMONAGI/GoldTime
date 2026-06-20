@@ -1,0 +1,40 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "notification.openApp.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 쓰려면 GoldTime에서 선택하세요. 지금 나가면 광고 없이 끝납니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose what to do in GoldTime if you want more time. Leave now and there's no ad."
+          }
+        }
+      }
+    },
+    "notification.openApp.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "한도 끝났어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time's Up"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

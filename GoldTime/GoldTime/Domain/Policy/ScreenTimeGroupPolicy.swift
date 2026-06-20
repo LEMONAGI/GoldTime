@@ -28,25 +28,25 @@ enum ScreenTimeGroupPolicy {
         var userMessage: String {
             switch self {
             case .tooManyGroups:
-                return "그룹은 5개까지예요."
+                return String(localized: "group.error.tooMany \(ScreenTimeGroupPolicy.maxGroupCount)")
             case .groupHasNoSelection(let name):
-                return "\(name)에 앱이나 웹 사이트가 없어요."
+                return String(localized: "group.error.noSelection \(name)")
             case .groupHasNoLimit(let name):
-                return "\(name)의 한도 설정이 올바르지 않아요."
+                return String(localized: "group.error.noLimit \(name)")
             case .groupHasNoRule(let name):
-                return "\(name)의 차단 규칙을 아직 고르지 않았어요."
+                return String(localized: "group.error.noRule \(name)")
             case .groupNotApplied(let name):
-                return "\(name)은 아직 적용 전이라 보호가 시작되지 않았어요."
+                return String(localized: "group.error.notApplied \(name)")
             case .groupHasInvalidTimeWindows(let name, let reason):
-                return "\(name): \(reason.userMessage)"
+                return String(localized: "group.error.namedReason \(name) \(reason.userMessage)")
             case .groupHasInvalidCooldown(let name, let reason):
-                return "\(name): \(reason.userMessage)"
+                return String(localized: "group.error.namedReason \(name) \(reason.userMessage)")
             case .groupHasTooManySelections(let name):
-                return "\(name)은 앱과 웹 사이트를 합쳐 9개까지만 담을 수 있어요."
+                return String(localized: "group.error.tooManySelections \(name) \(ScreenTimeGroupPolicy.maxAppsPerGroup)")
             case .groupHasNonAppTokens(let name):
-                return "\(name)에 지원하지 않는 항목이 있어요."
+                return String(localized: "group.error.nonAppTokens \(name)")
             case .shieldApplicationLimitExceeded(let count):
-                return "iOS Shield 제한 때문에 전체 앱은 49개 이하로 묶어야 해요. 현재 \(count)개예요."
+                return String(localized: "group.error.shieldLimitExceeded \(ScreenTimeGroupPolicy.maxShieldApplicationCount) \(count)")
             }
         }
     }

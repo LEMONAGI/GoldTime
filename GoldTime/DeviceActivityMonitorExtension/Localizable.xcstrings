@@ -1,0 +1,159 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "notification.morning.onTime.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "좋은 하루였어요. 저한텐 아니고요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A good day. Not for me, obviously."
+          }
+        }
+      }
+    },
+    "notification.morning.onTime.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어제 한도 내 사용."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stayed within your limits yesterday."
+          }
+        }
+      }
+    },
+    "notification.morning.over.title %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어제 %lld분 초과."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min over yesterday."
+          }
+        }
+      }
+    },
+    "notification.morning.over1.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 정도면 살짝 눈 감아드릴게요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can let this one slide."
+          }
+        }
+      }
+    },
+    "notification.morning.over2.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간이 금이라는 거 기억하시죠."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time is money, remember?"
+          }
+        }
+      }
+    },
+    "notification.morning.over3.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어제 청구서가 좀 두꺼웠어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yesterday's bill was a little heavy."
+          }
+        }
+      }
+    },
+    "notification.morning.over4.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 정도면 저를 위해 노력하신 거죠?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You did all that for me, didn't you?"
+          }
+        }
+      }
+    },
+    "notification.morning.weekStart.body": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지난 주 기록을 통계에서 확인해보세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check last week's numbers in Stats."
+          }
+        }
+      }
+    },
+    "notification.morning.weekStart.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로운 한 주가 시작됐네요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new week has started."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -20,9 +20,9 @@ enum CooldownPolicy {
         var userMessage: String {
             switch self {
             case .usageOutOfRange:
-                return "사용 시간은 5분 이상 2시간 이하로 정해 주세요."
+                return String(localized: "cooldown.error.usageOutOfRange")
             case .cooldownOutOfRange:
-                return "휴식 간격은 30분 이상 6시간 이하로 정해 주세요."
+                return String(localized: "cooldown.error.cooldownOutOfRange")
             }
         }
     }

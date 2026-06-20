@@ -48,11 +48,11 @@ final class LockOptionsViewModel {
     ]
 
     private let shieldMessages = [
-        "오늘 한도 다 썼어요.",
-        "지금 나가면 광고는 없어요.",
-        "더 쓰려면 광고가 필요해요.",
-        "광고 없이 나가는 방법도 있어요.",
-        "멈추거나, 광고를 보거나."
+        String(localized: "lock.message.limitDone"),
+        String(localized: "lock.message.noAdIfLeave"),
+        String(localized: "lock.message.needAd"),
+        String(localized: "lock.message.exitWithoutAd"),
+        String(localized: "lock.message.stopOrAd")
     ]
 
     init(
@@ -84,9 +84,9 @@ final class LockOptionsViewModel {
     }
 
     var headerTitle: String {
-        if isWindowOnlyLock { return "차단 시간대예요" }
-        if isCooldownOnlyLock { return "쉬는 시간이에요" }
-        return "한도 끝났어요"
+        if isWindowOnlyLock { return String(localized: "lock.header.window") }
+        if isCooldownOnlyLock { return String(localized: "lock.header.cooldown") }
+        return String(localized: "lock.header.limit")
     }
 
     /// 선택된 그룹이 시간대 차단으로 잠겨 있으면 종료 시각을 알려준다.
@@ -97,7 +97,7 @@ final class LockOptionsViewModel {
         guard let end = TimeWindowPolicy.activeWindowEnd(minuteOfDay: minute, windows: group.timeWindows) else {
             return nil
         }
-        return "\(goldTimeClockText(minuteOfDay: end))까지 잠겨 있어요"
+        return String(localized: "lock.caption.windowUntil \(goldTimeClockText(minuteOfDay: end))")
     }
 
     /// 선택된 그룹이 쿨다운으로 잠겨 있으면 휴식 종료 시각을 알려준다.
@@ -105,7 +105,7 @@ final class LockOptionsViewModel {
         guard let group = selectedGroup,
               (group.ruleKind ?? .dailyLimit) == .cooldown,
               let end = cooldownEndByGroupID[group.id] else { return nil }
-        return "\(goldTimeClockText(date: end))까지 쉬어요"
+        return String(localized: "lock.caption.cooldownUntil \(goldTimeClockText(date: end))")
     }
 
     /// 자정까지 < 15분이라 정확한 사용량 추적이 불가능한 시점(23:45부터). 1분 연장을 막는다.
@@ -123,7 +123,7 @@ final class LockOptionsViewModel {
 
     /// 자정 근처는 광고를 봐도 10분이 아니라 "자정까지"만 열리므로 버튼 제목을 정직하게 바꾼다.
     var adButtonTitle: String {
-        isNearMidnightCutoff ? "광고 보고 자정까지 열기" : "광고 보고 10분 구매하기"
+        isNearMidnightCutoff ? String(localized: "lock.ad.untilMidnight") : String(localized: "lock.ad.buy10min")
     }
 
     /// 자정 근처 안내를 보여줄 구간(23:30부터). 행동 변화(23:45)보다 일찍 알려, 23:44에 연장 시작 후
@@ -136,7 +136,7 @@ final class LockOptionsViewModel {
     /// 미리 알림으로 정확하다.
     var nearMidnightNotice: String? {
         guard showsNearMidnightNotice else { return nil }
-        return "23:45부터는 연장 시 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다."
+        return String(localized: "lock.nearMidnight.notice")
     }
 
     var maxAppsPerGroup: Int { SharedStore.maxAppsPerGroup }
@@ -145,7 +145,7 @@ final class LockOptionsViewModel {
         refreshLockedGroups()
         // 첫 문구("오늘 한도 다 썼어요.")는 한도 초과 전용이라 시간대 차단·쿨다운만 잠긴 경우엔 제외.
         let pool = (isWindowOnlyLock || isCooldownOnlyLock) ? Array(shieldMessages.dropFirst()) : shieldMessages
-        headerMessage = pool.randomElement() ?? "더 쓰려면 광고가 필요해요."
+        headerMessage = pool.randomElement() ?? String(localized: "lock.message.needAd")
         if let id = initialGroupID, lockedGroups.contains(where: { $0.id == id }) {
             selectedGroupID = id
         }
@@ -166,11 +166,11 @@ final class LockOptionsViewModel {
 
     func tapOneMinute() {
         guard canExtendOneMinute else {
-            infoMessage = "풀 그룹을 먼저 고르거나, 광고를 보거나, 잠금을 유지할 수 있어요."
+            infoMessage = String(localized: "lock.info.pickOrAd")
             return
         }
         guard let groupID = selectedGroupID else {
-            infoMessage = "풀 그룹을 먼저 골라주세요."
+            infoMessage = String(localized: "lock.info.pickGroup")
             return
         }
         extendGroup(groupID: groupID, source: .oneMinute)
@@ -178,7 +178,7 @@ final class LockOptionsViewModel {
 
     func retryRelockRegistration() {
         guard let pendingRetry else {
-            infoMessage = "다시 시도할 연장 요청이 없어요."
+            infoMessage = String(localized: "lock.info.noRetry")
             return
         }
         extendGroup(groupID: pendingRetry.groupID, source: pendingRetry.source)
@@ -186,7 +186,7 @@ final class LockOptionsViewModel {
 
     func startAdFlow() {
         guard let groupID = selectedGroupID else {
-            infoMessage = "풀 그룹을 먼저 골라주세요."
+            infoMessage = String(localized: "lock.info.pickGroup")
             return
         }
         pendingAdRewardGroupID = groupID
@@ -267,7 +267,7 @@ final class LockOptionsViewModel {
                 PurchaseFeedback.play()
             }
             completionAlert = LockOptionsCompletionAlert(
-                title: source == .adReward ? "구매 완료" : "연장 완료",
+                title: source == .adReward ? String(localized: "lock.alert.purchased") : String(localized: "lock.alert.extended"),
                 message: completionMessage(for: result, source: source)
             )
         case .failure(let failure):
@@ -302,7 +302,7 @@ final class LockOptionsViewModel {
         else {
             return
         }
-        infoMessage = "재잠금 타이머 등록을 다시 시도하고 있어요."
+        infoMessage = String(localized: "lock.info.retrying")
         extendGroup(groupID: groupID, source: source)
     }
 
@@ -313,13 +313,13 @@ final class LockOptionsViewModel {
     private func message(for failure: ExtensionFailure, source: ExtensionSource) -> String {
         switch failure {
         case .groupNotFound:
-            return "이 그룹을 찾지 못했어요. GoldTime에서 그룹 설정을 확인해주세요."
+            return String(localized: "lock.error.groupNotFound")
         case .oneMinuteLimitReached:
             return source == .oneMinute
-                ? "오늘 1분 연장은 모두 사용했어요. 광고를 보거나 잠금을 유지할 수 있어요."
-                : "광고 연장을 처리하지 못했어요. 잠시 뒤 다시 시도해주세요."
+                ? String(localized: "lock.error.oneMinuteExhausted")
+                : String(localized: "lock.error.adFailed")
         case .relockTimerRegistrationFailed:
-            return "재잠금 타이머 등록 실패로 잠금을 유지했어요. 자동으로 다시 시도하고 있어요."
+            return String(localized: "lock.error.relockFailed")
         }
     }
 
@@ -328,12 +328,12 @@ final class LockOptionsViewModel {
         if isNearMidnightCutoff {
             // 자정 근처는 사용량이 아니라 "자정까지" 시간 기반으로 열린다.
             let endText = goldTimeClockText(date: result.overrideUntil)
-            message = "\(result.group.displayName) 잠금을 풀었어요. \(endText)까지 사용할 수 있어요. 자정에는 새로 시작돼요."
+            message = String(localized: "lock.complete.nearMidnight \(result.group.displayName) \(endText)")
         } else {
-            let duration = result.durationSeconds == 60 ? "1분" : "\(result.durationSeconds / 60)분"
+            let duration = String(localized: "common.minutes \(result.durationSeconds / 60)")
             message = source == .adReward
-                ? "\(result.group.displayName) \(duration)을 구매했어요. \(duration) 더 쓰면 다시 잠겨요."
-                : "\(result.group.displayName)을 \(duration) 연장했어요. \(duration) 더 쓰면 다시 잠겨요."
+                ? String(localized: "lock.complete.purchased \(result.group.displayName) \(duration) \(duration)")
+                : String(localized: "lock.complete.extended \(result.group.displayName) \(duration) \(duration)")
         }
 
         if let token = requestedApplicationToken {
@@ -343,7 +343,7 @@ final class LockOptionsViewModel {
                 requestedWebDomainToken: nil
             )
             if let remainingGroup = remaining.first {
-                message += " 다른 그룹은 아직 잠겨 있어요."
+                message += String(localized: "lock.complete.othersLocked")
             }
         } else if let requestedWebDomainToken {
             let remaining = extendGroupUseCase.lockedGroupsAfterExtension(
@@ -352,10 +352,10 @@ final class LockOptionsViewModel {
                 requestedWebDomainToken: requestedWebDomainToken
             )
             if let remainingGroup = remaining.first {
-                message += " 다른 그룹은 아직 잠겨 있어요."
+                message += String(localized: "lock.complete.othersLocked")
             }
         } else if let remainingGroup = result.remainingLockedGroups.first {
-            message += " 다른 그룹은 아직 잠겨 있어요."
+            message += String(localized: "lock.complete.othersLocked")
         }
 
         return message

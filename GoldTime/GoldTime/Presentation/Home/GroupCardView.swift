@@ -44,18 +44,18 @@ struct GroupCardView: View {
     private var applyHintCaption: String? {
         guard !group.isApplied, !canApply else { return nil }
         if group.ruleKind == nil && group.selectionCount == 0 {
-            return "규칙과 제한 항목을 먼저 정해 주세요."
+            return String(localized: "group.apply.hint.both")
         }
         if group.ruleKind == nil {
-            return "차단 규칙을 먼저 골라 주세요."
+            return String(localized: "group.apply.hint.rule")
         }
-        return "제한 항목을 하나 이상 담아 주세요."
+        return String(localized: "group.apply.hint.selection")
     }
 
-    private let restrictedDialogTitle = "적용된 그룹"
+    private let restrictedDialogTitle: LocalizedStringKey = "group.restricted.title"
 
     private var restrictedDialogMessage: String {
-        "적용된 그룹은 광고를 본 뒤 편집하거나 삭제할 수 있어요."
+        String(localized: "group.restricted.message")
     }
 
     private var selectionCountText: String {
@@ -97,7 +97,7 @@ struct GroupCardView: View {
                 .padding(.trailing, 12)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    TextField("그룹명", text: Binding(
+                    TextField("group.name.placeholder", text: Binding(
                         get: { group.name },
                         set: { onUpdateGroupName(group.id, $0) }
                     ))
@@ -122,19 +122,19 @@ struct GroupCardView: View {
                         .font(.body.weight(.semibold))
                 }
                 .buttonStyle(.plain)
-                .confirmationDialog("그룹 삭제", isPresented: $isShowingDeleteRegularConfirm) {
-                    Button("삭제", role: .destructive) {
+                .confirmationDialog("group.delete.title", isPresented: $isShowingDeleteRegularConfirm) {
+                    Button("common.delete", role: .destructive) {
                         onDeleteGroup(group.id)
                     }
-                    Button("취소", role: .cancel) {}
+                    Button("common.cancel", role: .cancel) {}
                 } message: {
-                    Text("그룹을 삭제하면 되돌릴 수 없어요.")
+                    Text("group.delete.message")
                 }
                 .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingDeleteConfirm) {
-                    Button("광고 보고 삭제하기", role: .destructive) {
+                    Button("group.ad.delete", role: .destructive) {
                         onDeleteGroup(group.id)
                     }
-                    Button("취소", role: .cancel) {}
+                    Button("common.cancel", role: .cancel) {}
                 } message: {
                     Text(restrictedDialogMessage)
                 }
@@ -146,7 +146,7 @@ struct GroupCardView: View {
             TimelineView(.periodic(from: .now, by: 60)) { _ in
                 if let progress = viewModel.overrideProgress(for: group) {
                     HStack(spacing: 8) {
-                        Text("남은 한도")
+                        Text("home.remainingLimit")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                         SegmentedProgressBar(
@@ -159,7 +159,7 @@ struct GroupCardView: View {
                     .padding(.bottom, 14)
                 } else if let progress = viewModel.lockProgress(for: group) {
                     HStack(spacing: 8) {
-                        Text("남은 한도")
+                        Text("home.remainingLimit")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                         SegmentedProgressBar(
@@ -198,10 +198,10 @@ struct GroupCardView: View {
             }
             .buttonStyle(.plain)
             .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingLimitConfirm) {
-                Button("광고 보고 변경하기") {
+                Button("group.ad.change") {
                     onPresentRuleEditor(group)
                 }
-                Button("취소", role: .cancel) {}
+                Button("common.cancel", role: .cancel) {}
             } message: {
                 Text(restrictedDialogMessage)
             }
@@ -211,7 +211,7 @@ struct GroupCardView: View {
                 Button {
                     onUnlockGroup(group.id)
                 } label: {
-                    Label("잠금 해제", systemImage: "lock.open")
+                    Label("group.unlock", systemImage: "lock.open")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(GoldTimeButtonStyle(background: Color.red.opacity(0.12), foreground: .red))
@@ -220,10 +220,10 @@ struct GroupCardView: View {
 
             editTokenList
                 .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingEditConfirm) {
-                    Button("광고 보고 편집하기") {
+                    Button("group.ad.edit") {
                         onPresentPicker(group)
                     }
-                    Button("취소", role: .cancel) {}
+                    Button("common.cancel", role: .cancel) {}
                 } message: {
                     Text(restrictedDialogMessage)
                 }
@@ -243,7 +243,7 @@ struct GroupCardView: View {
             Button {
                 onApplyGroup(group.id)
             } label: {
-                Label("적용하기", systemImage: "checkmark.shield")
+                Label("group.apply", systemImage: "checkmark.shield")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black))
@@ -255,7 +255,7 @@ struct GroupCardView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else if canApply {
-                Text("적용하면 바로 차단 규칙이 시작되고, 적용 이후 수정 및 삭제에는 광고가 필요해요.")
+                Text("group.apply.hint.applied")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -270,7 +270,7 @@ struct GroupCardView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "square.grid.2x2")
-                    Text("제한 항목 선택")
+                    Text("group.selectItems")
                     Text(selectionCountText)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
@@ -287,7 +287,7 @@ struct GroupCardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         HStack(spacing: 6) {
-                            Text("제한 항목")
+                            Text("group.items")
                                 .font(.subheadline.weight(.semibold))
                             Text(selectionCountText)
                                 .font(.caption.weight(.bold))

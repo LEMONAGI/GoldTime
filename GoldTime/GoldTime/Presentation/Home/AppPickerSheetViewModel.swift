@@ -53,7 +53,7 @@ struct AppPickerSheetViewModel {
         var list: [String] = []
         let count = summary.selectionCount
         if count > SharedStore.maxAppsPerGroup {
-            list.append("한 그룹에 \(SharedStore.maxAppsPerGroup)개 항목까지만 가능해요 (\(count)/\(SharedStore.maxAppsPerGroup))")
+            list.append(String(localized: "appPicker.warning.tooMany \(SharedStore.maxAppsPerGroup) \(count) \(SharedStore.maxAppsPerGroup)"))
         }
         return list
     }
@@ -61,7 +61,7 @@ struct AppPickerSheetViewModel {
     static func notices(for summary: SelectionSummary) -> [String] {
         var list: [String] = []
         if summary.hasWeb {
-            list.append("웹 사이트는 사파리에서 사용할 때만 적용됩니다.")
+            list.append(String(localized: "appPicker.notice.web"))
         }
         return list
     }

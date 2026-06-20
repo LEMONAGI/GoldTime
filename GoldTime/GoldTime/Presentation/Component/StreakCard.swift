@@ -24,18 +24,18 @@ struct StreakCard: View {
                 IconTile(systemName: "flame.fill", tint: .orange)
                 Spacer()
             }
-            Text("광고 없는 연속 일수")
+            Text("stats.streak.title")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(alignment: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("현재")
+                    Text("stats.streak.current")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Text("\(current)일")
+                    Text("common.days \(current)")
                         .font(.title3.weight(.bold))
                         .foregroundStyle(currentColor)
-                    Text(current == 0 ? "오늘 광고를 봤어요" : "광고 없이 연속")
+                    Text(current == 0 ? "stats.streak.watchedToday" : "stats.streak.adFree")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -44,13 +44,13 @@ struct StreakCard: View {
                 HStack(spacing: 12) {
                     Divider().frame(height: 52)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("최대")
+                        Text("stats.streak.best")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
-                        Text("\(best)일")
+                        Text("common.days \(best)")
                             .font(.title3.weight(.bold))
                             .foregroundStyle(bestColor)
-                        Text("역대 최장 기록")
+                        Text("stats.streak.record")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

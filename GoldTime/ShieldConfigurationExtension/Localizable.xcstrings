@@ -1,0 +1,193 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "shield.button.openApp": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTime 열기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open GoldTime"
+          }
+        }
+      }
+    },
+    "shield.button.stop": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그만 쓰기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop Using"
+          }
+        }
+      }
+    },
+    "shield.message.decided": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "여기까지 쓰기로 했어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You said you'd stop here."
+          }
+        }
+      }
+    },
+    "shield.message.needAd": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 쓰려면 광고가 필요해요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More time costs an ad."
+          }
+        }
+      }
+    },
+    "shield.message.stopOrAd": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "멈추거나, 광고를 보거나."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop, or watch an ad."
+          }
+        }
+      }
+    },
+    "shield.message.stopWithoutAd": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "광고 없이 멈추는 방법도 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can still stop without an ad."
+          }
+        }
+      }
+    },
+    "shield.message.timeToStop": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금은 멈출 시간이에요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time to stop."
+          }
+        }
+      }
+    },
+    "shield.openRequest.resend": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 알림 보내기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send Again"
+          }
+        }
+      }
+    },
+    "shield.openRequest.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림이 오지 않는다면\n다시 알림 보내기를 누르거나,\n방해금지 모드를 확인하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If it doesn't arrive,\ntap Send Again or check\nDo Not Disturb."
+          }
+        }
+      }
+    },
+    "shield.openRequest.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "위의 GoldTime 알림을 눌러주세요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the GoldTime notification above"
+          }
+        }
+      }
+    },
+    "shield.subtitle.chooseInApp": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 쓰려면 GoldTime에서 선택하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose in GoldTime if you want more time."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

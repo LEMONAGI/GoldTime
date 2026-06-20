@@ -93,7 +93,7 @@ struct ContentView: View {
                 )
             }
             .tabItem {
-                Label("홈", systemImage: "house.fill")
+                Label("home.title", systemImage: "house.fill")
             }
             .tag(GoldTimeTab.home)
 
@@ -107,7 +107,7 @@ struct ContentView: View {
                 )
             }
             .tabItem {
-                Label("통계", systemImage: "chart.bar.xaxis")
+                Label("stats.title", systemImage: "chart.bar.xaxis")
             }
             .tag(GoldTimeTab.stats)
 
@@ -119,7 +119,7 @@ struct ContentView: View {
                 )
             }
             .tabItem {
-                Label("설정", systemImage: "gearshape")
+                Label("settings.title", systemImage: "gearshape")
             }
             .tag(GoldTimeTab.settings)
         }
@@ -167,27 +167,27 @@ struct ContentView: View {
                 Alert(
                     title: Text(message.title),
                     message: Text(message.message),
-                    dismissButton: .default(Text("확인"))
+                    dismissButton: .default(Text("common.confirm"))
                 )
             case .limitWarning(let warning):
                 Alert(
                     title: Text(limitWarningTitle(warning)),
                     message: Text(limitWarningMessage(warning)),
-                    primaryButton: .destructive(Text("변경")) {
+                    primaryButton: .destructive(Text("common.change")) {
                         viewModel.confirmLimitLockChange(warning)
                     },
-                    secondaryButton: .cancel(Text("취소")) {
+                    secondaryButton: .cancel(Text("common.cancel")) {
                         viewModel.cancelLimitLockChange()
                     }
                 )
             case .applyConfirmation(let confirmation):
                 Alert(
-                    title: Text("차단 규칙을 적용할까요?"),
-                    message: Text("‘\(confirmation.groupName)’에 지금부터 적용돼요. 이후 규칙이나 항목을 바꾸거나 삭제하려면 광고를 봐야 해요."),
-                    primaryButton: .default(Text("적용하기")) {
+                    title: Text("content.apply.title"),
+                    message: Text("content.apply.message \(confirmation.groupName)"),
+                    primaryButton: .default(Text("group.apply")) {
                         viewModel.confirmApplyGroup(confirmation)
                     },
-                    secondaryButton: .cancel(Text("취소")) {
+                    secondaryButton: .cancel(Text("common.cancel")) {
                         viewModel.cancelApplyGroup()
                     }
                 )
@@ -209,17 +209,17 @@ struct ContentView: View {
 
     private func limitWarningTitle(_ warning: LimitLockWarning) -> String {
         switch warning.rule {
-        case .dailyLimit: return "한도 변경 확인"
-        case .cooldown: return "쿨다운 변경 확인"
+        case .dailyLimit: return String(localized: "content.limitWarning.dailyLimit.title")
+        case .cooldown: return String(localized: "content.limitWarning.cooldown.title")
         }
     }
 
     private func limitWarningMessage(_ warning: LimitLockWarning) -> String {
         switch warning.rule {
         case .dailyLimit(let minutes):
-            return "이미 \(warning.usedMinutes)분 사용해서, \(minutes)분으로 바꾸면 ‘\(warning.groupName)’ 그룹이 바로 잠겨요. 변경할까요?"
+            return String(localized: "content.limitWarning.dailyLimit.message \(warning.usedMinutes) \(minutes) \(warning.groupName)")
         case .cooldown(let usage, _):
-            return "이미 \(warning.usedMinutes)분 사용해서, 사용 시간을 \(usage)분으로 바꾸면 ‘\(warning.groupName)’ 그룹이 바로 휴식에 들어가요. 변경할까요?"
+            return String(localized: "content.limitWarning.cooldown.message \(warning.usedMinutes) \(usage) \(warning.groupName)")
         }
     }
 }
@@ -247,10 +247,10 @@ private struct ScreenTimeAuthorizationRecoveryView: View {
                     }
 
                     VStack(spacing: 12) {
-                        Text("스크린타임 권한이 필요해요")
+                        Text("content.recovery.title")
                             .font(.largeTitle.bold())
                             .multilineTextAlignment(.center)
-                        Text("GoldTime이 앱 한도를 적용하려면 스크린타임 접근 권한을 다시 허용해야 해요.")
+                        Text("content.recovery.message")
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -268,7 +268,7 @@ private struct ScreenTimeAuthorizationRecoveryView: View {
                     }
 
                     Button(action: onRequest) {
-                        Text(isRequesting ? "요청 중..." : "스크린타임 허용하기")
+                        Text(isRequesting ? "common.requesting" : "onboarding.screenTime.button")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 16))

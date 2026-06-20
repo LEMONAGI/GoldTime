@@ -59,6 +59,10 @@ Extension은 메인 앱 API에 의존하지 않고 `SharedStore` + 알림으로�
 
 ## 주의사항 (작업 중 발견 시 누적)
 
+- ATT 버튼의 로딩은 UMP 동의와 ATT 응답까지만 기다린다. `MobileAds.start()` 완료 콜백은 네트워크·WebKit
+  프로세스 콜드 스타트로 오래 걸릴 수 있으므로 온보딩 화면 전환을 막지 말고, `ConsentService`가
+  소유한 단일 Task에서 SDK 초기화와 광고 프리로드를 이어간다. 온보딩 직후 `.withConsentFlow()`도
+  실행되므로 동의 흐름 자체도 Task로 단일화해 UMP/ATT 중복 요청을 막는다.
 - `syncDailyMonitoring`의 `newRegistered`는 빈 dict가 아니라 **기존 등록 기록의 복사본**(`lastRegistered.filter { valid }`)으로 시작해 마지막에 `lastRegisteredGroupsByID`로 통째 persist된다. 그래서 등록 catch(daily/timeWindow/cooldown)는 실패 시 `newRegistered.removeValue(forKey: group.id)`로 **stale 항목을 비워야** `monitoredGroupIDs()` 오표시(미추적인데 추적 중으로 보임)를 막는다. 등록 자체를 건너뛰는 자정 직전 분기(`.lockUntilMidnight`/`.skipUntracked`)도 동일 관용구를 쓴다. **로컬 dict 제거이지 `SharedStore.clearRegistration`이 아니다** — sync 도중 SharedStore를 건드려도 마지막 persist가 덮어쓴다(`clearRegistration`은 extension 타이머 종료 재충전처럼 sync 밖 경로 전용). 편집 경로는 `last(stale) != group(new)`이라 다음 sync가 자동 재시도하므로 영구 공백은 아니다.
 - `MonitoringBackgroundTask`(자정 BGTask, fallback 재연결)는 `syncDailyMonitoring` 실패를 `try?`로 삼키지 말고 `enqueueScreenTimeError(context:"backgroundReconnect")` 기록 + `setTaskCompleted(success:false)`로 관측 가능하게 둔다.
 - 쿨다운 모드 등록은 `CooldownMonitor`(이 폴더, `ScreenTime/`)에 있고 **메인 앱·extension 두 타겟에 모두 포함**된다(extension은 ScreenTimeManager를 못 보므로 재충전 등록을 위해 공유). 이 파일을 옮기거나 import를 늘릴 때 extension 빌드 영향을 확인할 것.

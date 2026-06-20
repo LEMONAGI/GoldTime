@@ -17,8 +17,8 @@ struct NotificationSettingsView: View {
                     toggleRow(
                         systemName: "sun.max.fill",
                         tint: Color.accent,
-                        title: "하루 요약 알림",
-                        subtitle: "매일 아침 9시에 어제 쓴 시간을 정리해 보내드려요.",
+                        title: "notif.dailySummary.title",
+                        subtitle: "notif.dailySummary.subtitle",
                         isOn: Binding(
                             get: { viewModel.isDailyMorningNotificationEnabled },
                             set: { viewModel.setDailyMorningNotificationEnabled($0) }
@@ -32,8 +32,8 @@ struct NotificationSettingsView: View {
                     toggleRow(
                         systemName: "bell.badge.fill",
                         tint: .green,
-                        title: "앱 복귀 알림",
-                        subtitle: "한도에 도달하면 GoldTime으로 돌아오게 알려드려요. 꼭 필요해서 끌 수 없어요.",
+                        title: "notif.appReturn.title",
+                        subtitle: "notif.appReturn.subtitle",
                         isOn: .constant(true),
                         isLocked: true
                     )
@@ -48,15 +48,15 @@ struct NotificationSettingsView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("알림 설정")
+        .navigationTitle("notif.title")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private func toggleRow(
         systemName: String,
         tint: Color,
-        title: String,
-        subtitle: String,
+        title: LocalizedStringKey,
+        subtitle: LocalizedStringKey,
         isOn: Binding<Bool>,
         isLocked: Bool = false
     ) -> some View {
@@ -71,7 +71,7 @@ struct NotificationSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
-            Toggle("", isOn: isOn)
+            Toggle(title, isOn: isOn)
                 .labelsHidden()
                 .tint(Color.accent)
                 .disabled(isLocked)

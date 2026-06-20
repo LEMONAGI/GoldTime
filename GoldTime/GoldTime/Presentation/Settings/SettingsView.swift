@@ -25,7 +25,7 @@ struct SettingsView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("설정")
+        .navigationTitle("settings.title")
         .navigationBarTitleDisplayMode(.large)
         .task {
             await viewModel.loadState()
@@ -39,19 +39,19 @@ struct SettingsView: View {
             Alert(
                 title: Text(alert.title),
                 message: Text(alert.message),
-                dismissButton: .default(Text("확인"))
+                dismissButton: .default(Text("common.confirm"))
             )
         }
     }
 
     private var generalCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "일반")
+            SectionHeader(title: "settings.section.general")
             VStack(spacing: 0) {
                 if viewModel.isScreenTimeAuthorized {
                     settingsRow(
-                        title: "스크린 타임 권한",
-                        subtitle: "허용됨",
+                        title: "settings.screenTime.title",
+                        subtitle: String(localized: "settings.screenTime.allowed"),
                         systemName: "checkmark.circle.fill",
                         tint: .green
                     )
@@ -63,8 +63,8 @@ struct SettingsView: View {
                         Task { await viewModel.requestScreenTimeAuthorization() }
                     } label: {
                         settingsRow(
-                            title: "스크린 타임 권한",
-                            subtitle: "확인이 필요해요",
+                            title: "settings.screenTime.title",
+                            subtitle: String(localized: "settings.screenTime.needCheck"),
                             systemName: "exclamationmark.circle.fill",
                             tint: .red,
                             showsProgress: viewModel.isRequestingScreenTimeAuthorization,
@@ -125,13 +125,13 @@ struct SettingsView: View {
 
     private var troubleshootingCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "문제 해결")
+            SectionHeader(title: "settings.section.troubleshooting")
             Button {
                 onRequestReconnect()
             } label: {
                 actionRow(
-                    title: "스크린 타임 재연결",
-                    subtitle: "모니터링 연결이 끊겼을 때 다시 연결합니다",
+                    title: "settings.reconnect.title",
+                    subtitle: "settings.reconnect.subtitle",
                     systemName: "arrow.clockwise",
                     showsProgress: isReconnecting
                 )
@@ -145,13 +145,14 @@ struct SettingsView: View {
     private var weekStartDayRow: some View {
         HStack(spacing: 12) {
             IconTile(systemName: "calendar", tint: Color.accent)
-            Text("주 시작 요일")
+            Text("settings.weekStart")
                 .font(.subheadline.weight(.semibold))
             Spacer(minLength: 8)
-            Picker("", selection: $viewModel.weekStartDay) {
-                Text("월요일").tag(2)
-                Text("일요일").tag(1)
+            Picker("settings.weekStart", selection: $viewModel.weekStartDay) {
+                Text("settings.weekday.monday").tag(2)
+                Text("settings.weekday.sunday").tag(1)
             }
+            .labelsHidden()
             .pickerStyle(.menu)
             .tint(.secondary)
         }
@@ -161,7 +162,7 @@ struct SettingsView: View {
 
     private func notificationRow(showsChevron: Bool = false) -> some View {
         settingsRow(
-            title: "알림",
+            title: "settings.notification.title",
             subtitle: notificationSubtitle,
             systemName: notificationIconName,
             tint: notificationTint,
@@ -170,7 +171,7 @@ struct SettingsView: View {
         )
     }
 
-    private func actionRow(title: String, subtitle: String, systemName: String, showsProgress: Bool = false) -> some View {
+    private func actionRow(title: LocalizedStringKey, subtitle: LocalizedStringKey, systemName: String, showsProgress: Bool = false) -> some View {
         HStack(spacing: 12) {
             IconTile(systemName: systemName, tint: Color.red)
             VStack(alignment: .leading, spacing: 3) {
@@ -196,7 +197,7 @@ struct SettingsView: View {
     }
 
     private func settingsRow(
-        title: String,
+        title: LocalizedStringKey,
         subtitle: String? = nil,
         systemName: String,
         tint: Color,
@@ -243,13 +244,13 @@ struct SettingsView: View {
 
     private var notificationSubtitle: String? {
         if isNotificationDeferredBySummary {
-            return "시간 지정 요약에 묶여 알림이 늦을 수 있어요"
+            return String(localized: "settings.notif.deferred")
         }
         switch viewModel.notificationPermissionState {
-        case .notDetermined: return "탭하여 알림을 허용해 주세요"
+        case .notDetermined: return String(localized: "settings.notif.notDetermined")
         case .authorized, .provisional, .ephemeral: return nil
-        case .denied: return "iOS 설정에서 꺼져 있어요"
-        case .unknown: return "iOS 설정에서 켜주세요"
+        case .denied: return String(localized: "settings.notif.denied")
+        case .unknown: return String(localized: "settings.notif.unknown")
         }
     }
 
@@ -278,7 +279,7 @@ struct SettingsView: View {
 
     private var feedbackCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "피드백")
+            SectionHeader(title: "settings.section.feedback")
             VStack(spacing: 0) {
                 Button {
                     var components = URLComponents()
@@ -287,26 +288,16 @@ struct SettingsView: View {
                     let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-"
                     let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "-"
                     let device = UIDevice.current
-                    let body = """
-                    안녕하세요! 보내주신 의견은 빠짐없이 읽고 있어요.
-                    버그는 쏜살같이, 기능 추가는 정확하게!
-
-                    (여기에 의견을 적어주세요)
-
-                    ---
-                    앱 버전: \(appVersion) (\(buildNumber))
-                    기기: \(device.model)
-                    iOS: \(device.systemVersion)
-                    """
+                    let body = String(localized: "settings.feedback.email.body \(appVersion) \(buildNumber) \(device.model) \(device.systemVersion)")
                     components.queryItems = [
-                        URLQueryItem(name: "subject", value: "GoldTime 피드백"),
+                        URLQueryItem(name: "subject", value: String(localized: "settings.feedback.email.subject")),
                         URLQueryItem(name: "body", value: body)
                     ]
                     if let url = components.url { openURL(url) }
                 } label: {
                     settingsRow(
-                        title: "이메일로 피드백 보내기",
-                        subtitle: "앱 개선에 도움이 됩니다",
+                        title: "settings.feedback.email",
+                        subtitle: String(localized: "settings.feedback.email.subtitle"),
                         systemName: "envelope.fill",
                         tint: Color.accent,
                         showsChevron: true
@@ -325,8 +316,8 @@ struct SettingsView: View {
                     openURL(url)
                 } label: {
                     settingsRow(
-                        title: "리뷰 작성하기",
-                        subtitle: "앱스토어에서 별점과 리뷰를 남겨주세요",
+                        title: "settings.feedback.review",
+                        subtitle: String(localized: "settings.feedback.review.subtitle"),
                         systemName: "star.fill",
                         tint: Color.accent,
                         showsChevron: true
@@ -342,8 +333,8 @@ struct SettingsView: View {
                     item: URL(string: "https://apps.apple.com/app/id\(appStoreID)") ?? URL(string: "https://apps.apple.com")!
                 ) {
                     settingsRow(
-                        title: "친구에게 공유하기",
-                        subtitle: "주변에 GoldTime을 알려주세요",
+                        title: "settings.feedback.share",
+                        subtitle: String(localized: "settings.feedback.share.subtitle"),
                         systemName: "square.and.arrow.up",
                         tint: Color.accent,
                         showsChevron: true

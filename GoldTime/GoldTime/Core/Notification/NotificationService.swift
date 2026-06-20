@@ -46,8 +46,8 @@ enum NotificationService {
     /// 쉴드의 "GoldTime 가기" 버튼 탭 시 발송. 알림 탭 → 앱 진입.
     static func scheduleOpenAppNotification() {
         let content = UNMutableNotificationContent()
-        content.title = "한도에 도달했어요"
-        content.body = "GoldTime을 열어 1분 연장 또는 광고 시청을 선택하세요."
+        content.title = String(localized: "notification.limitReached.title")
+        content.body = String(localized: "notification.limitReached.body")
         content.sound = .default
         content.interruptionLevel = .timeSensitive
         content.relevanceScore = 1.0
@@ -99,25 +99,25 @@ enum NotificationService {
         content.sound = .default
 
         if isWeekStart {
-            content.title = "새로운 한 주가 시작됐네요."
-            content.body = "지난 주 기록을 통계에서 확인해보세요."
+            content.title = String(localized: "notification.morning.weekStart.title")
+            content.body = String(localized: "notification.morning.weekStart.body")
         } else {
             switch extraMinutes {
             case 0:
-                content.title = "어제 한도 내 사용."
-                content.body = "좋은 하루였어요. 저한텐 아니고요."
+                content.title = String(localized: "notification.morning.onTime.title")
+                content.body = String(localized: "notification.morning.onTime.body")
             case 1...5:
-                content.title = "어제 \(extraMinutes)분 초과."
-                content.body = "이 정도면 살짝 눈 감아드릴게요."
+                content.title = String(localized: "notification.morning.over.title \(extraMinutes)")
+                content.body = String(localized: "notification.morning.over1.body")
             case 6...15:
-                content.title = "어제 \(extraMinutes)분 초과."
-                content.body = "시간이 금이라는 거 기억하시죠."
+                content.title = String(localized: "notification.morning.over.title \(extraMinutes)")
+                content.body = String(localized: "notification.morning.over2.body")
             case 16...30:
-                content.title = "어제 \(extraMinutes)분 초과."
-                content.body = "어제 청구서가 좀 두꺼웠어요."
+                content.title = String(localized: "notification.morning.over.title \(extraMinutes)")
+                content.body = String(localized: "notification.morning.over3.body")
             default:
-                content.title = "어제 \(extraMinutes)분 초과."
-                content.body = "이 정도면 저를 위해 노력하신 거죠?"
+                content.title = String(localized: "notification.morning.over.title \(extraMinutes)")
+                content.body = String(localized: "notification.morning.over4.body")
             }
         }
 

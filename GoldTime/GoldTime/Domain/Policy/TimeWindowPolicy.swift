@@ -24,17 +24,17 @@ enum TimeWindowPolicy {
         var userMessage: String {
             switch self {
             case .empty:
-                return "차단 시간대를 1개 이상 추가해 주세요."
+                return String(localized: "timeWindow.error.empty")
             case .tooMany:
-                return "차단 시간대는 \(TimeWindowPolicy.maxWindowCount)개까지예요."
+                return String(localized: "timeWindow.error.tooMany \(TimeWindowPolicy.maxWindowCount)")
             case .outOfRange:
-                return "시간대 설정이 올바르지 않아요."
+                return String(localized: "timeWindow.error.outOfRange")
             case .crossesMidnight:
-                return "종료 시각은 시작 시각보다 늦어야 해요. 자정을 넘는 시간대는 두 개로 나눠 주세요."
+                return String(localized: "timeWindow.error.crossesMidnight")
             case .tooShort:
-                return "차단 시간대는 \(TimeWindowPolicy.minWindowMinutes)분 이상이어야 해요."
+                return String(localized: "timeWindow.error.tooShort \(TimeWindowPolicy.minWindowMinutes)")
             case .overlapping:
-                return "겹치는 시간대가 있어요. 시간대를 조정해 주세요."
+                return String(localized: "timeWindow.error.overlapping")
             }
         }
     }

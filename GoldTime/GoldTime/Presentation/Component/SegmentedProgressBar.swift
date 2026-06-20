@@ -29,6 +29,6 @@ struct SegmentedProgressBar: View {
         }
         .frame(height: 8)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText.isEmpty ? "\(clampedRemaining)칸 남음" : accessibilityText)
+        .accessibilityLabel(accessibilityText.isEmpty ? String(localized: "progress.cellsRemaining \(clampedRemaining)") : accessibilityText)
     }
 }
