@@ -5379,19 +5379,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hi! We read every message you send.\nBugs, fixed fast. Features, built right.\n\n(Write your feedback here)\n\n---\nApp version: %1$@ (%2$@)\nDevice: %3$@\niOS: %4$@"
+            "value": "Hi! We read every message you send.\nBugs, fixed fast. Features, built right.\n\n(Write your feedback here)\n\nIf you're reporting a bug, adding the details below helps us fix it much faster:\n• What were you doing when it happened? (steps to reproduce)\n• Which screen or feature was it?\n• What did you expect vs. what actually happened\n\n---\nApp version: %1$@ (%2$@)\nDevice: %3$@\niOS: %4$@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "こんにちは！いただいたご意見はすべて読んでいます。\nバグは素早く、機能追加は正確に！\n\n（ここにご意見をお書きください）\n\n---\nアプリバージョン：%1$@（%2$@）\n端末：%3$@\niOS：%4$@"
+            "value": "こんにちは！いただいたご意見はすべて読んでいます。\nバグは素早く、機能追加は正確に！\n\n（ここにご意見をお書きください）\n\nバグのご報告なら、以下も書いていただけると解決がぐっと早くなります：\n• どんな操作のときに起きましたか？（再現手順）\n• どの画面・機能ですか？\n• 期待した動作と実際の動作\n\n---\nアプリバージョン：%1$@（%2$@）\n端末：%3$@\niOS：%4$@"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "안녕하세요! 보내주신 의견은 빠짐없이 읽고 있어요.\n버그는 쏜살같이, 기능 추가는 정확하게!\n\n(여기에 의견을 적어주세요)\n\n---\n앱 버전: %1$@ (%2$@)\n기기: %3$@\niOS: %4$@"
+            "value": "안녕하세요! 보내주신 의견은 빠짐없이 읽고 있어요.\n버그는 쏜살같이, 기능 추가는 정확하게!\n\n(여기에 의견을 적어주세요)\n\n버그 제보라면 아래를 함께 적어주시면 훨씬 빨리 해결할 수 있어요:\n• 어떤 상황에서 생겼나요? (재현 순서)\n• 어떤 화면·기능인가요?\n• 기대한 동작 vs 실제 동작\n\n---\n앱 버전: %1$@ (%2$@)\n기기: %3$@\niOS: %4$@"
           }
         }
       }
