@@ -45,7 +45,7 @@ struct AppPickerSheet: View {
                         Button(role: .cancel) { dismiss() }
                             .tint(.white)
                     } else {
-                        Button("취소", role: .cancel) { dismiss() }
+                        Button("common.cancel", role: .cancel) { dismiss() }
                             .tint(.white)
                     }
                 }
@@ -57,7 +57,7 @@ struct AppPickerSheet: View {
                         }
                         .disabled(!viewModel.warnings.isEmpty)
                     } else {
-                        Button("완료") {
+                        Button("common.done") {
                             onCommit()
                             dismiss()
                         }
@@ -65,7 +65,7 @@ struct AppPickerSheet: View {
                     }
                 }
             }
-            .navigationTitle("항목 선택")
+            .navigationTitle("appPicker.title")
             .navigationBarTitleDisplayMode(.inline)
         }
         .interactiveDismissDisabled()

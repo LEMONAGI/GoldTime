@@ -102,11 +102,11 @@ final class StatsViewModel {
         var caption: String {
             switch trend {
             case .up:
-                return "\(comparisonLabel)보다 \(goldTimeDurationText(seconds: deltaMinutes * 60)) 많아요"
+                return String(localized: "stats.caption.more \(comparisonLabel) \(goldTimeDurationText(seconds: deltaMinutes * 60))")
             case .down:
-                return "\(comparisonLabel)보다 \(goldTimeDurationText(seconds: -deltaMinutes * 60)) 적어요"
+                return String(localized: "stats.caption.less \(comparisonLabel) \(goldTimeDurationText(seconds: -deltaMinutes * 60))")
             case .flat:
-                return "\(comparisonLabel)과 같아요"
+                return String(localized: "stats.caption.same \(comparisonLabel)")
             }
         }
     }
@@ -129,13 +129,13 @@ final class StatsViewModel {
         switch period {
         case .weekly:
             comparisonAverageSeconds = averageSeconds(for: monthlyStats(offset: 0), today: today)
-            label = "이번 달 평균"
+            label = String(localized: "stats.compare.thisMonth")
         case .monthly:
             let calendar = Calendar.current
             let yearStats = statsForDisplayYear(displayYear, today: today)
             comparisonAverageSeconds = averageSeconds(for: yearStats, today: today)
             let currentYear = calendar.component(.year, from: today)
-            label = displayYear == currentYear ? "올해 평균" : "\(displayYear)년 평균"
+            label = displayYear == currentYear ? String(localized: "stats.compare.thisYear") : String(localized: "stats.compare.year \(String(displayYear))")
         }
         let deltaMinutes = displayMinutes(currentAverageSeconds) - displayMinutes(comparisonAverageSeconds)
         return StatsComparison(
@@ -173,18 +173,18 @@ final class StatsViewModel {
 
     var todayDeltaCaption: String {
         let hasAnyData = statsReport.yesterdayUnlockedSeconds > 0 || statsReport.todayStats.totalUnlockedSeconds > 0
-        guard hasAnyData else { return "어제도 오늘도 없어요" }
+        guard hasAnyData else { return String(localized: "stats.delta.none") }
         let d = statsReport.todayDelta
-        if d == 0 { return "어제와 같아요" }
+        if d == 0 { return String(localized: "stats.delta.same") }
         let text = goldTimeDurationText(seconds: abs(d))
-        return d < 0 ? "어제보다 \(text) 적어요" : "어제보다 \(text) 많아요"
+        return d < 0 ? String(localized: "stats.delta.less \(text)") : String(localized: "stats.delta.more \(text)")
     }
 
     var weeklyDeltaCaption: String {
-        guard statsReport.previousWeekAverageSeconds > 0 else { return "지난 주 기록 없음" }
-        if statsReport.weeklyAverageDelta == 0 { return "지난 주 평균과 같아요" }
+        guard statsReport.previousWeekAverageSeconds > 0 else { return String(localized: "stats.weekDelta.none") }
+        if statsReport.weeklyAverageDelta == 0 { return String(localized: "stats.weekDelta.same") }
         let text = goldTimeDurationText(seconds: abs(statsReport.weeklyAverageDelta))
-        return statsReport.weeklyAverageDelta < 0 ? "지난 주보다 평균 \(text) 적어요" : "지난 주보다 평균 \(text) 많아요"
+        return statsReport.weeklyAverageDelta < 0 ? String(localized: "stats.weekDelta.less \(text)") : String(localized: "stats.weekDelta.more \(text)")
     }
 
     var streakSentiment: CardSentiment {

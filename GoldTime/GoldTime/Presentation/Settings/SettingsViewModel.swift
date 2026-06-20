@@ -63,13 +63,13 @@ final class SettingsViewModel {
             isScreenTimeAuthorized = try await manageSettingsUseCase.requestScreenTimeAuthorization()
             if !isScreenTimeAuthorized {
                 alertMessage = SettingsAlertMessage(
-                    title: "스크린 타임 권한 필요",
-                    message: "GoldTime이 앱 한도를 적용하려면 스크린 타임 권한이 필요해요."
+                    title: String(localized: "settings.alert.screenTime.title"),
+                    message: String(localized: "settings.alert.screenTime.message")
                 )
             }
         } catch {
             alertMessage = SettingsAlertMessage(
-                title: "권한 요청 실패",
+                title: String(localized: "settings.alert.requestFailed.title"),
                 message: error.localizedDescription
             )
         }

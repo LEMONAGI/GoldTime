@@ -35,10 +35,10 @@ struct OnboardingView: View {
         OnboardingStepView(
             step: 0,
             icon: "hourglass",
-            title: "시간이 금이다",
-            description: "스스로 정한 한도를 넘기면 선택한 앱이 잠기고,\n더 쓰려면 광고로 시간을 구매해야 합니다.\n당신이 시간의 소중함을 느낄 수 있도록,\n한도를 넘기는 순간을 의식하게 만들겠습니다.",
+            title: "onboarding.intro.title",
+            description: "onboarding.intro.description",
             errorMessage: nil,
-            buttonTitle: "시작하기",
+            buttonTitle: "common.start",
             isLoading: false
         ) {
             viewModel.advance()
@@ -49,11 +49,11 @@ struct OnboardingView: View {
         OnboardingStepView(
             step: 1,
             icon: "lock.fill",
-            title: "스크린타임 권한",
-            description: "앱 사용 시간을 추적하고\n한도를 초과하면 앱을 잠그기 위해\n스크린타임 접근 권한이 필요해요.",
+            title: "onboarding.screenTime.title",
+            description: "onboarding.screenTime.description",
             permissionType: .screenTime,
             errorMessage: viewModel.errorMessage,
-            buttonTitle: viewModel.isRequesting ? "요청 중..." : "스크린타임 허용하기",
+            buttonTitle: viewModel.isRequesting ? "common.requesting" : "onboarding.screenTime.button",
             isLoading: viewModel.isRequesting
         ) {
             Task { await viewModel.requestScreenTime() }
@@ -64,14 +64,14 @@ struct OnboardingView: View {
         OnboardingStepView(
             step: 2,
             icon: "bell.fill",
-            title: "알림 권한",
-            description: "한도에 가까워지면 알림으로 알려드려요.\n원하지 않으면 나중에 설정에서 켤 수 있어요.",
+            title: "onboarding.notification.title",
+            description: "onboarding.notification.description",
             permissionType: .notification,
             errorMessage: viewModel.errorMessage,
-            buttonTitle: viewModel.isRequesting ? "요청 중..." : "알림 허용하기",
+            buttonTitle: viewModel.isRequesting ? "common.requesting" : "onboarding.notification.button",
             isLoading: viewModel.isRequesting,
             settingsButtonVisible: viewModel.errorMessage != nil,
-            skipTitle: "나중에 하기",
+            skipTitle: "onboarding.notification.skip",
             skipAction: { viewModel.skipNotification() }
         ) {
             Task { await viewModel.requestNotification() }
@@ -82,11 +82,11 @@ struct OnboardingView: View {
         OnboardingStepView(
             step: 3,
             icon: "hand.raised.fill",
-            title: "맞춤 광고 허용",
-            description: "GoldTime은 무료입니다.\n광고 추적을 허용하면 더 관련성 높은 광고가 표시돼요.\n거부해도 광고는 계속 표시됩니다.",
+            title: "onboarding.tracking.title",
+            description: "onboarding.tracking.description",
             permissionType: .tracking,
             errorMessage: nil,
-            buttonTitle: viewModel.isRequesting ? "요청 중..." : "계속하기",
+            buttonTitle: viewModel.isRequesting ? "common.requesting" : "onboarding.tracking.button",
             isLoading: viewModel.isRequesting
         ) {
             Task { await viewModel.requestTracking() }
@@ -97,10 +97,10 @@ struct OnboardingView: View {
         OnboardingStepView(
             step: 4,
             icon: "checkmark.circle.fill",
-            title: "준비 완료!",
-            description: "이제 시간의 가치를 느껴보세요.",
+            title: "onboarding.completion.title",
+            description: "onboarding.completion.description",
             errorMessage: nil,
-            buttonTitle: "시작하기",
+            buttonTitle: "common.start",
             isLoading: false
         ) {
             viewModel.complete()
@@ -115,14 +115,14 @@ private struct OnboardingStepView: View {
 
     let step: Int
     let icon: String
-    let title: String
-    let description: String
+    let title: LocalizedStringKey
+    let description: LocalizedStringKey
     var permissionType: OnboardingPermissionType? = nil
     let errorMessage: String?
-    let buttonTitle: String
+    let buttonTitle: LocalizedStringKey
     let isLoading: Bool
     var settingsButtonVisible: Bool = false
-    var skipTitle: String? = nil
+    var skipTitle: LocalizedStringKey? = nil
     var skipAction: (() -> Void)? = nil
     let action: () -> Void
 
@@ -162,7 +162,7 @@ private struct OnboardingStepView: View {
                             .padding(.horizontal, 24)
                     }
                     if settingsButtonVisible, let url = URL(string: "app-settings:") {
-                        Button("설정 열기") {
+                        Button("common.openSettings") {
                             openURL(url)
                         }
                         .font(.subheadline)
@@ -222,19 +222,19 @@ private struct StepDotIndicator: View {
 private struct PermissionPreviewCard: View {
     let type: OnboardingPermissionType
 
-    private var dialogTitle: String {
+    private var dialogTitle: LocalizedStringKey {
         switch type {
-        case .screenTime: "스크린타임 접근 허용"
-        case .notification: "\"GoldTime\"에서 알림을 보내고자 합니다"
-        case .tracking: "\"GoldTime\"이 추적을 요청합니다"
+        case .screenTime: "onboarding.dialog.screenTime.title"
+        case .notification: "onboarding.dialog.notification.title"
+        case .tracking: "onboarding.dialog.tracking.title"
         }
     }
 
-    private var dialogMessage: String {
+    private var dialogMessage: LocalizedStringKey {
         switch type {
-        case .screenTime: "앱 사용 시간을 추적하고 한도를 관리합니다."
-        case .notification: "GoldTime이 알림을 보내드립니다."
-        case .tracking: "앱과 웹에서의 활동이 맞춤형 광고에 사용될 수 있습니다."
+        case .screenTime: "onboarding.dialog.screenTime.message"
+        case .notification: "onboarding.dialog.notification.message"
+        case .tracking: "onboarding.dialog.tracking.message"
         }
     }
 
@@ -250,7 +250,7 @@ private struct PermissionPreviewCard: View {
     }
 
     private var screenTimeNote: some View {
-        Label("이 권한을 허용해야 앱을 사용할 수 있어요", systemImage: "exclamationmark.circle.fill")
+        Label("onboarding.note.screenTime", systemImage: "exclamationmark.circle.fill")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.red)
             .multilineTextAlignment(.leading)
@@ -258,7 +258,7 @@ private struct PermissionPreviewCard: View {
     }
 
     private var notificationNote: some View {
-        Label("'시간 지정 요약에서 허용'이 아닌 '허용'을 선택해야 즉시 알림을 받을 수 있어요", systemImage: "info.circle.fill")
+        Label("onboarding.note.notification", systemImage: "info.circle.fill")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.leading)
@@ -266,7 +266,7 @@ private struct PermissionPreviewCard: View {
     }
 
     private var trackingNote: some View {
-        Label("거부해도 광고는 표시되며 앱 이용에 제한이 없어요", systemImage: "info.circle.fill")
+        Label("onboarding.note.tracking", systemImage: "info.circle.fill")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.leading)
@@ -285,7 +285,7 @@ private struct PermissionPreviewCard: View {
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 8) {
-                    Text("계속")
+                    Text("onboarding.dialog.continue")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.accent)
                         .frame(maxWidth: .infinity)
@@ -293,7 +293,7 @@ private struct PermissionPreviewCard: View {
                         .background(Color.accent.opacity(0.15))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    Text("허용 안 함")
+                    Text("onboarding.dialog.dontAllow")
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -309,7 +309,7 @@ private struct PermissionPreviewCard: View {
                     Image(systemName: "arrow.up")
                         .font(.headline.weight(.bold))
                         .foregroundStyle(Color.accent)
-                    Text("여기를 탭해요")
+                    Text("onboarding.dialog.tapHere")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Color.accent)
                 }
@@ -335,7 +335,7 @@ private struct PermissionPreviewCard: View {
                     .multilineTextAlignment(.center)
 
                 VStack(spacing: 6) {
-                    Text("허용")
+                    Text("onboarding.dialog.allow")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.accent)
                         .frame(maxWidth: .infinity)
@@ -343,14 +343,14 @@ private struct PermissionPreviewCard: View {
                         .background(Color.accent.opacity(0.15))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    Text("시간 지정 요약에서 허용")
+                    Text("onboarding.dialog.allowInSummary")
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(Color(.tertiarySystemGroupedBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    Text("허용 안 함")
+                    Text("onboarding.dialog.dontAllow")
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -377,14 +377,14 @@ private struct PermissionPreviewCard: View {
                     .multilineTextAlignment(.center)
 
                 VStack(spacing: 6) {
-                    Text("앱에서 추적 금지")
+                    Text("onboarding.dialog.noTracking")
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(Color(.tertiarySystemGroupedBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    Text("추적 허용")
+                    Text("onboarding.dialog.allowTracking")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.accent)
                         .frame(maxWidth: .infinity)

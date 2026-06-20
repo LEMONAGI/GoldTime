@@ -15,7 +15,7 @@ struct RewardedAdView: View {
 
     init(
         placement: RewardedAdPlacement = .shieldUnlock,
-        fallbackLabel: String = "그래도 10분 사용하기",
+        fallbackLabel: String = String(localized: "ad.fallbackDefault"),
         onComplete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -48,11 +48,11 @@ struct RewardedAdView: View {
     private var loadingView: some View {
         VStack(spacing: 24) {
             Spacer()
-            Text("📺").font(.system(size: 64))
-            Text("광고 준비 중").font(.title2.bold()).foregroundStyle(.white)
+            Text(verbatim: "📺").font(.system(size: 64))
+            Text("ad.loading").font(.title2.bold()).foregroundStyle(.white)
             ProgressView().tint(Color.accent)
             Spacer()
-            Button("취소", role: .cancel) { viewModel.cancel() }
+            Button("common.cancel", role: .cancel) { viewModel.cancel() }
                 .foregroundStyle(.white.opacity(0.6))
                 .padding(.bottom, 32)
         }
@@ -61,14 +61,14 @@ struct RewardedAdView: View {
     private var fallbackView: some View {
         VStack(spacing: 20) {
             Spacer()
-            Text("광고를 불러올 수 없어요").font(.title2.bold()).foregroundStyle(.white)
-            Text("네트워크 상태를 확인해 주세요").foregroundStyle(.white.opacity(0.7))
+            Text("ad.failed.title").font(.title2.bold()).foregroundStyle(.white)
+            Text("ad.failed.subtitle").foregroundStyle(.white.opacity(0.7))
             Spacer()
             VStack(spacing: 12) {
                 Button(fallbackLabel) { viewModel.completeFallback() }
                     .frame(maxWidth: .infinity)
                     .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: 12))
-                Button("취소", role: .cancel) { viewModel.cancel() }
+                Button("common.cancel", role: .cancel) { viewModel.cancel() }
                     .foregroundStyle(.white.opacity(0.6))
             }
             .padding(.horizontal, 40).padding(.bottom, 32)

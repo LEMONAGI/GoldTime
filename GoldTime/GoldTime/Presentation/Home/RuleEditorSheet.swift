@@ -30,30 +30,30 @@ struct RuleEditorSheet: View {
                     ruleRow(
                         kind: .dailyLimit,
                         systemName: "hourglass",
-                        title: "일일 한도 제한",
-                        subtitle: "하루에 정한 시간을 넘기면 잠겨요"
+                        title: "rule.dailyLimit.title",
+                        subtitle: "rule.dailyLimit.subtitle"
                     )
                     ruleRow(
                         kind: .timeWindows,
                         systemName: "clock.badge.xmark",
-                        title: "시간대별 차단",
-                        subtitle: "정한 시간대 동안 사용을 막아요"
+                        title: "rule.timeWindows.title",
+                        subtitle: "rule.timeWindows.subtitle"
                     )
                     ruleRow(
                         kind: .cooldown,
                         systemName: "hourglass.bottomhalf.filled",
-                        title: "쿨다운 잠금",
-                        subtitle: "정한 만큼 쓰면 한동안 쉬어야 해요"
+                        title: "rule.cooldown.title",
+                        subtitle: "rule.cooldown.subtitle"
                     )
                 } footer: {
-                    Text("이미 규칙이 적용된 그룹은 변경된 규칙도 바로 반영돼요.")
+                    Text("rule.footer")
                 }
             }
-            .navigationTitle("차단 규칙")
+            .navigationTitle("rule.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("취소", action: onCancel)
+                    Button("common.cancel", action: onCancel)
                 }
             }
         }
@@ -64,8 +64,8 @@ struct RuleEditorSheet: View {
     private func ruleRow(
         kind: GroupRuleKind,
         systemName: String,
-        title: String,
-        subtitle: String
+        title: LocalizedStringKey,
+        subtitle: LocalizedStringKey
     ) -> some View {
         NavigationLink {
             detail(for: kind)
@@ -134,17 +134,17 @@ private struct DailyLimitDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                Picker("시간", selection: $hours) {
+                Picker("rule.picker.hour", selection: $hours) {
                     ForEach(0..<6, id: \.self) { h in
-                        Text("\(h)시간").tag(h)
+                        Text("common.hours \(h)").tag(h)
                     }
                 }
                 .pickerStyle(.wheel)
                 .frame(maxWidth: .infinity)
 
-                Picker("분", selection: $minutes) {
+                Picker("rule.picker.minute", selection: $minutes) {
                     ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { m in
-                        Text("\(m)분").tag(m)
+                        Text("common.minutes \(m)").tag(m)
                     }
                 }
                 .pickerStyle(.wheel)
@@ -153,7 +153,7 @@ private struct DailyLimitDetailView: View {
             .frame(height: 216)
             .padding(.top, 24)
 
-            Text("이 시간을 넘기면 그룹이 잠겨요. 매일 자정에 새로 시작해요.")
+            Text("rule.dailyLimit.hint")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.top, 12)
@@ -166,11 +166,11 @@ private struct DailyLimitDetailView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-        .navigationTitle("일일 한도 제한")
+        .navigationTitle("rule.dailyLimit.title")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("완료", action: onConfirm)
+                Button("common.done", action: onConfirm)
                     .fontWeight(.semibold)
             }
         }
@@ -205,7 +205,7 @@ private struct TimeWindowsDetailView: View {
                     Button {
                         addWindow()
                     } label: {
-                        Label("시간대 추가", systemImage: "plus")
+                        Label("rule.timeWindows.add", systemImage: "plus")
                     }
                 }
             } footer: {
@@ -213,16 +213,16 @@ private struct TimeWindowsDetailView: View {
                     Text(invalidReason.userMessage)
                         .foregroundStyle(.red)
                 } else {
-                    Text("정한 시간대 동안에는 그룹이 잠겨요. 시간대를 왼쪽으로 밀면 삭제할 수 있어요. 최대 \(TimeWindowPolicy.maxWindowCount)개까지 추가할 수 있어요.")
+                    Text("rule.timeWindows.hint \(TimeWindowPolicy.maxWindowCount)")
                         .multilineTextAlignment(.leading)
                 }
             }
         }
-        .navigationTitle("시간대별 차단")
+        .navigationTitle("rule.timeWindows.title")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("완료", action: onConfirm)
+                Button("common.done", action: onConfirm)
                     .fontWeight(.semibold)
                     .disabled(invalidReason != nil)
             }
@@ -233,12 +233,12 @@ private struct TimeWindowsDetailView: View {
     private func windowRow(_ window: Binding<TimeWindow>) -> some View {
         VStack(spacing: 8) {
             DatePicker(
-                "시작",
+                "rule.timeWindow.start",
                 selection: dateBinding(for: window.startMinuteOfDay),
                 displayedComponents: .hourAndMinute
             )
             DatePicker(
-                "종료",
+                "rule.timeWindow.end",
                 selection: dateBinding(for: window.endMinuteOfDay),
                 displayedComponents: .hourAndMinute
             )
@@ -288,10 +288,10 @@ private struct CooldownDetailView: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
                 VStack(spacing: 4) {
-                    Text("사용 시간")
+                    Text("rule.cooldown.usage")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Picker("사용 시간", selection: $usageMinutes) {
+                    Picker("rule.cooldown.usage", selection: $usageMinutes) {
                         ForEach(usagePresets, id: \.self) { m in
                             Text(Self.label(forMinutes: m)).tag(m)
                         }
@@ -301,10 +301,10 @@ private struct CooldownDetailView: View {
                 .frame(maxWidth: .infinity)
 
                 VStack(spacing: 4) {
-                    Text("휴식 간격")
+                    Text("rule.cooldown.rest")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Picker("휴식 간격", selection: $durationMinutes) {
+                    Picker("rule.cooldown.rest", selection: $durationMinutes) {
                         ForEach(durationPresets, id: \.self) { m in
                             Text(Self.label(forMinutes: m)).tag(m)
                         }
@@ -321,7 +321,7 @@ private struct CooldownDetailView: View {
                     Text(invalidReason.userMessage)
                         .foregroundStyle(.red)
                 } else {
-                    Text("사용 시간만큼 쓰면 잠기고, 휴식 간격만큼 지나면 다시 충전돼요. 매일 자정에도 새로 시작해요.")
+                    Text("rule.cooldown.hint")
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                 }
@@ -339,11 +339,11 @@ private struct CooldownDetailView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-        .navigationTitle("쿨다운 잠금")
+        .navigationTitle("rule.cooldown.title")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("완료", action: onConfirm)
+                Button("common.done", action: onConfirm)
                     .fontWeight(.semibold)
                     .disabled(invalidReason != nil)
             }
@@ -352,10 +352,10 @@ private struct CooldownDetailView: View {
 
     /// 분을 "N분 / N시간 / N시간 M분"으로 표기.
     static func label(forMinutes minutes: Int) -> String {
-        if minutes < 60 { return "\(minutes)분" }
+        if minutes < 60 { return String(localized: "common.minutes \(minutes)") }
         let hours = minutes / 60
         let mins = minutes % 60
-        return mins == 0 ? "\(hours)시간" : "\(hours)시간 \(mins)분"
+        return mins == 0 ? String(localized: "common.hours \(hours)") : String(localized: "common.hourMinute \(hours) \(mins)")
     }
 }
 

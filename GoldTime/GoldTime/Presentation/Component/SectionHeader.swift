@@ -6,10 +6,10 @@
 import SwiftUI
 
 struct SectionHeader: View {
-    let title: String
+    let title: LocalizedStringKey
     let systemName: String?
 
-    init(title: String, systemName: String? = nil) {
+    init(title: LocalizedStringKey, systemName: String? = nil) {
         self.title = title
         self.systemName = systemName
     }

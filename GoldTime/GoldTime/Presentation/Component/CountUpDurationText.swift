@@ -41,6 +41,6 @@ private struct AnimatableDurationText: View, Animatable {
 
     var body: some View {
         let secs = Int(value.rounded())
-        Text(secs <= 0 ? "0분" : "+\(goldTimeDurationText(seconds: secs))")
+        Text(secs <= 0 ? String(localized: "home.bill.zero") : String(localized: "home.bill.total \(goldTimeDurationText(seconds: secs))"))
     }
 }

@@ -205,7 +205,7 @@ final class ContentViewModel {
     /// 일일 한도·쿨다운 상세에서만 노출한다(시간대별 차단은 영향 없음 — View에서 분기).
     var nearMidnightEditNotice: String? {
         guard manageGroupsUseCase.isNearMidnightEditNoticeWindow() else { return nil }
-        return "23:45부터 설정한 규칙은 사용량 추적이 불가능해 00:00부터 다시 정확히 적용됩니다."
+        return String(localized: "content.nearMidnightEditNotice")
     }
 
     func setRuleEditorPresented(_ isPresented: Bool) {
@@ -290,7 +290,7 @@ final class ContentViewModel {
             successMessage = nil
             errorMessage = nil
         } catch {
-            alertMessage = GoldTimeAlertMessage(title: "그룹 제한", message: error.localizedDescription)
+            alertMessage = GoldTimeAlertMessage(title: String(localized: "content.alert.groupLimit.title"), message: error.localizedDescription)
         }
     }
 
@@ -357,8 +357,8 @@ final class ContentViewModel {
     /// 적용되는 상황을 알린다. 일일 한도·쿨다운만 — 시간대 차단은 측정창과 무관해 제외한다.
     private var nearMidnightApplyNotice: GoldTimeAlertMessage {
         GoldTimeAlertMessage(
-            title: "적용 안내",
-            message: "23:45부터는 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 적용됩니다."
+            title: String(localized: "content.alert.applyNotice.title"),
+            message: String(localized: "content.alert.applyNotice.message")
         )
     }
 
@@ -374,7 +374,7 @@ final class ContentViewModel {
 
         // 뷰에서 저장 버튼을 막아도, VM에서 한 번 더 검증한다.
         if let reason = CooldownPolicy.firstInvalidReason(usageMinutes: usage, cooldownMinutes: duration) {
-            alertMessage = GoldTimeAlertMessage(title: "쿨다운 확인", message: reason.userMessage)
+            alertMessage = GoldTimeAlertMessage(title: String(localized: "content.alert.cooldownCheck.title"), message: reason.userMessage)
             return
         }
 
@@ -383,7 +383,7 @@ final class ContentViewModel {
         // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
         // 단, 이미 잠김/휴식/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
         if isGroupCurrentlyOpen(id) && used > 0 && usage <= used {
-            let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
+            let name = groups.first(where: { $0.id == id })?.name ?? String(localized: "content.thisGroup")
             stagedLimitLockWarning = LimitLockWarning(
                 groupID: id,
                 groupName: name,
@@ -404,8 +404,8 @@ final class ContentViewModel {
         applyCooldownRule(id: id, usage: usage, duration: duration)
         if settingsChangedWhileResting {
             stagedRuleEditInfo = GoldTimeAlertMessage(
-                title: "변경 안내",
-                message: "변경된 설정은 다음 주기부터 적용돼요."
+                title: String(localized: "content.alert.changeNotice.title"),
+                message: String(localized: "content.alert.changeNotice.message")
             )
         } else if monitoringRegistrationGroupIDIfApplied(id) != nil
             && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
@@ -436,7 +436,7 @@ final class ContentViewModel {
         // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
         // 단, 이미 잠김/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
         if isGroupCurrentlyOpen(id) && used > 0 && minutes <= used {
-            let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
+            let name = groups.first(where: { $0.id == id })?.name ?? String(localized: "content.thisGroup")
             stagedLimitLockWarning = LimitLockWarning(
                 groupID: id,
                 groupName: name,
@@ -461,7 +461,7 @@ final class ContentViewModel {
 
         // 뷰에서 저장 버튼을 막아도, VM에서 한 번 더 검증한다.
         if let reason = TimeWindowPolicy.firstInvalidReason(for: windows) {
-            alertMessage = GoldTimeAlertMessage(title: "시간대 확인", message: reason.userMessage)
+            alertMessage = GoldTimeAlertMessage(title: String(localized: "content.alert.timeWindowCheck.title"), message: reason.userMessage)
             return
         }
 
@@ -533,7 +533,7 @@ final class ContentViewModel {
             return
         }
         adGatePendingAction = { [weak self] in self?.presentPicker(for: group) }
-        adGateFallbackLabel = "그래도 편집하기"
+        adGateFallbackLabel = String(localized: "content.adGate.edit")
         isAdGatePresented = true
     }
 
@@ -543,12 +543,12 @@ final class ContentViewModel {
             return
         }
         adGatePendingAction = { [weak self] in self?.presentRuleEditor(for: group) }
-        adGateFallbackLabel = "그래도 변경하기"
+        adGateFallbackLabel = String(localized: "content.adGate.change")
         isAdGatePresented = true
     }
 
     func requestDeleteGroup(_ id: UUID) {
-        let name = groups.first(where: { $0.id == id })?.name ?? "이 그룹"
+        let name = groups.first(where: { $0.id == id })?.name ?? String(localized: "content.thisGroup")
         guard isEditRestricted(id) else {
             deleteGroup(id)
             presentDeletionCompletedAlert(groupName: name)
@@ -558,7 +558,7 @@ final class ContentViewModel {
             self?.deleteGroup(id)
             self?.pendingDeletedGroupName = name
         }
-        adGateFallbackLabel = "그래도 삭제하기"
+        adGateFallbackLabel = String(localized: "content.adGate.delete")
         isAdGatePresented = true
     }
 
@@ -571,7 +571,7 @@ final class ContentViewModel {
     }
 
     private func presentDeletionCompletedAlert(groupName: String) {
-        let message = GoldTimeAlertMessage(title: "삭제 완료", message: "‘\(groupName)’ 그룹을 삭제했어요.")
+        let message = GoldTimeAlertMessage(title: String(localized: "content.alert.deleted.title"), message: String(localized: "content.alert.deleted.message \(groupName)"))
         // confirmationDialog/광고 시트가 닫히는 것과 같은 업데이트 사이클에서 alert를 띄우면
         // SwiftUI가 표시를 건너뛴다. 다음 런루프로 미뤄 안정적으로 표시한다.
         Task { @MainActor in
@@ -585,7 +585,7 @@ final class ContentViewModel {
         guard let group = groups.first(where: { $0.id == id }) else { return }
         if let reason = applyInvalidReason(of: group) {
             // draft 자체(미적용)는 검증에서 제외하고, 규칙/항목 등 실제 부족분만 안내한다.
-            alertMessage = GoldTimeAlertMessage(title: "적용할 수 없어요", message: reason.userMessage)
+            alertMessage = GoldTimeAlertMessage(title: String(localized: "content.alert.cannotApply.title"), message: reason.userMessage)
             return
         }
         pendingApplyConfirmation = ApplyGroupConfirmation(groupID: id, groupName: group.name)
@@ -644,10 +644,10 @@ final class ContentViewModel {
             do {
                 try syncProtectionUseCase.reconnectMonitoring()
                 refreshDashboardState()
-                alertMessage = GoldTimeAlertMessage(title: "재연결 완료", message: "스크린 타임이 다시 연결됐어요.")
+                alertMessage = GoldTimeAlertMessage(title: String(localized: "content.alert.reconnected.title"), message: String(localized: "content.alert.reconnected.message"))
             } catch {
                 refreshDashboardState()
-                alertMessage = GoldTimeAlertMessage(title: "재연결 실패", message: error.localizedDescription)
+                alertMessage = GoldTimeAlertMessage(title: String(localized: "content.alert.reconnectFailed.title"), message: error.localizedDescription)
             }
         }
     }
@@ -706,7 +706,7 @@ final class ContentViewModel {
             )
         } catch {
             successMessage = nil
-            errorMessage = "자동 적용 실패: \(error.localizedDescription)"
+            errorMessage = String(localized: "content.autoApplyFailed \(error.localizedDescription)")
             refreshDashboardState()
         }
     }
@@ -764,7 +764,7 @@ final class ContentViewModel {
     }
 
     private func presentScreenTimeRecovery() {
-        screenTimeRecoveryErrorMessage = "스크린타임 권한을 다시 허용해야 앱 한도를 적용할 수 있어요."
+        screenTimeRecoveryErrorMessage = String(localized: "content.recovery.errorMessage")
         applyScreenTimeAuthorization(false, presentsRecoveryIfMissing: true)
         refreshDashboardState()
     }

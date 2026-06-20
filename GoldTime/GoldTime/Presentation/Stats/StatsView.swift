@@ -41,7 +41,7 @@ struct StatsView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("통계")
+        .navigationTitle("stats.title")
         .navigationBarTitleDisplayMode(.large)
     }
 
@@ -54,7 +54,7 @@ struct StatsView: View {
             )
             LazyVGrid(columns: metricColumns, spacing: 12) {
                 DashboardMetricCard(
-                    title: "추가 사용",
+                    title: String(localized: "stats.extraUse"),
                     value: goldTimeDurationText(seconds: viewModel.statsReport.todayStats.totalUnlockedSeconds),
                     caption: viewModel.todayDeltaCaption,
                     systemName: "clock.fill",
@@ -64,7 +64,7 @@ struct StatsView: View {
                 )
 
                 DashboardMetricCard(
-                    title: "주간 평균",
+                    title: String(localized: "stats.weeklyAverage"),
                     value: goldTimeDurationText(seconds: viewModel.statsReport.weeklyAverageSeconds),
                     caption: viewModel.weeklyDeltaCaption,
                     systemName: "calendar.badge.clock",
@@ -82,9 +82,15 @@ private struct TrendChartSection: View {
     let viewModel: StatsViewModel
 
     enum Mode: String, CaseIterable, Identifiable {
-        case weekly = "주간"
-        case monthly = "월간"
+        case weekly
+        case monthly
         var id: String { rawValue }
+        var title: LocalizedStringKey {
+            switch self {
+            case .weekly: "stats.mode.weekly"
+            case .monthly: "stats.mode.monthly"
+            }
+        }
     }
 
     @State private var mode: Mode = .weekly
@@ -122,18 +128,18 @@ private struct TrendChartSection: View {
         fmt.locale = Locale(identifier: "ko_KR")
         switch mode {
         case .weekly:
-            guard weekOffset != 0, let range else { return "이번 주" }
+            guard weekOffset != 0, let range else { return String(localized: "stats.thisWeek") }
             fmt.dateFormat = "M/d"
             return "\(fmt.string(from: range.start)) - \(fmt.string(from: range.end))"
         case .monthly:
-            guard monthOffset != 0, let range else { return "이번 달" }
+            guard monthOffset != 0, let range else { return String(localized: "stats.thisMonth") }
             fmt.dateFormat = "yyyy년 M월"
             return fmt.string(from: range.start)
         }
     }
 
     private var averageSeconds: Int { viewModel.averageSeconds(for: stats) }
-    private var averageLabel: String { mode == .weekly ? "주간 평균" : "월간 평균" }
+    private var averageLabel: String { mode == .weekly ? String(localized: "stats.weeklyAverage") : String(localized: "stats.monthlyAverage") }
 
     private var maxMinutes: Double {
         stats.map { Double($0.totalUnlockedSeconds) / 60.0 }.max() ?? 0
@@ -203,8 +209,8 @@ private struct TrendChartSection: View {
         guard total > 0 else { return "0" }
         let hours = total / 60
         let mins = total % 60
-        if hours > 0 && mins > 0 { return "\(hours)시간 \(mins)분" }
-        return hours > 0 ? "\(hours)시간" : "\(mins)분"
+        if hours > 0 && mins > 0 { return String(localized: "common.hourMinute \(hours) \(mins)") }
+        return hours > 0 ? String(localized: "common.hours \(hours)") : String(localized: "common.minutes \(mins)")
     }
 
     /// 기록은 있지만 0분인 날의 스텁 막대 높이(분). 도메인 상단에 비례해 어느 도메인에서든 같은 높이로 보인다.
@@ -220,11 +226,11 @@ private struct TrendChartSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "기록")
+            SectionHeader(title: "stats.section.record")
 
             VStack(alignment: .leading, spacing: 12) {
-                Picker("기간", selection: $mode) {
-                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                Picker("stats.period", selection: $mode) {
+                    ForEach(Mode.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
 
@@ -266,14 +272,14 @@ private struct TrendChartSection: View {
                 ForEach(stats) { stat in
                     let minutes = Double(stat.totalUnlockedSeconds) / 60.0
                     BarMark(
-                        x: .value("날짜", stat.date, unit: .day),
-                        y: .value("추가 사용", minutes > 0 ? minutes : zeroRecordStubMinutes)
+                        x: .value("stats.chart.date", stat.date, unit: .day),
+                        y: .value("stats.chart.extraUse", minutes > 0 ? minutes : zeroRecordStubMinutes)
                     )
                     .cornerRadius(4)
                     .foregroundStyle(barColor(for: stat, minutes: minutes))
                 }
                 if averageSeconds > 0 {
-                    RuleMark(y: .value("평균", averageMinutes))
+                    RuleMark(y: .value("stats.chart.average", averageMinutes))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                         .foregroundStyle(.orange)
                         .annotation(
@@ -282,7 +288,7 @@ private struct TrendChartSection: View {
                             spacing: 2,
                             overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
                         ) {
-                            Text("평균")
+                            Text("stats.chart.averageLabel")
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(.orange)
                         }
@@ -314,7 +320,7 @@ private struct TrendChartSection: View {
             .chartYScale(domain: 0...yDomainTopMinutes)
 
             if !hasAnyRecord {
-                Text("추가 사용 기록 없음")
+                Text("stats.noRecord")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

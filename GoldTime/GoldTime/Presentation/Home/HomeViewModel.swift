@@ -73,30 +73,30 @@ struct HomeViewModel {
 
     var billTotalText: String {
         let total = todayStats.totalUnlockedSeconds
-        guard total > 0 else { return "0분" }
-        return "+\(goldTimeDurationText(seconds: total))"
+        guard total > 0 else { return String(localized: "home.bill.zero") }
+        return String(localized: "home.bill.total \(goldTimeDurationText(seconds: total))")
     }
 
     var billComment: String {
         switch todayStats.totalUnlockedSeconds {
         case 0:
-            return "좋은 날입니다. 저한텐 아니고요."
+            return String(localized: "home.bill.comment0")
         case 1..<900:
-            return "이 정도면 살짝 눈 감아드릴 수 있어요."
+            return String(localized: "home.bill.comment1")
         case 900..<1800:
-            return "계산서 나왔어요. 확인해보실래요?"
+            return String(localized: "home.bill.comment2")
         case 1800..<3600:
-            return "제법 하시는데요. 청구서 두께가 느껴지시죠?"
+            return String(localized: "home.bill.comment3")
         case 3600..<5400:
-            return "슬슬 기분이 좋아지는데요. 제가요."
+            return String(localized: "home.bill.comment4")
         default:
-            return "좋은 날입니다. 이번엔 저한테요."
+            return String(localized: "home.bill.comment5")
         }
     }
 
     func statusTitle(for group: ScreenTimeGroup) -> String {
         if !group.isApplied {
-            return "설정 필요"
+            return String(localized: "home.status.needSetup")
         }
         if lockedGroupIDs.contains(group.id) {
             return lockedBadgeTitle(for: group)
@@ -106,22 +106,22 @@ struct HomeViewModel {
             // 부여 분 개념이 없다(granted 미기록). 분 대신 "23:59까지 추가 사용"으로 표기.
             if isNearMidnightOverride(group) {
                 let until = overrideUntilByGroupID[group.id]
-                let endText = until.map { goldTimeClockText(date: $0) } ?? "자정"
-                return "\(endText)까지 추가 사용"
+                let endText = until.map { goldTimeClockText(date: $0) } ?? String(localized: "home.status.midnight")
+                return String(localized: "home.status.extraUntil \(endText)")
             }
             // 부여된 분(진행바가 나타내는 총 시간)을 함께 표기. 실시간 갱신 아님.
             let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
-            return "\(granted)분 추가 사용"
+            return String(localized: "home.status.extraMinutes \(granted)")
         }
         // 자정 직전 편집으로 추적이 멈춘 그룹: 분 진행 개념이 없어 바 대신 "23:59까지 사용 가능"으로.
         if isUntrackedNearMidnight(group) {
-            return "23:59까지 사용 가능"
+            return String(localized: "home.status.usableUntilMidnight")
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
-            return "설정 필요"
+            return String(localized: "home.status.needSetup")
         }
         if !isMonitoring {
-            return "대기 중"
+            return String(localized: "home.status.waiting")
         }
         return availableBadgeTitle(for: group)
     }
@@ -131,34 +131,34 @@ struct HomeViewModel {
     private func lockedBadgeTitle(for group: ScreenTimeGroup) -> String {
         switch group.ruleKind ?? .dailyLimit {
         case .dailyLimit:
-            return "23:59까지 잠금"
+            return String(localized: "home.status.lockedUntilMidnight")
         case .cooldown:
             if let end = cooldownEndByGroupID[group.id] {
-                return "\(goldTimeClockText(date: end))까지 잠금"
+                return String(localized: "home.status.lockedUntil \(goldTimeClockText(date: end))")
             }
-            return "잠금 중"
+            return String(localized: "home.status.locked")
         case .timeWindows:
             let minute = TimeWindowPolicy.minuteOfDay(for: Date())
             if let end = TimeWindowPolicy.contiguousWindowEnd(minuteOfDay: minute, windows: group.timeWindows) {
-                return "\(goldTimeClockText(minuteOfDay: end))까지 잠금"
+                return String(localized: "home.status.lockedUntil \(goldTimeClockText(minuteOfDay: end))")
             }
-            return "잠금 중"
+            return String(localized: "home.status.locked")
         }
     }
 
     /// 사용 가능 뱃지 문구. 시간대 규칙은 다음 차단 시작 시각까지, 그 외는 그냥 "사용 가능".
     private func availableBadgeTitle(for group: ScreenTimeGroup) -> String {
         guard (group.ruleKind ?? .dailyLimit) == .timeWindows else {
-            return "사용 가능"
+            return String(localized: "home.status.available")
         }
         let minute = TimeWindowPolicy.minuteOfDay(for: Date())
         if let start = TimeWindowPolicy.nextWindowStart(minuteOfDay: minute, windows: group.timeWindows) {
             // 차단은 start 분부터(inclusive) 막히므로 마지막 사용 가능 분은 start - 1.
             // start가 00:00이면 전날 23:59로 wrap.
             let lastUsable = (start + 24 * 60 - 1) % (24 * 60)
-            return "\(goldTimeClockText(minuteOfDay: lastUsable))까지 사용 가능"
+            return String(localized: "home.status.usableUntil \(goldTimeClockText(minuteOfDay: lastUsable))")
         }
-        return "사용 가능"
+        return String(localized: "home.status.available")
     }
 
     /// 그룹 카드 아이콘. 색을 칠하는 statusTint(for:)와 같은 분기 순서를 따른다.
@@ -213,7 +213,7 @@ struct HomeViewModel {
     private func remainingMinutesLabel(_ minutes: Int) -> String {
         let h = minutes / 60
         let m = minutes % 60
-        return h > 0 ? "약 \(h)시간 \(m)분 남음" : "약 \(m)분 남음"
+        return h > 0 ? String(localized: "home.remaining.hourMinute \(h) \(m)") : String(localized: "home.remaining.minute \(m)")
     }
 
     func lockProgress(for group: ScreenTimeGroup) -> SegmentProgress? {
@@ -291,9 +291,9 @@ struct HomeViewModel {
         let h = minutes / 60
         let m = minutes % 60
         if h > 0 {
-            return "\(h)시간 \(m)분 넘기면 이 그룹이 잠겨요"
+            return String(localized: "home.limit.hourMinute \(h) \(m)")
         } else {
-            return "\(m)분 넘기면 이 그룹이 잠겨요"
+            return String(localized: "home.limit.minute \(m)")
         }
     }
 
@@ -301,23 +301,23 @@ struct HomeViewModel {
     func ruleDisplayName(_ kind: GroupRuleKind) -> String {
         switch kind {
         case .dailyLimit:
-            return "일일 한도 제한"
+            return String(localized: "rule.dailyLimit.title")
         case .timeWindows:
-            return "시간대별 차단"
+            return String(localized: "rule.timeWindows.title")
         case .cooldown:
-            return "쿨다운 잠금"
+            return String(localized: "rule.cooldown.title")
         }
     }
 
     /// 그룹 카드 규칙 행 제목. 규칙 미선택이면 "차단 규칙 선택", 선택했으면 규칙 이름.
     func ruleRowTitle(for group: ScreenTimeGroup) -> String {
-        guard let kind = group.ruleKind else { return "차단 규칙 선택" }
+        guard let kind = group.ruleKind else { return String(localized: "rule.selectPrompt") }
         return ruleDisplayName(kind)
     }
 
     /// 그룹 카드 규칙 행 부제. 규칙 미선택이면 선택 안내, 선택했으면 규칙 요약.
     func ruleRowSubtitle(for group: ScreenTimeGroup) -> String {
-        guard group.ruleKind != nil else { return "원하는 규칙을 선택하세요" }
+        guard group.ruleKind != nil else { return String(localized: "rule.selectSubtitle") }
         return ruleSummary(for: group)
     }
 
@@ -331,7 +331,7 @@ struct HomeViewModel {
         case .cooldown:
             let usage = goldTimeDurationText(seconds: group.cooldownUsageMinutes * 60)
             let rest = goldTimeDurationText(seconds: group.cooldownDurationMinutes * 60)
-            return "\(usage) 쓰면 \(rest) 휴식"
+            return String(localized: "rule.cooldown.summary \(usage) \(rest)")
         }
     }
 
@@ -339,7 +339,7 @@ struct HomeViewModel {
     func timeWindowsSummary(_ windows: [TimeWindow]) -> String {
         let sorted = windows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
         guard !sorted.isEmpty else {
-            return "차단 시간대를 추가해 주세요"
+            return String(localized: "rule.timeWindows.addPrompt")
         }
         return sorted
             .map { "\(goldTimeClockText(minuteOfDay: $0.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: $0.endMinuteOfDay))" }

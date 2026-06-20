@@ -38,7 +38,7 @@ struct LockOptionsView: View {
                 }
 
                 if viewModel.canRetryRelockRegistration {
-                    Button("다시 시도") {
+                    Button("common.retry") {
                         viewModel.retryRelockRegistration()
                     }
                     .buttonStyle(.bordered)
@@ -66,7 +66,7 @@ struct LockOptionsView: View {
             Alert(
                 title: Text(alert.title),
                 message: Text(alert.message),
-                dismissButton: .default(Text("확인")) {
+                dismissButton: .default(Text("common.confirm")) {
                     dismiss()
                 }
             )
@@ -102,7 +102,7 @@ struct LockOptionsView: View {
 
     private var optionStack: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("선택")
+            Text("lock.section.choose")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
 
@@ -115,7 +115,7 @@ struct LockOptionsView: View {
             VStack(spacing: 10) {
                 extensionOptionButton(
                     systemName: "timer",
-                    title: "1분만 더 쓰기",
+                    title: String(localized: "lock.option.oneMinute"),
                     subtitle: oneMinuteSubtitle,
                     enabled: viewModel.canExtendOneMinute,
                     action: viewModel.tapOneMinute
@@ -146,9 +146,9 @@ struct LockOptionsView: View {
                     .frame(width: 28, height: 28)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("그만 쓰기")
+                    Text("lock.walkAway.title")
                         .font(.subheadline.weight(.semibold))
-                    Text("광고 없이 종료")
+                    Text("lock.walkAway.subtitle")
                         .font(.footnote)
                         .foregroundStyle(.black.opacity(0.72))
                 }
@@ -162,36 +162,36 @@ struct LockOptionsView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("그만 쓰기, 광고 없이 종료")
+        .accessibilityLabel(Text("lock.walkAway.a11y"))
     }
 
     private var oneMinuteSubtitle: Text {
         if viewModel.isNearMidnightCutoff {
-            return Text("23:45부터는 1분 연장을 사용할 수 없어요").foregroundColor(.secondary)
+            return Text("lock.subtitle.nearMidnightOneMinute").foregroundColor(.secondary)
         }
         if viewModel.oneMinuteRemaining > 0 {
-            var str = AttributedString("무료")
+            var str = AttributedString(String(localized: "lock.free"))
             str.swiftUI.foregroundColor = .green
-            str += AttributedString(" · 오늘 \(viewModel.oneMinuteRemaining)번 남음")
+            str += AttributedString(String(localized: "lock.oneMinuteRemaining \(viewModel.oneMinuteRemaining)"))
             return Text(str)
         } else {
-            return Text("오늘은 더 사용할 수 없어요").foregroundColor(.red.opacity(0.8))
+            return Text("lock.subtitle.exhausted").foregroundColor(.red.opacity(0.8))
         }
     }
 
     private var adSubtitle: Text {
         guard let name = viewModel.selectedGroupName else {
-            return Text("풀 그룹을 먼저 고르세요").foregroundColor(.orange)
+            return Text("lock.subtitle.pickGroup").foregroundColor(.orange)
         }
         if viewModel.isNearMidnightCutoff {
-            var str = AttributedString("광고 1회")
+            var str = AttributedString(String(localized: "lock.adOnce"))
             str.swiftUI.foregroundColor = .red
-            str += AttributedString(" · \(name) 자정까지 열려요")
+            str += AttributedString(String(localized: "lock.adSubtitle.untilMidnight \(name)"))
             return Text(str)
         }
-        var str = AttributedString("광고 1회")
+        var str = AttributedString(String(localized: "lock.adOnce"))
         str.swiftUI.foregroundColor = .red
-        str += AttributedString(" · \(name) 10분 연장")
+        str += AttributedString(String(localized: "lock.adSubtitle.10min \(name)"))
         return Text(str)
     }
 
@@ -216,9 +216,9 @@ struct LockOptionsView: View {
     private var groupContext: some View {
         VStack(alignment: .leading, spacing: 10) {
             if viewModel.lockedGroups.isEmpty {
-                Text("잠긴 그룹을 찾지 못했어요.")
+                Text("lock.noGroups.title")
                     .font(.subheadline.weight(.semibold))
-                Text("앱을 다시 열어보거나, GoldTime에서 모니터링 상태를 확인해주세요.")
+                Text("lock.noGroups.subtitle")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else if viewModel.lockedGroups.count == 1, let group = viewModel.lockedGroups.first {
@@ -236,9 +236,9 @@ struct LockOptionsView: View {
                 .background(Color(.tertiarySystemGroupedBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
-                Text("잠긴 그룹이 여러 개예요")
+                Text("lock.multiGroups.title")
                     .font(.subheadline.weight(.semibold))
-                Text("한 번에 한 그룹만 연장합니다.")
+                Text("lock.multiGroups.subtitle")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -296,7 +296,7 @@ struct LockOptionsView: View {
     @ViewBuilder
     private func groupTokenIcons(for group: ScreenTimeGroup) -> some View {
         if group.selectionCount == 0 {
-            Text("항목 없음")
+            Text("lock.noItems")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)

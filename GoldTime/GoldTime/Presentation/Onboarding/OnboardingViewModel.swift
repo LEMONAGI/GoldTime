@@ -61,7 +61,7 @@ final class OnboardingViewModel {
             try await authorizeUseCase.requestScreenTime()
         } catch {
             analyticsRepository.log(.authorizationResult(granted: false))
-            errorMessage = "스크린타임 권한이 필요해요. 다시 한 번 버튼을 눌러 권한을 허용해주세요."
+            errorMessage = String(localized: "onboarding.error.screenTime")
             return
         }
         if authorizeUseCase.isAuthorized {
@@ -70,7 +70,7 @@ final class OnboardingViewModel {
             currentStep = .notificationPermission
         } else {
             analyticsRepository.log(.authorizationResult(granted: false))
-            errorMessage = "스크린타임 권한이 필요해요. 다시 한 번 버튼을 눌러 권한을 허용해주세요."
+            errorMessage = String(localized: "onboarding.error.screenTime")
         }
     }
 

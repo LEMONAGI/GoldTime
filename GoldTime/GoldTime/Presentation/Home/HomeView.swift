@@ -95,14 +95,14 @@ struct HomeView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("홈")
+        .navigationTitle("home.title")
         .navigationBarTitleDisplayMode(.large)
     }
     
     private var timeBillHero: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                Label("오늘의 시간 청구서", systemImage: "receipt")
+                Label("home.bill.heroTitle", systemImage: "receipt")
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(Color.accent)
                 
@@ -121,7 +121,7 @@ struct HomeView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                 
-                Text("총 초과 사용 시간")
+                Text("home.totalExtra")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.45))
             }
@@ -132,9 +132,9 @@ struct HomeView: View {
             Spacer().frame(height: 18)
             
             VStack(spacing: 10) {
-                billRow("광고", "\(viewModel.todayStats.adWatchCount)개", accent: true)
+                billRow("home.bill.adCount", String(localized: "common.countItems \(viewModel.todayStats.adWatchCount)"), accent: true)
                 billRow(
-                    "남은 1분 연장",
+                    "home.bill.oneMinute",
                     "\(viewModel.oneMinuteRemaining)/\(viewModel.oneMinuteDailyLimit)"
                 )
             }
@@ -163,7 +163,7 @@ struct HomeView: View {
         .frame(height: 1)
     }
     
-    private func billRow(_ label: String, _ value: String, accent: Bool = false) -> some View {
+    private func billRow(_ label: LocalizedStringKey, _ value: String, accent: Bool = false) -> some View {
         HStack {
             Text(label)
                 .font(.subheadline.weight(.semibold))
@@ -182,9 +182,9 @@ struct HomeView: View {
     private var managementSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                SectionHeader(title: "그룹 목록")
+                SectionHeader(title: "home.groupList")
                 Spacer()
-                Text("그룹 \(viewModel.groups.count)/\(viewModel.maxGroupCount)")
+                Text("home.groupCount \(viewModel.groups.count) \(viewModel.maxGroupCount)")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(viewModel.isAtGroupLimit ? .orange : .secondary)
             }
@@ -212,7 +212,7 @@ struct HomeView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "info.circle.fill")
                         .foregroundStyle(Color.accent)
-                    Text("그룹당 \(viewModel.maxAppsPerGroup)개 항목까지 · 같은 항목을 여러 그룹에 포함시킬 수 있어요. 그룹 이름을 탭하면 바로 바꿀 수 있어요.")
+                    Text("home.groupHint \(viewModel.maxAppsPerGroup)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -221,7 +221,7 @@ struct HomeView: View {
                 Button {
                     onAddGroup()
                 } label: {
-                    Label("그룹 추가", systemImage: "plus")
+                    Label("home.addGroup", systemImage: "plus")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black))
@@ -229,7 +229,7 @@ struct HomeView: View {
                 .opacity(viewModel.isAtGroupLimit ? 0.45 : 1)
                 
                 if viewModel.isAtGroupLimit {
-                    Text("그룹은 5개까지예요.")
+                    Text("group.error.tooMany \(viewModel.maxGroupCount)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -243,9 +243,9 @@ struct HomeView: View {
             Image(systemName: "square.grid.2x2")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(Color.accent)
-            Text("아직 그룹이 없어요.")
+            Text("home.empty.title")
                 .font(.headline)
-            Text("그룹을 만들고 항목을 선택하면, 그룹별로 다른 일일 한도를 걸 수 있어요.")
+            Text("home.empty.subtitle")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

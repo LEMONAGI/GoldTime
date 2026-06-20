@@ -8,15 +8,15 @@ import Foundation
 func goldTimeDurationText(seconds: Int) -> String {
     let minutes = Int((Double(max(0, seconds)) / 60.0).rounded(.up))
     if minutes < 60 {
-        return "\(minutes)분"
+        return String(localized: "common.minutes \(minutes)")
     }
 
     let hours = minutes / 60
     let remainingMinutes = minutes % 60
     if remainingMinutes == 0 {
-        return "\(hours)시간"
+        return String(localized: "common.hours \(hours)")
     }
-    return "\(hours)시간 \(remainingMinutes)분"
+    return String(localized: "common.hourMinute \(hours) \(remainingMinutes)")
 }
 
 /// 자정 기준 분(0...1439)을 "HH:mm" 24시간 표기로 변환. 시간대 차단 규칙 표시에 사용.
