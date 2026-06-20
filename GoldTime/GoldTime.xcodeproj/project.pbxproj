@@ -464,10 +464,10 @@
 				};
 			};
 			buildConfigurationList = DF8697752FA4FDB30038364B /* Build configuration list for PBXProject "GoldTime" */;
-			developmentRegion = en;
+			developmentRegion = ko;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				ko,
 				Base,
 			);
 			mainGroup = DF8697712FA4FDB30038364B;
