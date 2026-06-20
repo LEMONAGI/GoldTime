@@ -4,16 +4,22 @@
     "shield.button.openApp": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GoldTime 열기"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Open GoldTime"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTimeを開く"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTime 열기"
           }
         }
       }
@@ -21,16 +27,22 @@
     "shield.button.stop": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "그만 쓰기"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Stop Using"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やめておく"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그만 쓰기"
           }
         }
       }
@@ -38,16 +50,22 @@
     "shield.message.decided": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "여기까지 쓰기로 했어요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "You said you'd stop here."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ここまでにすると決めましたね。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "여기까지 쓰기로 했어요."
           }
         }
       }
@@ -55,16 +73,22 @@
     "shield.message.needAd": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "더 쓰려면 광고가 필요해요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "More time costs an ad."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もっと使うには広告が必要です。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 쓰려면 광고가 필요해요."
           }
         }
       }
@@ -72,16 +96,22 @@
     "shield.message.stopOrAd": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "멈추거나, 광고를 보거나."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Stop, or watch an ad."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やめるか、広告を見るか。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "멈추거나, 광고를 보거나."
           }
         }
       }
@@ -89,16 +119,22 @@
     "shield.message.stopWithoutAd": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "광고 없이 멈추는 방법도 있어요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "You can still stop without an ad."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告なしでやめることもできます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "광고 없이 멈추는 방법도 있어요."
           }
         }
       }
@@ -106,16 +142,22 @@
     "shield.message.timeToStop": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "지금은 멈출 시간이에요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Time to stop."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そろそろやめる時間です。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금은 멈출 시간이에요."
           }
         }
       }
@@ -123,16 +165,22 @@
     "shield.openRequest.resend": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "다시 알림 보내기"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Send Again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知をもう一度送る"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 알림 보내기"
           }
         }
       }
@@ -140,16 +188,22 @@
     "shield.openRequest.subtitle": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "알림이 오지 않는다면\n다시 알림 보내기를 누르거나,\n방해금지 모드를 확인하세요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "If it doesn't arrive,\ntap Send Again or check\nDo Not Disturb."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知が届かない場合は\n「通知をもう一度送る」を押すか、\nおやすみモードを確認してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림이 오지 않는다면\n다시 알림 보내기를 누르거나,\n방해금지 모드를 확인하세요."
           }
         }
       }
@@ -157,16 +211,22 @@
     "shield.openRequest.title": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "위의 GoldTime 알림을 눌러주세요"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Tap the GoldTime notification above"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上のGoldTime通知をタップしてください"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "위의 GoldTime 알림을 눌러주세요"
           }
         }
       }
@@ -174,16 +234,22 @@
     "shield.subtitle.chooseInApp": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "더 쓰려면 GoldTime에서 선택하세요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Choose in GoldTime if you want more time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もっと使うにはGoldTimeで選んでください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 쓰려면 GoldTime에서 선택하세요."
           }
         }
       }

@@ -4,13 +4,19 @@
     "CFBundleName": {
       "comment": "Bundle name",
       "localizations": {
-        "ko": {
+        "en": {
           "stringUnit": {
             "state": "translated",
             "value": "GoldTime"
           }
         },
-        "en": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTime"
+          }
+        },
+        "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "GoldTime"
@@ -21,16 +27,22 @@
     "NSUserTrackingUsageDescription": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "관련성 높은 광고를 보여주는 데 활용됩니다."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Your activity may be used to show you more relevant ads."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "より関連性の高い広告を表示するために利用されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "관련성 높은 광고를 보여주는 데 활용됩니다."
           }
         }
       }

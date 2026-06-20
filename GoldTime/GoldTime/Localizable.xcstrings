@@ -10,6 +10,12 @@
             "value": "Check your network connection."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ネットワーク状態を確認してください"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -25,6 +31,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't Load the Ad"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を読み込めませんでした"
           }
         },
         "ko": {
@@ -44,6 +56,12 @@
             "value": "Use 10 Minutes Anyway"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "それでも10分使う"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -59,6 +77,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Getting your ad ready"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を準備中"
           }
         },
         "ko": {
@@ -78,6 +102,12 @@
             "value": "Websites are restricted only when you use them in Safari."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウェブサイトはSafariで使うときのみ適用されます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -92,7 +122,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose Items"
+            "value": "Select Items"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "項目を選択"
           }
         },
         "ko": {
@@ -112,6 +148,12 @@
             "value": "Up to %1$lld per group (%2$lld/%3$lld)"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1グループにつき%1$lld個までです（%2$lld/%3$lld）"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -127,6 +169,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cancel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャンセル"
           }
         },
         "ko": {
@@ -146,6 +194,12 @@
             "value": "Change"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -161,6 +215,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confirm"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認"
           }
         },
         "ko": {
@@ -192,6 +252,12 @@
             }
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld個"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -221,6 +287,12 @@
             }
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld日"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -236,6 +308,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除"
           }
         },
         "ko": {
@@ -255,6 +333,12 @@
             "value": "Done"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完了"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -270,6 +354,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$lld hr %2$lld min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld時間%2$lld分"
           }
         },
         "ko": {
@@ -289,6 +379,12 @@
             "value": "%lld hr"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld時間"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -304,6 +400,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld分"
           }
         },
         "ko": {
@@ -323,6 +425,12 @@
             "value": "Open Settings"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「設定」を開く"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -338,6 +446,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Requesting..."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リクエスト中..."
           }
         },
         "ko": {
@@ -357,6 +471,12 @@
             "value": "Try Again"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再試行"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -372,6 +492,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Get Started"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "始める"
           }
         },
         "ko": {
@@ -391,6 +517,12 @@
             "value": "Change Anyway"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "それでも変更する"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -406,6 +538,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete Anyway"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "それでも削除する"
           }
         },
         "ko": {
@@ -425,6 +563,12 @@
             "value": "Edit Anyway"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "それでも編集する"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -440,6 +584,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Usage can't be tracked after 11:45 PM, so the lock will stay off until 11:59 PM. The rule will take effect at midnight."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "23:45以降は使用量を計測できないため23:59までロックが解除されたままになり、00:00からルールが適用されます。"
           }
         },
         "ko": {
@@ -459,6 +609,12 @@
             "value": "When This Takes Effect"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適用のご案内"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -473,7 +629,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Can't Apply Rule"
+            "value": "Unable to Apply Rule"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適用できません"
           }
         },
         "ko": {
@@ -493,6 +655,12 @@
             "value": "Your changes will take effect from the next cycle."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更した設定は次のサイクルから適用されます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -508,6 +676,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "When Changes Take Effect"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更のご案内"
           }
         },
         "ko": {
@@ -527,6 +701,12 @@
             "value": "Check Cooldown"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クールダウン確認"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -542,6 +722,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deleted the ‘%@’ group."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」グループを削除しました。"
           }
         },
         "ko": {
@@ -561,6 +747,12 @@
             "value": "Group Deleted"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除しました"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -576,6 +768,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Group Limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループの上限"
           }
         },
         "ko": {
@@ -595,6 +793,12 @@
             "value": "Couldn't Reconnect"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再接続に失敗しました"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -610,6 +814,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Screen Time is connected again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムが再接続されました。"
           }
         },
         "ko": {
@@ -629,6 +839,12 @@
             "value": "Reconnected"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再接続しました"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -644,6 +860,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Check Time Window"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間帯確認"
           }
         },
         "ko": {
@@ -663,6 +885,12 @@
             "value": "This will apply to ‘%@’ now. After that, you'll need to watch an ad to change the rule or items, or to delete the group."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「%@」に今から適用されます。以降ルールや項目を変更・削除するには広告を見る必要があります。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -678,6 +906,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apply This Blocking Rule?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロックルールを適用しますか？"
           }
         },
         "ko": {
@@ -697,6 +931,12 @@
             "value": "Couldn't apply automatically: %@"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自動適用に失敗しました：%@"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -712,6 +952,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "You've already used %1$lld min. If you change the usage time to %2$lld min, ‘%3$@’ will start a break immediately. Continue?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すでに%1$lld分使っているため、使用時間を%2$lld分に変えると「%3$@」グループはすぐに休憩に入ります。変更しますか？"
           }
         },
         "ko": {
@@ -731,6 +977,12 @@
             "value": "Change Cooldown?"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クールダウン変更の確認"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -746,6 +998,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "You've already used %1$lld min. If you change the limit to %2$lld min, ‘%3$@’ will lock immediately. Continue?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すでに%1$lld分使っているため、%2$lld分に変えると「%3$@」グループはすぐにロックされます。変更しますか？"
           }
         },
         "ko": {
@@ -765,6 +1023,12 @@
             "value": "Change Daily Limit?"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上限変更の確認"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -780,6 +1044,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rules set after 11:45 PM can't track usage accurately until midnight."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "23:45以降に設定したルールは使用量を計測できないため、00:00から改めて正確に適用されます。"
           }
         },
         "ko": {
@@ -799,6 +1069,12 @@
             "value": "Allow Screen Time access again to apply app limits."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムの権限を再度許可しないと、アプリの上限を適用できません。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -814,6 +1090,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "GoldTime needs Screen Time access again to apply your app limits."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTimeがアプリの上限を適用するには、スクリーンタイムへのアクセス権限を再度許可する必要があります。"
           }
         },
         "ko": {
@@ -833,6 +1115,12 @@
             "value": "Screen Time Access Required"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムの権限が必要です"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -848,6 +1136,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "This group"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このグループ"
           }
         },
         "ko": {
@@ -867,6 +1161,12 @@
             "value": "Set the break between 30 minutes and 6 hours."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休憩の間隔は30分以上6時間以下で設定してください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -882,6 +1182,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Set the usage time between 5 minutes and 2 hours."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用時間は5分以上2時間以下で設定してください。"
           }
         },
         "ko": {
@@ -901,6 +1207,12 @@
             "value": "Watch Ad to Change"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見て変更する"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -916,6 +1228,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Watch Ad to Delete"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見て削除する"
           }
         },
         "ko": {
@@ -935,6 +1253,12 @@
             "value": "Watch Ad to Edit"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見て編集する"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -950,6 +1274,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apply"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適用する"
           }
         },
         "ko": {
@@ -969,6 +1299,12 @@
             "value": "Applying starts the blocking rule immediately. After that, editing or deleting it requires an ad."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適用するとすぐにブロックルールが始まり、適用後の変更・削除には広告が必要です。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -984,6 +1320,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choose a rule and at least one item first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ルールと制限する項目を先に決めてください。"
           }
         },
         "ko": {
@@ -1003,6 +1345,12 @@
             "value": "Choose a blocking rule first."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロックルールを先に選んでください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1018,6 +1366,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add at least one item to restrict."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "制限する項目を1つ以上追加してください。"
           }
         },
         "ko": {
@@ -1037,6 +1391,12 @@
             "value": "Group %lld"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループ%lld"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1052,6 +1412,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deleting this group can't be undone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループを削除すると元に戻せません。"
           }
         },
         "ko": {
@@ -1071,6 +1437,12 @@
             "value": "Delete Group"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループを削除"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1086,6 +1458,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@: %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@：%2$@"
           }
         },
         "ko": {
@@ -1105,6 +1483,12 @@
             "value": "The limit for %@ isn't valid."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@の上限設定が正しくありません。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1120,6 +1504,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ doesn't have a blocking rule yet."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@のブロックルールがまだ選ばれていません。"
           }
         },
         "ko": {
@@ -1139,6 +1529,12 @@
             "value": "%@ doesn't contain any apps or websites."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@にアプリやウェブサイトがありません。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1154,6 +1550,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ contains unsupported items."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@に対応していない項目があります。"
           }
         },
         "ko": {
@@ -1173,6 +1575,12 @@
             "value": "%@ hasn't been applied, so protection hasn't started."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@はまだ適用前のため、保護が始まっていません。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1188,6 +1596,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "iOS allows up to %1$lld protected apps in total. You currently have %2$lld."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOSのShield制限により、全アプリは%1$lld個以下にまとめる必要があります。現在%2$lld個です。"
           }
         },
         "ko": {
@@ -1207,6 +1621,12 @@
             "value": "You can have up to %lld groups."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループは%lld個までです。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1222,6 +1642,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "The combined app and website limit for %1$@ is %2$lld."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@はアプリとウェブサイトを合わせて%2$lld個までしか追加できません。"
           }
         },
         "ko": {
@@ -1241,6 +1667,12 @@
             "value": "Restricted Items"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "制限する項目"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1256,6 +1688,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Group Name"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループ名"
           }
         },
         "ko": {
@@ -1275,6 +1713,12 @@
             "value": "Watch an ad to edit or delete an applied group."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適用済みのグループは広告を見た後に編集・削除できます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1290,6 +1734,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Applied Group"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適用済みのグループ"
           }
         },
         "ko": {
@@ -1309,6 +1759,12 @@
             "value": "Choose Restricted Items"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "制限する項目を選択"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1324,6 +1780,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unlock"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロック解除"
           }
         },
         "ko": {
@@ -1343,6 +1805,12 @@
             "value": "Unnamed Group"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称未設定のグループ"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1358,6 +1826,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add Group"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループを追加"
           }
         },
         "ko": {
@@ -1377,6 +1851,12 @@
             "value": "Ads"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1391,7 +1871,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A good day. Not for me, obviously."
+            "value": "A great day. Just not for me."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "いい日ですね。私にとっては違いますけど。"
           }
         },
         "ko": {
@@ -1411,6 +1897,12 @@
             "value": "I can let this one slide."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これくらいなら見逃してあげられます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1426,6 +1918,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your bill is ready. Care to look?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請求書が出ました。確認してみますか？"
           }
         },
         "ko": {
@@ -1445,6 +1943,12 @@
             "value": "You've been busy. Feel that bill getting heavier?"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "なかなかやりますね。請求書の厚みを感じるでしょう？"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1460,6 +1964,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "I'm starting to enjoy this. Me, specifically."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "そろそろ機嫌が良くなってきました。私がですよ。"
           }
         },
         "ko": {
@@ -1479,6 +1989,12 @@
             "value": "A good day. For me this time."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "いい日ですね。今度は私にとって。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1494,6 +2010,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Today's Time Bill"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の時間の請求書"
           }
         },
         "ko": {
@@ -1513,6 +2035,12 @@
             "value": "1-Minute Extensions Left"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り1分延長"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1525,6 +2053,12 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%@"
+          }
+        },
+        "ja": {
           "stringUnit": {
             "state": "translated",
             "value": "+%@"
@@ -1547,6 +2081,12 @@
             "value": "0 min"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0分"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1562,6 +2102,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Create a group and choose its items to set a different daily limit for each group."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループを作って項目を選ぶと、グループごとに違う1日の上限を設定できます。"
           }
         },
         "ko": {
@@ -1581,6 +2127,12 @@
             "value": "No Groups Yet"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだグループがありません。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1596,6 +2148,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Groups %1$lld/%2$lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループ%1$lld/%2$lld"
           }
         },
         "ko": {
@@ -1615,6 +2173,12 @@
             "value": "Up to %lld per group · You can add the same item to multiple groups. Tap a group name to rename it."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1グループにつき%lld個まで・同じ項目を複数のグループに入れられます。グループ名をタップするとすぐに変更できます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1630,6 +2194,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Groups"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループ一覧"
           }
         },
         "ko": {
@@ -1649,6 +2219,12 @@
             "value": "Locks after %1$lld hr %2$lld min"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld時間%2$lld分を超えるとこのグループがロックされます"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1664,6 +2240,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Locks after %lld min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld分を超えるとこのグループがロックされます"
           }
         },
         "ko": {
@@ -1683,6 +2265,12 @@
             "value": "About %1$lld hr %2$lld min left"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り約%1$lld時間%2$lld分"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1698,6 +2286,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "About %lld min left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り約%lld分"
           }
         },
         "ko": {
@@ -1717,6 +2311,12 @@
             "value": "Time Left"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残りの上限"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1732,6 +2332,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Available"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用可能"
           }
         },
         "ko": {
@@ -1751,6 +2357,12 @@
             "value": "%lld min extra"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld分の追加使用"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1766,6 +2378,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Extra time until %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@まで追加使用"
           }
         },
         "ko": {
@@ -1785,6 +2403,12 @@
             "value": "Locked"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロック中"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1800,6 +2424,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Locked until %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@までロック"
           }
         },
         "ko": {
@@ -1819,6 +2449,12 @@
             "value": "Locked until 11:59 PM"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "23:59までロック"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1834,6 +2470,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Midnight"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深夜0時"
           }
         },
         "ko": {
@@ -1853,6 +2495,12 @@
             "value": "Setup Required"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定が必要"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1868,6 +2516,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Available until %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@まで使用可能"
           }
         },
         "ko": {
@@ -1887,6 +2541,12 @@
             "value": "Available until 11:59 PM"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "23:59まで使用可能"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1902,6 +2562,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Waiting"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待機中"
           }
         },
         "ko": {
@@ -1921,6 +2587,12 @@
             "value": "Home"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1936,6 +2608,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Total Extra Time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超過使用時間の合計"
           }
         },
         "ko": {
@@ -1955,6 +2633,12 @@
             "value": "Watch an Ad, Buy 10 Minutes"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見て10分を購入"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -1970,6 +2654,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Watch an Ad, Unlock Until Midnight"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を見て深夜0時まで開く"
           }
         },
         "ko": {
@@ -1989,6 +2679,12 @@
             "value": "1 ad"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告1回"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2004,6 +2700,12 @@
           "stringUnit": {
             "state": "translated",
             "value": " · 10 more minutes for %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · %@ 10分延長"
           }
         },
         "ko": {
@@ -2023,6 +2725,12 @@
             "value": " · %@ stays open until midnight"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · %@ 深夜0時まで開きます"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2038,6 +2746,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Time Extended"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "延長しました"
           }
         },
         "ko": {
@@ -2057,6 +2771,12 @@
             "value": "Time Purchased"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "購入しました"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2072,6 +2792,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Take a break until %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@まで休憩します"
           }
         },
         "ko": {
@@ -2091,6 +2817,12 @@
             "value": "Locked until %@"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@までロックされています"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2106,6 +2838,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Extended %1$@ by %2$@. It'll lock again after another %3$@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@を%2$@延長しました。あと%3$@使うと再びロックされます。"
           }
         },
         "ko": {
@@ -2125,6 +2863,12 @@
             "value": "Unlocked %1$@ until %2$@. Everything resets at midnight."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@のロックを解除しました。%2$@まで使用できます。深夜0時にリセットされます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2140,6 +2884,12 @@
           "stringUnit": {
             "state": "translated",
             "value": " Other groups are still locked."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " 他のグループはまだロックされています。"
           }
         },
         "ko": {
@@ -2159,6 +2909,12 @@
             "value": "Bought %2$@ for %1$@. It'll lock again after another %3$@."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@を購入しました。あと%3$@使うと再びロックされます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2174,6 +2930,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't process the ad extension. Try again in a moment."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告による延長を処理できませんでした。しばらくしてからもう一度お試しください。"
           }
         },
         "ko": {
@@ -2193,6 +2955,12 @@
             "value": "Couldn't find this group. Check its settings in GoldTime."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このグループが見つかりませんでした。GoldTimeでグループ設定を確認してください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2207,7 +2975,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You've used all of today's 1-minute extensions. Watch an ad or keep the lock."
+            "value": "You've used all your 1-minute extensions for today. Watch an ad or keep the lock."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日の1分延長はすべて使い切りました。広告を見るか、ロックを維持できます。"
           }
         },
         "ko": {
@@ -2227,6 +3001,12 @@
             "value": "The lock is staying on because the relock timer couldn't be set. Retrying automatically."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再ロックタイマーの登録に失敗したためロックを維持しました。自動で再試行しています。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2242,6 +3022,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Free"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無料"
           }
         },
         "ko": {
@@ -2261,6 +3047,12 @@
             "value": "Break Time"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休憩時間です"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2276,6 +3068,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Time's Up"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間切れです"
           }
         },
         "ko": {
@@ -2295,6 +3093,12 @@
             "value": "Blocked Time"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロック時間帯です"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2310,6 +3114,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "There's no extension request to retry."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再試行する延長リクエストはありません。"
           }
         },
         "ko": {
@@ -2329,6 +3139,12 @@
             "value": "Choose a group to unlock first."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解除するグループを先に選んでください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2344,6 +3160,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choose a group to unlock, watch an ad, or keep the lock."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解除するグループを選ぶか、広告を見るか、ロックを維持できます。"
           }
         },
         "ko": {
@@ -2363,6 +3185,12 @@
             "value": "Trying to set the relock timer again."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再ロックタイマーの登録を再試行しています。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2378,6 +3206,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "You can still leave without an ad."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告なしで出ることもできます。"
           }
         },
         "ko": {
@@ -2397,6 +3231,12 @@
             "value": "You've used today's limit."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日の上限を使い切りました。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2412,6 +3252,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "More time costs an ad."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もっと使うには広告が必要です。"
           }
         },
         "ko": {
@@ -2431,6 +3277,12 @@
             "value": "Leave now. No ad."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今出れば広告はありません。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2446,6 +3298,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stop, or watch an ad."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やめるか、広告を見るか。"
           }
         },
         "ko": {
@@ -2465,6 +3323,12 @@
             "value": "Only one group can be extended at a time."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一度に延長できるのは1グループだけです。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2480,6 +3344,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Multiple Groups Are Locked"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロックされたグループが複数あります"
           }
         },
         "ko": {
@@ -2499,6 +3369,12 @@
             "value": "After 11:45 PM, usage can't be tracked during an extension. The lock will stay off until 11:59 PM, then the rule will restart at midnight."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "23:45以降は延長しても使用量を計測できないため23:59までロックが解除されたままになり、00:00からルールが再び適用されます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2514,6 +3390,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open the app again, or check the monitoring status in GoldTime."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリを開き直すか、GoldTimeでモニタリング状態を確認してください。"
           }
         },
         "ko": {
@@ -2533,6 +3415,12 @@
             "value": "Couldn't Find a Locked Group"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ロックされたグループが見つかりませんでした。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2548,6 +3436,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Items"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "項目なし"
           }
         },
         "ko": {
@@ -2567,6 +3461,12 @@
             "value": " · %lld left today"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " · 本日あと%lld回"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2582,6 +3482,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Just 1 More Minute"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あと1分だけ使う"
           }
         },
         "ko": {
@@ -2601,6 +3507,12 @@
             "value": "Choose"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2616,6 +3528,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "No more time today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日はこれ以上使用できません"
           }
         },
         "ko": {
@@ -2635,6 +3553,12 @@
             "value": "1-minute extensions aren't available after 11:45 PM"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "23:45以降は1分延長を使用できません"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2650,6 +3574,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choose a group to unlock"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解除するグループを先に選んでください"
           }
         },
         "ko": {
@@ -2669,6 +3599,12 @@
             "value": "Stop using, exit without an ad"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やめる、広告なしで終了"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2684,6 +3620,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Exit without an ad"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告なしで終了"
           }
         },
         "ko": {
@@ -2703,6 +3645,12 @@
             "value": "Stop Using"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "やめておく"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2718,6 +3666,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "We'll tell you to return to GoldTime when you reach a limit. This one is essential, so it can't be turned off."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上限に達したらGoldTimeに戻るようお知らせします。必須のためオフにできません。"
           }
         },
         "ko": {
@@ -2737,6 +3691,12 @@
             "value": "Return to GoldTime"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ復帰の通知"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2752,6 +3712,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Get a summary of yesterday's usage every morning at 9:00."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "毎朝9時に昨日使った時間をまとめてお届けします。"
           }
         },
         "ko": {
@@ -2771,6 +3737,12 @@
             "value": "Daily Summary"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日のまとめ通知"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2786,6 +3758,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Notification Settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知設定"
           }
         },
         "ko": {
@@ -2805,6 +3783,12 @@
             "value": "Open GoldTime to choose a 1-minute extension or watch an ad."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTimeを開いて1分延長か広告視聴を選んでください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2820,6 +3804,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "You've Reached Your Limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上限に達しました"
           }
         },
         "ko": {
@@ -2839,6 +3829,12 @@
             "value": "A good day. Not for me, obviously."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "いい一日でしたね。私にとっては違いますけど。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2854,6 +3850,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stayed within your limits yesterday."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日は上限をキープ！"
           }
         },
         "ko": {
@@ -2873,6 +3875,12 @@
             "value": "%lld min over yesterday."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日は%lld分オーバー。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2890,6 +3898,12 @@
             "value": "I can let this one slide."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これくらいなら見逃してあげます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2904,7 +3918,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time is money, remember?"
+            "value": "Remember, time is money."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時は金なり、覚えていますよね。"
           }
         },
         "ko": {
@@ -2924,6 +3944,12 @@
             "value": "Yesterday's bill was a little heavy."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日の請求書は少し分厚めでした。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2939,6 +3965,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "You did all that for me, didn't you?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これは私のために頑張ってくれたんですよね？"
           }
         },
         "ko": {
@@ -2958,6 +3990,12 @@
             "value": "Check last week's numbers in Stats."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先週の記録を統計で確認してみてください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -2973,6 +4011,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "A new week has started."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい一週間が始まりましたね。"
           }
         },
         "ko": {
@@ -2992,6 +4036,12 @@
             "value": "Now you'll feel what your time is worth."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これから時間の価値を感じてみてください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3007,6 +4057,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "You're All Set!"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備完了！"
           }
         },
         "ko": {
@@ -3026,6 +4082,12 @@
             "value": "Allow"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3041,6 +4103,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Allow in Scheduled Summary"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時刻指定要約で許可"
           }
         },
         "ko": {
@@ -3060,6 +4128,12 @@
             "value": "Allow Tracking"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トラッキングを許可"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3075,6 +4149,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Continue"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続ける"
           }
         },
         "ko": {
@@ -3094,6 +4174,12 @@
             "value": "Don't Allow"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可しない"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3109,6 +4195,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ask App Not to Track"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリにトラッキングを許可しない"
           }
         },
         "ko": {
@@ -3128,6 +4220,12 @@
             "value": "GoldTime would like to send you notifications."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTimeが通知を送信します。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3143,6 +4241,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "“GoldTime” Would Like to Send You Notifications"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“GoldTime”が通知の送信を求めています"
           }
         },
         "ko": {
@@ -3162,6 +4266,12 @@
             "value": "Track app usage and manage your limits."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリの使用時間を計測し、上限を管理します。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3177,6 +4287,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Allow Screen Time Access"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムへのアクセスを許可"
           }
         },
         "ko": {
@@ -3196,6 +4312,12 @@
             "value": "Tap here"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ここをタップ"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3211,6 +4333,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your activity across other companies’ apps and websites may be used for personalized ads."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appやウェブでのアクティビティが、パーソナライズされた広告に使用される場合があります。"
           }
         },
         "ko": {
@@ -3230,6 +4358,12 @@
             "value": "Allow “GoldTime” to Track Your Activity Across Other Companies’ Apps and Websites?"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“GoldTime”がトラッキングの許可を求めています"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3245,6 +4379,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Screen Time access is required. Tap the button again and allow access."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムの権限が必要です。もう一度ボタンを押して権限を許可してください。"
           }
         },
         "ko": {
@@ -3264,6 +4404,12 @@
             "value": "When you go over a limit you set,\nyour chosen apps will lock.\nMore time costs an ad.\nWe'll make that moment hard to ignore,\nso you remember what your time is worth."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自分で決めた上限を超えると選んだアプリがロックされ、\nもっと使うには広告で時間を購入する必要があります。\nあなたが時間の大切さを感じられるように、\n上限を超える瞬間を意識させます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3279,6 +4425,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Time Is Money"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時は金なり"
           }
         },
         "ko": {
@@ -3298,6 +4450,12 @@
             "value": "Choose ‘Allow,’ not ‘Allow in Scheduled Summary,’ to receive notifications immediately"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「時刻指定要約で許可」ではなく「許可」を選ぶと、すぐに通知を受け取れます"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3313,6 +4471,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "You need to allow this permission to use the app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この権限を許可しないとアプリを使用できません"
           }
         },
         "ko": {
@@ -3332,6 +4496,12 @@
             "value": "Ads still appear if you decline, and the app works the same"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拒否しても広告は表示され、アプリの利用に制限はありません"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3347,6 +4517,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Allow Notifications"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知を許可する"
           }
         },
         "ko": {
@@ -3366,6 +4542,12 @@
             "value": "We'll notify you when you're close to a limit.\nYou can turn this on later in Settings if you prefer."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上限が近づくと通知でお知らせします。\nご希望でなければ、後で設定からオンにできます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3381,6 +4563,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Not Now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "後で"
           }
         },
         "ko": {
@@ -3400,6 +4588,12 @@
             "value": "Notification Access"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知の権限"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3415,6 +4609,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Allow Screen Time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムを許可する"
           }
         },
         "ko": {
@@ -3434,6 +4634,12 @@
             "value": "GoldTime needs Screen Time access\nto track app usage and lock apps\nwhen you go over your limit."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリの使用時間を計測し、\n上限を超えるとアプリをロックするために\nスクリーンタイムへのアクセス権限が必要です。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3449,6 +4655,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Screen Time Access"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムの権限"
           }
         },
         "ko": {
@@ -3468,6 +4680,12 @@
             "value": "Continue"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続ける"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3485,6 +4703,12 @@
             "value": "GoldTime is supported by advertisements.\nEnabling tracking allows us to deliver more relevant ads. You will still see ads even if you opt out."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTimeは広告ベースのアプリです。\n広告トラッキングを許可すると、より関連性の高い広告が表示されます。\n拒否しても広告は引き続き表示されます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3500,6 +4724,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Allow Personalized Ads"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パーソナライズ広告を許可"
           }
         },
         "ko": {
@@ -3531,6 +4761,12 @@
             }
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り%lldマス"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3546,6 +4782,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Use up your allowance and the group locks. Once the break is over, it recharges. It also resets at midnight."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用時間の分だけ使うとロックされ、休憩の間隔が過ぎると再びチャージされます。毎日深夜0時にもリセットされます。"
           }
         },
         "ko": {
@@ -3565,6 +4807,12 @@
             "value": "Break Length"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休憩の間隔"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3580,6 +4828,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Use your allowance, then take a break"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "決めた分だけ使うとしばらく休む必要があります"
           }
         },
         "ko": {
@@ -3599,6 +4853,12 @@
             "value": "%1$@ of use, then a %2$@ break"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@使うと%2$@休憩"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3614,6 +4874,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cooldown Lock"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クールダウンロック"
           }
         },
         "ko": {
@@ -3633,6 +4899,12 @@
             "value": "Usage Time"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用時間"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3648,6 +4920,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "The group locks after this amount of use. It resets every midnight."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この時間を超えるとグループがロックされます。毎日深夜0時にリセットされます。"
           }
         },
         "ko": {
@@ -3667,6 +4945,12 @@
             "value": "Locks after your daily allowance"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日に決めた時間を超えるとロックされます"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3682,6 +4966,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Daily Limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日の上限制限"
           }
         },
         "ko": {
@@ -3701,6 +4991,12 @@
             "value": "Changes to rules for applied groups take effect immediately."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すでにルールが適用されたグループは、変更したルールもすぐに反映されます。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3716,6 +5012,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "hr"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間"
           }
         },
         "ko": {
@@ -3735,6 +5037,12 @@
             "value": "min"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3750,6 +5058,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choose a Blocking Rule"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロックルールを選択"
           }
         },
         "ko": {
@@ -3769,6 +5083,12 @@
             "value": "Choose how you want the block to work"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お好みのルールを選んでください"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3784,6 +5104,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "End"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終了"
           }
         },
         "ko": {
@@ -3803,6 +5129,12 @@
             "value": "Start"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開始"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3818,6 +5150,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add Time Window"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間帯を追加"
           }
         },
         "ko": {
@@ -3837,6 +5175,12 @@
             "value": "Add a time window to block"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロックする時間帯を追加してください"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3852,6 +5196,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "The group stays locked during these times. Swipe left on a window to delete it. You can add up to %lld."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "決めた時間帯の間はグループがロックされます。時間帯を左にスワイプすると削除できます。最大%lld個まで追加できます。"
           }
         },
         "ko": {
@@ -3871,6 +5221,12 @@
             "value": "Blocks use during set times"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "決めた時間帯の間、使用をブロックします"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3886,6 +5242,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Time Windows"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間帯ごとのブロック"
           }
         },
         "ko": {
@@ -3905,6 +5267,12 @@
             "value": "Blocking Rule"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロックルール"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3920,6 +5288,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Request Failed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "権限リクエストに失敗しました"
           }
         },
         "ko": {
@@ -3939,6 +5313,12 @@
             "value": "GoldTime needs Screen Time access to apply app limits."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTimeがアプリの上限を適用するには、スクリーンタイムの権限が必要です。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3954,6 +5334,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Screen Time Access Required"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムの権限が必要です"
           }
         },
         "ko": {
@@ -3973,6 +5359,12 @@
             "value": "Send Feedback by Email"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "メールでフィードバックを送る"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -3988,6 +5380,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hi! We read every message you send.\nBugs, fixed fast. Features, built right.\n\n(Write your feedback here)\n\n---\nApp version: %1$@ (%2$@)\nDevice: %3$@\niOS: %4$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "こんにちは！いただいたご意見はすべて読んでいます。\nバグは素早く、機能追加は正確に！\n\n（ここにご意見をお書きください）\n\n---\nアプリバージョン：%1$@（%2$@）\n端末：%3$@\niOS：%4$@"
           }
         },
         "ko": {
@@ -4007,6 +5405,12 @@
             "value": "GoldTime Feedback"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTimeフィードバック"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4022,6 +5426,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Help make the app better"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリの改善に役立ちます"
           }
         },
         "ko": {
@@ -4041,6 +5451,12 @@
             "value": "Write a Review"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "レビューを書く"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4056,6 +5472,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Leave a rating and review on the App Store"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Storeで評価とレビューをお願いします"
           }
         },
         "ko": {
@@ -4075,6 +5497,12 @@
             "value": "Share with Friends"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "友達に共有する"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4090,6 +5518,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tell people about GoldTime"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "周りにGoldTimeを広めてください"
           }
         },
         "ko": {
@@ -4109,6 +5543,12 @@
             "value": "May arrive late because it's in Scheduled Summary"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時刻指定要約にまとめられ、通知が遅れる場合があります"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4124,6 +5564,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Turned off in iOS Settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOSの設定でオフになっています"
           }
         },
         "ko": {
@@ -4143,6 +5589,12 @@
             "value": "Tap to allow notifications"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タップして通知を許可してください"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4158,6 +5610,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Turn on in iOS Settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOSの設定でオンにしてください"
           }
         },
         "ko": {
@@ -4177,6 +5635,12 @@
             "value": "Notifications"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4192,6 +5656,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reconnects monitoring if the connection is lost"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モニタリング接続が切れたときに再接続します"
           }
         },
         "ko": {
@@ -4211,6 +5681,12 @@
             "value": "Reconnect Screen Time"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムの再接続"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4226,6 +5702,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Allowed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "許可済み"
           }
         },
         "ko": {
@@ -4245,6 +5727,12 @@
             "value": "Needs Attention"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認が必要です"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4260,6 +5748,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Screen Time Access"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スクリーンタイムの権限"
           }
         },
         "ko": {
@@ -4279,6 +5773,12 @@
             "value": "Feedback"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フィードバック"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4294,6 +5794,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "General"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一般"
           }
         },
         "ko": {
@@ -4313,6 +5819,12 @@
             "value": "Troubleshooting"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トラブルシューティング"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4328,6 +5840,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定"
           }
         },
         "ko": {
@@ -4347,6 +5865,12 @@
             "value": "Start of Week"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週の開始曜日"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4362,6 +5886,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Monday"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月曜日"
           }
         },
         "ko": {
@@ -4381,6 +5911,12 @@
             "value": "Sunday"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日曜日"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4396,6 +5932,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%2$@ less than %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@より%2$@少ないです"
           }
         },
         "ko": {
@@ -4415,6 +5957,12 @@
             "value": "%2$@ more than %1$@"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@より%2$@多いです"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4430,6 +5978,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Same as %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@と同じです"
           }
         },
         "ko": {
@@ -4449,6 +6003,12 @@
             "value": "Average"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平均"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4464,6 +6024,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Average"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平均"
           }
         },
         "ko": {
@@ -4483,6 +6049,12 @@
             "value": "Date"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日付"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4500,6 +6072,12 @@
             "value": "Extra Time"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加使用"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4511,16 +6089,22 @@
     "stats.chart.yAxis.hourMinute %lld %lld": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld시간 %2$lld분"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%1$lldh %2$lldm"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld時間%2$lld分"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld시간 %2$lld분"
           }
         }
       }
@@ -4528,16 +6112,22 @@
     "stats.chart.yAxis.hours %lld": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld시간"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%lldh"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld時間"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld시간"
           }
         }
       }
@@ -4545,16 +6135,22 @@
     "stats.chart.yAxis.minutes %lld": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld분"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%lldm"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld分"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld분"
           }
         }
       }
@@ -4566,6 +6162,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "This month's average"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今月の平均"
           }
         },
         "ko": {
@@ -4585,6 +6187,12 @@
             "value": "This year's average"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今年の平均"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4600,6 +6208,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ average"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@年の平均"
           }
         },
         "ko": {
@@ -4619,6 +6233,12 @@
             "value": "%@ less than yesterday"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日より%@少ないです"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4634,6 +6254,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ more than yesterday"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日より%@多いです"
           }
         },
         "ko": {
@@ -4653,6 +6279,12 @@
             "value": "None yesterday or today"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日も今日もありません"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4668,6 +6300,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Same as yesterday"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日と同じです"
           }
         },
         "ko": {
@@ -4687,6 +6325,12 @@
             "value": "Extra Time"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加使用"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4702,6 +6346,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Monthly"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月間"
           }
         },
         "ko": {
@@ -4721,6 +6371,12 @@
             "value": "Weekly"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週間"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4736,6 +6392,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Monthly Average"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月間平均"
           }
         },
         "ko": {
@@ -4755,6 +6417,12 @@
             "value": "No Extra Time Recorded"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加使用の記録なし"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4770,6 +6438,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Period"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "期間"
           }
         },
         "ko": {
@@ -4789,6 +6463,12 @@
             "value": "History"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4804,6 +6484,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Without watching ads"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告なしの連続"
           }
         },
         "ko": {
@@ -4823,6 +6509,12 @@
             "value": "Best"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最高"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4838,6 +6530,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Current"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在"
           }
         },
         "ko": {
@@ -4857,6 +6555,12 @@
             "value": "Longest streak"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "過去最長記録"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4872,6 +6576,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ad-Free Streak"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告なしの連続日数"
           }
         },
         "ko": {
@@ -4891,6 +6601,12 @@
             "value": "You watched an ad today"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日は広告を見ました"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4906,6 +6622,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "This Month"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今月"
           }
         },
         "ko": {
@@ -4925,6 +6647,12 @@
             "value": "This Week"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今週"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4940,6 +6668,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stats"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "統計"
           }
         },
         "ko": {
@@ -4959,6 +6693,12 @@
             "value": "%@ less per day than last week"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先週より平均%@少ないです"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -4974,6 +6714,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ more per day than last week"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先週より平均%@多いです"
           }
         },
         "ko": {
@@ -4993,6 +6739,12 @@
             "value": "No data from last week"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先週の記録なし"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -5008,6 +6760,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Same daily average as last week"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先週の平均と同じです"
           }
         },
         "ko": {
@@ -5027,6 +6785,12 @@
             "value": "Weekly Average"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週間平均"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -5042,6 +6806,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "The end time must be later than the start time. Split a window that crosses midnight into two."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終了時刻は開始時刻より後にしてください。深夜0時をまたぐ時間帯は2つに分けてください。"
           }
         },
         "ko": {
@@ -5061,6 +6831,12 @@
             "value": "Add at least one time window."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロックする時間帯を1つ以上追加してください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -5076,6 +6852,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "This time window isn't valid."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間帯の設定が正しくありません。"
           }
         },
         "ko": {
@@ -5095,6 +6877,12 @@
             "value": "Some time windows overlap. Adjust them and try again."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重なっている時間帯があります。時間帯を調整してください。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -5112,6 +6900,12 @@
             "value": "You can add up to %lld time windows."
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロックする時間帯は%lld個までです。"
+          }
+        },
         "ko": {
           "stringUnit": {
             "state": "translated",
@@ -5127,6 +6921,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "A time window must be at least %lld min."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブロックする時間帯は%lld分以上にしてください。"
           }
         },
         "ko": {
