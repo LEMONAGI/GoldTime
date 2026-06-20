@@ -9,6 +9,25 @@ Apple Framework 래퍼와 싱글톤 서비스. ScreenTime, Auth, Notification, A
   단 Domain/Presentation에서 이 서비스를 **직접 참조하면 안 됨**(프로토콜/UseCase 경유).
 - 위험도 **High** → 직렬로 처리하고 검증 메모를 남긴다.
 
+## GTLog — 디버그 OSLog (`Core/Logging/GTLogger.swift`)
+
+그룹별·잠금 방식별로 사용량 측정/잠금/해제가 실제 일어나는지 추적하는 `os.Logger` 래퍼.
+`print`이 아니라 OSLog인 이유: 강제종료/재부팅 후에도 시스템 로그에 보존돼 사후 확인이 된다
+(extension은 별도 프로세스라 `print`이 Xcode에 거의 안 잡힘).
+
+- subsystem `com.nagi.GoldTime` 고정(extension의 `Bundle.main`은 extension id라 고정값 사용).
+  카테고리: `DailyLimit` / `Cooldown` / `TimeWindow` / `Override` / `Shield` / `Activity`
+  (`Activity`는 DeviceActivity 콜백 진입점 raw 추적 = tick 도착 여부 자체).
+- **`GTLog`를 쓰는 파일은 반드시 `import os`** 한다. `\(x, privacy: .public)` interpolation은
+  `os`의 `OSLogInterpolation`이라, GTLog 정의 파일에만 import가 있고 사용처에 없으면
+  `instance method 'notice' is not available due to missing import of defining module 'os'`로
+  **빌드 실패**(SourceKit은 "Extra argument 'privacy'"로 보임). 메인 앱·extension 모두 해당.
+- **프라이버시**: `FamilyActivitySelection`·application/webDomain 토큰은 절대 로깅 금지(opaque/민감,
+  개수만). 그룹 이름·UUID·분 수·임계값은 디버깅에 필요하므로 `privacy: .public` 명시(기본은 마스킹).
+- 확인: 기기 연결 후 Console.app 필터 `subsystem:com.nagi.GoldTime`, 또는
+  `log show --last 30m --predicate 'subsystem == "com.nagi.GoldTime"'`(강제종료 후 보존 확인).
+- Presentation은 Core 직접 참조 금지라 GTLog를 쓰지 않는다(측정/잠금/해제 로깅은 Core+extension에만).
+
 ## SharedStore 계약 (코드만 봐선 모르는 것)
 
 `Core/Persistence/SharedStore.swift` = 메인 앱과 3개 extension이 함께 쓰는 App Group

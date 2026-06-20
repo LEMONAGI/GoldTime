@@ -17,6 +17,7 @@ import DeviceActivity
 import FamilyControls
 import Foundation
 import ManagedSettings
+import os
 
 extension DeviceActivityName {
     static let daily = Self("daily")
@@ -158,6 +159,9 @@ enum DailyMonitor {
             .dailyGroup(for: group.id, generation: generation),
             during: freshDailyWindow(now: now),
             events: events
+        )
+        GTLog.dailyLimit.notice(
+            "측정창 등록 group=\(group.name, privacy: .public)#\(group.id.uuidString.prefix(4), privacy: .public) baseline=\(baseline, privacy: .public)m remaining=\(remaining, privacy: .public)m thresholds=\(thresholds.count, privacy: .public) gen=\(generation, privacy: .public)"
         )
     }
 

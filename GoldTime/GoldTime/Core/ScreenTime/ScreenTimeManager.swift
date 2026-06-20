@@ -9,6 +9,7 @@ import DeviceActivity
 import FamilyControls
 import Foundation
 import ManagedSettings
+import os
 
 // daily/dailyGroup/dailyGroupID/dailyHeartbeat 및 DeviceActivityEvent.Name.tick/tickInfo는
 // DailyMonitor.swift로 이동(앱·extension 공유 단일 출처). 여기서 다시 선언하지 말 것.
@@ -538,6 +539,10 @@ enum ScreenTimeManager {
         store.shield.applicationCategories = nil
         store.shield.webDomains = webDomainTokens.isEmpty ? nil : webDomainTokens
         SharedStore.isShieldActive = true
+        // 토큰 값은 opaque/민감이라 개수만 로깅한다.
+        GTLog.shield.notice(
+            "Shield 적용(앱) lockedGroups=\(SharedStore.shieldedGroupIDs.count, privacy: .public) apps=\(applicationTokens.count, privacy: .public) webs=\(webDomainTokens.count, privacy: .public)"
+        )
     }
 
     static func clearShield() {
@@ -545,6 +550,7 @@ enum ScreenTimeManager {
         store.shield.applicationCategories = nil
         store.shield.webDomains = nil
         SharedStore.isShieldActive = false
+        GTLog.shield.notice("Shield 해제(앱)")
     }
 
     /// 특정 그룹의 쉴드를 해제하고 사용량 기반으로 재잠금한다.
@@ -584,6 +590,9 @@ enum ScreenTimeManager {
             let activity = DeviceActivityName.override(for: groupID)
             overrideMonitorRegistrar.stopMonitoring([activity])
             SharedStore.setOverride(until: endOfDay, for: groupID)
+            GTLog.override.notice(
+                "연장 해제(자정 직전 시간기반 fallback) group=\(group.name, privacy: .public)#\(groupID.uuidString.prefix(4), privacy: .public) until=23:59:59 (모니터 미등록)"
+            )
             applyShield()
             SharedStore.recordOverrideRegistration(
                 activityName: activity.rawValue,
@@ -625,6 +634,9 @@ enum ScreenTimeManager {
                 grantedMinutes: minutes
             )
             applyShield()
+            GTLog.override.notice(
+                "연장 해제 등록 성공(사용량 기반) group=\(group.name, privacy: .public)#\(groupID.uuidString.prefix(4), privacy: .public) granted=\(minutes, privacy: .public)m until=\(end, privacy: .public)"
+            )
             SharedStore.recordOverrideRegistration(
                 activityName: activity.rawValue,
                 groupID: groupID,
@@ -633,6 +645,9 @@ enum ScreenTimeManager {
                 message: "registered usage-based override monitor (\(minutes)m)"
             )
         } catch {
+            GTLog.override.error(
+                "연장 해제 등록 실패 group=\(group.name, privacy: .public)#\(groupID.uuidString.prefix(4), privacy: .public) error=\(error.localizedDescription, privacy: .public)"
+            )
             SharedStore.recordOverrideRegistration(
                 activityName: activity.rawValue,
                 groupID: groupID,
@@ -644,7 +659,6 @@ enum ScreenTimeManager {
                 context: "overrideMonitor",
                 message: error.localizedDescription
             )
-            print("Failed to start override monitoring: \(error.localizedDescription)")
             return .failure(.relockTimerRegistrationFailed)
         }
 

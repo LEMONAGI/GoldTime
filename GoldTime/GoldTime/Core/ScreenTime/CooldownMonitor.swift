@@ -10,6 +10,7 @@
 import DeviceActivity
 import FamilyControls
 import Foundation
+import os
 
 extension DeviceActivityName {
     /// 사용 예산 추적 활동. `cooldownUsage.<gid>.<gen>` 형식. generation으로 재등록 시
@@ -152,6 +153,9 @@ enum CooldownMonitor {
             .cooldownUsage(for: group.id, generation: generation),
             during: usageSchedule(now: now),
             events: events
+        )
+        GTLog.cooldown.notice(
+            "예산 측정창 등록 group=\(group.name, privacy: .public)#\(group.id.uuidString.prefix(4), privacy: .public) baseline=\(baseline, privacy: .public)m budget=\(budget, privacy: .public)m thresholds=\(thresholds.count, privacy: .public) gen=\(generation, privacy: .public)"
         )
     }
 
