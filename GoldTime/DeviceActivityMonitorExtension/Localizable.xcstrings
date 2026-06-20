@@ -4,16 +4,22 @@
     "notification.morning.onTime.body": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "좋은 하루였어요. 저한텐 아니고요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "A good day. Not for me, obviously."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "いい一日でしたね。私にとっては違いますけど。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "좋은 하루였어요. 저한텐 아니고요."
           }
         }
       }
@@ -21,16 +27,22 @@
     "notification.morning.onTime.title": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "어제 한도 내 사용."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Stayed within your limits yesterday."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日は上限内でした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어제 한도 내 사용."
           }
         }
       }
@@ -38,16 +50,22 @@
     "notification.morning.over.title %lld": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "어제 %lld분 초과."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld min over yesterday."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日は%lld分オーバー。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어제 %lld분 초과."
           }
         }
       }
@@ -55,16 +73,22 @@
     "notification.morning.over1.body": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 정도면 살짝 눈 감아드릴게요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "I can let this one slide."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これくらいなら見逃してあげます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 정도면 살짝 눈 감아드릴게요."
           }
         }
       }
@@ -72,16 +96,22 @@
     "notification.morning.over2.body": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "시간이 금이라는 거 기억하시죠."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Time is money, remember?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時は金なり、覚えていますよね。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간이 금이라는 거 기억하시죠."
           }
         }
       }
@@ -89,16 +119,22 @@
     "notification.morning.over3.body": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "어제 청구서가 좀 두꺼웠어요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Yesterday's bill was a little heavy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨日の請求書は少し分厚めでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어제 청구서가 좀 두꺼웠어요."
           }
         }
       }
@@ -106,16 +142,22 @@
     "notification.morning.over4.body": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 정도면 저를 위해 노력하신 거죠?"
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "You did all that for me, didn't you?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これは私のために頑張ってくれたんですよね？"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 정도면 저를 위해 노력하신 거죠?"
           }
         }
       }
@@ -123,16 +165,22 @@
     "notification.morning.weekStart.body": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "지난 주 기록을 통계에서 확인해보세요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Check last week's numbers in Stats."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先週の記録を統計で確認してみてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지난 주 기록을 통계에서 확인해보세요."
           }
         }
       }
@@ -140,16 +188,22 @@
     "notification.morning.weekStart.title": {
       "extractionState": "manual",
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "새로운 한 주가 시작됐네요."
-          }
-        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "A new week has started."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい一週間が始まりましたね。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로운 한 주가 시작됐네요."
           }
         }
       }

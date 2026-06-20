@@ -469,6 +469,7 @@
 			knownRegions = (
 				ko,
 				en,
+				ja,
 				Base,
 			);
 			mainGroup = DF8697712FA4FDB30038364B;
