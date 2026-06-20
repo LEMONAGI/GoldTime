@@ -1,7 +1,314 @@
 {
   "sourceLanguage" : "ko",
   "strings" : {
-
+    "cooldown.error.cooldownOutOfRange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "휴식 간격은 30분 이상 6시간 이하로 정해 주세요."
+          }
+        }
+      }
+    },
+    "cooldown.error.usageOutOfRange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용 시간은 5분 이상 2시간 이하로 정해 주세요."
+          }
+        }
+      }
+    },
+    "group.error.namedReason %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "group.error.noLimit %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@의 한도 설정이 올바르지 않아요."
+          }
+        }
+      }
+    },
+    "group.error.noRule %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@의 차단 규칙을 아직 고르지 않았어요."
+          }
+        }
+      }
+    },
+    "group.error.noSelection %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@에 앱이나 웹 사이트가 없어요."
+          }
+        }
+      }
+    },
+    "group.error.nonAppTokens %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@에 지원하지 않는 항목이 있어요."
+          }
+        }
+      }
+    },
+    "group.error.notApplied %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@은 아직 적용 전이라 보호가 시작되지 않았어요."
+          }
+        }
+      }
+    },
+    "group.error.shieldLimitExceeded %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS Shield 제한 때문에 전체 앱은 %1$lld개 이하로 묶어야 해요. 현재 %2$lld개예요."
+          }
+        }
+      }
+    },
+    "group.error.tooMany %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "그룹은 %lld개까지예요."
+          }
+        }
+      }
+    },
+    "group.error.tooManySelections %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@은 앱과 웹 사이트를 합쳐 %2$lld개까지만 담을 수 있어요."
+          }
+        }
+      }
+    },
+    "notification.limitReached.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GoldTime을 열어 1분 연장 또는 광고 시청을 선택하세요."
+          }
+        }
+      }
+    },
+    "notification.limitReached.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "한도에 도달했어요"
+          }
+        }
+      }
+    },
+    "notification.morning.onTime.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "좋은 하루였어요. 저한텐 아니고요."
+          }
+        }
+      }
+    },
+    "notification.morning.onTime.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "어제 한도 내 사용."
+          }
+        }
+      }
+    },
+    "notification.morning.over.title %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "어제 %lld분 초과."
+          }
+        }
+      }
+    },
+    "notification.morning.over1.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 정도면 살짝 눈 감아드릴게요."
+          }
+        }
+      }
+    },
+    "notification.morning.over2.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시간이 금이라는 거 기억하시죠."
+          }
+        }
+      }
+    },
+    "notification.morning.over3.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "어제 청구서가 좀 두꺼웠어요."
+          }
+        }
+      }
+    },
+    "notification.morning.over4.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 정도면 저를 위해 노력하신 거죠?"
+          }
+        }
+      }
+    },
+    "notification.morning.weekStart.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지난 주 기록을 통계에서 확인해보세요."
+          }
+        }
+      }
+    },
+    "notification.morning.weekStart.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새로운 한 주가 시작됐네요."
+          }
+        }
+      }
+    },
+    "timeWindow.error.crossesMidnight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "종료 시각은 시작 시각보다 늦어야 해요. 자정을 넘는 시간대는 두 개로 나눠 주세요."
+          }
+        }
+      }
+    },
+    "timeWindow.error.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "차단 시간대를 1개 이상 추가해 주세요."
+          }
+        }
+      }
+    },
+    "timeWindow.error.outOfRange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시간대 설정이 올바르지 않아요."
+          }
+        }
+      }
+    },
+    "timeWindow.error.overlapping" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "겹치는 시간대가 있어요. 시간대를 조정해 주세요."
+          }
+        }
+      }
+    },
+    "timeWindow.error.tooMany %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "차단 시간대는 %lld개까지예요."
+          }
+        }
+      }
+    },
+    "timeWindow.error.tooShort %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "차단 시간대는 %lld분 이상이어야 해요."
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }
