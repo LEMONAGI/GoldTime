@@ -1,28 +1,40 @@
 {
-  "sourceLanguage" : "ko",
-  "strings" : {
-    "CFBundleName" : {
-      "comment" : "Bundle name",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GoldTime"
+  "sourceLanguage": "ko",
+  "strings": {
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTime"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoldTime"
           }
         }
       }
     },
-    "NSUserTrackingUsageDescription" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "관련성 높은 광고를 보여주는 데 활용됩니다."
+    "NSUserTrackingUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "관련성 높은 광고를 보여주는 데 활용됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your activity may be used to show you more relevant ads."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }
