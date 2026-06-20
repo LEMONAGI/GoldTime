@@ -672,6 +672,17 @@
         }
       }
     },
+    "group.defaultName %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그룹 %lld"
+          }
+        }
+      }
+    },
     "group.error.namedReason %@ %@": {
       "extractionState": "manual",
       "localizations": {
@@ -833,6 +844,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "잠금 해제"
+          }
+        }
+      }
+    },
+    "group.unnamed": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름 없는 그룹"
           }
         }
       }

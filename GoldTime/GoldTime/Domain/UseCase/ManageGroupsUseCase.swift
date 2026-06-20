@@ -8,7 +8,7 @@ enum ManageGroupsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .maxGroupCountReached:
-            return "그룹은 \(SharedStore.maxGroupCount)개까지예요."
+            return String(localized: "group.error.tooMany \(SharedStore.maxGroupCount)")
         }
     }
 }

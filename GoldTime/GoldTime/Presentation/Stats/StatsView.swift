@@ -80,6 +80,7 @@ struct StatsView: View {
 
 private struct TrendChartSection: View {
     let viewModel: StatsViewModel
+    @Environment(\.locale) private var locale
 
     enum Mode: String, CaseIterable, Identifiable {
         case weekly
@@ -124,17 +125,19 @@ private struct TrendChartSection: View {
     }
 
     private var navigationLabel: String {
-        let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "ko_KR")
         switch mode {
         case .weekly:
             guard weekOffset != 0, let range else { return String(localized: "stats.thisWeek") }
-            fmt.dateFormat = "M/d"
-            return "\(fmt.string(from: range.start)) - \(fmt.string(from: range.end))"
+            let style = Date.FormatStyle.dateTime
+                .month(.defaultDigits)
+                .day()
+                .locale(locale)
+            return "\(range.start.formatted(style)) - \(range.end.formatted(style))"
         case .monthly:
             guard monthOffset != 0, let range else { return String(localized: "stats.thisMonth") }
-            fmt.dateFormat = "yyyy년 M월"
-            return fmt.string(from: range.start)
+            return range.start.formatted(
+                Date.FormatStyle.dateTime.year().month(.wide).locale(locale)
+            )
         }
     }
 
@@ -298,7 +301,7 @@ private struct TrendChartSection: View {
                 if mode == .weekly {
                     AxisMarks(values: stats.map(\.date)) {
                         AxisGridLine()
-                        AxisValueLabel(format: .dateTime.weekday(.narrow).locale(Locale(identifier: "ko_KR")))
+                        AxisValueLabel(format: .dateTime.weekday(.narrow).locale(locale))
                     }
                 } else {
                     AxisMarks(values: .stride(by: .day, count: 7)) {

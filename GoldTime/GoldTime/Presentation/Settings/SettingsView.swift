@@ -148,10 +148,11 @@ struct SettingsView: View {
             Text("settings.weekStart")
                 .font(.subheadline.weight(.semibold))
             Spacer(minLength: 8)
-            Picker("", selection: $viewModel.weekStartDay) {
+            Picker("settings.weekStart", selection: $viewModel.weekStartDay) {
                 Text("settings.weekday.monday").tag(2)
                 Text("settings.weekday.sunday").tag(1)
             }
+            .labelsHidden()
             .pickerStyle(.menu)
             .tint(.secondary)
         }

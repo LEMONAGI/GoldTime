@@ -286,7 +286,7 @@ struct LockOptionsView: View {
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text("\(group.selectionCount)/9")
+            Text(verbatim: "\(group.selectionCount)/9")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .fixedSize()

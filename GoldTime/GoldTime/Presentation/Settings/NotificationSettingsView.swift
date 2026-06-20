@@ -71,7 +71,7 @@ struct NotificationSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
-            Toggle("", isOn: isOn)
+            Toggle(title, isOn: isOn)
                 .labelsHidden()
                 .tint(Color.accent)
                 .disabled(isLocked)

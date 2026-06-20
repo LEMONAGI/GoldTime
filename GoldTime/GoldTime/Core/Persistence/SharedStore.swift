@@ -237,7 +237,7 @@ enum SharedStore {
 
         var displayName: String {
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? "이름 없는 그룹" : trimmed
+            return trimmed.isEmpty ? String(localized: "group.unnamed") : trimmed
         }
     }
 
@@ -356,7 +356,7 @@ enum SharedStore {
     }
 
     static func defaultGroupName(for index: Int) -> String {
-        "그룹 \(index + 1)"
+        String(localized: "group.defaultName \(index + 1)")
     }
 
     static func group(id: UUID) -> ScreenTimeGroup? {
