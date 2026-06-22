@@ -15,6 +15,7 @@ enum AnalyticsEvent {
     case adUnlock(seconds: Int, payload: RuleAnalyticsPayload)
     case oneMinuteUnlock
     case walkAway(lockedCount: Int)
+    case ruleChanged(from: String, to: String, wasLocked: Bool, usedBucket: String, causedLock: Bool)
     case custom(name: String, parameters: [String: Any])
 
     var name: String {
@@ -27,6 +28,7 @@ enum AnalyticsEvent {
         case .adUnlock: return "ad_unlock"
         case .oneMinuteUnlock: return "one_minute_unlock"
         case .walkAway: return "walk_away"
+        case .ruleChanged: return "rule_changed"
         case .custom(let name, _): return name
         }
     }
@@ -44,6 +46,14 @@ enum AnalyticsEvent {
             return parameters
         case .oneMinuteUnlock: return [:]
         case .walkAway(let count): return ["locked_count": count]
+        case .ruleChanged(let from, let to, let wasLocked, let usedBucket, let causedLock):
+            return [
+                "from_rule": from,
+                "to_rule": to,
+                "was_locked": wasLocked,
+                "used_bucket": usedBucket,
+                "caused_lock": causedLock
+            ]
         case .custom(_, let parameters): return parameters
         }
     }

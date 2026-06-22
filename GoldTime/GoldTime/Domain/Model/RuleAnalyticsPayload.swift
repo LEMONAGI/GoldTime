@@ -76,6 +76,18 @@ struct RuleAnalyticsPayload {
 
         return result
     }
+
+    /// `rule_changed` 이벤트의 누적 사용량 버킷. 다른 버킷과 동일한 익명화 원칙(원값 비전송).
+    static func usedBucket(_ minutes: Int) -> String {
+        switch minutes {
+        case ...0: return "used_0m"
+        case 1...15: return "used_1_15m"
+        case 16...30: return "used_16_30m"
+        case 31...60: return "used_31_60m"
+        case 61...120: return "used_61_120m"
+        default: return "used_121m_plus"
+        }
+    }
 }
 
 private extension RuleAnalyticsPayload {
