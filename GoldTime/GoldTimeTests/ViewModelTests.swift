@@ -956,6 +956,141 @@ struct ViewModelTests {
         #expect(registered?["rule_config_bucket"] as? String == "daily_61_120m")
     }
 
+    // MARK: - rule_changed (모드 전환 관찰)
+
+    @Test func switchingRuleModeLogsRuleChanged() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo, screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 15
+        viewModel.ruleEditorCooldownDurationMinutes = 60
+        viewModel.commitRuleSelection()
+
+        let changed = analyticsRepo.parameters(for: "rule_changed")
+        #expect(changed?["from_rule"] as? String == "dailyLimit")
+        #expect(changed?["to_rule"] as? String == "cooldown")
+        #expect(changed?["was_locked"] as? Bool == false)
+        #expect(changed?["caused_lock"] as? Bool == false)
+    }
+
+    @Test func sameRuleModeValueChangeDoesNotLogRuleChanged() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo, screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 1
+        viewModel.limitPickerMinutes = 15
+        viewModel.commitRuleSelection()
+
+        #expect(analyticsRepo.parameters(for: "rule_changed") == nil)
+    }
+
+    @Test func switchingRuleModeWhileLockedLogsWasLocked() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo, screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.lockedGroupIDs = [group.id]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 15
+        viewModel.ruleEditorCooldownDurationMinutes = 60
+        viewModel.commitRuleSelection()
+
+        #expect(analyticsRepo.parameters(for: "rule_changed")?["was_locked"] as? Bool == true)
+    }
+
+    @Test func switchingToSmallerBudgetLogsCausedLock() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo, screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+        viewModel.usedTimeByGroupID = [group.id: 20]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .cooldown
+        viewModel.ruleEditorCooldownUsageMinutes = 5
+        viewModel.ruleEditorCooldownDurationMinutes = 60
+        viewModel.commitRuleSelection()
+
+        let changed = analyticsRepo.parameters(for: "rule_changed")
+        #expect(changed?["caused_lock"] as? Bool == true)
+        #expect(changed?["used_bucket"] as? String == "used_16_30m")
+    }
+
+    @Test func usedBucketBuckets() {
+        #expect(RuleAnalyticsPayload.usedBucket(0) == "used_0m")
+        #expect(RuleAnalyticsPayload.usedBucket(15) == "used_1_15m")
+        #expect(RuleAnalyticsPayload.usedBucket(16) == "used_16_30m")
+        #expect(RuleAnalyticsPayload.usedBucket(60) == "used_31_60m")
+        #expect(RuleAnalyticsPayload.usedBucket(120) == "used_61_120m")
+        #expect(RuleAnalyticsPayload.usedBucket(121) == "used_121m_plus")
+    }
+
     @Test func draftRuleEditDoesNotLogMonitoringRegistration() {
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(),

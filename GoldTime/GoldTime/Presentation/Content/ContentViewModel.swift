@@ -353,6 +353,22 @@ final class ContentViewModel {
         !lockedGroupIDs.contains(id) && !overrideGroupIDs.contains(id)
     }
 
+    /// 모드 전환(ruleKind 변경)을 관찰용으로 기록한다(`rule_changed`). 같은 모드 내 값 변경은 제외.
+    /// apply/early-return 이전(전환 직전 상태)에 호출해야 was_locked·used가 정확하다.
+    /// `effectiveLimit`: 일일 한도/쿨다운 예산(분). timeWindows는 측정창과 무관하므로 미사용(0 전달).
+    private func logRuleChangeIfNeeded(id: UUID, to: GroupRuleKind, effectiveLimit: Int) {
+        guard let old = groups.first(where: { $0.id == id })?.ruleKind, old != to else { return }
+        let used = usedTimeByGroupID[id] ?? 0
+        let causedLock = (to == .dailyLimit || to == .cooldown) && used >= effectiveLimit
+        analyticsRepository.log(.ruleChanged(
+            from: old.rawValue,
+            to: to.rawValue,
+            wasLocked: !isGroupCurrentlyOpen(id),
+            usedBucket: RuleAnalyticsPayload.usedBucket(used),
+            causedLock: causedLock
+        ))
+    }
+
     /// 자정 직전(23:45+) 적용·수정 직후 안내 alert. 모니터 등록이 막혀 규칙이 00:00부터
     /// 적용되는 상황을 알린다. 일일 한도·쿨다운만 — 시간대 차단은 측정창과 무관해 제외한다.
     private var nearMidnightApplyNotice: GoldTimeAlertMessage {
@@ -379,6 +395,7 @@ final class ContentViewModel {
         }
 
         let used = usedTimeByGroupID[id] ?? 0
+        logRuleChangeIfNeeded(id: id, to: .cooldown, effectiveLimit: usage)
         // 이미 사용한 시간보다 작은 예산이면 즉시 휴식에 들어간다(일일 한도 즉시 잠금과 동일 패턴).
         // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
         // 단, 이미 잠김/휴식/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
@@ -431,6 +448,7 @@ final class ContentViewModel {
         guard let id = ruleEditorGroupID else { return }
         let minutes = limitPickerHours * 60 + limitPickerMinutes
         let used = usedTimeByGroupID[id] ?? 0
+        logRuleChangeIfNeeded(id: id, to: .dailyLimit, effectiveLimit: minutes)
 
         // 이미 사용한 시간보다 작은 한도면 즉시 잠긴다(syncDailyMonitoring의 used >= limit 분기).
         // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
@@ -464,6 +482,8 @@ final class ContentViewModel {
             alertMessage = GoldTimeAlertMessage(title: String(localized: "content.alert.timeWindowCheck.title"), message: reason.userMessage)
             return
         }
+
+        logRuleChangeIfNeeded(id: id, to: .timeWindows, effectiveLimit: 0)
 
         // 규칙을 timeWindows로 바꿔도 dailyLimitMinutes는 그대로 보존(되돌릴 때 재사용).
         let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
