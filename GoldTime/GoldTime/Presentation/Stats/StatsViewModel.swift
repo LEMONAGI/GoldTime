@@ -174,25 +174,46 @@ final class StatsViewModel {
     var todayDeltaCaption: String {
         let hasAnyData = statsReport.yesterdayUnlockedSeconds > 0 || statsReport.todayStats.totalUnlockedSeconds > 0
         guard hasAnyData else { return String(localized: "stats.delta.none") }
-        let d = statsReport.todayDelta
-        if d == 0 { return String(localized: "stats.delta.same") }
-        let text = goldTimeDurationText(seconds: abs(d))
-        return d < 0 ? String(localized: "stats.delta.less \(text)") : String(localized: "stats.delta.more \(text)")
+        let deltaMinutes = displayMinutes(statsReport.todayStats.totalUnlockedSeconds) - displayMinutes(statsReport.yesterdayUnlockedSeconds)
+        if deltaMinutes == 0 { return String(localized: "stats.delta.same") }
+        let text = goldTimeDurationText(seconds: abs(deltaMinutes) * 60)
+        return deltaMinutes < 0 ? String(localized: "stats.delta.less \(text)") : String(localized: "stats.delta.more \(text)")
     }
 
     var weeklyDeltaCaption: String {
         guard statsReport.previousWeekAverageSeconds > 0 else { return String(localized: "stats.weekDelta.none") }
-        if statsReport.weeklyAverageDelta == 0 { return String(localized: "stats.weekDelta.same") }
-        let text = goldTimeDurationText(seconds: abs(statsReport.weeklyAverageDelta))
-        return statsReport.weeklyAverageDelta < 0 ? String(localized: "stats.weekDelta.less \(text)") : String(localized: "stats.weekDelta.more \(text)")
+        let deltaMinutes = displayMinutes(statsReport.weeklyAverageSeconds) - displayMinutes(statsReport.previousWeekAverageSeconds)
+        if deltaMinutes == 0 { return String(localized: "stats.weekDelta.same") }
+        let text = goldTimeDurationText(seconds: abs(deltaMinutes) * 60)
+        return deltaMinutes < 0 ? String(localized: "stats.weekDelta.less \(text)") : String(localized: "stats.weekDelta.more \(text)")
     }
 
     var streakSentiment: CardSentiment {
         adFreeStreakDays > 0 ? .positive : .negative
     }
 
+    /// 표시값(올림 분)을 기준으로 추세를 판단해 카드의 값·화살표·문구가 항상 일치하게 한다.
+    /// 초 단위로 비교하면 두 값이 같은 분으로 표시되는데도 화살표가 떠서 분 단위로 계산한다.
+    private func displayTrend(current: Int, comparison: Int) -> TrendDirection {
+        let deltaMinutes = displayMinutes(current) - displayMinutes(comparison)
+        if deltaMinutes > 0 { return .up }
+        if deltaMinutes < 0 { return .down }
+        return .flat
+    }
+
+    var todayTrend: TrendDirection? {
+        let hasAnyData = statsReport.yesterdayUnlockedSeconds > 0 || statsReport.todayStats.totalUnlockedSeconds > 0
+        guard hasAnyData else { return nil }
+        return displayTrend(current: statsReport.todayStats.totalUnlockedSeconds, comparison: statsReport.yesterdayUnlockedSeconds)
+    }
+
+    var weeklyTrend: TrendDirection? {
+        guard statsReport.previousWeekAverageSeconds > 0 else { return nil }
+        return displayTrend(current: statsReport.weeklyAverageSeconds, comparison: statsReport.previousWeekAverageSeconds)
+    }
+
     var todaySentiment: CardSentiment? {
-        switch statsReport.todayTrend {
+        switch todayTrend {
         case .up: .negative
         case .down: .positive
         case .flat: .neutral
@@ -201,7 +222,7 @@ final class StatsViewModel {
     }
 
     var weeklySentiment: CardSentiment? {
-        switch statsReport.weeklyTrend {
+        switch weeklyTrend {
         case .up: .negative
         case .down: .positive
         case .flat: .neutral

@@ -59,7 +59,7 @@ struct StatsView: View {
                     caption: viewModel.todayDeltaCaption,
                     systemName: "clock.fill",
                     tint: .cyan,
-                    trend: viewModel.statsReport.todayTrend,
+                    trend: viewModel.todayTrend,
                     sentiment: viewModel.todaySentiment
                 )
 
@@ -69,7 +69,7 @@ struct StatsView: View {
                     caption: viewModel.weeklyDeltaCaption,
                     systemName: "calendar.badge.clock",
                     tint: .cyan,
-                    trend: viewModel.statsReport.weeklyTrend,
+                    trend: viewModel.weeklyTrend,
                     sentiment: viewModel.weeklySentiment
                 )
             }

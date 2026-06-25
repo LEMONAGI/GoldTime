@@ -14,32 +14,12 @@ struct StatsReport {
         return (weeklyStats + previousWeekStats).first(where: { $0.dateKey == key })?.totalUnlockedSeconds ?? 0
     }
 
-    var todayDelta: Int {
-        todayStats.totalUnlockedSeconds - yesterdayUnlockedSeconds
-    }
-
-    var weeklyUnlockedSeconds: Int {
-        weeklyStats.reduce(0) { $0 + $1.totalUnlockedSeconds }
-    }
-
-    var previousWeekUnlockedSeconds: Int {
-        previousWeekStats.reduce(0) { $0 + $1.totalUnlockedSeconds }
-    }
-
-    var weeklyDelta: Int {
-        weeklyUnlockedSeconds - previousWeekUnlockedSeconds
-    }
-
     var weeklyAverageSeconds: Int {
         averageUnlockedSeconds(from: weeklyStats)
     }
 
     var previousWeekAverageSeconds: Int {
         averageUnlockedSeconds(from: previousWeekStats)
-    }
-
-    var weeklyAverageDelta: Int {
-        weeklyAverageSeconds - previousWeekAverageSeconds
     }
 
     var monthlyAverageSeconds: Int {
@@ -52,21 +32,6 @@ struct StatsReport {
 
     var monthlyMaxMinutes: Int {
         monthlyStats.map { $0.totalUnlockedSeconds / 60 }.max() ?? 0
-    }
-
-    var todayTrend: TrendDirection? {
-        let hasAnyData = yesterdayUnlockedSeconds > 0 || todayStats.totalUnlockedSeconds > 0
-        guard hasAnyData else { return nil }
-        if todayDelta > 0 { return .up }
-        if todayDelta < 0 { return .down }
-        return .flat
-    }
-
-    var weeklyTrend: TrendDirection? {
-        guard previousWeekUnlockedSeconds > 0 else { return nil }
-        if weeklyDelta > 0 { return .up }
-        if weeklyDelta < 0 { return .down }
-        return .flat
     }
 
     private func averageUnlockedSeconds(from stats: [DailyStats]) -> Int {

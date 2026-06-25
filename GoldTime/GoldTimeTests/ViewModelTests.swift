@@ -2270,7 +2270,6 @@ struct ViewModelTests {
         )
 
         #expect(report.yesterdayUnlockedSeconds == 2700)
-        #expect(report.todayDelta == 60 - 2700)
     }
 
     @Test func statsViewModelWeeklyDeltaCaptionLess() {
@@ -2295,6 +2294,68 @@ struct ViewModelTests {
         #expect(viewModel.statsReport.weeklyAverageSeconds == 171)
         #expect(viewModel.statsReport.previousWeekAverageSeconds == 514)
         #expect(viewModel.weeklyDeltaCaption == "지난 주보다 평균 6분 적어요")
+    }
+
+    /// 회귀: 주간 카드 추세는 합계가 아니라 평균으로 판단해야 한다.
+    /// 이번 주 합계는 더 크지만(기록일 더 많음) 평균은 더 작은 경우, 카드는 평균을
+    /// 보여주므로 화살표·색은 감소(.down/.positive)여야 한다. 합계 기반이면 .up으로 뒤집힌다.
+    @Test func statsViewModelWeeklyTrendUsesAverageNotSum() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        // 이번 주: 7일 모두 14분(840s) → 합계 5880s, 평균 840s.
+        let thisWeek = (0..<7).map { offset -> DailyStats in
+            let date = cal.date(byAdding: .day, value: -offset, to: today)!
+            return DailyStats(dateKey: DailyStats.dateKey(for: date), adUnlockedSeconds: 840)
+        }
+        // 지난주: 4일만 20분(1200s) → 합계 4800s, 평균 1200s. 합계는 이번 주가 크지만 평균은 작다.
+        let prevWeek = (7..<11).map { offset -> DailyStats in
+            let date = cal.date(byAdding: .day, value: -offset, to: today)!
+            return DailyStats(dateKey: DailyStats.dateKey(for: date), adUnlockedSeconds: 1200)
+        }
+        let viewModel = StatsViewModel(
+            groups: [],
+            statsReport: StatsReport(
+                todayStats: thisWeek[0],
+                weeklyStats: thisWeek,
+                previousWeekStats: prevWeek,
+                monthlyStats: Array(repeating: DailyStats(dateKey: ""), count: 30),
+                trackingStartDate: nil
+            ),
+            isMonitoring: true,
+            adFreeStreakDays: 0,
+            maxAdFreeStreakDays: 7
+        )
+
+        #expect(viewModel.statsReport.weeklyAverageSeconds == 840)
+        #expect(viewModel.statsReport.previousWeekAverageSeconds == 1200)
+        #expect(viewModel.weeklyTrend == .down)
+        #expect(viewModel.weeklySentiment == .positive)
+        #expect(viewModel.weeklyDeltaCaption == "지난 주보다 평균 6분 적어요")
+    }
+
+    /// 회귀: 분 단위 통일. 두 평균이 초 단위론 다르지만 올림 분(둘 다 15분)이 같으면
+    /// 표시값이 같으므로 카드 화살표·색이 뜨지 않아야 한다(.flat/.neutral).
+    @Test func statsViewModelWeeklyTrendIgnoresSubMinuteDifference() {
+        let thisWeek = makeWeeklyStats(adUnlockedSecondsPerDay: Array(repeating: 870, count: 7)) // 평균 870s → 올림 15분
+        let prevWeek = makeWeeklyStats(adUnlockedSecondsPerDay: Array(repeating: 850, count: 7)) // 평균 850s → 올림 15분
+        let viewModel = StatsViewModel(
+            groups: [],
+            statsReport: StatsReport(
+                todayStats: DailyStats(dateKey: thisWeek[6].dateKey),
+                weeklyStats: thisWeek,
+                previousWeekStats: prevWeek,
+                monthlyStats: Array(repeating: DailyStats(dateKey: ""), count: 30),
+                trackingStartDate: nil
+            ),
+            isMonitoring: true,
+            adFreeStreakDays: 0,
+            maxAdFreeStreakDays: 7
+        )
+
+        #expect(viewModel.statsReport.weeklyAverageSeconds == 870)
+        #expect(viewModel.statsReport.previousWeekAverageSeconds == 850)
+        #expect(viewModel.weeklyTrend == .flat)
+        #expect(viewModel.weeklySentiment == .neutral)
     }
 
     @Test func statsViewModelWeeklyDeltaCaptionNoPrevData() {
