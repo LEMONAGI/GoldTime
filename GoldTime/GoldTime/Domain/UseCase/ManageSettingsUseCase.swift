@@ -45,4 +45,12 @@ final class ManageSettingsUseCase {
     func setDailyMorningNotificationEnabled(_ enabled: Bool) {
         notificationRepository.setDailyMorningNotificationEnabled(enabled)
     }
+
+    var isUsageAlertEnabled: Bool {
+        notificationRepository.isUsageAlertEnabled
+    }
+
+    func setUsageAlertEnabled(_ enabled: Bool) {
+        notificationRepository.setUsageAlertEnabled(enabled)
+    }
 }

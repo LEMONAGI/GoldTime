@@ -368,6 +368,10 @@ enum ScreenTimeManager {
         SharedStore.resyncTimeWindowLocks()
         applyShield()
 
+        // 시간대 차단 5분 전·종료(재사용 가능) 알림을 현재 구성으로 재예약한다(고정 시각이라 캘린더 트리거,
+        // DeviceActivity activity를 늘리지 않음). 토글 OFF면 내부에서 기존 예약만 정리한다.
+        NotificationService.rescheduleTimeWindowAlerts(groups: groups)
+
         if let error = firstError { throw error }
     }
 

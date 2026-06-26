@@ -31,6 +31,21 @@ struct NotificationRepositoryImpl: NotificationRepository {
             NotificationService.cancelDailyMorningNotification()
         }
     }
+
+    var isUsageAlertEnabled: Bool {
+        SharedStore.isUsageAlertEnabled
+    }
+
+    func setUsageAlertEnabled(_ enabled: Bool) {
+        SharedStore.isUsageAlertEnabled = enabled
+        if enabled {
+            // 켜는 즉시 현재 시간대 그룹 구성으로 5분 전·종료 알림을 미리 건다.
+            NotificationService.rescheduleTimeWindowAlerts(groups: SharedStore.screenTimeGroups)
+        } else {
+            // 끄면 예약된 시간대 알림을 모두 취소(한도 임박·재사용 알림은 발송 시점 토글 가드로 막힘).
+            NotificationService.cancelTimeWindowAlerts()
+        }
+    }
 }
 
 private extension UNAuthorizationStatus {

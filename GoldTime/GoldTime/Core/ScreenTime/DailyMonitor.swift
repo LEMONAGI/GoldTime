@@ -184,3 +184,24 @@ enum DailyMonitor {
         groups.contains { $0.ruleKind == .dailyLimit || $0.ruleKind == .cooldown }
     }
 }
+
+/// 사용량 알림 정책 — 일일 한도·쿨다운 예산·연장분이 **공통으로** 쓴다(메인 앱·extension 공유).
+/// 비율을 따로 계산하지 않고, 이미 등록된 threshold 틱 배열(`dailyThresholdMinutes`/
+/// `usageThresholds`, 한도≤10분이면 1분 단위·≥10분이면 10개 균등분배)의 **인덱스**로 알림
+/// 단계를 정한다. 그래서 등록된 측정 틱과 알림 시점이 어긋나지 않는다.
+enum UsageAlertPolicy {
+    /// 정렬된 threshold 틱 배열에서 발송할 (단계 percent, 절대 minute) 목록.
+    /// - 틱 1개(1분): `[]` — 알림 없음
+    /// - 틱 2~9개(2~9분): `[(90, 마지막 직전 틱)]` — 거의 다 썼을 때 1회
+    /// - 틱 10개(10분 이상): `[(50, 5번째 틱), (90, 9번째 틱)]`
+    /// percent는 문구 분기·중복방지 키로만 쓰고(짧은 한도의 단일 알림은 90으로 통일), 발화
+    /// 판정은 minute(절대 사용량)으로 한다.
+    nonisolated static func ticks(_ thresholdTicks: [Int]) -> [(percent: Int, minute: Int)] {
+        let count = thresholdTicks.count
+        guard count >= 2 else { return [] }
+        if count >= 10 {
+            return [(50, thresholdTicks[4]), (90, thresholdTicks[8])]
+        }
+        return [(90, thresholdTicks[count - 2])]
+    }
+}
