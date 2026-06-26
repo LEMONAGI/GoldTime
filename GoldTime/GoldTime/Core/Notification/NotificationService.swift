@@ -8,6 +8,11 @@
 import Foundation
 import UserNotifications
 
+/// 한도 임박 알림의 제한 종류 — 문구 분기용. 일일 한도/쿨다운 예산/연장(광고·1분) 시간.
+enum UsageAlertKind {
+    case daily, cooldown, override
+}
+
 enum NotificationService {
     static let openAppCategory = "GOLDTIME_OPEN"
     static let weeklyStatsIdentifier = "com.goldtime.weeklyStats"
@@ -134,17 +139,32 @@ enum NotificationService {
     /// 시간대 차단 5분 전·종료(재사용 가능) 알림 식별자 접두사. 재예약/취소 시 이 prefix로 묶어 관리한다.
     static let timeWindowAlertPrefix = "goldtime.tw."
 
-    /// 한도 임박 알림. 일일/쿨다운/연장 tick 콜백(extension)에서 발송. `percent`(50/90)로 문구를 분기하고
-    /// `remainingMinutes`(한도까지 남은 분)를 본문에 넣는다. 짧은 한도의 단일 알림도 90으로 들어온다.
-    static func scheduleUsageAlert(groupName: String, percent: Int, remainingMinutes: Int) {
+    /// 한도 임박 알림. 일일/쿨다운/연장 tick 콜백(extension)에서 발송. `kind`로 제한 종류를,
+    /// `percent`(50/90)로 단계를 구분해 문구를 고른다. title에 그룹명, body에 남은 분(`remainingMinutes`).
+    /// 짧은 한도의 단일 알림도 90으로 들어온다.
+    static func scheduleUsageAlert(groupName: String, kind: UsageAlertKind, percent: Int, remainingMinutes: Int) {
         guard SharedStore.isUsageAlertEnabled else { return }
         let content = UNMutableNotificationContent()
-        if percent >= 90 {
-            content.title = String(localized: "notification.usage.almost.title")
-            content.body = String(localized: "notification.usage.almost.body \(groupName) \(remainingMinutes)")
-        } else {
-            content.title = String(localized: "notification.usage.half.title")
-            content.body = String(localized: "notification.usage.half.body \(groupName) \(remainingMinutes)")
+        // 키는 정적 리터럴이라야 카탈로그 추출이 되므로 종류·단계별로 명시적으로 분기한다.
+        switch (kind, percent >= 90) {
+        case (.daily, false):
+            content.title = String(localized: "notification.usage.daily.half.title \(groupName)")
+            content.body = String(localized: "notification.usage.daily.half.body \(remainingMinutes)")
+        case (.daily, true):
+            content.title = String(localized: "notification.usage.daily.almost.title \(groupName)")
+            content.body = String(localized: "notification.usage.daily.almost.body \(remainingMinutes)")
+        case (.cooldown, false):
+            content.title = String(localized: "notification.usage.cooldown.half.title \(groupName)")
+            content.body = String(localized: "notification.usage.cooldown.half.body \(remainingMinutes)")
+        case (.cooldown, true):
+            content.title = String(localized: "notification.usage.cooldown.almost.title \(groupName)")
+            content.body = String(localized: "notification.usage.cooldown.almost.body \(remainingMinutes)")
+        case (.override, false):
+            content.title = String(localized: "notification.usage.override.half.title \(groupName)")
+            content.body = String(localized: "notification.usage.override.half.body \(remainingMinutes)")
+        case (.override, true):
+            content.title = String(localized: "notification.usage.override.almost.title \(groupName)")
+            content.body = String(localized: "notification.usage.override.almost.body \(remainingMinutes)")
         }
         content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
@@ -156,8 +176,8 @@ enum NotificationService {
     static func scheduleRechargeAvailable(groupName: String) {
         guard SharedStore.isUsageAlertEnabled else { return }
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "notification.recharge.title")
-        content.body = String(localized: "notification.recharge.body \(groupName)")
+        content.title = String(localized: "notification.recharge.title \(groupName)")
+        content.body = String(localized: "notification.recharge.body")
         content.sound = .default
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
@@ -181,14 +201,14 @@ enum NotificationService {
                     scheduleTimeWindowAlert(
                         identifier: "\(timeWindowAlertPrefix)warn.\(group.id.uuidString).\(index)",
                         minuteOfDay: timeWindowAlertMinute(baseMinute: window.startMinuteOfDay, offset: -5),
-                        title: String(localized: "notification.timeWindow.soon.title"),
-                        body: String(localized: "notification.timeWindow.soon.body \(name)")
+                        title: String(localized: "notification.timeWindow.soon.title \(name)"),
+                        body: String(localized: "notification.timeWindow.soon.body")
                     )
                     scheduleTimeWindowAlert(
                         identifier: "\(timeWindowAlertPrefix)end.\(group.id.uuidString).\(index)",
                         minuteOfDay: timeWindowAlertMinute(baseMinute: window.endMinuteOfDay, offset: 1),
-                        title: String(localized: "notification.timeWindow.ended.title"),
-                        body: String(localized: "notification.timeWindow.ended.body \(name)")
+                        title: String(localized: "notification.timeWindow.ended.title \(name)"),
+                        body: String(localized: "notification.timeWindow.ended.body")
                     )
                 }
             }

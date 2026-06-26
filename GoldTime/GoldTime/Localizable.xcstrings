@@ -4073,232 +4073,416 @@
         }
       }
     },
-    "notification.recharge.body %@": {
+    "notification.recharge.body": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · 휴식이 끝났어요"
+            "value": "휴식이 끝났어요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · Your break is over"
+            "value": "Your break is over"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@・休憩が終わりました"
+            "value": "休憩が終わりました"
           }
         }
       }
     },
-    "notification.recharge.title": {
+    "notification.recharge.title %@": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "다시 사용할 수 있어요"
+            "value": "%@ 다시 사용 가능해요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can use it again"
+            "value": "%@ is available again"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "また使えます"
+            "value": "%@ また使えます"
           }
         }
       }
     },
-    "notification.timeWindow.ended.body %@": {
+    "notification.timeWindow.ended.body": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · 차단이 끝났어요"
+            "value": "시간대 차단이 끝났어요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · The block has ended"
+            "value": "The blocked hours have ended"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@・ブロックが終了しました"
+            "value": "時間帯ブロックが終了しました"
           }
         }
       }
     },
-    "notification.timeWindow.ended.title": {
+    "notification.timeWindow.ended.title %@": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "다시 사용할 수 있어요"
+            "value": "%@ 다시 사용 가능해요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can use it again"
+            "value": "%@ is available again"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "また使えます"
+            "value": "%@ また使えます"
           }
         }
       }
     },
-    "notification.timeWindow.soon.body %@": {
+    "notification.timeWindow.soon.body": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · 5분 뒤 차단이 시작돼요"
+            "value": "5분 남았습니다"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · Blocking starts in 5 minutes"
+            "value": "5 minutes left"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@・5分後にブロックが始まります"
+            "value": "あと5分です"
           }
         }
       }
     },
-    "notification.timeWindow.soon.title": {
+    "notification.timeWindow.soon.title %@": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "곧 차단돼요"
+            "value": "%@ 곧 휴식 시간이에요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Blocking soon"
+            "value": "%@ — break time soon"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "もうすぐブロックされます"
+            "value": "%@ もうすぐ休憩時間です"
           }
         }
       }
     },
-    "notification.usage.almost.body %@ %lld": {
+    "notification.usage.cooldown.almost.body %lld": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ · %2$lld분 남았어요"
+            "value": "잠기기까지 %lld분"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ · %2$lld min left"
+            "value": "%lld min until locked"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@・残り%2$lld分"
+            "value": "ロックまで%lld分"
           }
         }
       }
     },
-    "notification.usage.almost.title": {
+    "notification.usage.cooldown.almost.title %@": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "곧 한도예요"
+            "value": "%@ 곧 휴식이에요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Almost at your limit"
+            "value": "%@ — break coming up"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "もうすぐ上限です"
+            "value": "%@ もうすぐ休憩です"
           }
         }
       }
     },
-    "notification.usage.half.body %@ %lld": {
+    "notification.usage.cooldown.half.body %lld": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ · %2$lld분 남았어요"
+            "value": "휴식까지 %lld분"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ · %2$lld min left"
+            "value": "%lld min until your break"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@・残り%2$lld分"
+            "value": "休憩まで%lld分"
           }
         }
       }
     },
-    "notification.usage.half.title": {
+    "notification.usage.cooldown.half.title %@": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "절반 썼어요"
+            "value": "%@ 절반 썼어요"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Halfway there"
+            "value": "%@ — halfway used"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "半分使いました"
+            "value": "%@ 半分使いました"
+          }
+        }
+      }
+    },
+    "notification.usage.daily.almost.body %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "한도까지 %lld분"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り%lld分"
+          }
+        }
+      }
+    },
+    "notification.usage.daily.almost.title %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 한도가 거의 찼어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — almost at your limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ もうすぐ上限です"
+          }
+        }
+      }
+    },
+    "notification.usage.daily.half.body %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "한도까지 %lld분"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り%lld分"
+          }
+        }
+      }
+    },
+    "notification.usage.daily.half.title %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 한도 절반 썼어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — halfway to your limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 上限の半分を使いました"
+          }
+        }
+      }
+    },
+    "notification.usage.override.almost.body %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 잠기기까지 %lld분"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min until locked again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再ロックまで%lld分"
+          }
+        }
+      }
+    },
+    "notification.usage.override.almost.title %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 추가 시간 거의 끝났어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — bonus time almost up"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 追加時間がもうすぐ終わります"
+          }
+        }
+      }
+    },
+    "notification.usage.override.half.body %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 잠기기까지 %lld분"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min until locked again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再ロックまで%lld分"
+          }
+        }
+      }
+    },
+    "notification.usage.override.half.title %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 추가 시간 절반 썼어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — half your bonus time used"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 追加時間を半分使いました"
           }
         }
       }

@@ -286,7 +286,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         let isOverrideActive = SharedStore.usageBasedOverrideGroupIDs.contains(groupID)
         // 한도 임박 알림은 연장(override) 중이 아닐 때만(연장은 별도 override 경로가 담당).
         if !isOverrideActive {
-            emitUsageAlerts(groupID: groupID, used: usedTime, limit: group.dailyLimitMinutes, override: false)
+            emitUsageAlerts(groupID: groupID, used: usedTime, limit: group.dailyLimitMinutes, kind: .daily)
         }
         let willLock = usedTime >= group.dailyLimitMinutes && !isOverrideActive
         GTLog.dailyLimit.notice(
@@ -326,7 +326,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // usedTime을 baseline+minute 이상으로만 올려 UI 잔여 시간을 갱신한다 (재등록 없음).
         let usedTime = SharedStore.raiseUsedTime(to: baseline + minute, for: groupID)
         // 연장분(granted) 기준 50·90% 임박 알림. granted=1이면 알림 없음, 10이면 둘 다(UsageAlertPolicy).
-        emitUsageAlerts(groupID: groupID, used: minute, limit: granted, override: true)
+        emitUsageAlerts(groupID: groupID, used: minute, limit: granted, kind: .override)
         GTLog.override.notice(
             "연장 사용 측정 \(self.groupLabel(groupID), privacy: .public) used=\(minute, privacy: .public)/\(granted, privacy: .public)m total=\(usedTime, privacy: .public)m"
         )
@@ -372,7 +372,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         guard !SharedStore.isInCooldown(groupID),
               !SharedStore.usageBasedOverrideGroupIDs.contains(groupID) else { return }
         // 예산 소진 잠금 전에 50·90% 임박 알림(남은 분 = 예산 - 사용량).
-        emitUsageAlerts(groupID: groupID, used: used, limit: group.cooldownUsageMinutes, override: false)
+        emitUsageAlerts(groupID: groupID, used: used, limit: group.cooldownUsageMinutes, kind: .cooldown)
         // 아직 예산이 남았으면 진행바만 갱신하고 끝.
         guard used >= group.cooldownUsageMinutes else { return }
 
@@ -465,22 +465,24 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     /// granted를 넘긴다. 등록된 threshold 틱 배열의 인덱스로 단계를 정하고(`UsageAlertPolicy.ticks`),
     /// 그룹/연장 사이클별 중복방지 Set으로 단계당 한 번만 보낸다. used가 단계 minute을 넘긴 미발송
     /// 단계를 모두 발송한다(빠르게 써서 50%를 건너뛰면 같은 tick에서 50·90%가 함께 나갈 수 있다).
-    private func emitUsageAlerts(groupID: UUID, used: Int, limit: Int, override: Bool) {
+    private func emitUsageAlerts(groupID: UUID, used: Int, limit: Int, kind: UsageAlertKind) {
         guard SharedStore.isUsageAlertEnabled, limit > 0 else { return }
         let alerts = UsageAlertPolicy.ticks(DailyMonitor.dailyThresholdMinutes(limit: limit))
         guard !alerts.isEmpty else { return }
         let name = SharedStore.group(id: groupID)?.displayName ?? ""
         let remaining = max(0, limit - used)
         for alert in alerts where used >= alert.minute {
-            let claimed = override
+            // 연장은 별도 사이클(연장 시작·종료에서 리셋)이라 override용 Set으로, 그 외는 일일/쿨다운 Set으로 관리.
+            let claimed = kind == .override
                 ? SharedStore.claimOverrideAlert(percent: alert.percent, for: groupID)
                 : SharedStore.claimUsageAlert(percent: alert.percent, for: groupID)
             guard claimed else { continue }
             GTLog.activity.notice(
-                "사용량 알림 발송 \(self.groupLabel(groupID), privacy: .public) percent=\(alert.percent, privacy: .public) remain=\(remaining, privacy: .public)m override=\(override, privacy: .public)"
+                "사용량 알림 발송 \(self.groupLabel(groupID), privacy: .public) percent=\(alert.percent, privacy: .public) remain=\(remaining, privacy: .public)m override=\(kind == .override, privacy: .public)"
             )
             NotificationService.scheduleUsageAlert(
                 groupName: name,
+                kind: kind,
                 percent: alert.percent,
                 remainingMinutes: remaining
             )
