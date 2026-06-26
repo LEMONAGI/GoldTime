@@ -25,6 +25,7 @@ final class SettingsViewModel {
     var isRequestingScreenTimeAuthorization = false
     var isRequestingNotificationAuthorization = false
     var isDailyMorningNotificationEnabled: Bool
+    var isUsageAlertEnabled: Bool
     var alertMessage: SettingsAlertMessage?
     var weekStartDay: Int = SharedStore.weekStartDay {
         didSet { SharedStore.weekStartDay = weekStartDay }
@@ -52,6 +53,7 @@ final class SettingsViewModel {
         )
         isScreenTimeAuthorized = self.manageSettingsUseCase.isScreenTimeAuthorized
         isDailyMorningNotificationEnabled = self.manageSettingsUseCase.isDailyMorningNotificationEnabled
+        isUsageAlertEnabled = self.manageSettingsUseCase.isUsageAlertEnabled
     }
 
     func setDailyMorningNotificationEnabled(_ enabled: Bool) {
@@ -59,11 +61,17 @@ final class SettingsViewModel {
         manageSettingsUseCase.setDailyMorningNotificationEnabled(enabled)
     }
 
+    func setUsageAlertEnabled(_ enabled: Bool) {
+        isUsageAlertEnabled = enabled
+        manageSettingsUseCase.setUsageAlertEnabled(enabled)
+    }
+
     func loadState() async {
         isScreenTimeAuthorized = manageSettingsUseCase.refreshScreenTimeAuthorization()
         notificationPermissionState = await manageSettingsUseCase.notificationAuthorizationState()
         isNotificationDeferredBySummary = await manageSettingsUseCase.isNotificationDeferredByScheduledSummary()
         isDailyMorningNotificationEnabled = manageSettingsUseCase.isDailyMorningNotificationEnabled
+        isUsageAlertEnabled = manageSettingsUseCase.isUsageAlertEnabled
     }
 
     func requestScreenTimeAuthorization() async {

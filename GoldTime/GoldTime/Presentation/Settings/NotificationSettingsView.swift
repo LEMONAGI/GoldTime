@@ -30,6 +30,21 @@ struct NotificationSettingsView: View {
                     Divider().padding(.horizontal, 20)
 
                     toggleRow(
+                        systemName: "clock.badge.exclamationmark.fill",
+                        tint: Color.accent,
+                        title: "notif.usageAlert.title",
+                        subtitle: "notif.usageAlert.subtitle",
+                        isOn: Binding(
+                            get: { viewModel.isUsageAlertEnabled },
+                            set: { viewModel.setUsageAlertEnabled($0) }
+                        )
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+
+                    Divider().padding(.horizontal, 20)
+
+                    toggleRow(
                         systemName: "bell.badge.fill",
                         tint: .green,
                         title: "notif.appReturn.title",

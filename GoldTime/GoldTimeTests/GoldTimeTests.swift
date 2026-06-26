@@ -34,6 +34,66 @@ struct GoldTimeTests {
         #expect(DailyMonitor.dailyThresholdMinutes(limit: 5) == [1, 2, 3, 4, 5])
     }
 
+    // MARK: - 사용량 알림 단계(UsageAlertPolicy) — 틱 인덱스 기반(% 계산 아님)
+
+    @Test func usageAlertTicksSkipsSingleTick() {
+        // 틱 1개(1분 한도/예산/연장분)는 알림 없음.
+        #expect(UsageAlertPolicy.ticks([]).isEmpty)
+        #expect(UsageAlertPolicy.ticks([1]).isEmpty)
+    }
+
+    @Test func usageAlertTicksUsesPenultimateForShortLimits() {
+        // 틱 2~9개(2~9분)는 마지막 직전 틱에 90% 한 번만.
+        let two = UsageAlertPolicy.ticks([1, 2])
+        #expect(two.map(\.percent) == [90])
+        #expect(two.map(\.minute) == [1])
+
+        let five = UsageAlertPolicy.ticks([1, 2, 3, 4, 5])
+        #expect(five.map(\.percent) == [90])
+        #expect(five.map(\.minute) == [4])
+
+        let nine = UsageAlertPolicy.ticks(Array(1...9))
+        #expect(nine.map(\.percent) == [90])
+        #expect(nine.map(\.minute) == [8])
+    }
+
+    @Test func usageAlertTicksUsesFifthAndNinthForTenOrMore() {
+        // 틱 10개(10분 이상)는 5번째(≈50%)·9번째(≈90%) 틱 두 번.
+        let ten = UsageAlertPolicy.ticks(Array(1...10))
+        #expect(ten.map(\.percent) == [50, 90])
+        #expect(ten.map(\.minute) == [5, 9])
+
+        let sixty = UsageAlertPolicy.ticks([6, 12, 18, 24, 30, 36, 42, 48, 54, 60])
+        #expect(sixty.map(\.percent) == [50, 90])
+        #expect(sixty.map(\.minute) == [30, 54])
+    }
+
+    @Test func usageAlertEndToEndAcrossLimits() {
+        // 등록되는 threshold 배열(dailyThresholdMinutes)에 정책을 적용한 결과가 합의 경계와 맞는지.
+        func alerts(_ limit: Int) -> [(percent: Int, minute: Int)] {
+            UsageAlertPolicy.ticks(DailyMonitor.dailyThresholdMinutes(limit: limit))
+        }
+        #expect(alerts(1).isEmpty)                        // 1분: 없음
+        #expect(alerts(5).map(\.percent) == [90])         // 5분 이하: 마지막 직전 1회
+        #expect(alerts(5).map(\.minute) == [4])
+        #expect(alerts(9).map(\.percent) == [90])         // 9분: 아직 1회
+        #expect(alerts(10).map(\.percent) == [50, 90])    // 10분부터: 둘 다
+        #expect(alerts(10).map(\.minute) == [5, 9])
+        #expect(alerts(60).map(\.minute) == [30, 54])
+    }
+
+    // MARK: - 시간대 알림 시각(timeWindowAlertMinute) 24시간 wrap
+
+    @Test func timeWindowAlertMinuteWrapsAround() {
+        // 5분 전(offset −5): 자정 근처는 전날로 감싼다.
+        #expect(NotificationService.timeWindowAlertMinute(baseMinute: 3, offset: -5) == 1438)   // 00:03 → 전날 23:58
+        #expect(NotificationService.timeWindowAlertMinute(baseMinute: 0, offset: -5) == 1435)   // 00:00 → 전날 23:55
+        #expect(NotificationService.timeWindowAlertMinute(baseMinute: 600, offset: -5) == 595)  // 10:00 → 09:55
+        // 종료(offset +1): inclusive 끝 23:59(1439)는 자정(0)으로.
+        #expect(NotificationService.timeWindowAlertMinute(baseMinute: 1439, offset: 1) == 0)
+        #expect(NotificationService.timeWindowAlertMinute(baseMinute: 720, offset: 1) == 721)   // 12:00 끝 → 12:01
+    }
+
     @Test func dailyHeartbeatScheduleIsCanonicalRepeatingMidnightWindow() {
         // 자정 재무장의 주 경로: 00:00~23:59:59, repeats:true, 이벤트 없음.
         // (date-less repeats:false 측정창의 undocumented 재무장에 의존하지 않기 위함)

@@ -3695,6 +3695,14 @@ private final class FakeNotificationRepository: NotificationRepository {
         isDailyMorningNotificationEnabled = enabled
         setDailyMorningEnabledCalls.append(enabled)
     }
+
+    var isUsageAlertEnabled = true
+    private(set) var setUsageAlertEnabledCalls: [Bool] = []
+
+    func setUsageAlertEnabled(_ enabled: Bool) {
+        isUsageAlertEnabled = enabled
+        setUsageAlertEnabledCalls.append(enabled)
+    }
 }
 
 @MainActor

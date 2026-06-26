@@ -44,6 +44,9 @@ enum SharedStore {
         static let overrideGrantedMinutesByGroupID = "overrideGrantedMinutesByGroupID"
         static let lastMorningNotificationDate = "lastMorningNotificationDate"
         static let isDailyMorningNotificationEnabled = "isDailyMorningNotificationEnabled"
+        static let isUsageAlertEnabled = "isUsageAlertEnabled"
+        static let usageAlertSentByGroupID = "usageAlertSentByGroupID"
+        static let overrideAlertSentByGroupID = "overrideAlertSentByGroupID"
         static let statsTrackingStartDate = "statsTrackingStartDate"
         static let pendingAnalyticsEvents = "pendingAnalyticsEvents"
     }
@@ -58,6 +61,86 @@ enum SharedStore {
             return defaults.bool(forKey: Key.isDailyMorningNotificationEnabled)
         }
         set { defaults.set(newValue, forKey: Key.isDailyMorningNotificationEnabled) }
+    }
+
+    /// 사용·차단 알림(한도 50·90% 임박, 시간대 차단 5분 전, 쿨다운·시간대 재사용 가능) 수신 여부.
+    /// 기본값 On. 한도 도달 시 쉴드 진입 유도 알림(`scheduleOpenAppNotification`)과는 별개다.
+    static var isUsageAlertEnabled: Bool {
+        get {
+            if defaults.object(forKey: Key.isUsageAlertEnabled) == nil {
+                return true
+            }
+            return defaults.bool(forKey: Key.isUsageAlertEnabled)
+        }
+        set { defaults.set(newValue, forKey: Key.isUsageAlertEnabled) }
+    }
+
+    /// 일일/쿨다운 사이클에서 이미 발송한 사용량 알림 단계(percent) 집합. 중복 발송을 막는다.
+    /// 자정 리셋(`clearAllShieldState`)·쿨다운 재충전(`endCooldownAndRecharge`)·규칙 전환
+    /// (`clearCooldownCycle`)에서 해당 그룹을 비운다. ⚠️ 디코딩은 절대 throw하지 않는다(빈 dict fallback).
+    static var usageAlertSentByGroupID: [UUID: Set<Int>] {
+        get {
+            guard let data = defaults.data(forKey: Key.usageAlertSentByGroupID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: [Int]].self, from: data)) ?? [:]
+            return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, Set(value)) }
+            })
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, Array($0.value)) })
+            let data = try? JSONEncoder().encode(raw)
+            defaults.set(data, forKey: Key.usageAlertSentByGroupID)
+        }
+    }
+
+    /// 연장(광고/1분) 측정창에서 이미 발송한 사용량 알림 단계(percent) 집합. 연장 생애 동안만 유효하며
+    /// 연장 시작(`recordOverrideBaseline`)·종료(`clearOverride`/`clearAllOverrideState`)에서 비운다.
+    static var overrideAlertSentByGroupID: [UUID: Set<Int>] {
+        get {
+            guard let data = defaults.data(forKey: Key.overrideAlertSentByGroupID) else { return [:] }
+            let raw = (try? JSONDecoder().decode([String: [Int]].self, from: data)) ?? [:]
+            return Dictionary(uniqueKeysWithValues: raw.compactMap { key, value in
+                UUID(uuidString: key).map { ($0, Set(value)) }
+            })
+        }
+        set {
+            let raw = Dictionary(uniqueKeysWithValues: newValue.map { ($0.key.uuidString, Array($0.value)) })
+            let data = try? JSONEncoder().encode(raw)
+            defaults.set(data, forKey: Key.overrideAlertSentByGroupID)
+        }
+    }
+
+    /// 사이클(일일/쿨다운)에서 percent 단계 알림을 아직 안 보냈으면 true + 발송 기록(compare-and-set).
+    /// 같은 tick이 중복 도착해도 한 번만 통과한다.
+    static func claimUsageAlert(percent: Int, for groupID: UUID) -> Bool {
+        var map = usageAlertSentByGroupID
+        var sent = map[groupID] ?? []
+        guard sent.insert(percent).inserted else { return false }
+        map[groupID] = sent
+        usageAlertSentByGroupID = map
+        return true
+    }
+
+    static func clearUsageAlerts(for groupID: UUID) {
+        var map = usageAlertSentByGroupID
+        guard map.removeValue(forKey: groupID) != nil else { return }
+        usageAlertSentByGroupID = map
+    }
+
+    /// 연장 측정창에서 percent 단계 알림 발송 여부(compare-and-set). `claimUsageAlert`의 override 버전.
+    static func claimOverrideAlert(percent: Int, for groupID: UUID) -> Bool {
+        var map = overrideAlertSentByGroupID
+        var sent = map[groupID] ?? []
+        guard sent.insert(percent).inserted else { return false }
+        map[groupID] = sent
+        overrideAlertSentByGroupID = map
+        return true
+    }
+
+    static func clearOverrideAlerts(for groupID: UUID) {
+        var map = overrideAlertSentByGroupID
+        guard map.removeValue(forKey: groupID) != nil else { return }
+        overrideAlertSentByGroupID = map
     }
 
     /// 아침 사용량 알림을 오늘 아직 예약하지 않았다면 true를 반환하고 오늘 날짜를 기록한다.
@@ -735,6 +818,8 @@ enum SharedStore {
         let next = (gens[groupID] ?? 0) + 1
         gens[groupID] = next
         cooldownGenerationByID = gens
+        // 새 사이클은 사용량 0부터라 알림 단계도 초기화한다(다음 사이클에서 다시 50·90% 발송).
+        clearUsageAlerts(for: groupID)
         return next
     }
 
@@ -754,6 +839,8 @@ enum SharedStore {
         let next = (gens[groupID] ?? 0) + 1
         gens[groupID] = next
         cooldownGenerationByID = gens
+        // 전환된 규칙이 새 기준으로 사용량 알림을 다시 보내도록 단계를 비운다(usedTime은 보존).
+        clearUsageAlerts(for: groupID)
         return next
     }
 
@@ -849,6 +936,8 @@ enum SharedStore {
         var grants = overrideGrantedMinutesByGroupID
         grants.removeValue(forKey: groupID)
         overrideGrantedMinutesByGroupID = grants
+        // 연장 종료 → 이 연장에서 보낸 알림 단계도 비운다(다음 연장이 새로 50·90% 발송).
+        clearOverrideAlerts(for: groupID)
     }
 
     @discardableResult
@@ -862,6 +951,7 @@ enum SharedStore {
         usageBasedOverrideGroupIDs = []
         overrideBaselineUsedTimeByGroupID = [:]
         overrideGrantedMinutesByGroupID = [:]
+        overrideAlertSentByGroupID = [:]
 
         return didChange
     }
@@ -953,6 +1043,8 @@ enum SharedStore {
         var grants = overrideGrantedMinutesByGroupID
         grants[groupID] = grantedMinutes
         overrideGrantedMinutesByGroupID = grants
+        // 새 연장 시작 → 직전 연장 잔여 알림 단계를 비워 이 연장에서 다시 50·90%를 보낸다.
+        clearOverrideAlerts(for: groupID)
     }
 
     /// 사용량 기반 override 그룹. clearExpiredOverrides가 시간 만료로 정리하지 않도록 보호.
@@ -1094,6 +1186,10 @@ enum SharedStore {
         // 쿨다운도 일일 한도와 같이 자정 리셋(및 그룹 비움)에서 함께 해제된다.
         // generation은 monotonic이라 여기서 비우지 않는다.
         cooldownUntilByGroupID = [:]
+        // 사용량 알림 단계는 매일 새로 시작한다(자정에 비움). pendingAnalyticsEvents와 달리
+        // 보존 대상이 아니므로 여기서 함께 비운다.
+        usageAlertSentByGroupID = [:]
+        overrideAlertSentByGroupID = [:]
     }
 
     // MARK: - 릴레이 경과 시간 추적
