@@ -211,7 +211,7 @@ struct GroupCardView: View {
                 Button {
                     onUnlockGroup(group.id)
                 } label: {
-                    Label("group.unlock", systemImage: "lock.open")
+                    Label("group.useMore", systemImage: "hourglass")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(GoldTimeButtonStyle(background: Color.red.opacity(0.12), foreground: .red))

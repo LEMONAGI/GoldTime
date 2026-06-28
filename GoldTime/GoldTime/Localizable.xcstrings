@@ -1773,29 +1773,6 @@
         }
       }
     },
-    "group.unlock": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unlock"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ロック解除"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "잠금 해제"
-          }
-        }
-      }
-    },
     "group.unnamed": {
       "extractionState": "manual",
       "localizations": {
@@ -1815,6 +1792,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "이름 없는 그룹"
+          }
+        }
+      }
+    },
+    "group.useMore": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use More"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もっと使う"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가 사용"
           }
         }
       }
