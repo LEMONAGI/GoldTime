@@ -1157,6 +1157,39 @@ struct GoldTimeTests {
         #expect(cooldown["rule_config_bucket"] as? String == "usage_16_30m_rest_61_120m")
     }
 
+    @Test func dashboardFunnelEventNamesAndParameters() {
+        // Reward 광고 퍼널 — placement만 담는다.
+        #expect(AnalyticsEvent.adStarted(placement: "unlock").name == "ad_started")
+        #expect(
+            AnalyticsEvent.adStarted(placement: "unlock").parameters["placement"] as? String == "unlock"
+        )
+        #expect(AnalyticsEvent.adRewardEarned(placement: "group_edit_gate").name == "ad_reward_earned")
+        #expect(
+            AnalyticsEvent.adRewardEarned(placement: "group_edit_gate").parameters["placement"] as? String
+                == "group_edit_gate"
+        )
+        #expect(AnalyticsEvent.adClosedNoReward(placement: "unlock").name == "ad_closed_no_reward")
+        #expect(AnalyticsEvent.adUnavailable(placement: "unlock").name == "ad_unavailable")
+        #expect(AnalyticsEvent.adFallbackUsed(placement: "unlock").name == "ad_fallback_used")
+
+        // Activation 보강
+        #expect(AnalyticsEvent.unlockOptionsShown(lockedCount: 2).name == "unlock_options_shown")
+        #expect(
+            AnalyticsEvent.unlockOptionsShown(lockedCount: 2).parameters["locked_count"] as? Int == 2
+        )
+        #expect(AnalyticsEvent.onboardingStepView(step: "intro").name == "onboarding_step_view")
+        #expect(
+            AnalyticsEvent.onboardingStepView(step: "intro").parameters["step"] as? String == "intro"
+        )
+        #expect(
+            AnalyticsEvent.notificationPermissionResult(granted: true).name
+                == "notification_permission_result"
+        )
+        #expect(
+            AnalyticsEvent.notificationPermissionResult(granted: true).parameters["granted"] as? Bool == true
+        )
+    }
+
 }
 
 private struct TestRelockError: LocalizedError {

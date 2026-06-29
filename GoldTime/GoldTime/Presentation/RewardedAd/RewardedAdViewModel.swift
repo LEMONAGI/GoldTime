@@ -15,17 +15,20 @@ final class RewardedAdViewModel {
 
     private let placement: RewardedAdPlacement
     private let adRepository: any AdRepository
+    private let analyticsRepository: any AnalyticsRepository
     private let onComplete: () -> Void
     private let onCancel: () -> Void
 
     init(
         placement: RewardedAdPlacement = .shieldUnlock,
         adRepository: (any AdRepository)? = nil,
+        analyticsRepository: (any AnalyticsRepository)? = nil,
         onComplete: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.placement = placement
         self.adRepository = adRepository ?? AdRepositoryImpl()
+        self.analyticsRepository = analyticsRepository ?? AnalyticsRepositoryImpl()
         self.onComplete = onComplete
         self.onCancel = onCancel
     }
@@ -39,7 +42,7 @@ final class RewardedAdViewModel {
         case .ready:
             break
         case .failed:
-            showFallback = true
+            presentFallback()
         default:
             adRepository.loadAd(for: placement)
         }
@@ -50,7 +53,7 @@ final class RewardedAdViewModel {
         case .ready:
             presentIfReady(from: viewController)
         case .failed:
-            showFallback = true
+            presentFallback()
         default:
             break
         }
@@ -64,10 +67,17 @@ final class RewardedAdViewModel {
             return
         }
         isPresenting = true
+        analyticsRepository.log(.adStarted(placement: placement.analyticsValue))
         adRepository.present(from: viewController, placement: placement) { [weak self] earned in
             guard let self else { return }
             Task { @MainActor in
-                earned ? self.onComplete() : self.onCancel()
+                if earned {
+                    self.analyticsRepository.log(.adRewardEarned(placement: self.placement.analyticsValue))
+                    self.onComplete()
+                } else {
+                    self.analyticsRepository.log(.adClosedNoReward(placement: self.placement.analyticsValue))
+                    self.onCancel()
+                }
             }
         }
     }
@@ -77,6 +87,15 @@ final class RewardedAdViewModel {
     }
 
     func completeFallback() {
+        analyticsRepository.log(.adFallbackUsed(placement: placement.analyticsValue))
         onComplete()
+    }
+
+    /// 광고를 띄우지 못해 fallback(무료 연장) UI로 전환한다. 로드 실패 경로가 둘(onAppear,
+    /// handleLoadStateChange)이라 이미 전환된 경우 `ad_unavailable` 중복 로깅을 막는다.
+    private func presentFallback() {
+        guard !showFallback else { return }
+        showFallback = true
+        analyticsRepository.log(.adUnavailable(placement: placement.analyticsValue))
     }
 }

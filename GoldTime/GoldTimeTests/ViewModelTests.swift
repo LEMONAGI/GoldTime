@@ -3282,6 +3282,125 @@ struct ViewModelTests {
         #expect(!didCancel)
     }
 
+    @Test func rewardedAdViewModelLogsStartAndRewardEarned() async throws {
+        let adRepo = FakeAdRepository(loadState: .ready)
+        adRepo.shouldEarnReward = true
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = RewardedAdViewModel(
+            placement: .shieldUnlock,
+            adRepository: adRepo,
+            analyticsRepository: analyticsRepo,
+            onComplete: {},
+            onCancel: {}
+        )
+
+        viewModel.presentIfReady(from: UIViewController())
+        try await Task.sleep(for: .milliseconds(10))
+
+        #expect(analyticsRepo.events.map(\.name) == ["ad_started", "ad_reward_earned"])
+        #expect(analyticsRepo.parameters(for: "ad_started")?["placement"] as? String == "shield_unlock")
+        #expect(analyticsRepo.parameters(for: "ad_reward_earned")?["placement"] as? String == "shield_unlock")
+    }
+
+    @Test func rewardedAdViewModelLogsClosedWithoutReward() async throws {
+        let adRepo = FakeAdRepository(loadState: .ready)
+        adRepo.shouldEarnReward = false
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = RewardedAdViewModel(
+            placement: .groupEditGate,
+            adRepository: adRepo,
+            analyticsRepository: analyticsRepo,
+            onComplete: {},
+            onCancel: {}
+        )
+
+        viewModel.presentIfReady(from: UIViewController())
+        try await Task.sleep(for: .milliseconds(10))
+
+        #expect(analyticsRepo.events.map(\.name) == ["ad_started", "ad_closed_no_reward"])
+        #expect(
+            analyticsRepo.parameters(for: "ad_closed_no_reward")?["placement"] as? String == "group_edit_gate"
+        )
+    }
+
+    @Test func rewardedAdViewModelLogsUnavailableOnceWhenLoadFails() {
+        let adRepo = FakeAdRepository(loadState: .failed)
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = RewardedAdViewModel(
+            placement: .shieldUnlock,
+            adRepository: adRepo,
+            analyticsRepository: analyticsRepo,
+            onComplete: {},
+            onCancel: {}
+        )
+
+        viewModel.onAppear()
+        viewModel.handleLoadStateChange(.failed, viewController: nil)  // 두 번째 실패 경로
+
+        #expect(viewModel.showFallback)
+        #expect(analyticsRepo.events.map(\.name) == ["ad_unavailable"])  // 중복 없이 1회
+    }
+
+    @Test func rewardedAdViewModelLogsFallbackUsed() {
+        let adRepo = FakeAdRepository(loadState: .failed)
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = RewardedAdViewModel(
+            placement: .shieldUnlock,
+            adRepository: adRepo,
+            analyticsRepository: analyticsRepo,
+            onComplete: {},
+            onCancel: {}
+        )
+
+        viewModel.completeFallback()
+
+        #expect(analyticsRepo.parameters(for: "ad_fallback_used")?["placement"] as? String == "shield_unlock")
+    }
+
+    @Test func onboardingViewModelLogsNotificationPermissionResultAndStep() async {
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.requestAuthorizationResult = .authorized
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: true),
+                notificationRepository: notifRepo
+            ),
+            analyticsRepository: analyticsRepo,
+            startStep: .notificationPermission,
+            onAuthorized: {}
+        )
+
+        await viewModel.requestNotification()
+
+        #expect(
+            analyticsRepo.parameters(for: "notification_permission_result")?["granted"] as? Bool == true
+        )
+        #expect(
+            analyticsRepo.parameters(for: "onboarding_step_view")?["step"] as? String == "trackingPermission"
+        )
+    }
+
+    @Test func onboardingViewModelLogsStepViewOnAdvance() {
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = OnboardingViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: FakeAuthorizationRepository(isAuthorized: false),
+                notificationRepository: FakeNotificationRepository()
+            ),
+            analyticsRepository: analyticsRepo,
+            startStep: .intro,
+            onAuthorized: {}
+        )
+
+        viewModel.advance()
+
+        #expect(analyticsRepo.events.map(\.name) == ["onboarding_step_view"])
+        #expect(
+            analyticsRepo.parameters(for: "onboarding_step_view")?["step"] as? String == "screenTimePermission"
+        )
+    }
+
     // MARK: - Helpers
 
     private func makeUserDefaults(hasCompletedInitialHomeEntry: Bool = false) -> UserDefaults {
@@ -3391,6 +3510,29 @@ struct AppLifecycleViewModelTests {
         viewModel.appDidBecomeActive()
 
         #expect(analyticsRepo.userProperties.isEmpty)
+    }
+
+    @Test func logsUnlockOptionsShownOnceWhenPendingRequest() {
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.pendingShieldOpenRequest = true
+        shieldRepo.lockedGroupsValue = [
+            SharedStore.ScreenTimeGroup(name: "SNS"),
+            SharedStore.ScreenTimeGroup(name: "게임")
+        ]
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: makeAuthorizeUseCase(),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: shieldRepo,
+            analyticsRepository: analyticsRepo
+        )
+
+        viewModel.refreshLockOptionsPresentation()
+        viewModel.refreshLockOptionsPresentation()  // 재호출해도 중복 로깅 없음
+
+        let unlockEvents = analyticsRepo.events.filter { $0.name == "unlock_options_shown" }
+        #expect(unlockEvents.count == 1)
+        #expect(analyticsRepo.parameters(for: "unlock_options_shown")?["locked_count"] as? Int == 2)
     }
 
     private func makeSyncProtectionUseCase() -> SyncProtectionUseCase {
