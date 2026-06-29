@@ -16,6 +16,19 @@ enum AnalyticsEvent {
     case oneMinuteUnlock
     case walkAway(lockedCount: Int)
     case ruleChanged(from: String, to: String, wasLocked: Bool, usedBucket: String, causedLock: Bool)
+
+    // MARK: - 대시보드 퍼널 (Reward 광고 / Activation)
+    // placement는 Core의 `RewardedAdService.Placement`를 안정적 snake_case 문자열로 매핑한 값
+    // (예: "unlock", "group_edit_gate"). Domain은 Core에 의존하지 않으므로 String으로 받는다.
+    case adStarted(placement: String)
+    case adRewardEarned(placement: String)
+    case adClosedNoReward(placement: String)
+    case adUnavailable(placement: String)
+    case adFallbackUsed(placement: String)
+    case unlockOptionsShown(lockedCount: Int)
+    case onboardingStepView(step: String)
+    case notificationPermissionResult(granted: Bool)
+
     case custom(name: String, parameters: [String: Any])
 
     var name: String {
@@ -29,6 +42,14 @@ enum AnalyticsEvent {
         case .oneMinuteUnlock: return "one_minute_unlock"
         case .walkAway: return "walk_away"
         case .ruleChanged: return "rule_changed"
+        case .adStarted: return "ad_started"
+        case .adRewardEarned: return "ad_reward_earned"
+        case .adClosedNoReward: return "ad_closed_no_reward"
+        case .adUnavailable: return "ad_unavailable"
+        case .adFallbackUsed: return "ad_fallback_used"
+        case .unlockOptionsShown: return "unlock_options_shown"
+        case .onboardingStepView: return "onboarding_step_view"
+        case .notificationPermissionResult: return "notification_permission_result"
         case .custom(let name, _): return name
         }
     }
@@ -54,6 +75,15 @@ enum AnalyticsEvent {
                 "used_bucket": usedBucket,
                 "caused_lock": causedLock
             ]
+        case .adStarted(let placement),
+             .adRewardEarned(let placement),
+             .adClosedNoReward(let placement),
+             .adUnavailable(let placement),
+             .adFallbackUsed(let placement):
+            return ["placement": placement]
+        case .unlockOptionsShown(let count): return ["locked_count": count]
+        case .onboardingStepView(let step): return ["step": step]
+        case .notificationPermissionResult(let granted): return ["granted": granted]
         case .custom(_, let parameters): return parameters
         }
     }
