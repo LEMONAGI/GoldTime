@@ -112,6 +112,7 @@ final class AppDIContainer {
         RewardedAdViewModel(
             placement: placement,
             adRepository: adRepository,
+            analyticsRepository: analyticsRepository,
             onComplete: onComplete,
             onCancel: onCancel
         )
