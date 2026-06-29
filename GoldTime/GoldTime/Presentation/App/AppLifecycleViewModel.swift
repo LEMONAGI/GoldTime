@@ -85,6 +85,11 @@ final class AppLifecycleViewModel {
             } else if let webToken = shieldRepository.lastRequestedUnlockWebDomainToken {
                 pendingGroupID = shieldRepository.lockedGroups(containing: webToken).first?.id
             }
+            // 이 메서드는 한 번의 활성화에서 appDidAppear/appDidBecomeActive/appDidOpenURL로
+            // 여러 번 호출될 수 있으므로, 시트가 처음 뜨는 false→true 전환에서만 1회 로깅한다.
+            if !showLockOptions {
+                analyticsRepository.log(.unlockOptionsShown(lockedCount: shieldRepository.lockedGroups().count))
+            }
             showLockOptions = true
         }
     }

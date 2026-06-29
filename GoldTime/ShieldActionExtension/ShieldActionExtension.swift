@@ -121,6 +121,43 @@ class ShieldActionExtension: ShieldActionDelegate {
         }()
     }
 
+    /// extension에서 발생한 분석 이벤트를 App Group 큐에 적재한다. ShieldActionExtension은
+    /// `SharedStore`(메인 앱·DeviceActivityMonitor 타겟 전용)를 링크하지 않으므로, 큐 키와
+    /// Codable 형태(`SharedStore.PendingAnalyticsEvent`)를 그대로 복제해 메인 앱이
+    /// `drainPendingAnalyticsEvents()`로 드레인하게 한다. 형태가 어긋나면 드레인 시 디코딩
+    /// 실패로 큐 전체가 소실되니 name/parameters/timestamp 순서·타입을 바꾸지 말 것.
+    private enum PendingAnalyticsStore {
+        static let suiteName = "group.com.goldtime.shared"
+        static let key = "pendingAnalyticsEvents"
+        static let cap = 200
+
+        static var defaults: UserDefaults {
+            UserDefaults(suiteName: suiteName) ?? .standard
+        }
+
+        private struct Event: Codable {
+            let name: String
+            let parameters: [String: String]
+            let timestamp: Date
+        }
+
+        static func enqueue(_ name: String) {
+            var events = load()
+            events.append(Event(name: name, parameters: [:], timestamp: Date()))
+            if events.count > cap {
+                events = Array(events.suffix(cap))
+            }
+            if let data = try? JSONEncoder().encode(events) {
+                defaults.set(data, forKey: key)
+            }
+        }
+
+        private static func load() -> [Event] {
+            guard let data = defaults.data(forKey: key) else { return [] }
+            return (try? JSONDecoder().decode([Event].self, from: data)) ?? []
+        }
+    }
+
     override func handle(
         action: ShieldAction,
         for application: ApplicationToken,
@@ -168,16 +205,19 @@ class ShieldActionExtension: ShieldActionDelegate {
     ) {
         switch action {
         case .primaryButtonPressed:
-            // "그만 쓰기" — 쉴드 닫고 홈으로
+            // "그만 쓰기" — 쉴드 닫고 홈으로 (차단 수용 분기)
             DailyStatsStore.recordWalkAway()
+            PendingAnalyticsStore.enqueue("shield_dismissed")
             OpenRequestStore.clear()
             completionHandler(.close)
         case .secondaryButtonPressed:
             // "GoldTime 가기" — 알림으로 진입 유도 (익스텐션에서 UIApplication.open 불가)
+            // 연장/광고로 이어지는 입구 분기.
             OpenRequestStore.markStarted(
                 applicationToken: applicationToken,
                 webDomainToken: webDomainToken
             )
+            PendingAnalyticsStore.enqueue("shield_open_requested")
             scheduleOpenAppNotification {
                 completionHandler(.defer)
             }

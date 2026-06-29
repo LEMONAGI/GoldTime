@@ -23,7 +23,12 @@ final class OnboardingViewModel {
     // 단계가 바뀔 때마다 저장한다. init의 첫 할당에는 didSet이 호출되지 않으므로
     // 복원된(또는 시작) 단계는 불필요하게 다시 쓰지 않는다.
     var currentStep: OnboardingStep {
-        didSet { userDefaults.set(currentStep.rawValue, forKey: Self.savedStepKey) }
+        didSet {
+            userDefaults.set(currentStep.rawValue, forKey: Self.savedStepKey)
+            // init의 첫 할당에는 didSet이 호출되지 않으므로(.intro=진입은 first_open으로 대체)
+            // 여기 도착하는 건 사용자가 단계를 넘긴 실제 전환뿐 → 온보딩 드롭오프 퍼널의 단계 조회.
+            analyticsRepository.log(.onboardingStepView(step: currentStep.rawValue))
+        }
     }
     var errorMessage: String?
     var isRequesting = false
@@ -78,7 +83,8 @@ final class OnboardingViewModel {
         isRequesting = true
         defer { isRequesting = false }
         // 알림은 선택 권한이므로 허용/거부 결과와 관계없이 다음 단계로 진행한다.
-        _ = await authorizeUseCase.requestNotification()
+        let state = await authorizeUseCase.requestNotification()
+        analyticsRepository.log(.notificationPermissionResult(granted: state == .authorized))
         errorMessage = nil
         currentStep = .trackingPermission
     }
