@@ -71,6 +71,16 @@ GoldTime/ShieldActionExtension/CLAUDE.md            ← Shield 액션 쓰기 계
 
 ---
 
+## 📌 작업 상태 — TODO.md
+
+루트 [TODO.md](TODO.md)가 "하던 일 / 다음 할 일 / 실기기 검증 대기"의 단일 출처다.
+**세션 시작·복귀 시 먼저 확인**하고, 작업 시작·완료 시 갱신한다(완료 항목은 지운다 —
+기록은 git log 담당). 완료 보고에 남기는 실기기 체크리스트는 TODO.md의 "실기기 검증
+대기"에도 기록한다. 실기기 검증 세션은 `/device-verify`, 커밋 전 도메인 리뷰는
+`gt-reviewer` 에이전트를 쓴다.
+
+---
+
 ## ✅ 작업 종료 규칙
 
 완료를 보고하기 전에 [docs/agent/definition-of-done.md](docs/agent/definition-of-done.md)로
