@@ -111,6 +111,13 @@ enum CooldownMonitor {
         return end <= now
     }
 
+    /// 연장분 소진 시 재잠금해야 하는지 판정(Apple framework 호출 없는 순수 판정).
+    /// 쿨다운 그룹은 휴식이 아직 진행 중일 때만 재잠금한다 — 휴식이 이미 재충전된 뒤 살아남은
+    /// 연장의 소진이 cooldownUntil 없는 좀비 잠금(자정까지 해제 경로 없음)을 만들지 않게 한다.
+    nonisolated static func shouldReshieldOnOverrideExhaustion(isCooldownRule: Bool, isInCooldown: Bool) -> Bool {
+        !isCooldownRule || isInCooldown
+    }
+
     /// 휴식 종료 시각. 쿨다운은 매일 자정에 새로 시작하므로 휴식이 내일로 넘어가면 오늘 23:59:59로 자른다.
     nonisolated static func cooldownEnd(
         now: Date = Date(),

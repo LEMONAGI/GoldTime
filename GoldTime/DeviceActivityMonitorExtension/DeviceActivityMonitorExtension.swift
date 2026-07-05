@@ -338,7 +338,16 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         let center = DeviceActivityCenter()
         center.stopMonitoring([activity])
         SharedStore.clearOverride(for: groupID)
-        SharedStore.markGroupShielded(groupID)
+        // 쿨다운 그룹은 휴식이 이미 재충전된 뒤 살아남은 연장의 소진이면 재잠금하지 않는다
+        // (cross-process race 방어) — 그 잠금은 cooldownUntil이 없어 자정까지 해제 경로가 없다.
+        if CooldownMonitor.shouldReshieldOnOverrideExhaustion(
+            isCooldownRule: SharedStore.group(id: groupID)?.ruleKind == .cooldown,
+            isInCooldown: SharedStore.isInCooldown(groupID)
+        ) {
+            SharedStore.markGroupShielded(groupID)
+        } else {
+            GTLog.override.notice("재잠금 스킵(휴식 이미 재충전됨) \(self.groupLabel(groupID), privacy: .public)")
+        }
         SharedStore.recordOverrideIntervalDidEnd(
             activityName: activity.rawValue,
             parsedGroupID: groupID,
@@ -431,8 +440,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             groupName: SharedStore.group(id: groupID)?.displayName ?? ""
         )
         let center = DeviceActivityCenter()
-        // 직전 사이클의 사용 예산 activity를 멈춘 뒤 새 generation으로 재등록.
-        center.stopMonitoring([.cooldownUsage(for: groupID, generation: generation - 1)])
+        // 직전 사이클의 사용 예산 activity를 멈춘 뒤 새 generation으로 재등록. 살아남은 연장
+        // (override) 모니터도 함께 멈춰, 연장분을 다 쓰기 전 휴식이 종료된 경우에도 재충전 후
+        // 소진 tick이 오지 않게 한다(미등록 activity stop은 no-op라 무해).
+        center.stopMonitoring([
+            .cooldownUsage(for: groupID, generation: generation - 1),
+            .override(for: groupID),
+        ])
         if let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 {
             do {
                 try CooldownMonitor.startUsageMonitoring(
