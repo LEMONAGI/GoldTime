@@ -11,13 +11,9 @@ import Foundation
 import ManagedSettings
 import os
 
-// daily/dailyGroup/dailyGroupID/dailyHeartbeat 및 DeviceActivityEvent.Name.tick/tickInfo는
+// daily/dailyGroup/dailyGroupID/dailyHeartbeat/override 및 DeviceActivityEvent.Name.tick/tickInfo는
 // DailyMonitor.swift로 이동(앱·extension 공유 단일 출처). 여기서 다시 선언하지 말 것.
 extension DeviceActivityName {
-    nonisolated static func override(for groupID: UUID) -> Self {
-        Self("override.\(groupID.uuidString)")
-    }
-
     /// `window.<UUID>.<index>` 형식. index는 그룹 timeWindows 배열 순서(0...).
     nonisolated static func timeWindow(for groupID: UUID, index: Int) -> Self {
         Self("window.\(groupID.uuidString).\(index)")
@@ -419,6 +415,9 @@ enum ScreenTimeManager {
         if SharedStore.cooldownEnd(for: group.id) != nil {
             // 만료된 휴식 상태가 남아 있음(타이머 놓침) → 정리 + generation 증가 후 새 사이클.
             generation = SharedStore.endCooldownAndRecharge(for: group.id)
+            // 다른 두 재충전 경로와 동일하게 살아남은 연장(override) 모니터도 stop한다
+            // (슬롯 점유 방지, no-op 무해).
+            center.stopMonitoring([.override(for: group.id)])
         } else {
             generation = SharedStore.cooldownGenerationByID[group.id] ?? 0
         }
@@ -761,9 +760,11 @@ enum ScreenTimeManager {
             // 정상 타이머 경로(handleCooldownTimerEnded)와 동일하게 직전 사이클의 사용 예산 activity와
             // 휴식 타이머를 함께 멈춘다. cooldownUsage(generation-1)를 남기면 stale activity가 모니터링
             // 슬롯을 잠식하고(반복 자가치유 시 excessiveActivities 위험) 두 재충전 경로가 불일치한다.
+            // 살아남은 연장(override) 모니터도 함께 stop해 재충전 후 소진 tick이 오지 않게 한다(no-op 무해).
             center.stopMonitoring([
                 .cooldownUsage(for: groupID, generation: generation - 1),
                 .cooldownTimer(for: groupID),
+                .override(for: groupID),
             ])
             guard let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 else { continue }
             if overrideWindowTooShort(now: now) {

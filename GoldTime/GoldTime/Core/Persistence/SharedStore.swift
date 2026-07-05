@@ -820,6 +820,13 @@ enum SharedStore {
         cooldownGenerationByID = gens
         // 새 사이클은 사용량 0부터라 알림 단계도 초기화한다(다음 사이클에서 다시 50·90% 발송).
         clearUsageAlerts(for: groupID)
+        // 진행 중이던 연장(광고/1분)도 함께 청산한다. usage 기반 override는 시간 만료로 정리되지
+        // 않아(clearExpiredOverrides가 usage-based 제외) 연장분을 다 쓰기 전 휴식 종료를 넘겨
+        // 살아남을 수 있고, 비우지 않으면 살아남은 override의 소진 tick이 handleOverrideTick에서
+        // markGroupShielded를 호출해 cooldownUntil 없는 좀비 잠금(자정까지 해제 경로 없음)을 만든다.
+        // 청산 후 늦게 도착하는 usageTick은 handleOverrideTick의 stale-tick 가드가 monitor stop만
+        // 하고 재잠금 없이 흡수한다.
+        clearOverride(for: groupID)
         return next
     }
 

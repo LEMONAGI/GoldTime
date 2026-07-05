@@ -10,7 +10,7 @@
 //
 //  ⚠️ 여기 있는 DeviceActivityName/DeviceActivityEvent.Name 헬퍼는 공유 단일 출처다.
 //  ScreenTimeManager나 DeviceActivityMonitorExtension에 같은 멤버를 다시 선언하면 두 타겟에서
-//  중복 선언이 된다(daily/dailyGroup/dailyGroupID/dailyHeartbeat/tick/tickInfo).
+//  중복 선언이 된다(daily/dailyGroup/dailyGroupID/dailyHeartbeat/override/tick/tickInfo).
 //
 
 import DeviceActivity
@@ -40,6 +40,13 @@ extension DeviceActivityName {
         let body = String(rawValue.dropFirst(prefix.count))
         let firstSegment = body.split(separator: ".").first.map(String.init) ?? body
         return UUID(uuidString: firstSegment)
+    }
+
+    /// 연장(광고/1분) 사용 측정 활동. `override.<gid>` 형식. extension이 쿨다운 재충전 시
+    /// 살아남은 이 연장 모니터를 stop해야 하므로(ScreenTimeManager를 못 보는 extension과 공유)
+    /// 공유 단일 출처로 여기 둔다.
+    nonisolated static func override(for groupID: UUID) -> Self {
+        Self("override.\(groupID.uuidString)")
     }
 }
 

@@ -533,4 +533,46 @@ struct CooldownTests {
         SharedStore.clearRegistration(for: UUID())
         #expect(SharedStore.lastRegisteredGroupsByID == nil)
     }
+
+    // MARK: - 휴식 재충전 시 연장 상태 청산 (좀비 잠금 회귀)
+
+    /// 진행 중이던 연장(광고/1분)이 있는 채로 휴식이 재충전되면, endCooldownAndRecharge가
+    /// override 상태를 함께 청산해야 살아남은 연장의 소진 tick이 좀비 잠금을 만들지 않는다.
+    @Test func endCooldownAndRechargeClearsOverrideState() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let id = UUID()
+        SharedStore.startCooldown(until: futureDate(byMinutes: 60), for: id)
+        // 연장(광고/1분) 진행 중 상태 구성: overrideUntil + usage 기반 마킹 + baseline/grant.
+        SharedStore.setOverride(until: futureDate(byMinutes: 10), for: id)
+        SharedStore.markUsageBasedOverride(id)
+        SharedStore.recordOverrideBaseline(groupID: id, baseline: 3, grantedMinutes: 5)
+
+        _ = SharedStore.endCooldownAndRecharge(for: id)
+
+        #expect(SharedStore.overrideUntilByGroupID[id] == nil)
+        #expect(!SharedStore.usageBasedOverrideGroupIDs.contains(id))
+        #expect(SharedStore.overrideBaselineUsedTimeByGroupID[id] == nil)
+        #expect(SharedStore.overrideGrantedMinutesByGroupID[id] == nil)
+    }
+
+    // MARK: - 연장 소진 재잠금 판정 (shouldReshieldOnOverrideExhaustion 순수 판정)
+
+    /// 쿨다운 그룹은 휴식이 진행 중일 때만 소진 재잠금한다. 휴식이 이미 재충전된 뒤 살아남은
+    /// 연장의 소진은 좀비 잠금을 막기 위해 재잠금하지 않는다. 쿨다운 아닌 규칙은 항상 재잠금.
+    @Test func shouldReshieldOnOverrideExhaustionJudgment() {
+        // 쿨다운 아님 → 항상 재잠금(true).
+        #expect(CooldownMonitor.shouldReshieldOnOverrideExhaustion(
+            isCooldownRule: false, isInCooldown: false
+        ))
+        // 쿨다운 + 휴식 진행 중 → 재잠금(true).
+        #expect(CooldownMonitor.shouldReshieldOnOverrideExhaustion(
+            isCooldownRule: true, isInCooldown: true
+        ))
+        // 쿨다운 + 휴식 이미 재충전됨 → 재잠금 안 함(false).
+        #expect(!CooldownMonitor.shouldReshieldOnOverrideExhaustion(
+            isCooldownRule: true, isInCooldown: false
+        ))
+    }
 }
