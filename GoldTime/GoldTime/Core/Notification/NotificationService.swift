@@ -94,6 +94,12 @@ enum NotificationService {
         )
     }
 
+    /// 알림 센터에 쌓인 전달된 알림을 모두 지운다. 앱 진입 시 호출 —
+    /// extension(DeviceActivityMonitor·ShieldAction)이 보낸 알림도 같은 앱 소속이라 함께 지워진다.
+    static func clearDeliveredNotifications() {
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    }
+
     /// 어제 추가 사용 분량에 따라 다음에 도래하는 오전 9시 알림을 예약한다.
     /// isWeekStart가 true이면 주간 통계 알림 내용으로 대체한다.
     static func scheduleDailyMorningNotification(extraMinutes: Int, isWeekStart: Bool = false) {

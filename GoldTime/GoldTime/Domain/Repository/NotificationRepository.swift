@@ -7,6 +7,8 @@ protocol NotificationRepository {
     /// 알림이 "시간 지정 요약"에 묶여 즉시 전달되지 않는지(time-sensitive 우회 반영).
     func isNotificationDeferredByScheduledSummary() async -> Bool
     func scheduleDailyMorningNotification(extraMinutes: Int)
+    /// 알림 센터에 전달되어 쌓인 알림을 모두 제거한다(예약된 알림은 유지). 앱 진입 시 호출.
+    func clearDeliveredNotifications()
 
     /// 하루 요약(오전 9시) 알림 수신 여부. 기본값 On.
     var isDailyMorningNotificationEnabled: Bool { get }

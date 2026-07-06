@@ -55,6 +55,7 @@ final class AppLifecycleViewModel {
         refreshLockOptionsPresentation()
         drainPendingAnalyticsEvents()
         updateCohortUserProperties()
+        notificationRepository.clearDeliveredNotifications()
         MonitoringBackgroundTask.scheduleNext()
     }
 

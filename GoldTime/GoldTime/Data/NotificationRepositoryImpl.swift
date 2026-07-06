@@ -19,6 +19,10 @@ struct NotificationRepositoryImpl: NotificationRepository {
         NotificationService.scheduleDailyMorningNotification(extraMinutes: extraMinutes)
     }
 
+    func clearDeliveredNotifications() {
+        NotificationService.clearDeliveredNotifications()
+    }
+
     var isDailyMorningNotificationEnabled: Bool {
         SharedStore.isDailyMorningNotificationEnabled
     }

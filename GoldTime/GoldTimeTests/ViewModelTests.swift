@@ -3512,6 +3512,21 @@ struct AppLifecycleViewModelTests {
         #expect(analyticsRepo.userProperties.isEmpty)
     }
 
+    @Test func clearsDeliveredNotificationsOnActivation() {
+        let notifRepo = FakeNotificationRepository()
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: makeAuthorizeUseCase(),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: FakeShieldRepository(),
+            notificationRepository: notifRepo,
+            analyticsRepository: FakeAnalyticsRepository()
+        )
+
+        viewModel.appDidBecomeActive()
+
+        #expect(notifRepo.clearDeliveredCallCount == 1)
+    }
+
     @Test func logsUnlockOptionsShownOnceWhenPendingRequest() {
         let shieldRepo = FakeShieldRepository()
         shieldRepo.pendingShieldOpenRequest = true
@@ -3844,6 +3859,12 @@ private final class FakeNotificationRepository: NotificationRepository {
     func setUsageAlertEnabled(_ enabled: Bool) {
         isUsageAlertEnabled = enabled
         setUsageAlertEnabledCalls.append(enabled)
+    }
+
+    private(set) var clearDeliveredCallCount = 0
+
+    func clearDeliveredNotifications() {
+        clearDeliveredCallCount += 1
     }
 }
 
