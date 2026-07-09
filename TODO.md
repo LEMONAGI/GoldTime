@@ -6,11 +6,17 @@
 
 ## 하는 중
 
-_(없음)_
+- [ ] 1.2.0 요일별 제한 규칙 (`Feat/WeekdayRules`, 계획: `~/.claude/plans/1-2-0-ancient-swing.md`)
+  - [ ] 1단계: 모델 + Codable (SharedStore.DayRule, weekdayRules — dormant)
+  - [ ] 2단계: WeekdayRulePolicy + `resolved(on:)` 투영
+  - [ ] 3단계: 등록/자정 전환 코어 (High — syncDailyMonitoring·handleHeartbeat·TimeWindowMonitor)
+  - [ ] 4단계: UI (RuleEditorSheet 토글·요일 묶음, 홈 카드 오늘 규칙)
+  - [ ] 5단계: 알림 요일 트리거 (weekday wrap)
+  - [ ] 6단계: 분석 + 로컬라이징 (ko/en/ja)
+  - [ ] 7단계: 실기기 자정 검증 + 문서 + 1.2.0 버전
 
 ## 다음 할 일
 
-- [ ] 대시보드(goldtime-dashboard): BigQuery export·credential 연결 후 실데이터 검증
 - [ ] EU 출시 외부 작업: DSA 거래자 정보, AdMob GDPR 메시지 게시, 처리방침 호스팅
 - [ ] Firebase: Run Script 추가·Crashlytics 활성화·AdMob 연동 링크
 

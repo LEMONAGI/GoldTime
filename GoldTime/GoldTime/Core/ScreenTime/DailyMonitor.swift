@@ -83,7 +83,8 @@ extension SharedStore.ScreenTimeGroup {
             timeWindows: timeWindows,
             isApplied: isApplied,
             cooldownUsageMinutes: cooldownUsageMinutes,
-            cooldownDurationMinutes: cooldownDurationMinutes
+            cooldownDurationMinutes: cooldownDurationMinutes,
+            weekdayRules: weekdayRules
         )
     }
 }

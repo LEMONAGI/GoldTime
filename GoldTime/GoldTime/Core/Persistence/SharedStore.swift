@@ -199,6 +199,70 @@ enum SharedStore {
         }
     }
 
+    /// 요일 하나의 완전한 규칙. ScreenTimeGroup의 규칙 필드와 동일한 평면 구조로,
+    /// 규칙 종류를 전환해도 다른 종류의 설정값이 보존된다(그룹 레벨과 동일한 패턴).
+    struct DayRule: Codable, Equatable {
+        /// 요일 규칙 종류. 그룹 RuleKind와 달리 '제한 없음(unrestricted)'이 있다.
+        enum Kind: String, Codable {
+            case unrestricted
+            case dailyLimit
+            case timeWindows
+            case cooldown
+        }
+
+        var kind: Kind
+        var dailyLimitMinutes: Int
+        var timeWindows: [TimeWindow]
+        var cooldownUsageMinutes: Int
+        var cooldownDurationMinutes: Int
+
+        init(
+            kind: Kind,
+            dailyLimitMinutes: Int = 30,
+            timeWindows: [TimeWindow] = [],
+            cooldownUsageMinutes: Int = ScreenTimeGroup.defaultCooldownUsageMinutes,
+            cooldownDurationMinutes: Int = ScreenTimeGroup.defaultCooldownDurationMinutes
+        ) {
+            self.kind = kind
+            self.dailyLimitMinutes = dailyLimitMinutes
+            self.timeWindows = timeWindows
+            self.cooldownUsageMinutes = cooldownUsageMinutes
+            self.cooldownDurationMinutes = cooldownDurationMinutes
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case kind
+            case dailyLimitMinutes
+            case timeWindows
+            case cooldownUsageMinutes
+            case cooldownDurationMinutes
+        }
+
+        // 배열 요소 1개의 디코딩 실패가 배열 전체 소실로 이어지지 않도록 어떤 페이로드에서도 throw하지 않는다.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let rawKind = (try? container.decodeIfPresent(String.self, forKey: .kind)) ?? nil {
+                // 미래 버전의 미지 kind 값(및 키 부재)에서도 보호가 끊기지 않도록 일일 한도로 fallback.
+                kind = Kind(rawValue: rawKind) ?? .dailyLimit
+            } else {
+                kind = .dailyLimit
+            }
+            dailyLimitMinutes = (try? container.decodeIfPresent(Int.self, forKey: .dailyLimitMinutes)) ?? nil ?? 30
+            timeWindows = (try? container.decodeIfPresent([TimeWindow].self, forKey: .timeWindows)) ?? nil ?? []
+            cooldownUsageMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownUsageMinutes)) ?? nil ?? ScreenTimeGroup.defaultCooldownUsageMinutes
+            cooldownDurationMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownDurationMinutes)) ?? nil ?? ScreenTimeGroup.defaultCooldownDurationMinutes
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(kind, forKey: .kind)
+            try container.encode(dailyLimitMinutes, forKey: .dailyLimitMinutes)
+            try container.encode(timeWindows, forKey: .timeWindows)
+            try container.encode(cooldownUsageMinutes, forKey: .cooldownUsageMinutes)
+            try container.encode(cooldownDurationMinutes, forKey: .cooldownDurationMinutes)
+        }
+    }
+
     struct ScreenTimeGroup: Codable, Equatable, Identifiable {
         /// 그룹 잠금 규칙 종류. nil이면 아직 규칙을 고르지 않은 설정 중(draft) 상태.
         enum RuleKind: String, Codable {
@@ -222,6 +286,9 @@ enum SharedStore {
         var cooldownUsageMinutes: Int
         /// 쿨다운 모드: 강제 휴식(분). ruleKind == .cooldown 일 때 유효.
         var cooldownDurationMinutes: Int
+        /// 요일별 규칙. index = Calendar.component(.weekday) - 1 (0=일 … 6=토), 정확히 7개.
+        /// nil이면 요일별 모드가 아니며 기존 필드(ruleKind 등)가 매일 적용된다.
+        var weekdayRules: [DayRule]?
 
         init(
             id: UUID = UUID(),
@@ -232,7 +299,8 @@ enum SharedStore {
             timeWindows: [TimeWindow] = [],
             isApplied: Bool = true,
             cooldownUsageMinutes: Int = defaultCooldownUsageMinutes,
-            cooldownDurationMinutes: Int = defaultCooldownDurationMinutes
+            cooldownDurationMinutes: Int = defaultCooldownDurationMinutes,
+            weekdayRules: [DayRule]? = nil
         ) {
             self.id = id
             self.name = name
@@ -243,6 +311,7 @@ enum SharedStore {
             self.isApplied = isApplied
             self.cooldownUsageMinutes = cooldownUsageMinutes
             self.cooldownDurationMinutes = cooldownDurationMinutes
+            self.weekdayRules = weekdayRules
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -255,6 +324,7 @@ enum SharedStore {
             case isApplied
             case cooldownUsageMinutes
             case cooldownDurationMinutes
+            case weekdayRules
         }
 
         // 새 필드는 어떤 페이로드에서도 throw하지 않아야 한다.
@@ -278,6 +348,9 @@ enum SharedStore {
                 timeWindows = (try? container.decodeIfPresent([TimeWindow].self, forKey: .timeWindows)) ?? nil ?? []
                 cooldownUsageMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownUsageMinutes)) ?? nil ?? Self.defaultCooldownUsageMinutes
                 cooldownDurationMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownDurationMinutes)) ?? nil ?? Self.defaultCooldownDurationMinutes
+                let decodedWeekdayRules = (try? container.decodeIfPresent([DayRule].self, forKey: .weekdayRules)) ?? nil
+                // 7개가 아니면 손상 페이로드 — weekdayRules만 버리고 base 규칙으로 폴백(그룹은 생존).
+                weekdayRules = decodedWeekdayRules?.count == 7 ? decodedWeekdayRules : nil
             } else {
                 // isApplied 키 부재 = 구버전 페이로드. 기존 사용자 그룹은 일일 한도 규칙이 이미 적용된 상태.
                 isApplied = true
@@ -285,6 +358,7 @@ enum SharedStore {
                 timeWindows = []
                 cooldownUsageMinutes = Self.defaultCooldownUsageMinutes
                 cooldownDurationMinutes = Self.defaultCooldownDurationMinutes
+                weekdayRules = nil
             }
         }
 
@@ -300,6 +374,8 @@ enum SharedStore {
             try container.encode(timeWindows, forKey: .timeWindows)
             try container.encode(cooldownUsageMinutes, forKey: .cooldownUsageMinutes)
             try container.encode(cooldownDurationMinutes, forKey: .cooldownDurationMinutes)
+            // nil이면 키 자체가 없어 구버전과 왕복 안전.
+            try container.encodeIfPresent(weekdayRules, forKey: .weekdayRules)
         }
 
         var appCount: Int {

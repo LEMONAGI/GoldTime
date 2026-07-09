@@ -41,6 +41,12 @@ UserDefaults(suite `group.com.goldtime.shared`).
 - 구버전 페이로드(`isApplied` 키 없음)는 "일일 한도 + 적용됨"으로 디코딩되어야 한다.
 - `resyncTimeWindowLocks(now:)`는 시간대 잠금을 `shieldedGroupIDs`에 반영하며 일일 한도/draft
   그룹은 건드리지 않는다. 호출 시점은 `docs/agent/critical-flows.md`의 "시간대 차단 흐름" 참조.
+- **`ScreenTimeGroup.weekdayRules: [DayRule]?`(1.2.0 요일별 규칙)**: index =
+  `Calendar.component(.weekday) - 1`(0=일 … 6=토), **정확히 7개** 불변식. nil = 요일별 모드
+  아님(기존 필드가 매일 적용). 디코딩은 7개가 아니면 weekdayRules만 nil로 버리고 base 규칙으로
+  폴백(그룹은 생존), 요소의 미지 kind는 `.dailyLimit` 폴백, nil은 `encodeIfPresent`로 키 생략
+  (구버전 왕복 안전). **인코더는 7개 검증을 하지 않으므로 쓰기 시점(UseCase/정책)에 강제할 것**
+  — 디코더의 drop-to-nil은 최후 방어선이지 검증이 아니다.
 
 ## ScreenTimeManager (Core/ScreenTime)
 

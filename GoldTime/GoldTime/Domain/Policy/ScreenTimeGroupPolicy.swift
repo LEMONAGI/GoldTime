@@ -65,6 +65,8 @@ enum ScreenTimeGroupPolicy {
         var cooldownUsageMinutes: Int
         /// 쿨다운 모드: 강제 휴식(분). ruleKind == .cooldown 일 때 유효.
         var cooldownDurationMinutes: Int
+        /// 요일별 규칙(0=일 … 6=토, 정확히 7개). nil이면 요일별 모드가 아니다.
+        var weekdayRules: [DayRule]?
 
         init(
             id: UUID = UUID(),
@@ -77,7 +79,8 @@ enum ScreenTimeGroupPolicy {
             timeWindows: [TimeWindow] = [],
             isApplied: Bool = true,
             cooldownUsageMinutes: Int = 10,
-            cooldownDurationMinutes: Int = 300
+            cooldownDurationMinutes: Int = 300,
+            weekdayRules: [DayRule]? = nil
         ) {
             self.id = id
             self.name = name
@@ -90,6 +93,7 @@ enum ScreenTimeGroupPolicy {
             self.isApplied = isApplied
             self.cooldownUsageMinutes = cooldownUsageMinutes
             self.cooldownDurationMinutes = cooldownDurationMinutes
+            self.weekdayRules = weekdayRules
         }
 
         var selectionCount: Int {
