@@ -47,6 +47,10 @@ UserDefaults(suite `group.com.goldtime.shared`).
   폴백(그룹은 생존), 요소의 미지 kind는 `.dailyLimit` 폴백, nil은 `encodeIfPresent`로 키 생략
   (구버전 왕복 안전). **인코더는 7개 검증을 하지 않으므로 쓰기 시점(UseCase/정책)에 강제할 것**
   — 디코더의 drop-to-nil은 최후 방어선이지 검증이 아니다.
+- **`resolved(on:)` 투영본은 등록/판정 전용 — 절대 persist 금지.** 투영본은 저장 모델과 같은
+  타입·같은 id라서 실수로 `screenTimeGroups`에 다시 쓰면 weekdayRules가 컴파일 에러 없이
+  조용히 소실된다. persist는 항상 원본, `lastRegisteredGroupsByID`에는 투영본(오늘 규칙 기준
+  churn 비교), UI 주간 구조 표시는 원본·상태 판정은 투영본.
 
 ## ScreenTimeManager (Core/ScreenTime)
 

@@ -125,6 +125,7 @@
 				Domain/Policy/CooldownPolicy.swift,
 				Domain/Policy/ScreenTimeGroupPolicy.swift,
 				Domain/Policy/TimeWindowPolicy.swift,
+				Domain/Policy/WeekdayRulePolicy.swift,
 			);
 			target = DF869C5F2FA508430038364B /* DeviceActivityMonitorExtension */;
 		};

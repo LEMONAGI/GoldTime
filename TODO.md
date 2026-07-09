@@ -7,8 +7,8 @@
 ## 하는 중
 
 - [ ] 1.2.0 요일별 제한 규칙 (`Feat/WeekdayRules`, 계획: `~/.claude/plans/1-2-0-ancient-swing.md`)
-  - [ ] 1단계: 모델 + Codable (SharedStore.DayRule, weekdayRules — dormant)
-  - [ ] 2단계: WeekdayRulePolicy + `resolved(on:)` 투영
+  - [x] 1단계: 모델 + Codable (398e277)
+  - [x] 2단계: WeekdayRulePolicy + `resolved(on:)` 투영
   - [ ] 3단계: 등록/자정 전환 코어 (High — syncDailyMonitoring·handleHeartbeat·TimeWindowMonitor)
   - [ ] 4단계: UI (RuleEditorSheet 토글·요일 묶음, 홈 카드 오늘 규칙)
   - [ ] 5단계: 알림 요일 트리거 (weekday wrap)

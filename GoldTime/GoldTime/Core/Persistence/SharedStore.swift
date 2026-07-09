@@ -398,6 +398,46 @@ enum SharedStore {
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? String(localized: "group.unnamed") : trimmed
         }
+
+        /// 요일별 모드 여부. weekdayRules가 있으면 날짜마다 규칙이 달라진다.
+        var usesWeekdayRules: Bool { weekdayRules != nil }
+
+        /// 해당 날짜가 '제한 없음' 요일인지. 요일별 모드가 아니면 항상 false.
+        func isUnrestricted(on date: Date, calendar: Calendar = .current) -> Bool {
+            guard let rules = weekdayRules, rules.count == 7 else { return false }
+            let index = WeekdayRulePolicy.weekdayIndex(for: date, calendar: calendar)
+            return rules[index].kind == .unrestricted
+        }
+
+        /// 해당 날짜의 유효 규칙을 기존 규칙 필드에 투영한 사본을 반환한다.
+        /// - weekdayRules == nil이면 self 그대로(비요일 그룹 zero-cost 통과).
+        /// - 투영본은 weekdayRules가 nil로 스트립된다(등록 기록·churn 비교가 오늘 규칙만 보게).
+        /// - 오늘이 '제한 없음'이면 ruleKind = nil → 기존 정책이 모니터링에서 자연 제외.
+        /// - 7개가 아닌 비정상 배열은 디코더 폴백과 동일하게 base 규칙으로 취급(weekdayRules만 스트립).
+        func resolved(on date: Date, calendar: Calendar = .current) -> ScreenTimeGroup {
+            guard let rules = weekdayRules else { return self }
+            var copy = self
+            copy.weekdayRules = nil
+            guard rules.count == 7 else { return copy }
+
+            let index = WeekdayRulePolicy.weekdayIndex(for: date, calendar: calendar)
+            let today = rules[index]
+            copy.dailyLimitMinutes = today.dailyLimitMinutes
+            copy.timeWindows = today.timeWindows
+            copy.cooldownUsageMinutes = today.cooldownUsageMinutes
+            copy.cooldownDurationMinutes = today.cooldownDurationMinutes
+            switch today.kind {
+            case .unrestricted:
+                copy.ruleKind = nil
+            case .dailyLimit:
+                copy.ruleKind = .dailyLimit
+            case .timeWindows:
+                copy.ruleKind = .timeWindows
+            case .cooldown:
+                copy.ruleKind = .cooldown
+            }
+            return copy
+        }
     }
 
     struct DailyStats: Codable, Equatable, Identifiable {
@@ -520,6 +560,12 @@ enum SharedStore {
 
     static func group(id: UUID) -> ScreenTimeGroup? {
         screenTimeGroups.first { $0.id == id }
+    }
+
+    /// id에 해당하는 그룹을 찾아 `now`의 유효 규칙으로 투영한 사본을 반환한다.
+    /// 요일별 모드가 아니면 저장된 그룹 그대로다(extension tick 핸들러에서 오늘 규칙만 보게).
+    static func resolvedGroup(id: UUID, now: Date = Date()) -> ScreenTimeGroup? {
+        group(id: id)?.resolved(on: now)
     }
 
     static var isDailyMonitoringEnabled: Bool {

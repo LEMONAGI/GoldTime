@@ -172,3 +172,180 @@ struct WeekdayRuleTests {
         #expect(decoded.weekdayRules?[2].kind == .dailyLimit) // 손상 요소는 폴백
     }
 }
+
+/// WeekdayRulePolicy(검증·요일 인덱스)와 resolved(on:) 투영의 순수 로직 검증.
+@MainActor
+struct WeekdayRulePolicyTests {
+
+    // MARK: - 헬퍼
+
+    /// 시간대 고정 그레고리력(테스트 결정성). 2026-07-05(일)~07-11(토)이 index 0~6에 대응한다.
+    private var calendar: Calendar {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        return cal
+    }
+
+    private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
+    }
+
+    /// index마다 일일 한도가 다른(10+index) 7요일 규칙 — 투영 매핑 검증용.
+    private func indexedRules() -> [SharedStore.DayRule] {
+        (0..<7).map { SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 10 + $0) }
+    }
+
+    // MARK: - weekdayIndex / displayOrderedIndices
+
+    @Test func weekdayIndexIsStableAcrossFirstWeekday() {
+        // Calendar.weekday는 firstWeekday 설정과 무관하게 1=일요일 고정이다.
+        var mondayFirst = calendar
+        mondayFirst.firstWeekday = 2
+        let sunday = date(2026, 7, 5)
+        #expect(WeekdayRulePolicy.weekdayIndex(for: sunday, calendar: calendar) == 0)
+        #expect(WeekdayRulePolicy.weekdayIndex(for: sunday, calendar: mondayFirst) == 0)
+        #expect(WeekdayRulePolicy.weekdayIndex(for: date(2026, 7, 11), calendar: mondayFirst) == 6)
+    }
+
+    @Test func displayOrderedIndicesRotateByWeekStartDay() {
+        #expect(WeekdayRulePolicy.displayOrderedIndices(weekStartDay: 1) == [0, 1, 2, 3, 4, 5, 6])
+        #expect(WeekdayRulePolicy.displayOrderedIndices(weekStartDay: 2) == [1, 2, 3, 4, 5, 6, 0])
+        #expect(WeekdayRulePolicy.displayOrderedIndices(weekStartDay: 7) == [6, 0, 1, 2, 3, 4, 5])
+        // 범위 밖 값은 월요일 시작으로 폴백(SharedStore.weekStartDay 기본값 2와 동일).
+        #expect(WeekdayRulePolicy.displayOrderedIndices(weekStartDay: 0) == [1, 2, 3, 4, 5, 6, 0])
+        #expect(WeekdayRulePolicy.displayOrderedIndices(weekStartDay: 8) == [1, 2, 3, 4, 5, 6, 0])
+    }
+
+    // MARK: - resolved(on:) 투영
+
+    @Test func resolvedProjectsEachWeekdayAndStripsRules() {
+        // 한 주(일~토)의 각 날짜가 해당 index의 DayRule로 투영되고, 투영본은 weekdayRules가 nil이다.
+        let group = SharedStore.ScreenTimeGroup(
+            name: "SNS", ruleKind: .cooldown, isApplied: true, weekdayRules: indexedRules()
+        )
+        for offset in 0..<7 {
+            let projected = group.resolved(on: date(2026, 7, 5 + offset), calendar: calendar)
+            #expect(projected.ruleKind == .dailyLimit)
+            #expect(projected.dailyLimitMinutes == 10 + offset)
+            #expect(projected.weekdayRules == nil)
+        }
+    }
+
+    @Test func resolvedMapsKindAndCopiesAllParams() {
+        let windows = [TimeWindow(startMinuteOfDay: 540, endMinuteOfDay: 719)]
+        var rules = indexedRules()
+        rules[0] = SharedStore.DayRule(kind: .unrestricted)
+        rules[2] = SharedStore.DayRule(kind: .timeWindows, timeWindows: windows)
+        rules[4] = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 25, cooldownDurationMinutes: 90)
+        let group = SharedStore.ScreenTimeGroup(
+            name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+
+        // 일요일: 제한 없음 → ruleKind nil(기존 정책이 모니터링에서 자연 제외).
+        let sunday = group.resolved(on: date(2026, 7, 5), calendar: calendar)
+        #expect(sunday.ruleKind == nil)
+        // 화요일: 시간대 — windows 복사.
+        let tuesday = group.resolved(on: date(2026, 7, 7), calendar: calendar)
+        #expect(tuesday.ruleKind == .timeWindows)
+        #expect(tuesday.timeWindows == windows)
+        // 목요일: 쿨다운 — 파라미터 2개 복사.
+        let thursday = group.resolved(on: date(2026, 7, 9), calendar: calendar)
+        #expect(thursday.ruleKind == .cooldown)
+        #expect(thursday.cooldownUsageMinutes == 25)
+        #expect(thursday.cooldownDurationMinutes == 90)
+    }
+
+    @Test func resolvedIsPassthroughForNonWeekdayGroup() {
+        let group = SharedStore.ScreenTimeGroup(name: "SNS", ruleKind: .dailyLimit, isApplied: true)
+        #expect(group.resolved(on: date(2026, 7, 5), calendar: calendar) == group)
+    }
+
+    @Test func resolvedTreatsMalformedCountAsBaseRule() {
+        // 7개가 아닌 비정상 배열은 디코더 폴백과 동일하게 base 규칙 취급(weekdayRules만 스트립).
+        let group = SharedStore.ScreenTimeGroup(
+            name: "SNS", dailyLimitMinutes: 55, ruleKind: .dailyLimit, isApplied: true,
+            weekdayRules: Array(indexedRules().prefix(3))
+        )
+        let projected = group.resolved(on: date(2026, 7, 5), calendar: calendar)
+        #expect(projected.ruleKind == .dailyLimit)
+        #expect(projected.dailyLimitMinutes == 55)
+        #expect(projected.weekdayRules == nil)
+    }
+
+    @Test func isUnrestrictedOnMatchesWeekday() {
+        var rules = indexedRules()
+        rules[6] = SharedStore.DayRule(kind: .unrestricted)
+        let group = SharedStore.ScreenTimeGroup(
+            name: "SNS", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+        #expect(group.isUnrestricted(on: date(2026, 7, 11), calendar: calendar))   // 토
+        #expect(!group.isUnrestricted(on: date(2026, 7, 10), calendar: calendar))  // 금
+        let plainGroup = SharedStore.ScreenTimeGroup(name: "SNS", ruleKind: .dailyLimit, isApplied: true)
+        #expect(!plainGroup.isUnrestricted(on: date(2026, 7, 11), calendar: calendar))
+    }
+
+    // MARK: - firstInvalidReason
+
+    @Test func firstInvalidReasonRejectsWrongCountAndAllUnrestricted() {
+        #expect(WeekdayRulePolicy.firstInvalidReason(for: Array(indexedRules().prefix(6))) == .wrongDayCount)
+        let allOff = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
+        #expect(WeekdayRulePolicy.firstInvalidReason(for: allOff) == .allUnrestricted)
+        #expect(WeekdayRulePolicy.firstInvalidReason(for: indexedRules()) == nil)
+    }
+
+    @Test func firstInvalidReasonDelegatesPerDayValidation() {
+        // 화요일(index 2)에 겹치는 시간대 → 해당 요일의 timeWindow 사유.
+        var overlapping = indexedRules()
+        overlapping[2] = SharedStore.DayRule(kind: .timeWindows, timeWindows: [
+            TimeWindow(startMinuteOfDay: 720, endMinuteOfDay: 780),
+            TimeWindow(startMinuteOfDay: 780, endMinuteOfDay: 840)
+        ])
+        guard case .dayInvalid(let windowIndex, .timeWindow) = WeekdayRulePolicy.firstInvalidReason(for: overlapping) else {
+            Issue.record("겹치는 시간대가 dayInvalid(.timeWindow)로 잡혀야 한다")
+            return
+        }
+        #expect(windowIndex == 2)
+
+        // 금요일(index 5)에 범위 밖 쿨다운 예산 → 해당 요일의 cooldown 사유.
+        var badCooldown = indexedRules()
+        badCooldown[5] = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 0)
+        guard case .dayInvalid(let cooldownIndex, .cooldown) = WeekdayRulePolicy.firstInvalidReason(for: badCooldown) else {
+            Issue.record("범위 밖 쿨다운이 dayInvalid(.cooldown)로 잡혀야 한다")
+            return
+        }
+        #expect(cooldownIndex == 5)
+
+        // 수요일(index 3)에 음수 일일 한도 → dailyLimit 사유.
+        var badLimit = indexedRules()
+        badLimit[3] = SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: -1)
+        #expect(WeekdayRulePolicy.firstInvalidReason(for: badLimit) == .dayInvalid(weekdayIndex: 3, .dailyLimit))
+    }
+
+    // MARK: - ruleInvalidReason 요일 분기
+
+    @Test func ruleInvalidReasonAcceptsValidWeekdayRulesWithoutBaseKind() {
+        // 요일별 모드에서는 base ruleKind가 nil(미선택)이어도 유효 — 요일 규칙 자체가 규칙 선택.
+        let valid = ScreenTimeGroupPolicy.GroupSnapshot<String>(
+            name: "SNS", appTokens: ["a"], dailyLimitMinutes: 30,
+            ruleKind: nil, weekdayRules: indexedRules()
+        )
+        #expect(ScreenTimeGroupPolicy.ruleInvalidReason(for: valid) == nil)
+
+        var badRules = indexedRules()
+        badRules[1] = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 0)
+        let invalid = ScreenTimeGroupPolicy.GroupSnapshot<String>(
+            name: "SNS", appTokens: ["a"], dailyLimitMinutes: 30,
+            ruleKind: .dailyLimit, weekdayRules: badRules
+        )
+        guard case .groupHasInvalidWeekdayRules = ScreenTimeGroupPolicy.ruleInvalidReason(for: invalid) else {
+            Issue.record("무효 요일 규칙이 groupHasInvalidWeekdayRules로 잡혀야 한다")
+            return
+        }
+
+        // 비요일 그룹의 기존 동작 회귀: 규칙 미선택은 여전히 draft 취급.
+        let draft = ScreenTimeGroupPolicy.GroupSnapshot<String>(
+            name: "SNS", appTokens: ["a"], dailyLimitMinutes: 30, ruleKind: nil
+        )
+        #expect(ScreenTimeGroupPolicy.ruleInvalidReason(for: draft) == .groupHasNoRule("SNS"))
+    }
+}
