@@ -69,6 +69,35 @@ Screen Time, Shield, 보상형 광고, 공유 상태, extension 동작을 바꾸
 5. **쿨다운도 자정 리셋이 그대로 적용됩니다**(`clearAllShieldState`가 `cooldownUntilByGroupID`를 비움). 23:45에 잠겼어도 `cooldownUntil`은 23:59:59로 잘리고, 자정에 풀리고 예산이 새로 충전됩니다 — daily 한도와 동일한 "하루 단위 새 출발".
 6. 백그라운드에서 앱이 죽어 `cooldownTimer` 콜백을 놓친 경우, foreground 복귀 시 `reapplyShieldIfOverrideExpired` → `rechargeExpiredCooldowns`(만료 쿨다운 정리·재충전)가 자가 치유합니다. `cooldownUsage`/`cooldownTimer` 이름 규약과 등록은 메인 앱·extension이 공유하는 `CooldownMonitor`에 있습니다(extension은 ScreenTimeManager를 포함하지 않으므로 재충전 등록을 위해 공유 필요).
 
+## 요일별 규칙 흐름 (1.2.0)
+
+그룹마다 요일별로 다른 규칙(제한 없음/일일 한도/시간대/쿨다운)을 설정하는 기능. 핵심 장치는
+**`resolved(on:)` 투영** — "해당 날짜의 규칙을 기존 규칙 필드에 덮어쓴 사본"으로, 등록·판정·
+extension 콜백이 전부 이 투영본을 쓰고 기존 코드를 재사용한다.
+
+1. 모델: `ScreenTimeGroup.weekdayRules: [DayRule]?`(정확히 7개, index = `Calendar.weekday - 1`,
+   0=일…6=토). nil = 기존 동작(base 규칙 매일 적용). 검증은 `WeekdayRulePolicy`(7개·전부 제한
+   없음 거부·요일별 기존 정책 위임), 쓰기 강제는 `ManageGroupsUseCase.updateWeekdayRules`
+   (draft 그룹은 첫 제한 요일 규칙을 base에 백필 — 디코딩 폴백/다운그레이드 시 무보호 방지).
+2. **투영 규율 3줄**: 투영본을 `screenTimeGroups`에 절대 persist하지 않는다(원본만).
+   `lastRegisteredGroupsByID`에는 투영본을 저장한다(churn 가드가 오늘 규칙만 보게 — 다른
+   요일만 편집하면 오늘 모니터 무churn). UI는 원본으로 주간 구조를, 투영본으로 상태를 판정한다.
+3. 등록: `syncDailyMonitoring`의 validGroups가 오늘 투영본. 오늘 '제한 없음'(투영 ruleKind
+   nil)은 모니터링에서 자연 제외 + 잠금/연장 잔재 명시 청소. 오늘 무효여도 요일 그룹이 있으면
+   하트비트·`isDailyMonitoringEnabled`를 유지한다(주말 전 그룹 제한 없음 → 월요일 재무장 보장).
+   gen/baseline은 존재 그룹 전체 기준으로 보존(`pruneShieldState` 2-set — 이름 재사용 회귀 방지).
+4. 자정 전환(= 요일 전환) 주 경로는 extension `handleHeartbeat`: 리셋 전 등록 기록을 스냅샷해
+   어제 kind의 측정창을 명시 stop + gen 선반영하고, 오늘 투영 규칙으로 재무장한다. 시간대는
+   어제와 구성이 같으면 무중단 유지, 다르면 stop 후 재등록(`TimeWindowMonitor` 공유).
+   daily/cooldown tick 핸들러는 오늘 투영 kind와 tick 종류가 일치할 때만 처리(stale tick 게이트).
+   보완 경로(BGTask·foreground sync)는 리셋이 등록 기록을 비워 fresh 재등록으로 자연 처리.
+5. `resyncTimeWindowLocks`는 오늘 투영이 시간대 규칙인 그룹만 평가한다. 광고/1분 연장은 기존
+   `shieldedGroupIDs` 레이어 그대로라 수정 없이 동작한다.
+6. 시간대 알림은 timeWindows인 요일에만 `weekday` 컴포넌트 트리거(주 1회)로 예약하고, 7요일
+   동일 시간대는 매일 반복 1쌍으로 dedupe한다(iOS pending 64개 제한). 요일 wrap(5분 전 전날↔
+   종료 익일) 포함 — `NotificationService.timeWindowAlertPlans`.
+7. 세부 함정은 `Core/CLAUDE.md`·`DeviceActivityMonitorExtension/CLAUDE.md`의 요일별 규칙 항목.
+
 ## 1분 연장 흐름
 
 1. 사용자가 Shield 경로에서 GoldTime을 열고 1분 연장을 선택합니다.
