@@ -688,6 +688,34 @@ struct ViewModelTests {
         #expect(group.ruleKind == nil)
     }
 
+    @Test func updateWeekdayRulesEnforcesValidityAndToggle() {
+        let useCase = ManageGroupsUseCase(
+            groupRepository: FakeGroupRepository(),
+            screenTimeRepository: FakeScreenTimeRepository()
+        )
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(id: id, name: "SNS", ruleKind: .dailyLimit, isApplied: true)]
+
+        // 유효한 7개 → 저장(요일별 모드 전환).
+        let valid = (0..<7).map { SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 10 + $0) }
+        useCase.updateWeekdayRules(id: id, rules: valid, in: &groups)
+        #expect(groups[0].weekdayRules == valid)
+
+        // 무효(6개) → 거부: 직전 유효 규칙이 그대로 유지되고 아무 변경도 없다.
+        useCase.updateWeekdayRules(id: id, rules: Array(valid.prefix(6)), in: &groups)
+        #expect(groups[0].weekdayRules == valid)
+
+        // 무효(전부 제한 없음) → 거부.
+        let allUnrestricted = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
+        useCase.updateWeekdayRules(id: id, rules: allUnrestricted, in: &groups)
+        #expect(groups[0].weekdayRules == valid)
+
+        // nil → 요일별 모드 해제(기존 base 규칙이 다시 적용).
+        useCase.updateWeekdayRules(id: id, rules: nil, in: &groups)
+        #expect(groups[0].weekdayRules == nil)
+        #expect(groups[0].ruleKind == .dailyLimit)
+    }
+
     @Test func requestApplyBlockedWhenRuleNotChosen() {
         // 규칙 미선택 draft는 적용할 수 없고 안내 alert만 뜬다.
         // (테스트 환경에선 실제 ApplicationToken을 만들 수 없어 selection도 비어 있다.

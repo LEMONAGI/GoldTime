@@ -420,7 +420,10 @@ struct GoldTimeTests {
         SharedStore.recordOverrideBaseline(groupID: keptID, baseline: 3, grantedMinutes: 1)
         SharedStore.recordOverrideBaseline(groupID: removedID, baseline: 4, grantedMinutes: 10)
 
-        let didChange = SharedStore.pruneShieldState(keepingGroupIDs: [keptID])
+        let didChange = SharedStore.pruneShieldState(
+            keepingGroupIDs: [keptID],
+            keepingCooldownProgressGroupIDs: [keptID]
+        )
 
         #expect(didChange)
         #expect(SharedStore.shieldedGroupIDs == [keptID])

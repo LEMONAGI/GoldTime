@@ -348,4 +348,126 @@ struct WeekdayRulePolicyTests {
         )
         #expect(ScreenTimeGroupPolicy.ruleInvalidReason(for: draft) == .groupHasNoRule("SNS"))
     }
+
+    // MARK: - 투영 churn (등록 재시작 판정)
+
+    @Test func projectionEqualityDetectsOnlyTodayRuleEdits() {
+        // syncDailyMonitoring/heartbeat의 churn 가드 `last != group`은 투영본끼리 비교한다.
+        // 같은 id·selection을 유지한 채 오늘(일=index 0) 외 요일만 편집하면 오늘 투영본이 동일 →
+        // 재시작 없음. 오늘 요일을 편집하면 투영본이 달라져 재시작이 일어난다.
+        let sunday = date(2026, 7, 5)   // index 0
+        let id = UUID()
+        func projection(_ rules: [SharedStore.DayRule]) -> SharedStore.ScreenTimeGroup {
+            SharedStore.ScreenTimeGroup(
+                id: id, name: "SNS", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+            ).resolved(on: sunday, calendar: calendar)
+        }
+
+        let base = projection(indexedRules())
+
+        var otherDayEdited = indexedRules()
+        otherDayEdited[3] = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 20, cooldownDurationMinutes: 60)
+        #expect(projection(otherDayEdited) == base)   // 오늘 규칙 불변 → churn 없음
+
+        var todayEdited = indexedRules()
+        todayEdited[0] = SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 999)
+        #expect(projection(todayEdited) != base)      // 오늘 규칙 변경 → churn
+    }
+}
+
+/// 3단계 등록/자정 전환 코어(needsHeartbeat 요일 확장, resyncTimeWindowLocks 요일 게이트,
+/// pruneShieldState 이원화)의 순수/SharedStore 로직 검증.
+@MainActor
+struct WeekdayRuleEngineTests {
+
+    private func indexedRules() -> [SharedStore.DayRule] {
+        (0..<7).map { SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 10 + $0) }
+    }
+
+    // MARK: - needsHeartbeat 요일 확장
+
+    @Test func heartbeatNeededForAppliedWeekdayGroupEvenWithoutValidToday() {
+        let weekday = SharedStore.ScreenTimeGroup(
+            name: "요일", ruleKind: nil, isApplied: true, weekdayRules: indexedRules()
+        )
+        let weekdayDraft = SharedStore.ScreenTimeGroup(
+            name: "요일", ruleKind: nil, isApplied: false, weekdayRules: indexedRules()
+        )
+        let plainWindow = SharedStore.ScreenTimeGroup(name: "시간대", ruleKind: .timeWindows, isApplied: true)
+        let plainDaily = SharedStore.ScreenTimeGroup(name: "일일", ruleKind: .dailyLimit, isApplied: true)
+
+        // 적용된 요일 그룹은 오늘 유효 그룹이 없어도(오늘 전부 '제한 없음' 등) 하트비트를 유지한다.
+        #expect(DailyMonitor.needsHeartbeat(for: [], appliedGroups: [weekday]))
+        // 미적용(draft) 요일 그룹은 아직 하트비트가 불필요하다.
+        #expect(!DailyMonitor.needsHeartbeat(for: [], appliedGroups: [weekdayDraft]))
+        // 비요일 시간대-only는 기존대로 불필요(회귀).
+        #expect(!DailyMonitor.needsHeartbeat(for: [plainWindow], appliedGroups: [plainWindow]))
+        // 오늘 daily/cooldown 유효 그룹이 있으면 기존대로 필요(회귀).
+        #expect(DailyMonitor.needsHeartbeat(for: [plainDaily], appliedGroups: [plainDaily]))
+    }
+
+    // MARK: - resyncTimeWindowLocks 요일 게이트
+
+    @Test func resyncTimeWindowLocksGatesOnTodayRule() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        // 실행일이 어떤 요일이든 결정적으로 만들기 위해 '오늘'의 요일 index를 계산해 그 슬롯만 조작한다.
+        let calendar = Calendar.current
+        let now = calendar.date(bySettingHour: 11, minute: 0, second: 0, of: Date())!
+        let todayIndex = WeekdayRulePolicy.weekdayIndex(for: now)
+        let window = SharedStore.DayRule(kind: .timeWindows, timeWindows: [
+            TimeWindow(startMinuteOfDay: 600, endMinuteOfDay: 720)   // 10:00–12:00, now(11:00)는 창 안
+        ])
+        let daily = SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30)
+
+        // A: 오늘 = 시간대, 나머지 요일 = 일일 → 잠금돼야 한다.
+        var rulesA = Array(repeating: daily, count: 7)
+        rulesA[todayIndex] = window
+        // B: 오늘 = 일일, 나머지 요일 = 같은 시간대 → 오늘이 시간대 규칙이 아니므로 무시(잠금 없음).
+        var rulesB = Array(repeating: window, count: 7)
+        rulesB[todayIndex] = daily
+
+        let idA = UUID()
+        let idB = UUID()
+        SharedStore.screenTimeGroups = [
+            SharedStore.ScreenTimeGroup(id: idA, name: "A", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rulesA),
+            SharedStore.ScreenTimeGroup(id: idB, name: "B", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rulesB)
+        ]
+
+        let result = SharedStore.resyncTimeWindowLocks(now: now)
+        #expect(result.newlyLocked.contains(idA))
+        #expect(SharedStore.shieldedGroupIDs.contains(idA))
+        #expect(!SharedStore.shieldedGroupIDs.contains(idB))
+    }
+
+    // MARK: - pruneShieldState 이원화
+
+    @Test func pruneShieldStatePreservesCooldownGenerationForExistingGroup() {
+        SharedStore.clearGroupStateForTesting()
+        defer { SharedStore.clearGroupStateForTesting() }
+
+        let unrestrictedTodayID = UUID()   // 존재하지만 오늘 유효하지 않은(제한 없음) 요일 그룹
+        let deletedID = UUID()             // 삭제된 그룹
+
+        SharedStore.cooldownGenerationByID = [unrestrictedTodayID: 3, deletedID: 5]
+        SharedStore.cooldownBaselineByGroupID = [unrestrictedTodayID: 7, deletedID: 9]
+        SharedStore.startCooldown(until: Date().addingTimeInterval(60), for: unrestrictedTodayID)
+
+        // 첫 set(오늘 유효)은 비우고, 둘째 set(존재하는 그룹 전체)에는 unrestrictedTodayID를 유지한다.
+        _ = SharedStore.pruneShieldState(
+            keepingGroupIDs: [],
+            keepingCooldownProgressGroupIDs: [unrestrictedTodayID]
+        )
+
+        // shield/cooldownUntil은 첫 set 기준 → unrestrictedTodayID도 비워진다(오늘은 앱 열림).
+        #expect(SharedStore.cooldownUntilByGroupID[unrestrictedTodayID] == nil)
+        #expect(!SharedStore.shieldedGroupIDs.contains(unrestrictedTodayID))
+        // generation/baseline은 둘째 set 기준 → 보존(다음 등록의 gen 0 재사용·카운터 승계 회귀 방지).
+        #expect(SharedStore.cooldownGenerationByID[unrestrictedTodayID] == 3)
+        #expect(SharedStore.cooldownBaselineByGroupID[unrestrictedTodayID] == 7)
+        // 삭제 그룹(둘째 set에도 없음)은 gen/baseline까지 제거.
+        #expect(SharedStore.cooldownGenerationByID[deletedID] == nil)
+        #expect(SharedStore.cooldownBaselineByGroupID[deletedID] == nil)
+    }
 }

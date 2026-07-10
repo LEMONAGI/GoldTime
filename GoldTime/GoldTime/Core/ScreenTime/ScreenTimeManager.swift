@@ -12,23 +12,9 @@ import ManagedSettings
 import os
 
 // daily/dailyGroup/dailyGroupID/dailyHeartbeat/override 및 DeviceActivityEvent.Name.tick/tickInfo는
-// DailyMonitor.swift로 이동(앱·extension 공유 단일 출처). 여기서 다시 선언하지 말 것.
-extension DeviceActivityName {
-    /// `window.<UUID>.<index>` 형식. index는 그룹 timeWindows 배열 순서(0...).
-    nonisolated static func timeWindow(for groupID: UUID, index: Int) -> Self {
-        Self("window.\(groupID.uuidString).\(index)")
-    }
-
-    /// `window.<UUID>.<index>`에서 groupID 추출.
-    var timeWindowGroupID: UUID? {
-        let prefix = "window."
-        guard rawValue.hasPrefix(prefix) else { return nil }
-        let body = String(rawValue.dropFirst(prefix.count))
-        let firstSegment = body.split(separator: ".").first.map(String.init) ?? body
-        return UUID(uuidString: firstSegment)
-    }
-}
-
+// DailyMonitor.swift로 이동(앱·extension 공유 단일 출처). window.*/timeWindow(for:index:)/
+// timeWindowGroupID/maxTimeWindowsPerGroup/시간대 등록은 TimeWindowMonitor.swift로 이동. 여기서
+// 다시 선언하지 말 것.
 extension DeviceActivityEvent.Name {
     /// 광고/1분 연장 중 사용량 추적 1회성 이벤트. `usageTick.<gid>.<minute>` 형식으로
     /// override 시작 시점부터 누적 minute분 사용 시 한 번 발화한다 (relay 없음).
@@ -109,9 +95,6 @@ enum ScreenTimeManager {
     private static var center: DeviceActivityCenter { DeviceActivityCenter() }
     private static var store: ManagedSettingsStore { ManagedSettingsStore(named: .goldtime) }
     static var overrideMonitorRegistrar: any OverrideMonitorRegistering = DeviceActivityOverrideMonitorRegistrar()
-    /// 한 그룹이 가질 수 있는 시간대 최대 개수(TimeWindowPolicy와 동일). 그룹이 시간대를 줄이거나
-    /// dailyLimit으로 바뀌어도 잔여 window activity가 남지 않도록, 정리 시 0...max-1을 전부 stop한다.
-    static let maxTimeWindowsPerGroup = 3
 
     // MARK: - 일일 모니터링 동기화
 
@@ -140,8 +123,21 @@ enum ScreenTimeManager {
         resetDailyProtectionStateIfNeeded()
 
         let sanitizedGroups = sanitized(groups)
-        let validGroups = validDailyMonitoringGroups(from: sanitizedGroups)
+        // validGroups는 "오늘의 규칙"으로 투영한 사본(요일별 그룹은 resolved(on:now)로 오늘 규칙만 남고
+        // weekdayRules가 스트립된다). persist(:screenTimeGroups)는 아래에서 원본 sanitizedGroups로 하고,
+        // 투영본은 등록/판정/churn 비교 전용이다(Core/CLAUDE.md 투영 규율).
+        let validGroups = validDailyMonitoringGroups(from: sanitizedGroups, now: now)
         let validGroupIDs = Set(validGroups.map(\.id))
+
+        // 오늘 '제한 없음' 요일 그룹: 투영 ruleKind가 nil이라 validGroups에서 빠진다. 어제의 잠금/연장
+        // 잔재를 명시적으로 청소해 오늘은 앱이 열려 있게 한다(override activity stop은 아래 activitiesToStop).
+        let unrestrictedTodayIDs = Set(
+            sanitizedGroups.filter { $0.isApplied && $0.isUnrestricted(on: now) }.map(\.id)
+        )
+        // 요일별 모드 여부는 원본에서만 알 수 있다(투영본은 weekdayRules가 스트립됨).
+        let appliedWeekdayGroupIDs = Set(
+            sanitizedGroups.filter { $0.isApplied && $0.usesWeekdayRules }.map(\.id)
+        )
 
         let staleOverrideActivities = SharedStore.overrideUntilByGroupID.keys
             .filter { !validGroupIDs.contains($0) }
@@ -167,15 +163,21 @@ enum ScreenTimeManager {
 
         // 시간대 그룹이 변경됐거나(또는 dailyLimit/삭제로 무효화됐거나) 새로 들어온 경우,
         // 해당 그룹의 window activity 슬롯을 전부 멈췄다가 필요 시 아래에서 다시 등록한다.
+        // appliedWeekdayGroupIDs를 합집합에 더하는 이유: 자정 리셋이 lastRegisteredGroupsByID를 비워
+        // previousWindowGroupIDs가 빈 상태에서, "어제 timeWindows → 오늘 다른 규칙" 요일 그룹의
+        // repeats:true window activity가 영원히 발화하는 누수를 차단한다. 무변경 유효 window 그룹은
+        // 아래 내부 가드가 stop을 막고, 미등록 activity stop은 no-op라 무해하다.
         let previousWindowGroupIDs = Set(lastRegistered.filter { $0.value.ruleKind == .timeWindows }.map(\.key))
-        let windowGroupIDsToResetMonitoring = previousWindowGroupIDs.union(validWindowGroupIDs)
+        let windowGroupIDsToResetMonitoring = previousWindowGroupIDs
+            .union(validWindowGroupIDs)
+            .union(appliedWeekdayGroupIDs)
         let staleWindowActivities = windowGroupIDsToResetMonitoring.flatMap { groupID -> [DeviceActivityName] in
             // 변경되지 않은 시간대 그룹은 재등록을 피해야 하므로 stop도 하지 않는다.
             if validWindowGroupIDs.contains(groupID),
                lastRegistered[groupID] == validGroups.first(where: { $0.id == groupID }) {
                 return []
             }
-            return (0..<maxTimeWindowsPerGroup).map { DeviceActivityName.timeWindow(for: groupID, index: $0) }
+            return TimeWindowMonitor.allWindowActivities(for: groupID)
         }
 
         // 쿨다운 그룹이 변경/무효화/삭제됐거나 새로 들어온 경우, 사용 예산·휴식 타이머 activity를
@@ -194,29 +196,56 @@ enum ScreenTimeManager {
             )
         }
 
+        // persist는 반드시 원본 sanitizedGroups(투영본 절대 금지 — weekdayRules 소실).
         SharedStore.screenTimeGroups = sanitizedGroups
-        let activitiesToStop = staleOverrideActivities + staleGroupActivities + staleWindowActivities + staleCooldownActivities
+        // 오늘 '제한 없음' 그룹의 override activity도 함께 멈춘다(no-op 무해). shield/override 메타는 아래
+        // 명시 청소 + pruneShieldState가 정리한다.
+        let unrestrictedOverrideActivities = unrestrictedTodayIDs.map(DeviceActivityName.override(for:))
+        let activitiesToStop = staleOverrideActivities + staleGroupActivities + staleWindowActivities + staleCooldownActivities + unrestrictedOverrideActivities
         if !activitiesToStop.isEmpty {
             center.stopMonitoring(activitiesToStop)
         }
-        for staleID in registeredGroupIDs.subtracting(validGroupIDs) {
+        // 요일 그룹의 daily gen은 오늘 무효(제한 없음 등)여도 보존한다 — 비daily 요일을 지나도
+        // 이름 연속성이 유지돼야 과거 stop된 daily activity 이름 재사용(카운터 승계 회귀)을 막는다.
+        for staleID in registeredGroupIDs.subtracting(validGroupIDs).subtracting(appliedWeekdayGroupIDs) {
             generationByID.removeValue(forKey: staleID)
         }
-        SharedStore.pruneShieldState(keepingGroupIDs: validGroupIDs)
+
+        // 오늘 '제한 없음'인 요일 그룹: 어제 잠금·연장 잔재를 명시적으로 청소한다.
+        for groupID in unrestrictedTodayIDs {
+            SharedStore.unmarkGroupShielded(groupID)
+            SharedStore.clearOverride(for: groupID)
+        }
+
+        // pruneShieldState 이원화: shield/override/cooldownUntil은 오늘 유효 그룹 기준으로 prune하되,
+        // cooldownGeneration·baseline은 "존재하는 그룹 전체" 기준으로 보존한다(삭제 그룹만 prune).
+        // 오늘 '제한 없음'인 요일 그룹의 cooldown generation이 지워지면 다음 등록이 gen 0을 재사용해
+        // stop된 cooldownUsage activity 이름을 재사용 → 카운터 승계로 1분 만에 잠기는 회귀가 재발한다.
+        let existingGroupIDs = Set(sanitizedGroups.map(\.id))
+        SharedStore.pruneShieldState(
+            keepingGroupIDs: validGroupIDs,
+            keepingCooldownProgressGroupIDs: existingGroupIDs
+        )
 
         // 쿨다운→다른 규칙으로 전환된(삭제 아님) 그룹: 좀비 휴식 상태를 정리한다.
         // pruneShieldState는 삭제 그룹만 정리하므로 규칙 전환은 여기서 처리해야 한다. 휴식 플래그
         // (cooldownUntil)가 남으면 다시 쿨다운으로 돌아올 때 cooldownEditAction이 .keepCooldownRest로
         // 빠지고 registerCooldownGroup이 early-return해 어떤 모니터도 등록되지 않는다(측정·재잠금 불가).
         // generation도 올라가 위에서 stop한 cooldownUsage activity 이름 재사용(즉시 발화 회귀)을 막는다.
+        // 오늘 '제한 없음'으로 넘어간 요일 그룹도 valid에서 빠지므로, 교집합 기준을
+        // validGroupIDs ∪ unrestrictedTodayIDs로 확장해 좀비 휴식 플래그를 정리한다.
         let cooldownRuleLeavers = previousCooldownGroupIDs
-            .intersection(validGroupIDs)
+            .intersection(validGroupIDs.union(unrestrictedTodayIDs))
             .subtracting(validCooldownGroupIDs)
         for groupID in cooldownRuleLeavers {
             SharedStore.clearCooldownCycle(for: groupID)
         }
 
-        guard !validGroups.isEmpty else {
+        // 전체 해체는 유효 그룹이 0이고 적용된 요일 그룹도 없을 때만. 요일 그룹이 있으면(주말 전 그룹
+        // '제한 없음'이어도) 하트비트·isDailyMonitoringEnabled를 살려 다음날 자정 재무장이 가능하게
+        // 아래 일반 경로로 계속 진행한다(빈 validGroups는 아래 루프·applyShield가 안전하게 처리).
+        let hasAppliedWeekdayGroups = !appliedWeekdayGroupIDs.isEmpty
+        if validGroups.isEmpty && !hasAppliedWeekdayGroups {
             center.stopMonitoring()
             store.shield.applications = nil
             store.shield.applicationCategories = nil
@@ -227,17 +256,19 @@ enum ScreenTimeManager {
             return
         }
 
-        // 그룹별 변경 감지: 변경된 그룹만 재시작 (usedTime은 SharedStore에 보존)
+        // 그룹별 변경 감지: 변경된 그룹만 재시작 (usedTime은 SharedStore에 보존).
+        // validGroups·lastRegistered 양쪽 모두 투영본이라, churn 가드 `last != group`은 "저장된 오늘
+        // 투영본 vs 오늘 투영본" 비교다 → 다른 요일 규칙만 편집하면 오늘 모니터가 재시작되지 않는다.
         var newRegistered = lastRegistered.filter { validGroupIDs.contains($0.key) }
         var firstError: Error?
 
-        // 자정 하트비트는 daily/cooldown 그룹이 있을 때만 등록한다(자정 재무장의 주 경로).
-        // 시간대-only 구성은 window가 repeats:true라 불필요하고, 시간대 그룹은 window+override로
-        // 그룹당 최대 4개 activity를 쓸 수 있어(5그룹×4=20) 하트비트를 더하면 동시 모니터링 상한을
-        // 넘길 수 있으므로 등록하지 않는다(DailyMonitor.needsHeartbeat 참조). 유효 그룹이 0이면 위
-        // 가드의 stopMonitoring()이 하트비트까지 함께 멈춘다. 등록 실패는 이 변경의 핵심 경로가
-        // 사라지는 것이므로 try?로 삼키지 않고 firstError로 전파한다(관측 가능).
-        if DailyMonitor.needsHeartbeat(for: validGroups) {
+        // 자정 하트비트는 오늘 daily/cooldown 유효 그룹 또는 적용된 요일 그룹이 있을 때 등록한다(자정
+        // 재무장의 주 경로). 시간대-only 구성은 window가 repeats:true라 불필요하고, 시간대 그룹은
+        // window+override로 그룹당 최대 4개 activity를 쓸 수 있어(5그룹×4=20) 하트비트를 더하면 동시
+        // 모니터링 상한을 넘길 수 있으므로 등록하지 않는다(DailyMonitor.needsHeartbeat 참조). 요일 그룹은
+        // 오늘 전부 '제한 없음'이어도 다음날 자정 재무장을 위해 하트비트를 유지한다. 등록 실패는 이
+        // 변경의 핵심 경로가 사라지는 것이므로 try?로 삼키지 않고 firstError로 전파한다(관측 가능).
+        if DailyMonitor.needsHeartbeat(for: validGroups, appliedGroups: sanitizedGroups) {
             do {
                 try center.startMonitoring(.dailyHeartbeat, during: DailyMonitor.heartbeatSchedule, events: [:])
             } catch {
@@ -253,11 +284,15 @@ enum ScreenTimeManager {
             guard last != group else { continue }
 
             // 시간대 차단 그룹: daily tick/baseline/generation 경로를 건너뛰고 window activity로 등록.
-            // (stale window activity는 위에서 이미 stop했다)
+            // (stale window activity는 위에서 이미 stop했다. group은 오늘 투영본이므로 newRegistered에
+            //  기록되는 값도 자연히 투영본이 되어 churn 비교가 오늘 규칙 기준으로 성립한다.)
             if group.ruleKind == .timeWindows {
-                generationByID.removeValue(forKey: group.id)
+                // 요일 그룹의 daily gen은 보존한다(오늘만 시간대일 뿐 — 이름 연속성 유지).
+                if !appliedWeekdayGroupIDs.contains(group.id) {
+                    generationByID.removeValue(forKey: group.id)
+                }
                 do {
-                    try registerTimeWindowGroup(group)
+                    try TimeWindowMonitor.startWindowMonitoring(center: center, group: group)
                     newRegistered[group.id] = group
                 } catch {
                     firstError = firstError ?? error
@@ -269,7 +304,10 @@ enum ScreenTimeManager {
             // 쿨다운 그룹: daily tick/generation 경로를 건너뛰고 사용 예산 모니터로 등록한다.
             // (stale 사용 예산/휴식 타이머 activity는 위에서 이미 stop했다)
             if group.ruleKind == .cooldown {
-                generationByID.removeValue(forKey: group.id)
+                // 요일 그룹의 daily gen은 보존한다(오늘만 쿨다운일 뿐 — 이름 연속성 유지).
+                if !appliedWeekdayGroupIDs.contains(group.id) {
+                    generationByID.removeValue(forKey: group.id)
+                }
                 let used = SharedStore.usedTimeByGroupID[group.id] ?? 0
                 let action = cooldownEditAction(
                     isInCooldown: SharedStore.isInCooldown(group.id, now: now),
@@ -371,40 +409,6 @@ enum ScreenTimeManager {
         if let error = firstError { throw error }
     }
 
-    /// 시간대 차단 그룹을 timeWindows 개수만큼 window activity로 등록한다.
-    /// TimeWindow의 endMinuteOfDay는 inclusive(차단되는 마지막 분)이므로 스케줄의 intervalEnd는
-    /// "차단이 끝나는 순간" = endMinuteOfDay + 1로 변환한다(예: 12:59 차단 → intervalEnd 13:00).
-    /// 각 시간대는 repeats:true로 돌고 threshold 이벤트는 없다(잠금은 intervalDidStart에서 resync로,
-    /// 해제는 intervalDidEnd에서 resync로 처리).
-    private static func registerTimeWindowGroup(_ group: SharedStore.ScreenTimeGroup) throws {
-        for (index, window) in group.timeWindows.enumerated() {
-            let schedule = DeviceActivitySchedule(
-                intervalStart: DateComponents(
-                    hour: window.startMinuteOfDay / 60,
-                    minute: window.startMinuteOfDay % 60
-                ),
-                intervalEnd: timeWindowIntervalEnd(forInclusiveEndMinute: window.endMinuteOfDay),
-                repeats: true
-            )
-            try center.startMonitoring(
-                .timeWindow(for: group.id, index: index),
-                during: schedule,
-                events: [:]
-            )
-        }
-    }
-
-    /// inclusive 종료분(E)을 스케줄 intervalEnd(차단 종료 순간 = E+1)로 변환한다.
-    /// E가 23:59(1439)면 다음 분이 24:00(DateComponents hour:24 불가)이라 dailySchedule과 동일하게
-    /// 23:59:59(하루의 끝)로 표현한다.
-    private static func timeWindowIntervalEnd(forInclusiveEndMinute end: Int) -> DateComponents {
-        let exclusiveEnd = end + 1
-        guard exclusiveEnd < 24 * 60 else {
-            return DateComponents(hour: 23, minute: 59, second: 59)
-        }
-        return DateComponents(hour: exclusiveEnd / 60, minute: exclusiveEnd % 60)
-    }
-
     /// 쿨다운 그룹의 사용 예산 모니터를 등록한다. 이미 휴식 중이면 등록하지 않는다(휴식 타이머가
     /// 끝나면 extension이 재충전). 만료된 휴식 상태가 남아 있으면(타이머 놓침) 정리하고 새 사이클로
     /// 충전한다. usage 모니터는 cooldownUsageMinutes분 사용 시 cdtick 이벤트로 잠금을 트리거한다.
@@ -488,10 +492,14 @@ enum ScreenTimeManager {
                 .cooldownTimer(for: groupID)]
     }
 
+    /// now의 유효 모니터링 대상 그룹을 "오늘의 규칙"으로 투영해 반환한다. 요일별 그룹은
+    /// resolved(on:now)로 오늘 규칙만 남고(weekdayRules 스트립), 오늘 '제한 없음'이면 ruleKind가 nil이
+    /// 되어 기존 정책이 자연 제외한다. 비요일 그룹은 self 그대로 통과한다.
     static func validDailyMonitoringGroups(
-        from groups: [SharedStore.ScreenTimeGroup]
+        from groups: [SharedStore.ScreenTimeGroup],
+        now: Date = Date()
     ) -> [SharedStore.ScreenTimeGroup] {
-        sanitized(groups).filter { group in
+        sanitized(groups).map { $0.resolved(on: now) }.filter { group in
             ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) == nil
         }
     }
@@ -766,7 +774,11 @@ enum ScreenTimeManager {
                 .cooldownTimer(for: groupID),
                 .override(for: groupID),
             ])
-            guard let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 else { continue }
+            // 오늘 규칙 기준으로 재등록한다(요일별 그룹은 오늘 쿨다운 예산으로 투영). 오늘이 쿨다운이
+            // 아니면(요일 전환) 재등록하지 않고 자정 리셋 경로에 맡긴다.
+            guard let group = SharedStore.resolvedGroup(id: groupID, now: now),
+                  group.ruleKind == .cooldown,
+                  group.cooldownUsageMinutes > 0 else { continue }
             if overrideWindowTooShort(now: now) {
                 // 자정 직전: usageSchedule(now~23:59:59)이 15분 미만이라 startMonitoring이 intervalTooShort로
                 // 실패한다. 등록을 건너뛰고(미추적, syncDailyMonitoring의 .skipUntracked와 동일) 23:59까지 사용

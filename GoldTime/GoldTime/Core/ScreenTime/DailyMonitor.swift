@@ -182,14 +182,23 @@ enum DailyMonitor {
         ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) == nil
     }
 
-    /// 자정 하트비트가 필요한 구성인지. **daily/cooldown 그룹이 하나라도 있을 때만** 필요하다.
+    /// 자정 하트비트가 필요한 구성인지. **오늘 daily/cooldown 유효 그룹이 있거나, 적용된 요일별 그룹이
+    /// 하나라도 있을 때** 필요하다.
     /// - 시간대(timeWindows) 그룹은 window activity가 `repeats:true`라 자정 재무장이 원래 필요 없다.
     /// - 시간대 그룹은 window 최대 3개 + 연장 override까지 **그룹당 최대 4개** activity를 쓸 수 있어,
     ///   `maxGroupCount`(5) 전부가 시간대면 4×5=20으로 DeviceActivity 동시 모니터링 상한에 닿는다.
     ///   여기에 하트비트(+1)를 더하면 넘칠 수 있으므로, 불필요한 시간대-only 구성에선 등록하지 않는다.
-    /// 유효(모니터링 대상) 그룹 목록을 넘겨야 한다.
-    nonisolated static func needsHeartbeat(for groups: [SharedStore.ScreenTimeGroup]) -> Bool {
-        groups.contains { $0.ruleKind == .dailyLimit || $0.ruleKind == .cooldown }
+    /// - **요일별 그룹**은 오늘이 시간대/제한 없음이어도 다음날 daily/cooldown으로 바뀔 수 있어, 자정
+    ///   재무장의 주 경로인 하트비트를 유지해야 한다(오늘 전부 '제한 없음'이어도 살려둔다). 요일별 그룹
+    ///   5개가 전부 오늘 시간대인 최악의 경우 4×5+1=21로 상한을 넘을 수 있으나(알려진 한계),
+    ///   BGTask·foreground sync가 전환 fallback이라 문서화만 하고 여기서 정밀화하지 않는다.
+    /// - `validGroups`는 오늘 규칙 투영본(모니터링 대상), `appliedGroups`는 요일 판정용 원본을 넘긴다.
+    nonisolated static func needsHeartbeat(
+        for validGroups: [SharedStore.ScreenTimeGroup],
+        appliedGroups: [SharedStore.ScreenTimeGroup] = []
+    ) -> Bool {
+        validGroups.contains { $0.ruleKind == .dailyLimit || $0.ruleKind == .cooldown }
+            || appliedGroups.contains { $0.isApplied && $0.usesWeekdayRules }
     }
 }
 

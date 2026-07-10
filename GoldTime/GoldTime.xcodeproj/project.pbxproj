@@ -121,6 +121,7 @@
 				Core/Persistence/SharedStore.swift,
 				Core/ScreenTime/CooldownMonitor.swift,
 				Core/ScreenTime/DailyMonitor.swift,
+				Core/ScreenTime/TimeWindowMonitor.swift,
 				Domain/Model/TimeWindow.swift,
 				Domain/Policy/CooldownPolicy.swift,
 				Domain/Policy/ScreenTimeGroupPolicy.swift,

@@ -76,6 +76,22 @@ final class ManageGroupsUseCase {
         }
     }
 
+    /// 그룹의 요일별 규칙을 갱신한다. non-nil이면 요일별 모드로 전환하고, nil이면 요일별 모드를 해제해
+    /// 기존 base 규칙(ruleKind 등)이 다시 매일 적용된다.
+    /// **쓰기 시점 강제**(Core/CLAUDE.md 계약): non-nil rules는 정확히 7개 + WeekdayRulePolicy 통과여야
+    /// 저장한다. 위반 시 updateRule의 "잘못된 입력은 조용히 무시(guard else return)" 방식과 동일하게
+    /// 아무 변경도 하지 않는다 — 디코더의 drop-to-nil은 최후 방어선이지 검증이 아니다.
+    func updateWeekdayRules(id: UUID, rules: [DayRule]?, in groups: inout [ScreenTimeGroup]) {
+        guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        if let rules {
+            guard rules.count == 7,
+                  WeekdayRulePolicy.firstInvalidReason(for: rules) == nil else { return }
+            groups[index].weekdayRules = rules
+        } else {
+            groups[index].weekdayRules = nil
+        }
+    }
+
     func updateSelection(id: UUID, selection: FamilyActivitySelection, in groups: inout [ScreenTimeGroup]) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
         groups[index].selection = selection.supportedTokenSelection

@@ -178,7 +178,7 @@ enum SharedStore {
     /// 하루 안의 차단 시간대. 분 단위(0...1439), start·end 모두 포함(inclusive: end가 차단되는
     /// 마지막 분), 자정 넘김 금지(start <= end). 예: 12:00–12:59는 12:00:00~12:59:59 차단.
     /// DeviceActivitySchedule 등록 시에는 intervalEnd = endMinuteOfDay + 1로 변환한다
-    /// (ScreenTimeManager.registerTimeWindowGroup 참조).
+    /// (TimeWindowMonitor.startWindowMonitoring 참조).
     struct TimeWindow: Codable, Equatable, Hashable, Identifiable {
         var id: UUID
         var startMinuteOfDay: Int
@@ -985,10 +985,13 @@ enum SharedStore {
     }
 
     /// 적용된 cooldown 그룹 중 cooldownUntil이 있고 <= now인(만료) 그룹 id 목록.
-    /// 재충전 대상 조회용.
+    /// 재충전 대상 조회용. 요일별 그룹은 base ruleKind가 오늘 규칙과 다르거나 nil일 수 있으므로
+    /// 반드시 투영(resolved) 기준으로 판정한다 — 원본 기준이면 오늘 쿨다운인 요일 그룹이
+    /// 자가치유 목록에서 빠져, 놓친 만료 휴식 잠금이 자정까지 잔존한다(좀비 잠금).
     static func expiredCooldownGroupIDs(now: Date = Date()) -> [UUID] {
         screenTimeGroups.compactMap { group in
-            guard group.ruleKind == .cooldown, group.isApplied else { return nil }
+            let today = group.resolved(on: now)
+            guard today.ruleKind == .cooldown, today.isApplied else { return nil }
             guard let until = cooldownUntilByGroupID[group.id], until <= now else { return nil }
             return group.id
         }
@@ -1440,8 +1443,17 @@ enum SharedStore {
         return true
     }
 
+    /// shield/override/cooldownUntil 계열은 `validGroupIDs`(오늘 유효 그룹) 기준으로 prune하고,
+    /// `cooldownGenerationByID`·`cooldownBaselineByGroupID`는 `cooldownProgressIDs`(존재하는 그룹 전체)
+    /// 기준으로 prune한다(= 삭제 그룹만 지운다). 두 set을 나눈 이유: 오늘 '제한 없음'인 요일 그룹의
+    /// cooldown generation이 지워지면 다음 등록이 gen 0을 재사용해 stop된 `cooldownUsage` activity 이름을
+    /// 재사용 → 카운터 승계로 1분 만에 잠기는 회귀(ScreenTimeManager 주석 참조)가 재발한다. 비요일
+    /// 사용처는 두 set에 같은 값(유효 그룹)을 넘겨 기존 동작을 유지한다.
     @discardableResult
-    static func pruneShieldState(keepingGroupIDs validGroupIDs: Set<UUID>) -> Bool {
+    static func pruneShieldState(
+        keepingGroupIDs validGroupIDs: Set<UUID>,
+        keepingCooldownProgressGroupIDs cooldownProgressIDs: Set<UUID>
+    ) -> Bool {
         let oldShieldedGroupIDs = shieldedGroupIDs
         let newShieldedGroupIDs = oldShieldedGroupIDs.intersection(validGroupIDs)
 
@@ -1458,9 +1470,9 @@ enum SharedStore {
         let newCooldownUntil = oldCooldownUntil.filter { validGroupIDs.contains($0.key) }
 
         let oldCooldownGen = cooldownGenerationByID
-        let newCooldownGen = oldCooldownGen.filter { validGroupIDs.contains($0.key) }
+        let newCooldownGen = oldCooldownGen.filter { cooldownProgressIDs.contains($0.key) }
         let oldCooldownBaselines = cooldownBaselineByGroupID
-        let newCooldownBaselines = oldCooldownBaselines.filter { validGroupIDs.contains($0.key) }
+        let newCooldownBaselines = oldCooldownBaselines.filter { cooldownProgressIDs.contains($0.key) }
 
         let didChange = newShieldedGroupIDs != oldShieldedGroupIDs
             || newOverrides.count != oldOverrides.count
@@ -1489,6 +1501,8 @@ enum SharedStore {
     /// dailyLimit 그룹과 draft 그룹의 잠금 상태는 절대 건드리지 않는다.
     /// override 상태는 손대지 않으므로(시간대 안이라 marked여도 override 중이면 lockedGroups가 제외),
     /// 단 시간대 밖이면 override 여부와 무관하게 unmark한다.
+    /// 요일별 그룹은 `resolved(on:now)` 투영으로 오늘 규칙을 본다 — 오늘이 시간대 규칙이 아닌 그룹
+    /// (daily/쿨다운/제한 없음/draft)은 절대 건드리지 않는다.
     @discardableResult
     static func resyncTimeWindowLocks(now: Date = Date()) -> (changed: Bool, newlyLocked: Set<UUID>) {
         let minute = minuteOfDay(for: now)
@@ -1497,11 +1511,12 @@ enum SharedStore {
         var changed = false
 
         for group in screenTimeGroups {
-            guard group.ruleKind == .timeWindows,
-                  group.isApplied,
-                  !group.timeWindows.isEmpty else { continue }
+            let today = group.resolved(on: now)
+            guard today.ruleKind == .timeWindows,
+                  today.isApplied,
+                  !today.timeWindows.isEmpty else { continue }
 
-            let inside = group.timeWindows.contains { $0.contains(minuteOfDay: minute) }
+            let inside = today.timeWindows.contains { $0.contains(minuteOfDay: minute) }
             if inside {
                 if ids.insert(group.id).inserted {
                     newlyLocked.insert(group.id)
