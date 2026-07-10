@@ -349,12 +349,13 @@ struct HomeViewModel {
         return ruleSummary(for: group)
     }
 
-    /// 요일별 그룹의 오늘 규칙 짧은 요약. 오늘이 '제한 없음'이면 그 문구를, 아니면 규칙 요약을 돌려준다.
+    /// 요일별 그룹의 오늘 규칙 짧은 요약("일일 한도 · 30분" — 규칙 종류 포함, 요일 묶음 행과
+    /// 동일한 공용 포매터). 값만 표기하면 무슨 규칙인지 알 수 없다는 피드백 반영.
     private func todayRuleSummary(for group: ScreenTimeGroup) -> String {
-        guard group.resolved(on: Date()).ruleKind != nil else {
-            return String(localized: "rule.weekday.unrestricted")
+        guard let rules = group.weekdayRules, rules.count == 7 else {
+            return ruleSummary(for: group)
         }
-        return ruleSummary(for: group)
+        return goldTimeDayRuleSummary(rules[WeekdayRulePolicy.weekdayIndex(for: Date())])
     }
 
     /// 그룹 카드 "차단 규칙" 행의 짧은 요약 값. dailyLimit은 한도, timeWindows는 시간대 요약.

@@ -3939,6 +3939,74 @@ struct UserCohortPropertiesTests {
     }
 }
 
+/// 요일 묶음 편집 저장 로직(applyingBundle) — 해제 요일이 '제한 없음'이 되는 계약 검증.
+@MainActor
+struct WeekdayBundleApplyTests {
+
+    private let daily = SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30)
+    private let cooldown = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 10, cooldownDurationMinutes: 180)
+
+    @Test func shrinkingDefaultBundleTurnsDeselectedDaysUnrestricted() {
+        // 보고된 버그 시나리오: 토글 직후 기본 월~일 단일 묶음에서 토(6)·일(0)을 해제하고 저장.
+        // 해제가 무동작이면 아무 변화가 없다 — 해제 요일은 '제한 없음'이 되어야 한다.
+        let allDaily = Array(repeating: daily, count: 7)
+        let result = RuleEditorSheet.applyingBundle(
+            to: allDaily,
+            selectedDays: [1, 2, 3, 4, 5],
+            initialDays: [0, 1, 2, 3, 4, 5, 6],
+            rule: daily
+        )
+        #expect(result[0].kind == .unrestricted)
+        #expect(result[6].kind == .unrestricted)
+        for index in 1...5 { #expect(result[index] == daily) }
+    }
+
+    @Test func addingDaysStealsFromOtherBundle() {
+        // 다른 묶음의 요일을 선택에 추가하면 그 요일이 이 규칙으로 넘어온다(빼앗기).
+        var rules = Array(repeating: daily, count: 7)
+        rules[0] = SharedStore.DayRule(kind: .unrestricted)
+        let result = RuleEditorSheet.applyingBundle(
+            to: rules,
+            selectedDays: [0, 6],   // 제한 없음이던 일(0) + daily였던 토(6)를 쿨다운으로
+            initialDays: [6],
+            rule: cooldown
+        )
+        #expect(result[0] == cooldown)
+        #expect(result[6] == cooldown)
+        for index in 1...5 { #expect(result[index] == daily) }
+    }
+
+    @Test func deselectingAllDeletesBundle() {
+        // 기존 묶음의 요일을 전부 해제하고 저장 = 묶음 삭제(해당 요일 전부 제한 없음).
+        var rules = Array(repeating: daily, count: 7)
+        rules[0] = cooldown
+        rules[6] = cooldown
+        let result = RuleEditorSheet.applyingBundle(
+            to: rules,
+            selectedDays: [],
+            initialDays: [0, 6],
+            rule: cooldown
+        )
+        #expect(result[0].kind == .unrestricted)
+        #expect(result[6].kind == .unrestricted)
+        for index in 1...5 { #expect(result[index] == daily) }
+    }
+
+    @Test func newBundleOnlyWritesSelectedDays() {
+        // 신규 묶음(+ 추가, initialDays 비어 있음)은 선택 요일만 덮어쓰고 나머지는 불변.
+        let allDaily = Array(repeating: daily, count: 7)
+        let result = RuleEditorSheet.applyingBundle(
+            to: allDaily,
+            selectedDays: [0, 6],
+            initialDays: [],
+            rule: cooldown
+        )
+        #expect(result[0] == cooldown)
+        #expect(result[6] == cooldown)
+        for index in 1...5 { #expect(result[index] == daily) }
+    }
+}
+
 // MARK: - Fake Repositories
 
 private enum TestAuthorizationError: Error {

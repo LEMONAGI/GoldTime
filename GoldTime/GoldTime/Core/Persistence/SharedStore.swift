@@ -201,7 +201,8 @@ enum SharedStore {
 
     /// 요일 하나의 완전한 규칙. ScreenTimeGroup의 규칙 필드와 동일한 평면 구조로,
     /// 규칙 종류를 전환해도 다른 종류의 설정값이 보존된다(그룹 레벨과 동일한 패턴).
-    struct DayRule: Codable, Equatable {
+    /// Hashable은 요일 묶음 편집의 value 기반 내비게이션(NavigationLink(value:))용.
+    struct DayRule: Codable, Equatable, Hashable {
         /// 요일 규칙 종류. 그룹 RuleKind와 달리 '제한 없음(unrestricted)'이 있다.
         enum Kind: String, Codable {
             case unrestricted

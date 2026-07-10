@@ -5925,6 +5925,75 @@
         }
       }
     },
+    "rule.weekday.summary.cooldown %@ %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cooldown · %1$@ of use, then a %2$@ break"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "クールダウン · %1$@使うと%2$@休憩"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "쿨다운 · %1$@ 쓰면 %2$@ 휴식"
+          }
+        }
+      }
+    },
+    "rule.weekday.summary.dailyLimit %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily limit · %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1日の上限 · %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일일 한도 · %@"
+          }
+        }
+      }
+    },
+    "rule.weekday.summary.timeWindows %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blocked hours · %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時間帯ブロック · %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간대 차단 · %@"
+          }
+        }
+      }
+    },
     "rule.weekday.title": {
       "extractionState": "manual",
       "localizations": {

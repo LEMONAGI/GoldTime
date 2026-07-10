@@ -54,6 +54,16 @@ struct RuleEditorSheet: View {
                     baseRuleSection
                 }
             }
+            // value 기반 push: 진입할 때마다 새 destination이 만들어져 @State가 항상 신선하다.
+            // (inline destination 방식은 "+ 추가" 재진입 시 이전 선택이 잔존하는 함정이 있었다.)
+            .navigationDestination(for: BundleEditContext.self) { context in
+                WeekdayBundleEditView(
+                    orderedIndices: orderedIndices,
+                    initialDays: context.days,
+                    initialRule: context.rule,
+                    onSave: applyBundle
+                )
+            }
             .navigationTitle("rule.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -197,26 +207,12 @@ struct RuleEditorSheet: View {
     private func weekdayBundleSection(_ rules: [DayRule]) -> some View {
         Section {
             ForEach(bundles(from: rules)) { bundle in
-                NavigationLink {
-                    WeekdayBundleEditView(
-                        orderedIndices: orderedIndices,
-                        initialDays: bundle.days,
-                        initialRule: bundle.rule,
-                        onSave: applyBundle
-                    )
-                } label: {
+                NavigationLink(value: BundleEditContext(days: bundle.days, rule: bundle.rule)) {
                     bundleRow(bundle)
                 }
             }
 
-            NavigationLink {
-                WeekdayBundleEditView(
-                    orderedIndices: orderedIndices,
-                    initialDays: [],
-                    initialRule: DayRule(kind: .dailyLimit, dailyLimitMinutes: 30),
-                    onSave: applyBundle
-                )
-            } label: {
+            NavigationLink(value: BundleEditContext(days: [], rule: DayRule(kind: .dailyLimit, dailyLimitMinutes: 30))) {
                 Label("rule.weekday.addBundle", systemImage: "plus")
             }
         } footer: {
@@ -241,13 +237,29 @@ struct RuleEditorSheet: View {
         .padding(.vertical, 2)
     }
 
-    /// 선택된 요일 슬롯에만 규칙을 써 넣는다. 다른 요일은 불변(다른 묶음에서 "빼앗는" 표현).
-    private func applyBundle(days: Set<Int>, rule: DayRule) {
-        guard var rules = weekdayRules else { return }
-        for day in days where rules.indices.contains(day) {
-            rules[day] = rule
+    private func applyBundle(selected: Set<Int>, initial: Set<Int>, rule: DayRule) {
+        guard let rules = weekdayRules else { return }
+        weekdayRules = Self.applyingBundle(to: rules, selectedDays: selected, initialDays: initial, rule: rule)
+    }
+
+    /// 묶음 저장을 7요일 배열에 반영한 사본. 선택된 요일 → 이 규칙(다른 묶음에서 빼앗기),
+    /// **이 묶음에서 해제된 요일 → 제한 없음**. 해제를 무동작으로 두면 토글 직후의 기본
+    /// "월~일" 단일 묶음에서 주말을 빼는 첫 조작이 아무 변화가 없어 "반영이 안 된다"로 느껴진다
+    /// ("요일을 빼면 그 요일은 규칙 없음"이라는 직관에 맞춘 동작 — 요일 섹션 footer로 안내).
+    static func applyingBundle(
+        to rules: [DayRule],
+        selectedDays: Set<Int>,
+        initialDays: Set<Int>,
+        rule: DayRule
+    ) -> [DayRule] {
+        var result = rules
+        for day in selectedDays where result.indices.contains(day) {
+            result[day] = rule
         }
-        weekdayRules = rules
+        for day in initialDays.subtracting(selectedDays) where result.indices.contains(day) {
+            result[day] = DayRule(kind: .unrestricted)
+        }
+        return result
     }
 
     /// 7개 DayRule을 값 동등성으로 그룹핑한 묶음 목록. 각 묶음의 첫 요일이 표시 순서에서 나타나는
@@ -265,7 +277,8 @@ struct RuleEditorSheet: View {
         return result
     }
 
-    /// 묶음 요일 라벨. 연속 3일 이상은 "월–금"처럼 압축하고, 1~2일은 공백으로 나열한다.
+    /// 묶음 요일 라벨. 연속 2일 이상은 "월 ~ 금"처럼 물결로 압축하고, 나머지는 "월, 수, 금"처럼
+    /// 쉼표로 나열한다(혼합이면 "월 ~ 수, 금").
     private func daysLabel(for days: Set<Int>) -> String {
         let symbols = Calendar.current.veryShortWeekdaySymbols
         let ordered = orderedIndices.filter { days.contains($0) }
@@ -284,31 +297,16 @@ struct RuleEditorSheet: View {
         }
 
         return runs.map { run -> String in
-            if run.count >= 3, let first = run.first, let last = run.last {
-                return "\(symbols[first])–\(symbols[last])"
+            if run.count >= 2, let first = run.first, let last = run.last {
+                return "\(symbols[first]) ~ \(symbols[last])"
             }
-            return run.map { symbols[$0] }.joined(separator: " ")
-        }.joined(separator: "  ")
+            return run.map { symbols[$0] }.joined(separator: ", ")
+        }.joined(separator: ", ")
     }
 
-    /// 묶음의 규칙을 한 줄로 요약. 제한 없음/일일 한도/시간대/쿨다운 각각을 짧게 표기한다.
+    /// 묶음의 규칙을 한 줄로 요약("일일 한도 · 30분" — 규칙 종류 포함, 공용 포매터).
     private func ruleSummary(for rule: DayRule) -> String {
-        switch rule.kind {
-        case .unrestricted:
-            return String(localized: "rule.weekday.unrestricted")
-        case .dailyLimit:
-            return goldTimeDurationText(seconds: rule.dailyLimitMinutes * 60)
-        case .timeWindows:
-            let sorted = rule.timeWindows.sorted { $0.startMinuteOfDay < $1.startMinuteOfDay }
-            guard !sorted.isEmpty else { return String(localized: "rule.timeWindows.addPrompt") }
-            return sorted
-                .map { "\(goldTimeClockText(minuteOfDay: $0.startMinuteOfDay))–\(goldTimeClockText(minuteOfDay: $0.endMinuteOfDay))" }
-                .joined(separator: ", ")
-        case .cooldown:
-            let usage = goldTimeDurationText(seconds: rule.cooldownUsageMinutes * 60)
-            let rest = goldTimeDurationText(seconds: rule.cooldownDurationMinutes * 60)
-            return String(localized: "rule.cooldown.summary \(usage) \(rest)")
-        }
+        goldTimeDayRuleSummary(rule)
     }
 }
 
@@ -322,16 +320,26 @@ private struct WeekdayBundle: Identifiable {
     var id: String { days.sorted().map(String.init).joined(separator: ",") }
 }
 
+/// 묶음 편집 진입 값(value 기반 push). 편집 대상 요일·규칙만 담는 순수 값이라
+/// 같은 값을 다시 눌러도 push마다 destination이 새로 만들어진다(@State 신선 보장).
+private struct BundleEditContext: Hashable {
+    let days: Set<Int>
+    let rule: DayRule
+}
+
 // MARK: - 요일 묶음 편집
 
 /// 요일 다중 선택 + 규칙 4종(제한 없음/일일 한도/시간대/쿨다운) 선택 + 종류별 파라미터를
-/// 한 화면에서 편집한다. 완료 시 선택한 요일 슬롯에 규칙을 써 넣는다.
+/// 한 화면에서 편집한다. 완료 시 선택한 요일에 이 규칙을 쓰고, **이 묶음에서 해제한 요일은
+/// 제한 없음이 된다**(applyingBundle 참조).
 private struct WeekdayBundleEditView: View {
     let orderedIndices: [Int]
-    let onSave: (Set<Int>, DayRule) -> Void
+    /// (선택 요일, 진입 시 묶음 요일, 조립된 규칙) — 해제 요일 계산에 initialDays가 필요하다.
+    let onSave: (Set<Int>, Set<Int>, DayRule) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
+    private let initialDays: Set<Int>
     @State private var selectedDays: Set<Int>
     @State private var kind: DayRuleKind
     @State private var limitHours: Int
@@ -344,10 +352,11 @@ private struct WeekdayBundleEditView: View {
         orderedIndices: [Int],
         initialDays: Set<Int>,
         initialRule: DayRule,
-        onSave: @escaping (Set<Int>, DayRule) -> Void
+        onSave: @escaping (Set<Int>, Set<Int>, DayRule) -> Void
     ) {
         self.orderedIndices = orderedIndices
         self.onSave = onSave
+        self.initialDays = initialDays
         _selectedDays = State(initialValue: initialDays)
         _kind = State(initialValue: initialRule.kind)
         let clampedLimit = min(initialRule.dailyLimitMinutes, 5 * 60 + 55)
@@ -387,8 +396,10 @@ private struct WeekdayBundleEditView: View {
         }
     }
 
+    /// 신규 묶음(+ 추가)은 요일을 골라야 저장할 수 있다. 기존 묶음은 전부 해제도 유효한
+    /// 조작이다(= 이 묶음 삭제 → 해당 요일들이 제한 없음이 됨).
     private var canSave: Bool {
-        !selectedDays.isEmpty && !ruleParamInvalid
+        (!selectedDays.isEmpty || !initialDays.isEmpty) && !ruleParamInvalid
     }
 
     var body: some View {
@@ -399,12 +410,14 @@ private struct WeekdayBundleEditView: View {
             } header: {
                 Text("rule.weekday.days.header")
             } footer: {
-                if selectedDays.isEmpty {
+                if selectedDays.isEmpty && initialDays.isEmpty {
                     Text("rule.weekday.selectDaysHint")
                         .foregroundStyle(.red)
                 }
             }
 
+            // 규칙 종류는 섹션 타이틀 아래 선택지만 나열한다(picker 라벨이 리스트 행처럼
+            // 섞여 보이던 문제 — 라벨은 숨기고 header가 타이틀 역할).
             Section {
                 Picker("rule.weekday.kind.header", selection: $kind) {
                     Text("rule.weekday.unrestricted").tag(DayRuleKind.unrestricted)
@@ -413,6 +426,9 @@ private struct WeekdayBundleEditView: View {
                     Text("rule.cooldown.title").tag(DayRuleKind.cooldown)
                 }
                 .pickerStyle(.inline)
+                .labelsHidden()
+            } header: {
+                Text("rule.weekday.kind.header")
             }
 
             paramSection
@@ -422,7 +438,7 @@ private struct WeekdayBundleEditView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("common.done") {
-                    onSave(selectedDays, composedRule)
+                    onSave(selectedDays, initialDays, composedRule)
                     dismiss()
                 }
                 .fontWeight(.semibold)
