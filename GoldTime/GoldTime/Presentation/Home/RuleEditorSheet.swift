@@ -5,6 +5,8 @@
 //  그룹의 차단 규칙(일일 한도 / 시간대별 차단 / 쿨다운)을 고르고 편집하는 시트.
 //  NavigationStack 2단계: 1단계 규칙 종류 선택 → 2단계 종류별 본문.
 //  "요일별 규칙" 토글을 켜면 요일 묶음 리스트로 바뀌고, 묶음을 눌러 요일별 규칙을 편집한다.
+//  묶음 리스트 상단의 주간 스트립(7칸)이 요일마다 규칙 종류를 아이콘으로 보여 주고,
+//  칸을 탭하면 그 요일이 속한 묶음 편집으로 바로 들어간다.
 //
 
 import SwiftUI
@@ -28,6 +30,10 @@ struct RuleEditorSheet: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
+    /// 요일 묶음 편집 push 스택. 묶음 행·"+ 추가"의 NavigationLink(value:)와 주간 스트립의
+    /// 프로그램적 push(append)가 같은 스택을 공유한다.
+    @State private var path: [BundleEditContext] = []
+
     /// 요일 표시 순서(설정의 주 시작 요일 기준). 0=일 … 6=토.
     private var orderedIndices: [Int] {
         WeekdayRulePolicy.displayOrderedIndices(weekStartDay: weekStartDay)
@@ -40,7 +46,7 @@ struct RuleEditorSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     Toggle("rule.weekday.toggle", isOn: weekdayToggleBinding)
@@ -206,6 +212,22 @@ struct RuleEditorSheet: View {
     @ViewBuilder
     private func weekdayBundleSection(_ rules: [DayRule]) -> some View {
         Section {
+            if rules.count == 7 {
+                WeekdayRuleStrip(
+                    orderedIndices: orderedIndices,
+                    rules: rules,
+                    todayIndex: WeekdayRulePolicy.weekdayIndex(for: Date()),
+                    onSelect: { index in
+                        // path.isEmpty: NavigationLink와 달리 프로그램적 append는 debounce가
+                        // 없어 연타 시 같은 화면이 중복 push되는 것을 막는다(스트립은 루트 전용).
+                        guard path.isEmpty,
+                              let bundle = Self.bundleContaining(day: index, in: rules) else { return }
+                        path.append(BundleEditContext(days: bundle.days, rule: bundle.rule))
+                    }
+                )
+                .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+            }
+
             ForEach(bundles(from: rules)) { bundle in
                 NavigationLink(value: BundleEditContext(days: bundle.days, rule: bundle.rule)) {
                     bundleRow(bundle)
@@ -260,6 +282,28 @@ struct RuleEditorSheet: View {
             result[day] = DayRule(kind: .unrestricted)
         }
         return result
+    }
+
+    /// 스트립 칸의 규칙 아이콘. 규칙 3종은 기존 규칙 선택 행의 아이콘과 동일, 제한 없음은 대시.
+    static func stripIconName(for kind: DayRuleKind) -> String {
+        switch kind {
+        case .unrestricted:
+            return "minus"
+        case .dailyLimit:
+            return "hourglass"
+        case .timeWindows:
+            return "clock.badge.xmark"
+        case .cooldown:
+            return "hourglass.bottomhalf.filled"
+        }
+    }
+
+    /// 스트립에서 탭한 요일이 속한 묶음(같은 규칙 값을 공유하는 요일 집합). 묶음은 값 동등성으로
+    /// 정의되므로 표시 순서와 무관하다 — `bundles(from:)` 행 목록의 조회와 결과가 같다.
+    static func bundleContaining(day: Int, in rules: [DayRule]) -> (days: Set<Int>, rule: DayRule)? {
+        guard rules.indices.contains(day) else { return nil }
+        let rule = rules[day]
+        return (Set(rules.indices.filter { rules[$0] == rule }), rule)
     }
 
     /// 7개 DayRule을 값 동등성으로 그룹핑한 묶음 목록. 각 묶음의 첫 요일이 표시 순서에서 나타나는
@@ -325,6 +369,75 @@ private struct WeekdayBundle: Identifiable {
 private struct BundleEditContext: Hashable {
     let days: Set<Int>
     let rule: DayRule
+}
+
+// MARK: - 주간 스트립
+
+/// 요일 묶음 리스트 상단의 7칸 주간 시각화. 요일마다 규칙 종류를 아이콘으로 보여 주고
+/// (제한 있음 accent / 제한 없음 회색 대시), 오늘 요일 라벨은 accent 캡슐로 강조한다.
+/// 칸을 탭하면 그 요일이 속한 묶음 편집으로 push. 요일 라벨·순서·칩 시각 언어는
+/// `WeekdayChips`와 동일한 규칙을 따른다(List 행 안 다중 버튼도 같은 `.plain` 패턴).
+private struct WeekdayRuleStrip: View {
+    /// 표시할 요일 인덱스 순서(0=일 … 6=토).
+    let orderedIndices: [Int]
+    /// 요일 7개 규칙(0=일 … 6=토).
+    let rules: [DayRule]
+    /// 오늘 요일 인덱스(0=일 … 6=토).
+    let todayIndex: Int
+    let onSelect: (Int) -> Void
+
+    private var shortSymbols: [String] {
+        Calendar.current.veryShortWeekdaySymbols
+    }
+
+    private var fullSymbols: [String] {
+        Calendar.current.weekdaySymbols
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(orderedIndices, id: \.self) { index in
+                column(for: index)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func column(for index: Int) -> some View {
+        let rule = rules[index]
+        let isToday = index == todayIndex
+        let isRestricted = rule.kind != .unrestricted
+        Button {
+            onSelect(index)
+        } label: {
+            VStack(spacing: 6) {
+                Text(shortSymbols[index])
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(isToday ? Color.black : Color.secondary)
+                    .frame(minWidth: 24, minHeight: 24)
+                    .background(isToday ? Color.accent : .clear)
+                    .clipShape(Capsule())
+                Image(systemName: RuleEditorSheet.stripIconName(for: rule.kind))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isRestricted ? Color.accent : Color.secondary)
+                    .frame(height: 20)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(Color(.tertiarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel(for: index, rule: rule, isToday: isToday))
+    }
+
+    /// "월요일, 일일 한도 · 30분" / 오늘 칸은 "월요일, 오늘: 일일 한도 · 30분"(기존 키 재사용).
+    private func accessibilityLabel(for index: Int, rule: DayRule, isToday: Bool) -> String {
+        let summary = isToday
+            ? String(localized: "rule.weekday.today \(goldTimeDayRuleSummary(rule))")
+            : goldTimeDayRuleSummary(rule)
+        return "\(fullSymbols[index]), \(summary)"
+    }
 }
 
 // MARK: - 요일 묶음 편집

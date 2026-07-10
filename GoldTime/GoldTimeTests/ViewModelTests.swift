@@ -4007,6 +4007,47 @@ struct WeekdayBundleApplyTests {
     }
 }
 
+/// 주간 스트립 — 규칙 종류 아이콘 매핑과 요일 탭 → 묶음 조회(bundleContaining) 검증.
+@MainActor
+struct WeekdayRuleStripTests {
+
+    private let daily = SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30)
+    private let cooldown = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 10, cooldownDurationMinutes: 180)
+
+    @Test func stripIconNamesMatchRuleKinds() {
+        // 규칙 3종 아이콘은 규칙 선택 행(ruleRow)과 동일해야 시각 언어가 이어진다.
+        #expect(RuleEditorSheet.stripIconName(for: .unrestricted) == "minus")
+        #expect(RuleEditorSheet.stripIconName(for: .dailyLimit) == "hourglass")
+        #expect(RuleEditorSheet.stripIconName(for: .timeWindows) == "clock.badge.xmark")
+        #expect(RuleEditorSheet.stripIconName(for: .cooldown) == "hourglass.bottomhalf.filled")
+    }
+
+    @Test func bundleContainingGroupsSameRuleDays() {
+        // 값이 같은 규칙의 요일들이 하나의 묶음으로 조회된다(표시 순서와 무관).
+        var rules = Array(repeating: daily, count: 7)
+        rules[0] = cooldown
+        rules[6] = cooldown
+        let bundle = RuleEditorSheet.bundleContaining(day: 6, in: rules)
+        #expect(bundle?.days == [0, 6])
+        #expect(bundle?.rule == cooldown)
+    }
+
+    @Test func bundleContainingSingleDayBundle() {
+        // 그 요일 혼자만 갖는 규칙이면 단일 요일 묶음.
+        var rules = Array(repeating: daily, count: 7)
+        rules[3] = SharedStore.DayRule(kind: .unrestricted)
+        let bundle = RuleEditorSheet.bundleContaining(day: 3, in: rules)
+        #expect(bundle?.days == [3])
+        #expect(bundle?.rule.kind == .unrestricted)
+    }
+
+    @Test func bundleContainingOutOfRangeReturnsNil() {
+        let rules = Array(repeating: daily, count: 7)
+        #expect(RuleEditorSheet.bundleContaining(day: 7, in: rules) == nil)
+        #expect(RuleEditorSheet.bundleContaining(day: -1, in: rules) == nil)
+    }
+}
+
 // MARK: - Fake Repositories
 
 private enum TestAuthorizationError: Error {
