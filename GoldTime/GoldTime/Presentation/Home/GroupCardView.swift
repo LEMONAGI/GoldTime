@@ -35,18 +35,23 @@ struct GroupCardView: View {
         group.isApplied
     }
 
+    /// 규칙(단일 또는 요일별)이 정해졌는지. 둘 다 없으면 draft(설정 필요).
+    private var hasRule: Bool {
+        group.ruleKind != nil || group.usesWeekdayRules
+    }
+
     /// draft 그룹은 규칙 선택 + 제한 항목이 모두 갖춰져야 적용할 수 있다.
     private var canApply: Bool {
-        group.ruleKind != nil && group.selectionCount > 0
+        hasRule && group.selectionCount > 0
     }
 
     /// 적용 버튼이 비활성일 때 무엇이 부족한지 안내하는 캡션.
     private var applyHintCaption: String? {
         guard !group.isApplied, !canApply else { return nil }
-        if group.ruleKind == nil && group.selectionCount == 0 {
+        if !hasRule && group.selectionCount == 0 {
             return String(localized: "group.apply.hint.both")
         }
-        if group.ruleKind == nil {
+        if !hasRule {
             return String(localized: "group.apply.hint.rule")
         }
         return String(localized: "group.apply.hint.selection")

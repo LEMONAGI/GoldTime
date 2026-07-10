@@ -87,6 +87,24 @@ final class ManageGroupsUseCase {
             guard rules.count == 7,
                   WeekdayRulePolicy.firstInvalidReason(for: rules) == nil else { return }
             groups[index].weekdayRules = rules
+            // base ruleKind가 nil(draft 출신)이면 첫 제한 요일 규칙을 base 필드에도 기록한다.
+            // 디코딩 폴백(weekdayRules 7개 아님 → drop-to-nil)이나 1.1.x 다운그레이드 시
+            // "base 규칙이 보호를 이어받는다"는 계약(Core/CLAUDE.md)이 draft 출신 그룹에서
+            // 무보호(groupHasNoRule로 모니터링 제외)로 전락하는 것을 막는다.
+            // 첫 제한 요일은 항상 존재한다(전부 제한 없음은 위 정책 검증에서 거부됨).
+            if groups[index].ruleKind == nil,
+               let fallback = rules.first(where: { $0.kind != .unrestricted }) {
+                switch fallback.kind {
+                case .dailyLimit: groups[index].ruleKind = .dailyLimit
+                case .timeWindows: groups[index].ruleKind = .timeWindows
+                case .cooldown: groups[index].ruleKind = .cooldown
+                case .unrestricted: break
+                }
+                groups[index].dailyLimitMinutes = fallback.dailyLimitMinutes
+                groups[index].timeWindows = fallback.timeWindows
+                groups[index].cooldownUsageMinutes = fallback.cooldownUsageMinutes
+                groups[index].cooldownDurationMinutes = fallback.cooldownDurationMinutes
+            }
         } else {
             groups[index].weekdayRules = nil
         }

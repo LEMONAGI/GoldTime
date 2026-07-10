@@ -151,6 +151,8 @@ struct ContentView: View {
                 timeWindows: $viewModel.ruleEditorTimeWindows,
                 cooldownUsageMinutes: $viewModel.ruleEditorCooldownUsageMinutes,
                 cooldownDurationMinutes: $viewModel.ruleEditorCooldownDurationMinutes,
+                weekdayRules: $viewModel.ruleEditorWeekdayRules,
+                weekStartDay: weekStartDay,
                 currentKind: viewModel.ruleEditorCurrentKind,
                 nearMidnightNotice: viewModel.nearMidnightEditNotice,
                 onConfirm: {
