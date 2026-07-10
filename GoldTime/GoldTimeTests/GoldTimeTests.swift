@@ -1255,6 +1255,29 @@ struct GoldTimeTests {
         #expect(payload.ruleConfigBucket == "usage_16_30m_rest_61_120m")
     }
 
+    @Test func ruleAnalyticsPayloadBucketsWeekdayRules() {
+        // 요일별 모드는 base ruleKind(폴백용)가 아니라 "weekday" + 제한 요일 수 버킷으로 관찰한다.
+        var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
+        for index in 1...5 {
+            rules[index] = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 10, cooldownDurationMinutes: 180)
+        }
+        let group = SharedStore.ScreenTimeGroup(
+            name: "SNS",
+            dailyLimitMinutes: 75,
+            ruleKind: .dailyLimit,
+            weekdayRules: rules
+        )
+
+        let payload = RuleAnalyticsPayload(group: group)
+
+        #expect(payload.ruleKind == "weekday")
+        #expect(payload.ruleConfigBucket == "days_5")
+        #expect(payload.weekdayRestrictedDaysBucket == "days_5")
+        #expect(payload.parameters["weekday_restricted_days"] as? String == "days_5")
+        #expect(payload.dailyLimitBucket == nil)   // base 폴백 버킷은 미전송
+        #expect(payload.parameters["daily_limit_bucket"] == nil)
+    }
+
     @Test func adUnlockAnalyticsIncludesRulePayload() {
         let dailyGroup = SharedStore.ScreenTimeGroup(
             name: "SNS",

@@ -3900,6 +3900,32 @@ struct UserCohortPropertiesTests {
         #expect(result["active_group_count"] == "count_2_3")
     }
 
+    @Test func weekdayGroupCountsDayKindsAndPrimaryWeekday() {
+        // 요일별 그룹: uses* 플래그는 요일 안에서 쓰는 종류까지 포함하고(평일 쿨다운 → usesCooldown),
+        // base ruleKind(폴백용 dailyLimit)는 세지 않는다. primary는 그룹당 1표로 "weekday".
+        var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
+        for index in 1...5 {
+            rules[index] = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 10, cooldownDurationMinutes: 180)
+        }
+        let result = properties([
+            SharedStore.ScreenTimeGroup(name: "SNS", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules)
+        ])
+
+        #expect(result["primary_rule_kind"] == "weekday")
+        #expect(result["uses_weekday"] == "true")
+        #expect(result["uses_cooldown"] == "true")
+        #expect(result["uses_daily"] == "false")   // base 폴백은 미집계
+        #expect(result["uses_timewindow"] == "false")
+    }
+
+    @Test func nonWeekdayGroupsReportUsesWeekdayFalse() {
+        let result = properties([
+            SharedStore.ScreenTimeGroup(name: "a", ruleKind: .dailyLimit)
+        ])
+        #expect(result["uses_weekday"] == "false")
+        #expect(result["primary_rule_kind"] == "dailyLimit")
+    }
+
     @Test func bucketsLargeGroupCount() {
         let groups = (0..<4).map {
             SharedStore.ScreenTimeGroup(name: "g\($0)", ruleKind: .timeWindows)

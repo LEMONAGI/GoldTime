@@ -12,11 +12,14 @@
   - [x] 3단계: 등록/자정 전환 코어 (리뷰 발견 2건 수정 포함)
   - [x] 4단계: UI (draft 백필 안전장치 포함, 시뮬레이터 육안 확인 권장)
   - [x] 5단계: 알림 요일 트리거 (weekday wrap·64개 제한 dedupe)
-  - [ ] 6단계: 분석 + 로컬라이징 (ko/en/ja)
+  - [x] 6단계: 분석 + 로컬라이징 (로컬라이징은 2·4단계에서 선완료)
   - [ ] 7단계: 실기기 자정 검증 + 문서 + 1.2.0 버전
 
 ## 다음 할 일
 
+- [ ] 대시보드(goldtime-dashboard): 1.2.0 신규 분석 값 처리 — rule_kind "weekday",
+      weekday_restricted_days(days_N), 코호트 uses_weekday (shield_hit은 집행 규칙 유지라
+      rule_kind 조인 시 의미 분화 주의)
 - [ ] EU 출시 외부 작업: DSA 거래자 정보, AdMob GDPR 메시지 게시, 처리방침 호스팅
 - [ ] Firebase: Run Script 추가·Crashlytics 활성화·AdMob 연동 링크
 
