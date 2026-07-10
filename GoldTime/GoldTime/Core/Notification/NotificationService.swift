@@ -7,6 +7,7 @@
 
 import Foundation
 import UserNotifications
+import os
 
 /// 한도 임박 알림의 제한 종류 — 문구 분기용. 일일 한도/쿨다운 예산/연장(광고·1분) 시간.
 enum UsageAlertKind {
@@ -190,9 +191,15 @@ enum NotificationService {
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 
-    /// 시간대 차단 5분 전 + 종료(재사용 가능) 알림을 매일 반복(`repeats:true`)으로 미리 예약한다.
+    /// 시간대 차단 5분 전 + 종료(재사용 가능) 알림을 반복(`repeats:true`)으로 미리 예약한다.
     /// 시간대는 고정 시각이라 DeviceActivity activity를 늘리지 않고 캘린더 트리거로 건다(모니터링 상한 회피).
     /// 기존 시간대 알림을 prefix로 모두 지운 뒤 현재 그룹 구성으로 다시 건다(편집/삭제 반영).
+    /// 요일별 그룹은 timeWindows인 요일에만 요일 트리거(주 1회)를, 비요일 그룹은 매일 반복을 예약한다.
+    ///
+    /// iOS는 앱당 pending 로컬 알림을 **64개**로 제한하고 초과분을 soonest-firing 우선으로 조용히
+    /// 폐기한다. 요일별로 순진하게 예약하면 5그룹×7요일×3시간대×2종=210개까지 폭발하므로,
+    /// `timeWindowAlertPlans`가 "7요일 전부 등장하는 시간대"를 매일 반복 1쌍으로 dedupe한다.
+    /// dedupe 후에도 이론상 64를 넘길 수 있어 예약 직전 개수를 GTLog로 남긴다(하드 캡은 미구현).
     static func rescheduleTimeWindowAlerts(groups: [SharedStore.ScreenTimeGroup]) {
         let center = UNUserNotificationCenter.current()
         center.getPendingNotificationRequests { requests in
@@ -200,23 +207,13 @@ enum NotificationService {
             if !stale.isEmpty {
                 center.removePendingNotificationRequests(withIdentifiers: stale)
             }
-            guard SharedStore.isUsageAlertEnabled else { return }
-            for group in groups where group.ruleKind == .timeWindows && group.isApplied {
-                let name = group.displayName
-                for (index, window) in group.timeWindows.enumerated() {
-                    scheduleTimeWindowAlert(
-                        identifier: "\(timeWindowAlertPrefix)warn.\(group.id.uuidString).\(index)",
-                        minuteOfDay: timeWindowAlertMinute(baseMinute: window.startMinuteOfDay, offset: -5),
-                        title: String(localized: "notification.timeWindow.soon.title \(name)"),
-                        body: String(localized: "notification.timeWindow.soon.body")
-                    )
-                    scheduleTimeWindowAlert(
-                        identifier: "\(timeWindowAlertPrefix)end.\(group.id.uuidString).\(index)",
-                        minuteOfDay: timeWindowAlertMinute(baseMinute: window.endMinuteOfDay, offset: 1),
-                        title: String(localized: "notification.timeWindow.ended.title \(name)"),
-                        body: String(localized: "notification.timeWindow.ended.body")
-                    )
-                }
+            let plans = timeWindowAlertPlans(groups: groups, isEnabled: SharedStore.isUsageAlertEnabled)
+            if !plans.isEmpty {
+                // 64개 제한 관측용(개수만). 초과 시 soonest-first로 시스템이 조용히 폐기.
+                GTLog.timeWindow.notice("시간대 알림 예약 계획 \(plans.count, privacy: .public)개 (iOS pending 64 제한)")
+            }
+            for plan in plans {
+                scheduleTimeWindowAlert(plan: plan)
             }
         }
     }
@@ -239,16 +236,168 @@ enum NotificationService {
         return ((total % 1440) + 1440) % 1440
     }
 
-    private static func scheduleTimeWindowAlert(identifier: String, minuteOfDay: Int, title: String, body: String) {
+    /// 요일 트리거용으로 (요일 인덱스, 분)을 함께 wrap한다. `timeWindowAlertMinute`로 분을 구하고,
+    /// 날짜가 넘어간 몫만큼 요일 인덱스를 ±1 wrap한다: 5분 전이 전날 23:5x로 넘어가면 weekday −1
+    /// (일(0)→토(6)), 종료가 익일 00:00로 넘어가면 weekday +1(토(6)→일(0)). 분 wrap 로직은
+    /// `timeWindowAlertMinute` 단일 출처를 재사용한다.
+    nonisolated static func weekdayAlertComponents(
+        weekdayIndex: Int,
+        baseMinute: Int,
+        offset: Int
+    ) -> (weekdayIndex: Int, minuteOfDay: Int) {
+        let minuteOfDay = timeWindowAlertMinute(baseMinute: baseMinute, offset: offset)
+        // (base+offset − wrap)은 항상 1440의 배수라 정확히 나눠떨어진다(음수 포함).
+        let dayShift = (baseMinute + offset - minuteOfDay) / 1440
+        let wrappedIndex = ((weekdayIndex + dayShift) % 7 + 7) % 7
+        return (wrappedIndex, minuteOfDay)
+    }
+
+    // MARK: - 시간대 알림 예약 계획(순수 계산 — IO 분리)
+
+    /// 하나의 시간대 알림 예약 단위. IO(`scheduleTimeWindowAlert`)와 분리해 계산만 테스트한다.
+    /// `weekday`가 nil이면 매일 반복(요일 컴포넌트 없음), 값이 있으면 주 1회 반복(Calendar weekday 1=일…7=토).
+    struct TimeWindowAlertPlan: Equatable {
+        enum Phase: Equatable { case warn, end }
+        let identifier: String
+        let groupName: String
+        let phase: Phase
+        let weekday: Int?
+        let hour: Int
+        let minute: Int
+    }
+
+    /// 시간대(start·end 분) 값 하나. 요일별 dedupe 비교 기준(TimeWindow.id는 요일 편집에서 복제되므로 값 비교).
+    private struct WindowKey: Hashable {
+        let start: Int
+        let end: Int
+    }
+
+    /// 현재 그룹 구성으로 예약할 시간대 알림 계획 목록을 만든다(순수 함수, IO 없음).
+    /// - 비요일 그룹(weekdayRules == nil): 기존과 동일하게 base가 timeWindows면 매일 반복, 식별자는 index 기반.
+    /// - 요일별 그룹: timeWindows인 요일의 시간대만, 7요일 전부 등장하면 매일 반복 1쌍으로 dedupe(요일 접미사 없음),
+    ///   미만이면 등장 요일마다 요일 트리거. 식별자는 (start-end) 값 + 요일 접미사로 충돌을 막는다.
+    nonisolated static func timeWindowAlertPlans(
+        groups: [SharedStore.ScreenTimeGroup],
+        isEnabled: Bool
+    ) -> [TimeWindowAlertPlan] {
+        guard isEnabled else { return [] }
+        var plans: [TimeWindowAlertPlan] = []
+        for group in groups where group.isApplied {
+            let name = group.displayName
+            if let rules = group.weekdayRules, rules.count == 7 {
+                plans += weekdayGroupPlans(groupID: group.id, name: name, rules: rules)
+            } else if group.ruleKind == .timeWindows {
+                // 비요일 경로: 기존 index 기반 식별자·매일 반복 형태를 그대로 유지(회귀 방지).
+                for (index, window) in group.timeWindows.enumerated() {
+                    let warn = timeWindowAlertMinute(baseMinute: window.startMinuteOfDay, offset: -5)
+                    plans.append(TimeWindowAlertPlan(
+                        identifier: "\(timeWindowAlertPrefix)warn.\(group.id.uuidString).\(index)",
+                        groupName: name, phase: .warn, weekday: nil,
+                        hour: warn / 60, minute: warn % 60))
+                    let end = timeWindowAlertMinute(baseMinute: window.endMinuteOfDay, offset: 1)
+                    plans.append(TimeWindowAlertPlan(
+                        identifier: "\(timeWindowAlertPrefix)end.\(group.id.uuidString).\(index)",
+                        groupName: name, phase: .end, weekday: nil,
+                        hour: end / 60, minute: end % 60))
+                }
+            }
+        }
+        return plans
+    }
+
+    /// 요일별 그룹 하나의 예약 계획. timeWindows인 요일의 시간대 값을 모아 등장 요일 집합을 만들고,
+    /// 7요일 전부면 매일 반복 1쌍, 미만이면 요일별 트리거로 펼친다.
+    private nonisolated static func weekdayGroupPlans(
+        groupID: UUID,
+        name: String,
+        rules: [SharedStore.DayRule]
+    ) -> [TimeWindowAlertPlan] {
+        var weekdaysByWindow: [WindowKey: Set<Int>] = [:]
+        var order: [WindowKey] = []  // 첫 등장 순서 유지(결정론적 계획 — 테스트 안정)
+        for index in 0..<7 where rules[index].kind == .timeWindows {
+            var seenThisDay: Set<WindowKey> = []
+            for window in rules[index].timeWindows {
+                let key = WindowKey(start: window.startMinuteOfDay, end: window.endMinuteOfDay)
+                guard !seenThisDay.contains(key) else { continue }  // 같은 날 중복 값은 한 번만
+                seenThisDay.insert(key)
+                if weekdaysByWindow[key] == nil {
+                    weekdaysByWindow[key] = []
+                    order.append(key)
+                }
+                weekdaysByWindow[key]?.insert(index)
+            }
+        }
+
+        var plans: [TimeWindowAlertPlan] = []
+        for key in order {
+            let days = weekdaysByWindow[key] ?? []
+            if days.count == 7 {
+                plans += windowPlanPair(groupID: groupID, name: name, key: key, dayIndex: nil)
+            } else {
+                for dayIndex in days.sorted() {
+                    plans += windowPlanPair(groupID: groupID, name: name, key: key, dayIndex: dayIndex)
+                }
+            }
+        }
+        return plans
+    }
+
+    /// 시간대 하나의 5분 전·종료 알림 쌍. `dayIndex`가 nil이면 매일 반복(요일 컴포넌트·접미사 없음),
+    /// 값이 있으면 요일 wrap(`weekdayAlertComponents`)을 적용하고 식별자에 `.d<index>` 접미사를 붙인다.
+    private nonisolated static func windowPlanPair(
+        groupID: UUID,
+        name: String,
+        key: WindowKey,
+        dayIndex: Int?
+    ) -> [TimeWindowAlertPlan] {
+        let suffix = dayIndex.map { ".d\($0)" } ?? ""
+        let warn = alertSlot(dayIndex: dayIndex, baseMinute: key.start, offset: -5)
+        let end = alertSlot(dayIndex: dayIndex, baseMinute: key.end, offset: 1)
+        return [
+            TimeWindowAlertPlan(
+                identifier: "\(timeWindowAlertPrefix)warn.\(groupID.uuidString).\(key.start)-\(key.end)\(suffix)",
+                groupName: name, phase: .warn, weekday: warn.weekday,
+                hour: warn.minuteOfDay / 60, minute: warn.minuteOfDay % 60),
+            TimeWindowAlertPlan(
+                identifier: "\(timeWindowAlertPrefix)end.\(groupID.uuidString).\(key.start)-\(key.end)\(suffix)",
+                groupName: name, phase: .end, weekday: end.weekday,
+                hour: end.minuteOfDay / 60, minute: end.minuteOfDay % 60)
+        ]
+    }
+
+    /// (요일 컴포넌트, 분)을 계산한다. dayIndex nil이면 요일 없는 매일 반복, 값이 있으면 요일 wrap 포함.
+    private nonisolated static func alertSlot(
+        dayIndex: Int?,
+        baseMinute: Int,
+        offset: Int
+    ) -> (weekday: Int?, minuteOfDay: Int) {
+        guard let dayIndex else {
+            return (nil, timeWindowAlertMinute(baseMinute: baseMinute, offset: offset))
+        }
+        let c = weekdayAlertComponents(weekdayIndex: dayIndex, baseMinute: baseMinute, offset: offset)
+        return (c.weekdayIndex + 1, c.minuteOfDay)  // Calendar weekday = index + 1
+    }
+
+    private static func scheduleTimeWindowAlert(plan: TimeWindowAlertPlan) {
         let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
+        switch plan.phase {
+        case .warn:
+            content.title = String(localized: "notification.timeWindow.soon.title \(plan.groupName)")
+            content.body = String(localized: "notification.timeWindow.soon.body")
+        case .end:
+            content.title = String(localized: "notification.timeWindow.ended.title \(plan.groupName)")
+            content.body = String(localized: "notification.timeWindow.ended.body")
+        }
         content.sound = .default
         var components = DateComponents()
-        components.hour = minuteOfDay / 60
-        components.minute = minuteOfDay % 60
+        components.hour = plan.hour
+        components.minute = plan.minute
+        // weekday만 추가(주 1회). .day/.year 등 다른 날짜 컴포넌트는 넣지 않는다(즉시·배치 발화 회피).
+        if let weekday = plan.weekday {
+            components.weekday = weekday
+        }
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: plan.identifier, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 }
