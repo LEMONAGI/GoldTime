@@ -9,10 +9,31 @@ struct RuleAnalyticsPayload {
     let timeWindowTotalBucket: String?
     let cooldownUsageBucket: String?
     let cooldownDurationBucket: String?
+    /// 요일별 모드의 제한 요일 수(1~7) 버킷. 요일별 세부 파라미터는 요일 수가 곧 구성 복잡도라
+    /// 이 버킷 하나로만 관찰한다(익명화 원칙 — 원값·요일 조합 비전송).
+    let weekdayRestrictedDaysBucket: String?
 
     init(group: ScreenTimeGroup) {
-        ruleKind = group.ruleKind?.rawValue ?? "unknown"
         selectionCountBucket = Self.selectionCountBucket(group.selectionCount)
+
+        // 요일별 모드는 base ruleKind(폴백용)가 아니라 "weekday"로 관찰한다.
+        if let rules = group.weekdayRules {
+            ruleKind = "weekday"
+            let bucket = Self.weekdayRestrictedDaysBucket(
+                rules.filter { $0.kind != .unrestricted }.count
+            )
+            ruleConfigBucket = bucket
+            weekdayRestrictedDaysBucket = bucket
+            dailyLimitBucket = nil
+            timeWindowCountBucket = nil
+            timeWindowTotalBucket = nil
+            cooldownUsageBucket = nil
+            cooldownDurationBucket = nil
+            return
+        }
+
+        ruleKind = group.ruleKind?.rawValue ?? "unknown"
+        weekdayRestrictedDaysBucket = nil
 
         switch group.ruleKind {
         case .dailyLimit:
@@ -72,6 +93,9 @@ struct RuleAnalyticsPayload {
         }
         if let cooldownDurationBucket {
             result["cooldown_duration_bucket"] = cooldownDurationBucket
+        }
+        if let weekdayRestrictedDaysBucket {
+            result["weekday_restricted_days"] = weekdayRestrictedDaysBucket
         }
 
         return result
@@ -149,5 +173,10 @@ private extension RuleAnalyticsPayload {
         case 121...240: return "rest_121_240m"
         default: return "rest_241_360m"
         }
+    }
+
+    /// 제한 요일 수(전부 제한 없음은 정책이 거부하므로 실사용 1~7). 방어적으로 0~7로 clamp.
+    static func weekdayRestrictedDaysBucket(_ count: Int) -> String {
+        "days_\(min(max(count, 0), 7))"
     }
 }

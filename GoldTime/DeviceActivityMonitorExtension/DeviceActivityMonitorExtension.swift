@@ -10,21 +10,13 @@ import ManagedSettings
 import os
 
 // daily/dailyGroup/dailyGroupID/dailyHeartbeat 및 DeviceActivityEvent.Name.tick/tickInfo는
-// DailyMonitor.swift(공유)에 정의됨. 여기서 다시 선언하면 두 타겟에서 중복 선언이 된다.
+// DailyMonitor.swift(공유)에, window.*/timeWindowGroupID는 TimeWindowMonitor.swift(공유)에
+// 정의됨. 여기서 다시 선언하면 두 타겟에서 중복 선언이 된다.
 extension DeviceActivityName {
     var overrideGroupID: UUID? {
         let prefix = "override."
         guard rawValue.hasPrefix(prefix) else { return nil }
         return UUID(uuidString: String(rawValue.dropFirst(prefix.count)))
-    }
-
-    /// `window.<UUID>.<index>`에서 groupID 추출 (시간대 차단 activity).
-    var timeWindowGroupID: UUID? {
-        let prefix = "window."
-        guard rawValue.hasPrefix(prefix) else { return nil }
-        let body = String(rawValue.dropFirst(prefix.count))
-        let firstSegment = body.split(separator: ".").first.map(String.init) ?? body
-        return UUID(uuidString: firstSegment)
     }
 }
 
@@ -90,10 +82,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     /// 일일 리셋 + daily/cooldown 모니터 재무장 + 아침 알림 예약을 한다. 같은 날 등록 직후에도
     /// 발화할 수 있으므로 didReset 가드로 불필요한 재등록·알림을 막는다.
     private func handleHeartbeat() {
-        // generation은 리셋 *전에* 스냅샷한다 — resetDailyProtectionStateIfNeeded()가
-        // clearAllUsedTime()으로 lastRegisteredGenerationByID를 비우기 때문(daily gen 손실 방지).
+        // generation·등록 기록은 리셋 *전에* 스냅샷한다 — resetDailyProtectionStateIfNeeded()가
+        // clearAllUsedTime()으로 lastRegisteredGenerationByID와 lastRegisteredGroupsByID를 비우기
+        // 때문(daily gen 손실 방지). registeredBeforeReset은 "어제 실제 등록된 종류/시간대"의 단일
+        // 출처로, 요일 전환 시 시간대 window를 무중단 유지할지 재등록할지 판정하는 데 쓴다.
         let dailyGenSnapshot = SharedStore.lastRegisteredGenerationByID
         let cooldownGenSnapshot = SharedStore.cooldownGenerationByID
+        let registeredBeforeReset = SharedStore.lastRegisteredGroupsByID ?? [:]
 
         guard SharedStore.resetDailyProtectionStateIfNeeded() else {
             GTLog.shield.notice("하트비트 발화했으나 날짜 변화 없음 → 재무장 스킵")
@@ -105,36 +100,77 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         NotificationService.scheduleDailyMorningNotificationIfNeeded()
         clearSystemShield()
 
+        let now = Date()
         let center = DeviceActivityCenter()
         var dailyGens = SharedStore.lastRegisteredGenerationByID   // 리셋으로 [:]
         var cooldownGens = SharedStore.cooldownGenerationByID
+        // registered에는 오늘 투영본을 저장한다(메인 앱 churn 가드가 오늘 규칙 기준으로 비교하게).
         var registered: [UUID: SharedStore.ScreenTimeGroup] = [:]
 
-        for group in SharedStore.screenTimeGroups where DailyMonitor.isTrackable(group) {
-            switch group.ruleKind {
+        for group in SharedStore.screenTimeGroups {
+            // 오늘의 규칙으로 투영한 사본. 요일별 그룹은 오늘 규칙만 남고 weekdayRules가 스트립된다.
+            let today = group.resolved(on: now)
+            let usesWeekday = group.usesWeekdayRules
+            let snapshot = registeredBeforeReset[group.id]
+
+            // 요일 그룹은 오늘 kind와 무관하게 어제 kind의 daily/cooldown 측정창을 스냅샷 gen으로
+            // 명시 stop하고 gen을 미리 올린다. date-less repeats:false 창의 자정 재무장은
+            // undocumented지만 실제로 가능해(1.0.0 실증, Core/CLAUDE.md), 어제-cooldown →
+            // 오늘-'제한 없음' 같은 kind 전환에서 stale tick이 오늘 규칙에 없는 잠금을 만들 수 있다.
+            // gen을 올려두면 비daily/비cooldown 요일을 지나도 이름 연속성이 유지돼 과거 stop된
+            // 이름 재사용(카운터 승계 회귀)도 막는다. 오늘 같은 kind를 재등록하는 아래 분기의
+            // stop/bump와 겹쳐도 no-op·동일값이라 무해하고, 자정엔 휴식이 이미 리셋돼
+            // cooldownTimer stop도 안전하다(휴식-중 stop 금지 규칙은 같은 날 편집에만 해당).
+            if usesWeekday {
+                let oldDailyGen = dailyGenSnapshot[group.id] ?? 0
+                let oldCooldownGen = cooldownGenSnapshot[group.id] ?? 0
+                center.stopMonitoring([
+                    .dailyGroup(for: group.id, generation: oldDailyGen),
+                    .cooldownUsage(for: group.id, generation: oldCooldownGen),
+                    .cooldownTimer(for: group.id),
+                ])
+                dailyGens[group.id] = oldDailyGen + 1
+                cooldownGens[group.id] = oldCooldownGen + 1
+            }
+
+            guard DailyMonitor.isTrackable(today) else {
+                // 오늘 '제한 없음'(투영 ruleKind nil) 또는 draft/미적용 등 비추적 그룹. 요일 그룹이 어제
+                // timeWindows였다면 repeats:true window activity가 계속 발화하므로 슬롯을 전부 멈춘다.
+                if usesWeekday {
+                    center.stopMonitoring(TimeWindowMonitor.allWindowActivities(for: group.id))
+                    GTLog.timeWindow.notice(
+                        "재무장: 요일 전환 오늘 비추적 → window 정리 \(self.groupLabel(group.id), privacy: .public)"
+                    )
+                }
+                continue
+            }
+
+            switch today.ruleKind {
             case .dailyLimit:
+                // 요일 전환(어제 window → 오늘 daily) 시 어제 window 잔재를 차단한다(no-op 무해).
+                if usesWeekday { center.stopMonitoring(TimeWindowMonitor.allWindowActivities(for: group.id)) }
                 // 즉시 잠금/등록 양쪽 모두 old activity stop + generation bump를 무조건 먼저.
                 let oldGen = dailyGenSnapshot[group.id] ?? 0
                 center.stopMonitoring([.dailyGroup(for: group.id, generation: oldGen)])
                 let newGen = oldGen + 1
                 dailyGens[group.id] = newGen
                 let used = SharedStore.usedTimeByGroupID[group.id] ?? 0
-                if used >= group.dailyLimitMinutes {
+                if used >= today.dailyLimitMinutes {
                     // 0분 그룹 등 즉시 잠금: 모니터 없이 잠금만(리셋 직후 used=0이라 실질 limit==0).
                     SharedStore.markGroupShielded(group.id)
-                    registered[group.id] = group
+                    registered[group.id] = today
                     GTLog.dailyLimit.notice(
-                        "재무장: 즉시 잠금 \(self.groupLabel(group.id), privacy: .public) used=\(used, privacy: .public)/\(group.dailyLimitMinutes, privacy: .public)m gen=\(newGen, privacy: .public)"
+                        "재무장: 즉시 잠금 \(self.groupLabel(group.id), privacy: .public) used=\(used, privacy: .public)/\(today.dailyLimitMinutes, privacy: .public)m gen=\(newGen, privacy: .public)"
                     )
                 } else {
                     // 등록 성공 시에만 registered에 기록한다. 실패한 그룹을 기록하면
                     // lastRegisteredGroupsByID 기반 churn 가드가 foreground 재등록을 영구 스킵하고
                     // 대시보드가 미추적을 정상으로 오표시한다(메인 앱 syncDailyMonitoring과 동일 계약).
                     do {
-                        try DailyMonitor.startUsageMonitoring(center: center, group: group, generation: newGen)
-                        registered[group.id] = group
+                        try DailyMonitor.startUsageMonitoring(center: center, group: today, generation: newGen)
+                        registered[group.id] = today
                         GTLog.dailyLimit.notice(
-                            "재무장: 측정 등록 \(self.groupLabel(group.id), privacy: .public) limit=\(group.dailyLimitMinutes, privacy: .public)m gen=\(newGen, privacy: .public)"
+                            "재무장: 측정 등록 \(self.groupLabel(group.id), privacy: .public) limit=\(today.dailyLimitMinutes, privacy: .public)m gen=\(newGen, privacy: .public)"
                         )
                     } catch {
                         GTLog.dailyLimit.error(
@@ -144,6 +180,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                     }
                 }
             case .cooldown:
+                if usesWeekday { center.stopMonitoring(TimeWindowMonitor.allWindowActivities(for: group.id)) }
                 let oldGen = cooldownGenSnapshot[group.id] ?? 0
                 center.stopMonitoring([
                     .cooldownUsage(for: group.id, generation: oldGen),
@@ -151,13 +188,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                 ])
                 let newGen = oldGen + 1
                 cooldownGens[group.id] = newGen
-                if group.cooldownUsageMinutes > 0 {
+                if today.cooldownUsageMinutes > 0 {
                     // dailyLimit과 동일: 등록 성공 시에만 registered에 기록(실패 그룹 박제 방지).
                     do {
-                        try CooldownMonitor.startUsageMonitoring(center: center, group: group, generation: newGen)
-                        registered[group.id] = group
+                        try CooldownMonitor.startUsageMonitoring(center: center, group: today, generation: newGen)
+                        registered[group.id] = today
                         GTLog.cooldown.notice(
-                            "재무장: 예산 측정 등록 \(self.groupLabel(group.id), privacy: .public) budget=\(group.cooldownUsageMinutes, privacy: .public)m gen=\(newGen, privacy: .public)"
+                            "재무장: 예산 측정 등록 \(self.groupLabel(group.id), privacy: .public) budget=\(today.cooldownUsageMinutes, privacy: .public)m gen=\(newGen, privacy: .public)"
                         )
                     } catch {
                         GTLog.cooldown.error(
@@ -166,15 +203,35 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                         SharedStore.enqueueScreenTimeError(context: "heartbeatCooldown", message: error.localizedDescription)
                     }
                 } else {
-                    registered[group.id] = group
+                    registered[group.id] = today
                 }
             case .timeWindows:
-                // window activity는 repeats:true로 살아 있어 재등록하지 않는다. 다음 앱 sync의
-                // churn을 줄이려고 등록 기록만 복원한다.
-                registered[group.id] = group
-                GTLog.timeWindow.notice("재무장: 시간대 그룹 등록 기록 복원 \(self.groupLabel(group.id), privacy: .public)")
+                // 어제 스냅샷 종류·시간대 구성이 오늘과 같으면 window activity(repeats:true)를 무중단
+                // 유지하고 등록 기록만 복원한다(churn 감소). 요일이 바뀌며 구성이 달라졌거나 어제가 다른
+                // 규칙이었으면 슬롯을 전부 stop하고 오늘 시간대로 재등록한다(window는 이벤트 없는 스케줄이라
+                // 이름 재사용 시 threshold 회귀 무관).
+                if snapshot?.ruleKind == .timeWindows, snapshot?.timeWindows == today.timeWindows {
+                    registered[group.id] = today
+                    GTLog.timeWindow.notice(
+                        "재무장: 시간대 구성 동일 → 등록 기록만 복원 \(self.groupLabel(group.id), privacy: .public)"
+                    )
+                } else {
+                    center.stopMonitoring(TimeWindowMonitor.allWindowActivities(for: group.id))
+                    do {
+                        try TimeWindowMonitor.startWindowMonitoring(center: center, group: today)
+                        registered[group.id] = today
+                        GTLog.timeWindow.notice(
+                            "재무장: 요일 전환 window 재등록 \(self.groupLabel(group.id), privacy: .public) windows=\(today.timeWindows.count, privacy: .public)"
+                        )
+                    } catch {
+                        GTLog.timeWindow.error(
+                            "재무장: window 재등록 실패 \(self.groupLabel(group.id), privacy: .public) error=\(error.localizedDescription, privacy: .public)"
+                        )
+                        SharedStore.enqueueScreenTimeError(context: "heartbeatTimeWindow", message: error.localizedDescription)
+                    }
+                }
             case .none:
-                break
+                break   // isTrackable(today) 가드가 걸러내므로 도달 불가.
             }
         }
 
@@ -277,7 +334,17 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             clearSystemShield()
         }
 
-        guard let group = SharedStore.group(id: groupID) else { return }
+        // 오늘 규칙 기준으로 잠금/알림을 판정한다(요일별 그룹은 오늘 한도로 투영).
+        guard let group = SharedStore.resolvedGroup(id: groupID) else { return }
+        // 오늘 규칙이 일일 한도가 아니면 stale tick으로 간주하고 무시한다 — 어제 측정창의 자정
+        // 재무장(undocumented)이나 규칙 편집 직후 race로 늦게 도착한 tick이 오늘 규칙에 없는
+        // 잠금을 만들면 안 된다(요일 전환 심층 방어).
+        guard group.ruleKind == .dailyLimit else {
+            GTLog.dailyLimit.notice(
+                "stale daily tick 무시(오늘 규칙 불일치) \(self.groupLabel(groupID), privacy: .public)"
+            )
+            return
+        }
 
         // 틱 분은 baseline(등록 시점 usedTime) 기준 상대값이므로 절대 사용량으로 복원해 올린다(역행 방지).
         // 한도 변경으로 재등록되어도 baseline이 보존되므로 이미 쓴 분이 유지된다.
@@ -341,7 +408,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // 쿨다운 그룹은 휴식이 이미 재충전된 뒤 살아남은 연장의 소진이면 재잠금하지 않는다
         // (cross-process race 방어) — 그 잠금은 cooldownUntil이 없어 자정까지 해제 경로가 없다.
         if CooldownMonitor.shouldReshieldOnOverrideExhaustion(
-            isCooldownRule: SharedStore.group(id: groupID)?.ruleKind == .cooldown,
+            isCooldownRule: SharedStore.resolvedGroup(id: groupID)?.ruleKind == .cooldown,
             isInCooldown: SharedStore.isInCooldown(groupID)
         ) {
             SharedStore.markGroupShielded(groupID)
@@ -365,7 +432,17 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         if SharedStore.resetDailyProtectionStateIfNeeded() {
             clearSystemShield()
         }
-        guard let group = SharedStore.group(id: groupID) else { return }
+        // 오늘 규칙 기준으로 예산/휴식을 판정한다(요일별 그룹은 오늘 쿨다운 파라미터로 투영).
+        guard let group = SharedStore.resolvedGroup(id: groupID) else { return }
+        // 오늘 규칙이 쿨다운이 아니면 stale tick으로 간주하고 무시한다 — 어제 측정창의 자정
+        // 재무장(undocumented)으로 stale cdtick이 도착하면 '제한 없음' 요일에 startCooldown +
+        // 잠금이 걸릴 수 있다(요일 전환 심층 방어, daily tick 게이트와 동일).
+        guard group.ruleKind == .cooldown else {
+            GTLog.cooldown.notice(
+                "stale cooldown tick 무시(오늘 규칙 불일치) \(self.groupLabel(groupID), privacy: .public)"
+            )
+            return
+        }
         // tick 분은 cooldown baseline(등록 시점 usedTime) 기준 상대값이므로
         // 사이클 전체 사용량으로 복원해 올린다(역행 방지).
         let baseline = SharedStore.cooldownBaselineByGroupID[groupID] ?? 0
@@ -447,7 +524,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
             .cooldownUsage(for: groupID, generation: generation - 1),
             .override(for: groupID),
         ])
-        if let group = SharedStore.group(id: groupID), group.cooldownUsageMinutes > 0 {
+        // 오늘 규칙 기준으로 재등록한다(요일별 그룹은 오늘 쿨다운 예산으로 투영). 오늘이 쿨다운이 아니면
+        // 예산/규칙이 맞지 않아 재등록하지 않고, 다음 sync·자정 재무장이 오늘 규칙으로 다시 잡는다.
+        if let group = SharedStore.resolvedGroup(id: groupID),
+           group.ruleKind == .cooldown, group.cooldownUsageMinutes > 0 {
             do {
                 try CooldownMonitor.startUsageMonitoring(
                     center: center,

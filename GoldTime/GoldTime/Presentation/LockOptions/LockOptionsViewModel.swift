@@ -74,13 +74,15 @@ final class LockOptionsViewModel {
     var selectedGroupName: String? { selectedGroup?.displayName }
 
     /// 잠긴 그룹이 전부 시간대 차단 규칙이면 "한도 초과" 프레이밍이 사실과 다르다.
+    /// 요일별 그룹은 오늘 투영 규칙 기준으로 판정한다.
     private var isWindowOnlyLock: Bool {
-        !lockedGroups.isEmpty && lockedGroups.allSatisfy { ($0.ruleKind ?? .dailyLimit) == .timeWindows }
+        !lockedGroups.isEmpty && lockedGroups.allSatisfy { ($0.resolved(on: Date()).ruleKind ?? .dailyLimit) == .timeWindows }
     }
 
     /// 잠긴 그룹이 전부 쿨다운 규칙이면 "한도 초과"가 아니라 "휴식 중" 프레이밍이 맞다.
+    /// 요일별 그룹은 오늘 투영 규칙 기준으로 판정한다.
     private var isCooldownOnlyLock: Bool {
-        !lockedGroups.isEmpty && lockedGroups.allSatisfy { ($0.ruleKind ?? .dailyLimit) == .cooldown }
+        !lockedGroups.isEmpty && lockedGroups.allSatisfy { ($0.resolved(on: Date()).ruleKind ?? .dailyLimit) == .cooldown }
     }
 
     var headerTitle: String {
@@ -89,9 +91,9 @@ final class LockOptionsViewModel {
         return String(localized: "lock.header.limit")
     }
 
-    /// 선택된 그룹이 시간대 차단으로 잠겨 있으면 종료 시각을 알려준다.
+    /// 선택된 그룹이 시간대 차단으로 잠겨 있으면 종료 시각을 알려준다. 요일별 그룹은 오늘 투영 기준.
     var selectedWindowLockCaption: String? {
-        guard let group = selectedGroup,
+        guard let group = selectedGroup?.resolved(on: Date()),
               (group.ruleKind ?? .dailyLimit) == .timeWindows else { return nil }
         let minute = TimeWindowPolicy.minuteOfDay(for: Date())
         guard let end = TimeWindowPolicy.activeWindowEnd(minuteOfDay: minute, windows: group.timeWindows) else {
@@ -100,9 +102,9 @@ final class LockOptionsViewModel {
         return String(localized: "lock.caption.windowUntil \(goldTimeClockText(minuteOfDay: end))")
     }
 
-    /// 선택된 그룹이 쿨다운으로 잠겨 있으면 휴식 종료 시각을 알려준다.
+    /// 선택된 그룹이 쿨다운으로 잠겨 있으면 휴식 종료 시각을 알려준다. 요일별 그룹은 오늘 투영 기준.
     var selectedCooldownLockCaption: String? {
-        guard let group = selectedGroup,
+        guard let group = selectedGroup?.resolved(on: Date()),
               (group.ruleKind ?? .dailyLimit) == .cooldown,
               let end = cooldownEndByGroupID[group.id] else { return nil }
         return String(localized: "lock.caption.cooldownUntil \(goldTimeClockText(date: end))")

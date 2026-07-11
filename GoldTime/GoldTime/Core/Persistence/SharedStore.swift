@@ -178,7 +178,7 @@ enum SharedStore {
     /// 하루 안의 차단 시간대. 분 단위(0...1439), start·end 모두 포함(inclusive: end가 차단되는
     /// 마지막 분), 자정 넘김 금지(start <= end). 예: 12:00–12:59는 12:00:00~12:59:59 차단.
     /// DeviceActivitySchedule 등록 시에는 intervalEnd = endMinuteOfDay + 1로 변환한다
-    /// (ScreenTimeManager.registerTimeWindowGroup 참조).
+    /// (TimeWindowMonitor.startWindowMonitoring 참조).
     struct TimeWindow: Codable, Equatable, Hashable, Identifiable {
         var id: UUID
         var startMinuteOfDay: Int
@@ -196,6 +196,85 @@ enum SharedStore {
 
         func contains(minuteOfDay minute: Int) -> Bool {
             minute >= startMinuteOfDay && minute <= endMinuteOfDay
+        }
+    }
+
+    /// 요일 하나의 완전한 규칙. ScreenTimeGroup의 규칙 필드와 동일한 평면 구조로,
+    /// 규칙 종류를 전환해도 다른 종류의 설정값이 보존된다(그룹 레벨과 동일한 패턴).
+    /// Hashable은 요일 묶음 편집의 value 기반 내비게이션(NavigationLink(value:))용.
+    struct DayRule: Codable, Equatable, Hashable {
+        /// 요일 규칙 종류. 그룹 RuleKind와 달리 '제한 없음(unrestricted)'이 있다.
+        enum Kind: String, Codable {
+            case unrestricted
+            case dailyLimit
+            case timeWindows
+            case cooldown
+        }
+
+        var kind: Kind
+        var dailyLimitMinutes: Int
+        var timeWindows: [TimeWindow]
+        var cooldownUsageMinutes: Int
+        var cooldownDurationMinutes: Int
+        /// 표시 전용 — 편집 화면에서 직접 '제한 없음'을 골라 저장한 요일. 엔진/정책/투영은 kind만 본다.
+        /// (토글 시드·묶음 해제로 생긴 암묵적 '제한 없음'과 구분해 요일 묶음 행을 만들지 결정한다.)
+        var isExplicitlyUnrestricted: Bool
+
+        init(
+            kind: Kind,
+            dailyLimitMinutes: Int = 30,
+            timeWindows: [TimeWindow] = [],
+            cooldownUsageMinutes: Int = ScreenTimeGroup.defaultCooldownUsageMinutes,
+            cooldownDurationMinutes: Int = ScreenTimeGroup.defaultCooldownDurationMinutes,
+            isExplicitlyUnrestricted: Bool = false
+        ) {
+            self.kind = kind
+            self.dailyLimitMinutes = dailyLimitMinutes
+            self.timeWindows = timeWindows
+            self.cooldownUsageMinutes = cooldownUsageMinutes
+            self.cooldownDurationMinutes = cooldownDurationMinutes
+            // 불변식: 제한 kind에 flag가 섞이면 같은 파라미터 묶음이 두 행으로 쪼개진다 → unrestricted에서만 유효.
+            self.isExplicitlyUnrestricted = isExplicitlyUnrestricted && kind == .unrestricted
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case kind
+            case dailyLimitMinutes
+            case timeWindows
+            case cooldownUsageMinutes
+            case cooldownDurationMinutes
+            case isExplicitlyUnrestricted
+        }
+
+        // 배열 요소 1개의 디코딩 실패가 배열 전체 소실로 이어지지 않도록 어떤 페이로드에서도 throw하지 않는다.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let rawKind = (try? container.decodeIfPresent(String.self, forKey: .kind)) ?? nil {
+                // 미래 버전의 미지 kind 값(및 키 부재)에서도 보호가 끊기지 않도록 일일 한도로 fallback.
+                kind = Kind(rawValue: rawKind) ?? .dailyLimit
+            } else {
+                kind = .dailyLimit
+            }
+            dailyLimitMinutes = (try? container.decodeIfPresent(Int.self, forKey: .dailyLimitMinutes)) ?? nil ?? 30
+            timeWindows = (try? container.decodeIfPresent([TimeWindow].self, forKey: .timeWindows)) ?? nil ?? []
+            cooldownUsageMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownUsageMinutes)) ?? nil ?? ScreenTimeGroup.defaultCooldownUsageMinutes
+            cooldownDurationMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownDurationMinutes)) ?? nil ?? ScreenTimeGroup.defaultCooldownDurationMinutes
+            // 표시 전용 플래그. 키 부재·손상 시 false, init과 동일하게 unrestricted에서만 유효하도록 정규화한다.
+            let explicitFlag = ((try? container.decodeIfPresent(Bool.self, forKey: .isExplicitlyUnrestricted)) ?? nil) ?? false
+            isExplicitlyUnrestricted = explicitFlag && kind == .unrestricted
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(kind, forKey: .kind)
+            try container.encode(dailyLimitMinutes, forKey: .dailyLimitMinutes)
+            try container.encode(timeWindows, forKey: .timeWindows)
+            try container.encode(cooldownUsageMinutes, forKey: .cooldownUsageMinutes)
+            try container.encode(cooldownDurationMinutes, forKey: .cooldownDurationMinutes)
+            // true일 때만 인코딩 — implicit·제한 요일 페이로드는 기존과 바이트 동일(하위 호환).
+            if isExplicitlyUnrestricted {
+                try container.encode(isExplicitlyUnrestricted, forKey: .isExplicitlyUnrestricted)
+            }
         }
     }
 
@@ -222,6 +301,9 @@ enum SharedStore {
         var cooldownUsageMinutes: Int
         /// 쿨다운 모드: 강제 휴식(분). ruleKind == .cooldown 일 때 유효.
         var cooldownDurationMinutes: Int
+        /// 요일별 규칙. index = Calendar.component(.weekday) - 1 (0=일 … 6=토), 정확히 7개.
+        /// nil이면 요일별 모드가 아니며 기존 필드(ruleKind 등)가 매일 적용된다.
+        var weekdayRules: [DayRule]?
 
         init(
             id: UUID = UUID(),
@@ -232,7 +314,8 @@ enum SharedStore {
             timeWindows: [TimeWindow] = [],
             isApplied: Bool = true,
             cooldownUsageMinutes: Int = defaultCooldownUsageMinutes,
-            cooldownDurationMinutes: Int = defaultCooldownDurationMinutes
+            cooldownDurationMinutes: Int = defaultCooldownDurationMinutes,
+            weekdayRules: [DayRule]? = nil
         ) {
             self.id = id
             self.name = name
@@ -243,6 +326,7 @@ enum SharedStore {
             self.isApplied = isApplied
             self.cooldownUsageMinutes = cooldownUsageMinutes
             self.cooldownDurationMinutes = cooldownDurationMinutes
+            self.weekdayRules = weekdayRules
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -255,6 +339,7 @@ enum SharedStore {
             case isApplied
             case cooldownUsageMinutes
             case cooldownDurationMinutes
+            case weekdayRules
         }
 
         // 새 필드는 어떤 페이로드에서도 throw하지 않아야 한다.
@@ -278,6 +363,9 @@ enum SharedStore {
                 timeWindows = (try? container.decodeIfPresent([TimeWindow].self, forKey: .timeWindows)) ?? nil ?? []
                 cooldownUsageMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownUsageMinutes)) ?? nil ?? Self.defaultCooldownUsageMinutes
                 cooldownDurationMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownDurationMinutes)) ?? nil ?? Self.defaultCooldownDurationMinutes
+                let decodedWeekdayRules = (try? container.decodeIfPresent([DayRule].self, forKey: .weekdayRules)) ?? nil
+                // 7개가 아니면 손상 페이로드 — weekdayRules만 버리고 base 규칙으로 폴백(그룹은 생존).
+                weekdayRules = decodedWeekdayRules?.count == 7 ? decodedWeekdayRules : nil
             } else {
                 // isApplied 키 부재 = 구버전 페이로드. 기존 사용자 그룹은 일일 한도 규칙이 이미 적용된 상태.
                 isApplied = true
@@ -285,6 +373,7 @@ enum SharedStore {
                 timeWindows = []
                 cooldownUsageMinutes = Self.defaultCooldownUsageMinutes
                 cooldownDurationMinutes = Self.defaultCooldownDurationMinutes
+                weekdayRules = nil
             }
         }
 
@@ -300,6 +389,8 @@ enum SharedStore {
             try container.encode(timeWindows, forKey: .timeWindows)
             try container.encode(cooldownUsageMinutes, forKey: .cooldownUsageMinutes)
             try container.encode(cooldownDurationMinutes, forKey: .cooldownDurationMinutes)
+            // nil이면 키 자체가 없어 구버전과 왕복 안전.
+            try container.encodeIfPresent(weekdayRules, forKey: .weekdayRules)
         }
 
         var appCount: Int {
@@ -321,6 +412,46 @@ enum SharedStore {
         var displayName: String {
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? String(localized: "group.unnamed") : trimmed
+        }
+
+        /// 요일별 모드 여부. weekdayRules가 있으면 날짜마다 규칙이 달라진다.
+        var usesWeekdayRules: Bool { weekdayRules != nil }
+
+        /// 해당 날짜가 '제한 없음' 요일인지. 요일별 모드가 아니면 항상 false.
+        func isUnrestricted(on date: Date, calendar: Calendar = .current) -> Bool {
+            guard let rules = weekdayRules, rules.count == 7 else { return false }
+            let index = WeekdayRulePolicy.weekdayIndex(for: date, calendar: calendar)
+            return rules[index].kind == .unrestricted
+        }
+
+        /// 해당 날짜의 유효 규칙을 기존 규칙 필드에 투영한 사본을 반환한다.
+        /// - weekdayRules == nil이면 self 그대로(비요일 그룹 zero-cost 통과).
+        /// - 투영본은 weekdayRules가 nil로 스트립된다(등록 기록·churn 비교가 오늘 규칙만 보게).
+        /// - 오늘이 '제한 없음'이면 ruleKind = nil → 기존 정책이 모니터링에서 자연 제외.
+        /// - 7개가 아닌 비정상 배열은 디코더 폴백과 동일하게 base 규칙으로 취급(weekdayRules만 스트립).
+        func resolved(on date: Date, calendar: Calendar = .current) -> ScreenTimeGroup {
+            guard let rules = weekdayRules else { return self }
+            var copy = self
+            copy.weekdayRules = nil
+            guard rules.count == 7 else { return copy }
+
+            let index = WeekdayRulePolicy.weekdayIndex(for: date, calendar: calendar)
+            let today = rules[index]
+            copy.dailyLimitMinutes = today.dailyLimitMinutes
+            copy.timeWindows = today.timeWindows
+            copy.cooldownUsageMinutes = today.cooldownUsageMinutes
+            copy.cooldownDurationMinutes = today.cooldownDurationMinutes
+            switch today.kind {
+            case .unrestricted:
+                copy.ruleKind = nil
+            case .dailyLimit:
+                copy.ruleKind = .dailyLimit
+            case .timeWindows:
+                copy.ruleKind = .timeWindows
+            case .cooldown:
+                copy.ruleKind = .cooldown
+            }
+            return copy
         }
     }
 
@@ -444,6 +575,12 @@ enum SharedStore {
 
     static func group(id: UUID) -> ScreenTimeGroup? {
         screenTimeGroups.first { $0.id == id }
+    }
+
+    /// id에 해당하는 그룹을 찾아 `now`의 유효 규칙으로 투영한 사본을 반환한다.
+    /// 요일별 모드가 아니면 저장된 그룹 그대로다(extension tick 핸들러에서 오늘 규칙만 보게).
+    static func resolvedGroup(id: UUID, now: Date = Date()) -> ScreenTimeGroup? {
+        group(id: id)?.resolved(on: now)
     }
 
     static var isDailyMonitoringEnabled: Bool {
@@ -863,10 +1000,13 @@ enum SharedStore {
     }
 
     /// 적용된 cooldown 그룹 중 cooldownUntil이 있고 <= now인(만료) 그룹 id 목록.
-    /// 재충전 대상 조회용.
+    /// 재충전 대상 조회용. 요일별 그룹은 base ruleKind가 오늘 규칙과 다르거나 nil일 수 있으므로
+    /// 반드시 투영(resolved) 기준으로 판정한다 — 원본 기준이면 오늘 쿨다운인 요일 그룹이
+    /// 자가치유 목록에서 빠져, 놓친 만료 휴식 잠금이 자정까지 잔존한다(좀비 잠금).
     static func expiredCooldownGroupIDs(now: Date = Date()) -> [UUID] {
         screenTimeGroups.compactMap { group in
-            guard group.ruleKind == .cooldown, group.isApplied else { return nil }
+            let today = group.resolved(on: now)
+            guard today.ruleKind == .cooldown, today.isApplied else { return nil }
             guard let until = cooldownUntilByGroupID[group.id], until <= now else { return nil }
             return group.id
         }
@@ -1318,8 +1458,17 @@ enum SharedStore {
         return true
     }
 
+    /// shield/override/cooldownUntil 계열은 `validGroupIDs`(오늘 유효 그룹) 기준으로 prune하고,
+    /// `cooldownGenerationByID`·`cooldownBaselineByGroupID`는 `cooldownProgressIDs`(존재하는 그룹 전체)
+    /// 기준으로 prune한다(= 삭제 그룹만 지운다). 두 set을 나눈 이유: 오늘 '제한 없음'인 요일 그룹의
+    /// cooldown generation이 지워지면 다음 등록이 gen 0을 재사용해 stop된 `cooldownUsage` activity 이름을
+    /// 재사용 → 카운터 승계로 1분 만에 잠기는 회귀(ScreenTimeManager 주석 참조)가 재발한다. 비요일
+    /// 사용처는 두 set에 같은 값(유효 그룹)을 넘겨 기존 동작을 유지한다.
     @discardableResult
-    static func pruneShieldState(keepingGroupIDs validGroupIDs: Set<UUID>) -> Bool {
+    static func pruneShieldState(
+        keepingGroupIDs validGroupIDs: Set<UUID>,
+        keepingCooldownProgressGroupIDs cooldownProgressIDs: Set<UUID>
+    ) -> Bool {
         let oldShieldedGroupIDs = shieldedGroupIDs
         let newShieldedGroupIDs = oldShieldedGroupIDs.intersection(validGroupIDs)
 
@@ -1336,9 +1485,9 @@ enum SharedStore {
         let newCooldownUntil = oldCooldownUntil.filter { validGroupIDs.contains($0.key) }
 
         let oldCooldownGen = cooldownGenerationByID
-        let newCooldownGen = oldCooldownGen.filter { validGroupIDs.contains($0.key) }
+        let newCooldownGen = oldCooldownGen.filter { cooldownProgressIDs.contains($0.key) }
         let oldCooldownBaselines = cooldownBaselineByGroupID
-        let newCooldownBaselines = oldCooldownBaselines.filter { validGroupIDs.contains($0.key) }
+        let newCooldownBaselines = oldCooldownBaselines.filter { cooldownProgressIDs.contains($0.key) }
 
         let didChange = newShieldedGroupIDs != oldShieldedGroupIDs
             || newOverrides.count != oldOverrides.count
@@ -1367,6 +1516,8 @@ enum SharedStore {
     /// dailyLimit 그룹과 draft 그룹의 잠금 상태는 절대 건드리지 않는다.
     /// override 상태는 손대지 않으므로(시간대 안이라 marked여도 override 중이면 lockedGroups가 제외),
     /// 단 시간대 밖이면 override 여부와 무관하게 unmark한다.
+    /// 요일별 그룹은 `resolved(on:now)` 투영으로 오늘 규칙을 본다 — 오늘이 시간대 규칙이 아닌 그룹
+    /// (daily/쿨다운/제한 없음/draft)은 절대 건드리지 않는다.
     @discardableResult
     static func resyncTimeWindowLocks(now: Date = Date()) -> (changed: Bool, newlyLocked: Set<UUID>) {
         let minute = minuteOfDay(for: now)
@@ -1375,11 +1526,12 @@ enum SharedStore {
         var changed = false
 
         for group in screenTimeGroups {
-            guard group.ruleKind == .timeWindows,
-                  group.isApplied,
-                  !group.timeWindows.isEmpty else { continue }
+            let today = group.resolved(on: now)
+            guard today.ruleKind == .timeWindows,
+                  today.isApplied,
+                  !today.timeWindows.isEmpty else { continue }
 
-            let inside = group.timeWindows.contains { $0.contains(minuteOfDay: minute) }
+            let inside = today.timeWindows.contains { $0.contains(minuteOfDay: minute) }
             if inside {
                 if ids.insert(group.id).inserted {
                     newlyLocked.insert(group.id)

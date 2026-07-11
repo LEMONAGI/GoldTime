@@ -21,6 +21,7 @@ enum ScreenTimeGroupPolicy {
         case groupNotApplied(String)
         case groupHasInvalidTimeWindows(String, TimeWindowPolicy.InvalidReason)
         case groupHasInvalidCooldown(String, CooldownPolicy.InvalidReason)
+        case groupHasInvalidWeekdayRules(String, WeekdayRulePolicy.InvalidReason)
         case groupHasTooManySelections(String)
         case groupHasNonAppTokens(String)
         case shieldApplicationLimitExceeded(Int)
@@ -40,6 +41,8 @@ enum ScreenTimeGroupPolicy {
             case .groupHasInvalidTimeWindows(let name, let reason):
                 return String(localized: "group.error.namedReason \(name) \(reason.userMessage)")
             case .groupHasInvalidCooldown(let name, let reason):
+                return String(localized: "group.error.namedReason \(name) \(reason.userMessage)")
+            case .groupHasInvalidWeekdayRules(let name, let reason):
                 return String(localized: "group.error.namedReason \(name) \(reason.userMessage)")
             case .groupHasTooManySelections(let name):
                 return String(localized: "group.error.tooManySelections \(name) \(ScreenTimeGroupPolicy.maxAppsPerGroup)")
@@ -65,6 +68,8 @@ enum ScreenTimeGroupPolicy {
         var cooldownUsageMinutes: Int
         /// 쿨다운 모드: 강제 휴식(분). ruleKind == .cooldown 일 때 유효.
         var cooldownDurationMinutes: Int
+        /// 요일별 규칙(0=일 … 6=토, 정확히 7개). nil이면 요일별 모드가 아니다.
+        var weekdayRules: [DayRule]?
 
         init(
             id: UUID = UUID(),
@@ -77,7 +82,8 @@ enum ScreenTimeGroupPolicy {
             timeWindows: [TimeWindow] = [],
             isApplied: Bool = true,
             cooldownUsageMinutes: Int = 10,
-            cooldownDurationMinutes: Int = 300
+            cooldownDurationMinutes: Int = 300,
+            weekdayRules: [DayRule]? = nil
         ) {
             self.id = id
             self.name = name
@@ -90,6 +96,7 @@ enum ScreenTimeGroupPolicy {
             self.isApplied = isApplied
             self.cooldownUsageMinutes = cooldownUsageMinutes
             self.cooldownDurationMinutes = cooldownDurationMinutes
+            self.weekdayRules = weekdayRules
         }
 
         var selectionCount: Int {
@@ -100,6 +107,16 @@ enum ScreenTimeGroupPolicy {
     /// 그룹이 선택한 규칙 자체의 유효성. 규칙 미선택(draft 중)도 invalid로 취급해
     /// 모니터링 대상에서 자연스럽게 제외된다.
     static func ruleInvalidReason<Token>(for group: GroupSnapshot<Token>) -> InvalidReason? {
+        // 요일별 모드는 주간 전체(7요일)를 검증하고, base ruleKind가 nil(미선택)이어도 유효로 본다
+        // — 요일별 규칙 자체가 규칙 선택이기 때문. resolved(on:) 투영본은 weekdayRules가 nil이라
+        // 아래 기존 분기를 타므로 "저장 시 주간 전체 + 등록 시 오늘 규칙" 2중 검증이 성립한다.
+        if let weekdayRules = group.weekdayRules {
+            if let reason = WeekdayRulePolicy.firstInvalidReason(for: weekdayRules) {
+                return .groupHasInvalidWeekdayRules(group.name, reason)
+            }
+            return nil
+        }
+
         switch group.ruleKind {
         case .none:
             return .groupHasNoRule(group.name)

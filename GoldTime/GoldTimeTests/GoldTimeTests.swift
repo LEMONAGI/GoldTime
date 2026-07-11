@@ -94,6 +94,138 @@ struct GoldTimeTests {
         #expect(NotificationService.timeWindowAlertMinute(baseMinute: 720, offset: 1) == 721)   // 12:00 끝 → 12:01
     }
 
+    // MARK: - 요일 트리거 wrap(weekdayAlertComponents) — 분과 함께 요일도 ±1 wrap
+
+    @Test func weekdayAlertComponentsWrapsWeekdayAndMinute() {
+        // 5분 전 00:03 → 전날 23:58: weekday도 −1. 일(0)→토(6) 포함.
+        let sunWarn = NotificationService.weekdayAlertComponents(weekdayIndex: 0, baseMinute: 3, offset: -5)
+        #expect(sunWarn.weekdayIndex == 6)
+        #expect(sunWarn.minuteOfDay == 1438)
+        let wedWarn = NotificationService.weekdayAlertComponents(weekdayIndex: 3, baseMinute: 3, offset: -5)
+        #expect(wedWarn.weekdayIndex == 2)
+        #expect(wedWarn.minuteOfDay == 1438)
+
+        // inclusive 끝 1439 종료 → 익일 00:00: weekday도 +1. 토(6)→일(0) 포함.
+        let satEnd = NotificationService.weekdayAlertComponents(weekdayIndex: 6, baseMinute: 1439, offset: 1)
+        #expect(satEnd.weekdayIndex == 0)
+        #expect(satEnd.minuteOfDay == 0)
+        let tueEnd = NotificationService.weekdayAlertComponents(weekdayIndex: 2, baseMinute: 1439, offset: 1)
+        #expect(tueEnd.weekdayIndex == 3)
+        #expect(tueEnd.minuteOfDay == 0)
+
+        // 일반 케이스: 날짜 안 넘어가면 요일 그대로.
+        let normalWarn = NotificationService.weekdayAlertComponents(weekdayIndex: 4, baseMinute: 600, offset: -5)
+        #expect(normalWarn.weekdayIndex == 4)
+        #expect(normalWarn.minuteOfDay == 595)
+        let normalEnd = NotificationService.weekdayAlertComponents(weekdayIndex: 1, baseMinute: 720, offset: 1)
+        #expect(normalEnd.weekdayIndex == 1)
+        #expect(normalEnd.minuteOfDay == 721)
+    }
+
+    // MARK: - 시간대 알림 예약 계획(timeWindowAlertPlans) — dedupe·요일 트리거·회귀
+
+    @Test func timeWindowAlertPlansDedupesSevenDaySameWindowToDaily() {
+        // 7요일 전부 같은 시간대(08:00–08:59) → 매일 반복 1쌍(요일 접미사·weekday 없음).
+        let prefix = NotificationService.timeWindowAlertPrefix
+        let id = UUID()
+        let window = TimeWindow(startMinuteOfDay: 8 * 60, endMinuteOfDay: 8 * 60 + 59)
+        let rules = (0..<7).map { _ in SharedStore.DayRule(kind: .timeWindows, timeWindows: [window]) }
+        let group = SharedStore.ScreenTimeGroup(
+            id: id, name: "수면", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+
+        let plans = NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: true)
+
+        #expect(plans.count == 2)
+        #expect(plans.allSatisfy { $0.weekday == nil })
+        let warn = plans.first { $0.phase == .warn }
+        #expect(warn?.identifier == "\(prefix)warn.\(id.uuidString).480-539")
+        #expect(warn?.hour == 7 && warn?.minute == 55)   // 08:00 − 5분 = 07:55
+        let end = plans.first { $0.phase == .end }
+        #expect(end?.identifier == "\(prefix)end.\(id.uuidString).480-539")
+        #expect(end?.hour == 9 && end?.minute == 0)      // inclusive 08:59 종료 = 09:00
+    }
+
+    @Test func timeWindowAlertPlansWeekdayOnlyWindowsProduceWeekdayTriggers() {
+        // 평일(월~금, index 1~5)만 같은 시간대(09:00–17:59) → 5요일 트리거(각 weekday 컴포넌트).
+        let id = UUID()
+        let window = TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 17 * 60 + 59)
+        var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30) }
+        for i in 1...5 { rules[i] = SharedStore.DayRule(kind: .timeWindows, timeWindows: [window]) }
+        let group = SharedStore.ScreenTimeGroup(
+            id: id, name: "집중", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+
+        let plans = NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: true)
+
+        #expect(plans.count == 10)   // 5요일 × (warn+end)
+        // 각 요일 트리거의 weekday = index + 1 → {2,3,4,5,6} (날짜 안 넘어가 wrap 없음).
+        let warnWeekdays = Set(plans.filter { $0.phase == .warn }.map { $0.weekday })
+        #expect(warnWeekdays == Set([2, 3, 4, 5, 6].map(Optional.init)))
+        let endWeekdays = Set(plans.filter { $0.phase == .end }.map { $0.weekday })
+        #expect(endWeekdays == Set([2, 3, 4, 5, 6].map(Optional.init)))
+        // 월요일(index 1) 5분 전: 08:55, weekday 2, 식별자에 .d1 접미사.
+        let mondayWarn = plans.first { $0.phase == .warn && $0.identifier.hasSuffix(".d1") }
+        #expect(mondayWarn?.weekday == 2)
+        #expect(mondayWarn?.hour == 8 && mondayWarn?.minute == 55)
+    }
+
+    @Test func timeWindowAlertPlansOnlyTodayTimeWindowsProducesSingleWeekday() {
+        // 수요일(index 3)만 timeWindows(22:00–23:59), 다른 날 daily → 그 요일 트리거만.
+        // 종료가 익일 00:00로 넘어가 weekday도 +1(수→목)되는 wrap을 함께 검증한다.
+        let id = UUID()
+        var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30) }
+        rules[3] = SharedStore.DayRule(
+            kind: .timeWindows,
+            timeWindows: [TimeWindow(startMinuteOfDay: 22 * 60, endMinuteOfDay: 23 * 60 + 59)]
+        )
+        let group = SharedStore.ScreenTimeGroup(
+            id: id, name: "수면", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+
+        let plans = NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: true)
+
+        #expect(plans.count == 2)
+        let warn = plans.first { $0.phase == .warn }
+        #expect(warn?.weekday == 4)      // 수요일(index 3) → weekday 4, 21:55 (같은 날)
+        #expect(warn?.hour == 21 && warn?.minute == 55)
+        let end = plans.first { $0.phase == .end }
+        #expect(end?.weekday == 5)        // 23:59 종료 = 익일 00:00 → 목요일(weekday 5)
+        #expect(end?.hour == 0 && end?.minute == 0)
+    }
+
+    @Test func timeWindowAlertPlansNonWeekdayGroupMatchesLegacy() {
+        // 비요일 그룹(weekdayRules == nil) → 기존 index 기반 식별자·매일 반복(회귀 방지).
+        let prefix = NotificationService.timeWindowAlertPrefix
+        let id = UUID()
+        let group = SharedStore.ScreenTimeGroup(
+            id: id, name: "수면", ruleKind: .timeWindows,
+            timeWindows: [
+                TimeWindow(startMinuteOfDay: 8 * 60, endMinuteOfDay: 8 * 60 + 59),
+                TimeWindow(startMinuteOfDay: 20 * 60, endMinuteOfDay: 21 * 60 + 59)
+            ]
+        )
+
+        let plans = NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: true)
+
+        #expect(plans.allSatisfy { $0.weekday == nil })
+        #expect(plans.map(\.identifier) == [
+            "\(prefix)warn.\(id.uuidString).0",
+            "\(prefix)end.\(id.uuidString).0",
+            "\(prefix)warn.\(id.uuidString).1",
+            "\(prefix)end.\(id.uuidString).1"
+        ])
+    }
+
+    @Test func timeWindowAlertPlansEmptyWhenDisabled() {
+        // 토글 OFF → 빈 계획(발송 자체를 막는 발송 시점 가드와 별개로, 예약 계획도 비어야 함).
+        let group = SharedStore.ScreenTimeGroup(
+            name: "수면", ruleKind: .timeWindows,
+            timeWindows: [TimeWindow(startMinuteOfDay: 8 * 60, endMinuteOfDay: 8 * 60 + 59)]
+        )
+        #expect(NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: false).isEmpty)
+    }
+
     @Test func dailyHeartbeatScheduleIsCanonicalRepeatingMidnightWindow() {
         // 자정 재무장의 주 경로: 00:00~23:59:59, repeats:true, 이벤트 없음.
         // (date-less repeats:false 측정창의 undocumented 재무장에 의존하지 않기 위함)
@@ -420,7 +552,10 @@ struct GoldTimeTests {
         SharedStore.recordOverrideBaseline(groupID: keptID, baseline: 3, grantedMinutes: 1)
         SharedStore.recordOverrideBaseline(groupID: removedID, baseline: 4, grantedMinutes: 10)
 
-        let didChange = SharedStore.pruneShieldState(keepingGroupIDs: [keptID])
+        let didChange = SharedStore.pruneShieldState(
+            keepingGroupIDs: [keptID],
+            keepingCooldownProgressGroupIDs: [keptID]
+        )
 
         #expect(didChange)
         #expect(SharedStore.shieldedGroupIDs == [keptID])
@@ -1118,6 +1253,29 @@ struct GoldTimeTests {
         #expect(payload.cooldownUsageBucket == "usage_16_30m")
         #expect(payload.cooldownDurationBucket == "rest_61_120m")
         #expect(payload.ruleConfigBucket == "usage_16_30m_rest_61_120m")
+    }
+
+    @Test func ruleAnalyticsPayloadBucketsWeekdayRules() {
+        // 요일별 모드는 base ruleKind(폴백용)가 아니라 "weekday" + 제한 요일 수 버킷으로 관찰한다.
+        var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
+        for index in 1...5 {
+            rules[index] = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 10, cooldownDurationMinutes: 180)
+        }
+        let group = SharedStore.ScreenTimeGroup(
+            name: "SNS",
+            dailyLimitMinutes: 75,
+            ruleKind: .dailyLimit,
+            weekdayRules: rules
+        )
+
+        let payload = RuleAnalyticsPayload(group: group)
+
+        #expect(payload.ruleKind == "weekday")
+        #expect(payload.ruleConfigBucket == "days_5")
+        #expect(payload.weekdayRestrictedDaysBucket == "days_5")
+        #expect(payload.parameters["weekday_restricted_days"] as? String == "days_5")
+        #expect(payload.dailyLimitBucket == nil)   // base 폴백 버킷은 미전송
+        #expect(payload.parameters["daily_limit_bucket"] == nil)
     }
 
     @Test func adUnlockAnalyticsIncludesRulePayload() {

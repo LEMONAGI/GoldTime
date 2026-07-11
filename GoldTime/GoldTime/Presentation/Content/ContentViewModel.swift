@@ -34,6 +34,9 @@ struct LimitLockWarning: Identifiable {
     let groupName: String
     let usedMinutes: Int
     let rule: Rule
+    /// 요일별 모드 커밋의 즉시 잠금 경고면 확정 시 이 규칙 전체를 적용한다.
+    /// `rule`은 오늘 투영 규칙으로, 경고 문구(오늘 한도/예산)용으로만 보관한다.
+    var weekdayRules: [DayRule]? = nil
 }
 
 /// draft 그룹을 "적용하기"로 commit하기 전, 이후 수정에 광고가 필요함을 안내하는 확인.
@@ -94,6 +97,8 @@ final class ContentViewModel {
     var limitPickerMinutes = 30
     var ruleEditorCooldownUsageMinutes = SharedStore.ScreenTimeGroup.defaultCooldownUsageMinutes
     var ruleEditorCooldownDurationMinutes = SharedStore.ScreenTimeGroup.defaultCooldownDurationMinutes
+    /// 규칙 편집기의 요일별 규칙 편집 상태. nil이면 요일별 모드 OFF(기존 규칙 3종).
+    var ruleEditorWeekdayRules: [DayRule]?
 
     var isShieldActive: Bool
     var oneMinuteRemaining: Int
@@ -118,6 +123,9 @@ final class ContentViewModel {
     var isAdGatePresented = false
     var adGateFallbackLabel: String = ""
     private var adGatePendingAction: (() -> Void)? = nil
+
+    var isRuleCommitAdGatePresented = false
+    private var ruleCommitAdRewardEarned = false
 
     private let manageGroupsUseCase: ManageGroupsUseCase
     private let syncProtectionUseCase: SyncProtectionUseCase
@@ -323,6 +331,7 @@ final class ContentViewModel {
         ruleEditorTimeWindows = group.timeWindows
         ruleEditorCooldownUsageMinutes = group.cooldownUsageMinutes
         ruleEditorCooldownDurationMinutes = group.cooldownDurationMinutes
+        ruleEditorWeekdayRules = group.weekdayRules
         ruleEditorGroupID = group.id
     }
 
@@ -335,8 +344,24 @@ final class ContentViewModel {
         }
     }
 
-    /// 규칙 편집기의 확인. 선택된 규칙 종류에 따라 일일 한도/시간대 차단을 각각 적용한다.
+    /// 규칙 편집기의 확인. 적용된 그룹에 집행 영향 변경이 있으면 광고 게이트 cover를 띄운다
+    /// (보기만 하는 진입은 무료 — 게이트는 진입이 아니라 변경 커밋에 건다). "광고를 봐야 한다"는
+    /// 안내는 cover 안 1단계(`RuleCommitAdGateView`)가 담당한다 — 냅다 광고가 아니라
+    /// 안내 → 확인 → 광고. 시트 안 다이얼로그 → cover 연쇄는 타이밍 글리치로 폐기(Presentation/CLAUDE.md).
     func commitRuleSelection() {
+        if requiresAdForRuleCommit() {
+            isRuleCommitAdGatePresented = true
+            return
+        }
+        performRuleCommit()
+    }
+
+    /// 규칙 편집기의 실제 커밋. 요일별 모드면 요일 규칙을, 아니면 선택된 규칙 종류를 각각 적용한다.
+    func performRuleCommit() {
+        if ruleEditorWeekdayRules != nil {
+            commitWeekdayRules()
+            return
+        }
         switch ruleEditorSelectedKind {
         case .dailyLimit:
             commitDailyLimitRule()
@@ -347,22 +372,181 @@ final class ContentViewModel {
         }
     }
 
+    /// View가 완료 시점에 게이트 여부를 미리 알아야 할 때 사용 — 광고 cover는 시스템 슬라이드
+    /// 대신 자체 등장 연출(scrim 페이드+카드 rise)을 쓰므로, ContentView가 게이트 경로에서만
+    /// 프레젠테이션 애니메이션을 끄기 위해 커밋 전에 조회한다.
+    var isRuleCommitAdGateRequired: Bool { requiresAdForRuleCommit() }
+
+    /// 적용된 그룹에 집행 영향 변경이 있어 커밋 시 광고 게이트가 필요한지 판단한다.
+    /// draft는 무료, 무효한 요일 상태는 광고 없이 커밋으로 보내 기존 검증 alert 경로를 태운다.
+    private func requiresAdForRuleCommit() -> Bool {
+        guard let id = ruleEditorGroupID,
+              let group = groups.first(where: { $0.id == id }),
+              group.isApplied else { return false }
+        if let rules = ruleEditorWeekdayRules,
+           WeekdayRulePolicy.firstInvalidReason(for: rules) != nil {
+            return false
+        }
+        return hasEnforcementRelevantChange(group: group)
+    }
+
+    /// 편집기 상태가 그룹의 현재 규칙과 집행상 다른지 판단한다(요일 ↔ 단일 전환, 요일 규칙 배열
+    /// 변경, 단일 규칙 종류/파라미터 변경). `isExplicitlyUnrestricted`는 표시 전용이라 제외한다.
+    private func hasEnforcementRelevantChange(group: ScreenTimeGroup) -> Bool {
+        if let editorRules = ruleEditorWeekdayRules {
+            guard let groupRules = group.weekdayRules else { return true }   // 단일 → 요일 전환
+            return normalizedForEnforcement(editorRules) != normalizedForEnforcement(groupRules)
+        }
+        if group.weekdayRules != nil { return true }   // 요일 → 단일 전환
+
+        if ruleEditorSelectedKind != group.ruleKind { return true }
+        switch ruleEditorSelectedKind {
+        case .dailyLimit:
+            return limitPickerHours * 60 + limitPickerMinutes != group.dailyLimitMinutes
+        case .timeWindows:
+            return ruleEditorTimeWindows != group.timeWindows
+        case .cooldown:
+            return ruleEditorCooldownUsageMinutes != group.cooldownUsageMinutes
+                || ruleEditorCooldownDurationMinutes != group.cooldownDurationMinutes
+        }
+    }
+
+    /// 표시 전용 `isExplicitlyUnrestricted`를 false로 통일한 사본. 이 플래그만 바뀐
+    /// "암묵 → 명시 승격" 커밋은 집행에 무영향이라 광고 없이 통과시킨다.
+    private func normalizedForEnforcement(_ rules: [DayRule]) -> [DayRule] {
+        rules.map {
+            var copy = $0
+            copy.isExplicitlyUnrestricted = false
+            return copy
+        }
+    }
+
+    func ruleCommitAdGateCompleted() {
+        ruleCommitAdRewardEarned = true
+        isRuleCommitAdGatePresented = false
+    }
+
+    func ruleCommitAdGateCancelled() {
+        isRuleCommitAdGatePresented = false
+    }
+
+    /// 광고 cover가 닫힌 뒤 호출. 보상을 얻었으면 그때 커밋한다(cover dismiss와 시트 dismiss·
+    /// staged alert가 같은 사이클에 겹치지 않도록 순서 분리).
+    func handleRuleCommitAdGateDismiss() {
+        guard ruleCommitAdRewardEarned else { return }
+        ruleCommitAdRewardEarned = false
+        performRuleCommit()
+    }
+
+    /// 요일별 규칙 커밋. 검증 → 오늘 투영 기준 즉시 잠금 경고 판단 → persist+sync.
+    private func commitWeekdayRules() {
+        guard let id = ruleEditorGroupID, let rules = ruleEditorWeekdayRules else { return }
+
+        // 뷰에서 완료를 막아도 VM에서 한 번 더 검증한다.
+        if let reason = WeekdayRulePolicy.firstInvalidReason(for: rules) {
+            alertMessage = GoldTimeAlertMessage(
+                title: String(localized: "content.alert.weekdayCheck.title"),
+                message: reason.userMessage
+            )
+            return
+        }
+
+        let used = usedTimeByGroupID[id] ?? 0
+        let todayRule = rules[WeekdayRulePolicy.weekdayIndex(for: Date())]
+        logRuleChangeToWeekdayIfNeeded(id: id, todayRule: todayRule, used: used)
+
+        // 즉시 잠금 경고는 오늘 투영 규칙 기준(일일/쿨다운이고 새 예산 <= 사용량). 시트가 닫힌 뒤 띄운다.
+        // 이미 잠김/휴식/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
+        if isGroupCurrentlyOpen(id), used > 0,
+           let warning = weekdayImmediateLockWarning(id: id, todayRule: todayRule, used: used, rules: rules) {
+            stagedLimitLockWarning = warning
+            ruleEditorGroupID = nil
+            return
+        }
+
+        applyWeekdayRules(id: id, rules: rules)
+
+        // 자정 근처 안내: 오늘 투영 kind가 daily/cooldown일 때만(측정창 영향).
+        let todayTracked = todayRule.kind == .dailyLimit || todayRule.kind == .cooldown
+        if monitoringRegistrationGroupIDIfApplied(id) != nil && todayTracked
+            && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
+            stagedRuleEditInfo = nearMidnightApplyNotice
+        }
+        ruleEditorGroupID = nil
+    }
+
+    /// 오늘 투영 규칙이 이미 쓴 시간보다 작은 예산이면 즉시 잠기므로 확인 경고를 만든다.
+    /// 확정 시 base 규칙이 아니라 요일 규칙 전체를 적용하도록 `weekdayRules`를 함께 싣는다.
+    private func weekdayImmediateLockWarning(id: UUID, todayRule: DayRule, used: Int, rules: [DayRule]) -> LimitLockWarning? {
+        let name = groups.first(where: { $0.id == id })?.name ?? String(localized: "content.thisGroup")
+        switch todayRule.kind {
+        case .dailyLimit where todayRule.dailyLimitMinutes <= used:
+            return LimitLockWarning(
+                groupID: id,
+                groupName: name,
+                usedMinutes: used,
+                rule: .dailyLimit(minutes: todayRule.dailyLimitMinutes),
+                weekdayRules: rules
+            )
+        case .cooldown where todayRule.cooldownUsageMinutes <= used:
+            return LimitLockWarning(
+                groupID: id,
+                groupName: name,
+                usedMinutes: used,
+                rule: .cooldown(usageMinutes: todayRule.cooldownUsageMinutes, durationMinutes: todayRule.cooldownDurationMinutes),
+                weekdayRules: rules
+            )
+        default:
+            return nil
+        }
+    }
+
+    private func applyWeekdayRules(id: UUID, rules: [DayRule]) {
+        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
+        updateGroup(id, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
+            manageGroupsUseCase.updateWeekdayRules(id: id, rules: rules, in: &groups)
+        }
+    }
+
     /// 그룹이 현재 자유롭게 사용 가능한(잠김X·휴식X·override X) 상태인지.
     /// 편집으로 "즉시 잠금/휴식 진입" 확인 알럿을 띄울지 판단하는 데 쓴다(전환이 실제로 일어날 때만).
     private func isGroupCurrentlyOpen(_ id: UUID) -> Bool {
         !lockedGroupIDs.contains(id) && !overrideGroupIDs.contains(id)
     }
 
-    /// 모드 전환(ruleKind 변경)을 관찰용으로 기록한다(`rule_changed`). 같은 모드 내 값 변경은 제외.
+    /// 그룹의 현재 규칙 표기(`rule_changed` from/to 값). 요일별 모드면 "weekday", 아니면 base 규칙
+    /// rawValue, 규칙 미선택이면 nil. 요일별 ↔ 단일 전환도 관찰 가능하게 한다.
+    private func ruleDescriptor(for group: ScreenTimeGroup?) -> String? {
+        guard let group else { return nil }
+        if group.usesWeekdayRules { return "weekday" }
+        return group.ruleKind?.rawValue
+    }
+
+    /// 모드 전환(규칙 변경)을 관찰용으로 기록한다(`rule_changed`). 같은 규칙 내 값 변경은 제외.
     /// apply/early-return 이전(전환 직전 상태)에 호출해야 was_locked·used가 정확하다.
     /// `effectiveLimit`: 일일 한도/쿨다운 예산(분). timeWindows는 측정창과 무관하므로 미사용(0 전달).
     private func logRuleChangeIfNeeded(id: UUID, to: GroupRuleKind, effectiveLimit: Int) {
-        guard let old = groups.first(where: { $0.id == id })?.ruleKind, old != to else { return }
+        guard let old = ruleDescriptor(for: groups.first(where: { $0.id == id })), old != to.rawValue else { return }
         let used = usedTimeByGroupID[id] ?? 0
         let causedLock = (to == .dailyLimit || to == .cooldown) && used >= effectiveLimit
         analyticsRepository.log(.ruleChanged(
-            from: old.rawValue,
+            from: old,
             to: to.rawValue,
+            wasLocked: !isGroupCurrentlyOpen(id),
+            usedBucket: RuleAnalyticsPayload.usedBucket(used),
+            causedLock: causedLock
+        ))
+    }
+
+    /// 요일별 모드로의 전환을 기록한다(`rule_changed`, to = "weekday"). 이미 요일별 모드면 제외.
+    /// causedLock은 오늘 투영 규칙이 즉시 잠김을 유발하는지로 판단한다.
+    private func logRuleChangeToWeekdayIfNeeded(id: UUID, todayRule: DayRule, used: Int) {
+        guard let old = ruleDescriptor(for: groups.first(where: { $0.id == id })), old != "weekday" else { return }
+        let causedLock = (todayRule.kind == .dailyLimit && todayRule.dailyLimitMinutes <= used)
+            || (todayRule.kind == .cooldown && todayRule.cooldownUsageMinutes <= used)
+        analyticsRepository.log(.ruleChanged(
+            from: old,
+            to: "weekday",
             wasLocked: !isGroupCurrentlyOpen(id),
             usedBucket: RuleAnalyticsPayload.usedBucket(used),
             causedLock: causedLock
@@ -441,6 +625,8 @@ final class ContentViewModel {
                 cooldownDurationMinutes: duration,
                 in: &groups
             )
+            // base 규칙 커밋은 요일별 모드 해제를 의미한다(요일별 OFF 커밋 경로). 이미 nil이면 무해한 no-op.
+            manageGroupsUseCase.updateWeekdayRules(id: id, rules: nil, in: &groups)
         }
     }
 
@@ -494,6 +680,8 @@ final class ContentViewModel {
                 timeWindows: windows,
                 in: &groups
             )
+            // base 규칙 커밋은 요일별 모드 해제를 의미한다(요일별 OFF 커밋 경로).
+            manageGroupsUseCase.updateWeekdayRules(id: id, rules: nil, in: &groups)
         }
         ruleEditorGroupID = nil
     }
@@ -507,6 +695,8 @@ final class ContentViewModel {
                 dailyLimitMinutes: minutes,
                 in: &groups
             )
+            // base 규칙 커밋은 요일별 모드 해제를 의미한다(요일별 OFF 커밋 경로).
+            manageGroupsUseCase.updateWeekdayRules(id: id, rules: nil, in: &groups)
         }
     }
 
@@ -528,6 +718,11 @@ final class ContentViewModel {
     // 상태에서 다시 읽으면 nil이 되기 때문(early-return 버그 방지).
     func confirmLimitLockChange(_ warning: LimitLockWarning) {
         pendingLimitLockWarning = nil
+        // 요일별 모드 경고는 base 규칙이 아니라 요일 규칙 전체를 적용한다.
+        if let rules = warning.weekdayRules {
+            applyWeekdayRules(id: warning.groupID, rules: rules)
+            return
+        }
         switch warning.rule {
         case .dailyLimit(let minutes):
             applyDailyLimitRule(id: warning.groupID, minutes: minutes)
@@ -540,7 +735,8 @@ final class ContentViewModel {
         pendingLimitLockWarning = nil
     }
 
-    /// 적용(commit)된 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    /// 적용(commit)된 그룹은 우회 방지를 위해 앱 선택 편집·삭제 전에 광고 게이트를 거친다
+    /// (규칙 변경은 진입이 아니라 완료 시점 게이트로 옮겨졌다 — `requiresAdForRuleCommit`).
     /// applied는 잠금/연장 상태를 모두 포함(applied ⊃ locked ∪ override)하므로 더 엄격한 기준이다.
     /// draft(미적용) 그룹은 자유롭게 수정·삭제할 수 있도록 게이트 없음.
     private func isEditRestricted(_ id: UUID) -> Bool {
@@ -554,16 +750,6 @@ final class ContentViewModel {
         }
         adGatePendingAction = { [weak self] in self?.presentPicker(for: group) }
         adGateFallbackLabel = String(localized: "content.adGate.edit")
-        isAdGatePresented = true
-    }
-
-    func requestRuleEditorPresentation(for group: ScreenTimeGroup) {
-        guard isEditRestricted(group.id) else {
-            presentRuleEditor(for: group)
-            return
-        }
-        adGatePendingAction = { [weak self] in self?.presentRuleEditor(for: group) }
-        adGateFallbackLabel = String(localized: "content.adGate.change")
         isAdGatePresented = true
     }
 
@@ -628,7 +814,8 @@ final class ContentViewModel {
             analyticsRepository.log(.groupApplied(payload: RuleAnalyticsPayload(group: group)))
             // 자정 직전 적용이면 모니터 등록이 막혀 00:00부터 적용된다. 확인 다이얼로그가
             // 닫히는 사이클과 겹치면 alert가 누락되므로 다음 런루프로 미뤄 띄운다.
-            if isMonitorTrackedRule(group.ruleKind)
+            // 요일별 그룹은 오늘 투영 규칙 기준으로 측정창 영향(daily/cooldown)을 판단한다.
+            if isMonitorTrackedRule(group.resolved(on: Date()).ruleKind)
                 && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
                 let notice = nearMidnightApplyNotice
                 Task { @MainActor in self.alertMessage = notice }

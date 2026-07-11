@@ -237,8 +237,11 @@ struct CooldownTests {
         // removeID는 endCooldownAndRecharge로 until이 제거됐지만 generation은 남아있음
         #expect(SharedStore.cooldownGenerationByID[removeID] != nil)
 
-        // keepID만 유효 그룹으로 전달
-        let changed = SharedStore.pruneShieldState(keepingGroupIDs: [keepID])
+        // keepID만 유효·존재 그룹으로 전달(removeID는 삭제 → gen/baseline까지 prune 대상).
+        let changed = SharedStore.pruneShieldState(
+            keepingGroupIDs: [keepID],
+            keepingCooldownProgressGroupIDs: [keepID]
+        )
         #expect(changed)
 
         // keepID: until/generation 유지

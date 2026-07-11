@@ -64,25 +64,47 @@ High-risk 작업은 직렬로 처리하고 명시적인 검증 메모를 남깁�
 
 ## 검증 명령
 
-빌드와 테스트는 반드시 Xcode MCP 툴을 사용합니다. `xcodebuild` CLI는 MCP를 쓸 수 없는 경우에만 fallback입니다.
+빌드와 테스트는 `xcodebuild` CLI를 기본으로 사용합니다(2026-07-11 전환). Xcode MCP 툴은
+CLI가 막히거나 IDE 상태(RenderPreview, 네비게이터 이슈 등)가 필요할 때만 fallback입니다.
 
-### 사용 순서
+### xcodebuild (레포 루트 기준, 전부 실제 검증된 명령)
 
-1. **tabIdentifier 확인** — 모든 MCP 툴 호출 전 먼저 실행합니다.
-   ```
-   mcp__xcode__XcodeListWindows
-   ```
-   결과에서 GoldTime 프로젝트의 `tabIdentifier`를 가져옵니다 (예: `windowtab2`).
+- **빌드**:
+  ```bash
+  xcodebuild -project GoldTime/GoldTime.xcodeproj -scheme GoldTime \
+    -destination 'platform=iOS Simulator,name=iPhone 17' -quiet build
+  ```
+  `-quiet`는 성공 시 출력이 거의 없다 — exit 0이면 성공.
+- **전체 테스트**: 위 명령의 `build` → `test`. exit 0 = 전부 통과(실패 시에만 실패 목록 출력).
+- **특정 테스트**: `test`에 `-only-testing:'GoldTimeTests/ViewModelTests/테스트이름()'` 추가.
+  식별자는 `타겟/스위트/함수명()` — **괄호까지 포함**해야 매칭된다.
+- **결과 수 확인**(아래 함정 때문에 특정 테스트 후엔 필수):
+  ```bash
+  RESULT=$(ls -td ~/Library/Developer/Xcode/DerivedData/GoldTime-*/Logs/Test/*.xcresult | head -1)
+  xcrun xcresulttool get test-results summary --path "$RESULT"
+  ```
 
-2. **빌드**: `mcp__xcode__BuildProject`
-3. **전체 테스트**: `mcp__xcode__RunAllTests`
-4. **특정 테스트**: `mcp__xcode__RunSomeTests`
-   - `targetName`: 테스트 타겟 이름 (예: `GoldTimeTests`)
-   - `testIdentifier`: `GetTestList`로 확인한 식별자 (예: `ViewModelTests/statsViewModelTodayDeltaCorrectAcrossWeekBoundary()`)
-5. **빌드 로그 확인**: `mcp__xcode__GetBuildLog`
-6. **사용 가능한 테스트 목록**: `mcp__xcode__GetTestList`
+### xcodebuild 함정 (실측)
 
-MCP 툴이 연결 오류로 실패하면 `/mcp` 명령으로 재연결하고 재시도합니다. 재연결 후에도 실패하면 실패 원인을 기록하고 `xcodebuild` CLI를 fallback으로 사용합니다.
+- **`-only-testing` 식별자가 아무것도 매칭하지 못하면 0개 실행으로 `TEST SUCCEEDED`가 뜬다
+  (거짓 성공)**. 괄호 누락이 흔한 원인. exit code만 믿지 말고 xcresult에서
+  `totalTestCount`를 확인한다.
+- destination의 name-only 지정은 **최신 런타임에 그 이름이 있어야** 잡힌다. 예: "iPhone 16
+  Pro"는 이 맥에 iOS 18.0 런타임에만 있어 실패했다("Unable to find a device") → 최신 런타임에
+  있는 이름(예: iPhone 17)을 쓰고, 모호하면 `-showdestinations`로 확인.
+- 테스트 stdout에는 개별 테스트 라인이 나오지 않는다(Xcode 16+, `-quiet` 무관). `-quiet`면
+  xcresult 경로 라인도 생략되니 DerivedData에서 최신 xcresult를 찾는다(위 명령).
+- `xcodebuild test`는 시뮬레이터 앱 데이터를 초기화할 수 있다(TEST_HOST + 공유 App Group).
+  실사용 기기와는 무관.
+
+### Xcode MCP (fallback)
+
+1. `mcp__xcode__XcodeListWindows`로 GoldTime 프로젝트의 `tabIdentifier` 확인 (예: `windowtab3`).
+2. 빌드 `mcp__xcode__BuildProject`, 전체 테스트 `mcp__xcode__RunAllTests`, 특정 테스트
+   `mcp__xcode__RunSomeTests`(`testIdentifier` 예:
+   `ViewModelTests/statsViewModelTodayDeltaCorrectAcrossWeekBoundary()`), 로그
+   `mcp__xcode__GetBuildLog`, 목록 `mcp__xcode__GetTestList`.
+3. 연결 오류면 `/mcp`로 재연결. 그래도 실패하면 원인을 기록하고 xcodebuild로 돌아온다.
 
 ## 완료 보고
 

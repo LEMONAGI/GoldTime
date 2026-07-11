@@ -113,6 +113,11 @@ struct HomeViewModel {
             let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
             return String(localized: "home.status.extraMinutes \(granted)")
         }
+        // 오늘이 '제한 없음' 요일이면 invalidReason 검사보다 앞에서 중립 배지로 처리한다
+        // (안 하면 투영 ruleKind nil이 .groupHasNoRule로 떨어져 "설정 필요"로 오표시된다).
+        if group.isUnrestricted(on: Date()) {
+            return String(localized: "home.status.unrestrictedToday")
+        }
         // 자정 직전 편집으로 추적이 멈춘 그룹: 분 진행 개념이 없어 바 대신 "23:59까지 사용 가능"으로.
         if isUntrackedNearMidnight(group) {
             return String(localized: "home.status.usableUntilMidnight")
@@ -128,8 +133,10 @@ struct HomeViewModel {
 
     /// 잠금 중 뱃지 문구. 규칙별로 "언제까지 잠금"을 HH:mm으로 표기.
     /// 일일 한도는 오늘이 끝날 때까지라 "23:59까지 잠금", 쿨다운은 휴식 종료 시각, 시간대는 연속 시간대의 마지막 종료.
+    /// 요일별 그룹은 오늘 투영 규칙 기준으로 판정한다.
     private func lockedBadgeTitle(for group: ScreenTimeGroup) -> String {
-        switch group.ruleKind ?? .dailyLimit {
+        let today = group.resolved(on: Date())
+        switch today.ruleKind ?? .dailyLimit {
         case .dailyLimit:
             return String(localized: "home.status.lockedUntilMidnight")
         case .cooldown:
@@ -139,7 +146,7 @@ struct HomeViewModel {
             return String(localized: "home.status.locked")
         case .timeWindows:
             let minute = TimeWindowPolicy.minuteOfDay(for: Date())
-            if let end = TimeWindowPolicy.contiguousWindowEnd(minuteOfDay: minute, windows: group.timeWindows) {
+            if let end = TimeWindowPolicy.contiguousWindowEnd(minuteOfDay: minute, windows: today.timeWindows) {
                 return String(localized: "home.status.lockedUntil \(goldTimeClockText(minuteOfDay: end))")
             }
             return String(localized: "home.status.locked")
@@ -147,12 +154,14 @@ struct HomeViewModel {
     }
 
     /// 사용 가능 뱃지 문구. 시간대 규칙은 다음 차단 시작 시각까지, 그 외는 그냥 "사용 가능".
+    /// 요일별 그룹은 오늘 투영 규칙 기준으로 판정한다.
     private func availableBadgeTitle(for group: ScreenTimeGroup) -> String {
-        guard (group.ruleKind ?? .dailyLimit) == .timeWindows else {
+        let today = group.resolved(on: Date())
+        guard (today.ruleKind ?? .dailyLimit) == .timeWindows else {
             return String(localized: "home.status.available")
         }
         let minute = TimeWindowPolicy.minuteOfDay(for: Date())
-        if let start = TimeWindowPolicy.nextWindowStart(minuteOfDay: minute, windows: group.timeWindows) {
+        if let start = TimeWindowPolicy.nextWindowStart(minuteOfDay: minute, windows: today.timeWindows) {
             // 차단은 start 분부터(inclusive) 막히므로 마지막 사용 가능 분은 start - 1.
             // start가 00:00이면 전날 23:59로 wrap.
             let lastUsable = (start + 24 * 60 - 1) % (24 * 60)
@@ -174,6 +183,10 @@ struct HomeViewModel {
         if overrideGroupIDs.contains(group.id) {
             return "checkmark.shield.fill"
         }
+        // 오늘 '제한 없음' 요일은 invalidReason보다 먼저 잡아 중립 아이콘으로 둔다.
+        if group.isUnrestricted(on: Date()) {
+            return "shield.slash"
+        }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return "shield"
         }
@@ -189,6 +202,10 @@ struct HomeViewModel {
         }
         if overrideGroupIDs.contains(group.id) {
             return .blue
+        }
+        // 오늘 '제한 없음' 요일은 invalidReason보다 먼저 잡아 중립 색으로 둔다.
+        if group.isUnrestricted(on: Date()) {
+            return .gray
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return .orange
@@ -218,13 +235,16 @@ struct HomeViewModel {
 
     func lockProgress(for group: ScreenTimeGroup) -> SegmentProgress? {
         // 사용량 진행바는 일일 한도와 쿨다운 그룹에 의미가 있다(쿨다운은 휴식 전 사용 예산 잔여).
-        // 시간대 차단 그룹은 진행바 대신 시간대 요약을 보여준다.
+        // 시간대 차단 그룹은 진행바 대신 시간대 요약을 보여준다. 요일별 그룹은 오늘 투영 규칙 기준.
+        let today = group.resolved(on: Date())
+        // 오늘 '제한 없음'(투영 ruleKind nil)은 진행바 없음.
+        guard let kind = today.ruleKind else { return nil }
         let budget: Int
-        switch group.ruleKind ?? .dailyLimit {
+        switch kind {
         case .dailyLimit:
-            budget = group.dailyLimitMinutes
+            budget = today.dailyLimitMinutes
         case .cooldown:
-            budget = group.cooldownUsageMinutes
+            budget = today.cooldownUsageMinutes
         case .timeWindows:
             return nil
         }
@@ -257,7 +277,9 @@ struct HomeViewModel {
               validGroupIDs.contains(group.id),
               !lockedGroupIDs.contains(group.id),
               !overrideGroupIDs.contains(group.id) else { return false }
-        switch group.ruleKind ?? .dailyLimit {
+        // 요일별 그룹은 오늘 투영 규칙 기준. 오늘 '제한 없음'이면 해당 없음.
+        guard let kind = group.resolved(on: Date()).ruleKind else { return false }
+        switch kind {
         case .dailyLimit, .cooldown: return true
         case .timeWindows: return false
         }
@@ -309,28 +331,45 @@ struct HomeViewModel {
         }
     }
 
-    /// 그룹 카드 규칙 행 제목. 규칙 미선택이면 "차단 규칙 선택", 선택했으면 규칙 이름.
+    /// 그룹 카드 규칙 행 제목. 요일별 그룹이면 "요일별 규칙", 규칙 미선택이면 "차단 규칙 선택", 선택했으면 규칙 이름.
     func ruleRowTitle(for group: ScreenTimeGroup) -> String {
+        if group.usesWeekdayRules {
+            return String(localized: "rule.weekday.title")
+        }
         guard let kind = group.ruleKind else { return String(localized: "rule.selectPrompt") }
         return ruleDisplayName(kind)
     }
 
-    /// 그룹 카드 규칙 행 부제. 규칙 미선택이면 선택 안내, 선택했으면 규칙 요약.
+    /// 그룹 카드 규칙 행 부제. 요일별 그룹이면 "오늘: {오늘 규칙 요약}", 규칙 미선택이면 선택 안내, 선택했으면 규칙 요약.
     func ruleRowSubtitle(for group: ScreenTimeGroup) -> String {
+        if group.usesWeekdayRules {
+            return String(localized: "rule.weekday.today \(todayRuleSummary(for: group))")
+        }
         guard group.ruleKind != nil else { return String(localized: "rule.selectSubtitle") }
         return ruleSummary(for: group)
     }
 
+    /// 요일별 그룹의 오늘 규칙 짧은 요약("일일 한도 · 30분" — 규칙 종류 포함, 요일 묶음 행과
+    /// 동일한 공용 포매터). 값만 표기하면 무슨 규칙인지 알 수 없다는 피드백 반영.
+    private func todayRuleSummary(for group: ScreenTimeGroup) -> String {
+        guard let rules = group.weekdayRules, rules.count == 7 else {
+            return ruleSummary(for: group)
+        }
+        return goldTimeDayRuleSummary(rules[WeekdayRulePolicy.weekdayIndex(for: Date())])
+    }
+
     /// 그룹 카드 "차단 규칙" 행의 짧은 요약 값. dailyLimit은 한도, timeWindows는 시간대 요약.
+    /// 요일별 그룹은 오늘 투영 규칙 기준으로 요약한다.
     func ruleSummary(for group: ScreenTimeGroup) -> String {
-        switch group.ruleKind ?? .dailyLimit {
+        let today = group.resolved(on: Date())
+        switch today.ruleKind ?? .dailyLimit {
         case .dailyLimit:
-            return limitLabel(group.dailyLimitMinutes)
+            return limitLabel(today.dailyLimitMinutes)
         case .timeWindows:
-            return timeWindowsSummary(group.timeWindows)
+            return timeWindowsSummary(today.timeWindows)
         case .cooldown:
-            let usage = goldTimeDurationText(seconds: group.cooldownUsageMinutes * 60)
-            let rest = goldTimeDurationText(seconds: group.cooldownDurationMinutes * 60)
+            let usage = goldTimeDurationText(seconds: today.cooldownUsageMinutes * 60)
+            let rest = goldTimeDurationText(seconds: today.cooldownDurationMinutes * 60)
             return String(localized: "rule.cooldown.summary \(usage) \(rest)")
         }
     }
