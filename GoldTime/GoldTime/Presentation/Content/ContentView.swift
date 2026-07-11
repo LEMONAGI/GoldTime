@@ -87,7 +87,7 @@ struct ContentView: View {
                     onDeleteGroup: viewModel.requestDeleteGroup,
                     onUpdateGroupName: viewModel.updateGroupName,
                     onPresentPicker: viewModel.requestPickerPresentation,
-                    onPresentRuleEditor: viewModel.requestRuleEditorPresentation,
+                    onPresentRuleEditor: viewModel.presentRuleEditor,
                     onUnlockGroup: viewModel.presentUnlockSheet,
                     onApplyGroup: viewModel.requestApplyGroup
                 )
@@ -156,12 +156,28 @@ struct ContentView: View {
                 currentKind: viewModel.ruleEditorCurrentKind,
                 nearMidnightNotice: viewModel.nearMidnightEditNotice,
                 onConfirm: {
-                    viewModel.commitRuleSelection()
+                    if viewModel.isRuleCommitAdGateRequired {
+                        // 광고 게이트 cover는 자체 등장 연출(scrim 페이드 + 카드 rise)을 쓰므로
+                        // 시스템 슬라이드 프레젠테이션을 끈다. 커밋 경로(else)는 기존 애니메이션 유지.
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) { viewModel.commitRuleSelection() }
+                    } else {
+                        viewModel.commitRuleSelection()
+                    }
                 },
                 onCancel: { viewModel.setRuleEditorPresented(false) }
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+            .fullScreenCover(isPresented: $viewModel.isRuleCommitAdGatePresented, onDismiss: {
+                viewModel.handleRuleCommitAdGateDismiss()
+            }) {
+                RuleCommitAdGateView(
+                    onComplete: viewModel.ruleCommitAdGateCompleted,
+                    onCancel: viewModel.ruleCommitAdGateCancelled
+                )
+            }
         }
         .alert(item: activeAlert) { active in
             switch active {
@@ -282,6 +298,115 @@ private struct ScreenTimeAuthorizationRecoveryView: View {
             .padding(.horizontal, 24)
         }
     }
+}
+
+/// 규칙 변경 완료 광고 게이트. 안내(1단계 확인 카드)와 광고(2단계 `RewardedAdView`)를
+/// **하나의 fullScreenCover 안에서** 전환한다 — 시트 안에서 confirmationDialog → cover 연쇄는
+/// 어떤 타이밍 처방으로도 dismiss/present 글리치(UIKit 거부·재표시)가 남아 presentation을
+/// 하나로 합쳤다(Presentation/CLAUDE.md "presentation 전환 타이밍" 참조).
+/// 1단계는 기존 안내 다이얼로그와 같은 느낌의 하단 카드 — 배경 탭/취소 = 편집 유지.
+private struct RuleCommitAdGateView: View {
+    let onComplete: () -> Void
+    let onCancel: () -> Void
+
+    @State private var isShowingAd = false
+    /// 등장 연출은 cover의 시스템 슬라이드 대신 직접 한다(프레젠테이션 애니메이션은 ContentView가
+    /// 끔): scrim은 opacity 페이드(시트 dim 느낌), 카드는 페이드+살짝 떠오르기. 검은 막·카드가
+    /// 화면 아래에서 통째로 슉 올라오는 어색함 방지 — 취소(페이드아웃) 연출과 대칭.
+    @State private var isScrimVisible = false
+    @State private var isCardVisible = false
+
+    var body: some View {
+        Group {
+            if isShowingAd {
+                RewardedAdView(
+                    placement: .groupEditGate,
+                    fallbackLabel: String(localized: "content.adGate.change"),
+                    onComplete: onComplete,
+                    onCancel: onCancel
+                )
+            } else {
+                confirmStage
+            }
+        }
+        .presentationBackground(.clear)
+    }
+
+    private var confirmStage: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.opacity(isScrimVisible ? 0.45 : 0)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture(perform: cancelWithScrimFade)
+
+            confirmCard
+                .opacity(isCardVisible ? 1 : 0)
+                .offset(y: isCardVisible ? 0 : 32)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.3)) { isScrimVisible = true }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { isCardVisible = true }
+        }
+    }
+
+    /// 취소는 scrim·카드를 먼저 페이드아웃한 뒤 cover를 내린다(등장과 대칭).
+    /// 지연은 페이드 시간만큼만이라 체감 지연 없음.
+    private func cancelWithScrimFade() {
+        withAnimation(.easeIn(duration: 0.18)) {
+            isScrimVisible = false
+            isCardVisible = false
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(200))
+            onCancel()
+        }
+    }
+
+    /// iOS 26+는 Liquid Glass(연속 코너 28 + 캡슐형 확인 버튼), 미만은 기존 material 카드.
+    /// glass 안에 glass 버튼을 중첩하지 않는다(HIG — 취소는 시스템 알럿처럼 텍스트 행).
+    @ViewBuilder
+    private var confirmCard: some View {
+        if #available(iOS 26.0, *) {
+            cardContent(buttonCornerRadius: 25)
+                .glassEffect(.regular, in: .rect(cornerRadius: 28, style: .continuous))
+        } else {
+            cardContent(buttonCornerRadius: 12)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+    }
+
+    private func cardContent(buttonCornerRadius: CGFloat) -> some View {
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                Text("group.restricted.title")
+                    .font(.headline)
+                Text("rule.commit.adNotice.message")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 10) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { isShowingAd = true }
+                } label: {
+                    Text("group.ad.change")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black, cornerRadius: buttonCornerRadius))
+                Button("common.cancel", role: .cancel, action: cancelWithScrimFade)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+#Preview("완료 광고 게이트 — 안내 카드") {
+    RuleCommitAdGateView(onComplete: {}, onCancel: {})
 }
 
 #Preview {

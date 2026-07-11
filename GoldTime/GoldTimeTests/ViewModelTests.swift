@@ -361,7 +361,7 @@ struct ViewModelTests {
     // MARK: - Ad Gate
 
     @Test func adGateSkippedForDraftGroup() {
-        // draft(미적용) 그룹은 잠금/연장과 무관하게 광고 게이트 없이 바로 편집된다.
+        // draft(미적용) 그룹은 잠금/연장과 무관하게 광고 게이트 없이 바로 앱 선택 편집에 들어간다.
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", ruleKind: nil, isApplied: false)
         let viewModel = ContentViewModel(
             manageGroupsUseCase: ManageGroupsUseCase(
@@ -378,10 +378,6 @@ struct ViewModelTests {
         viewModel.requestPickerPresentation(for: group)
         #expect(!viewModel.isAdGatePresented)
         #expect(viewModel.isPickerPresented)
-
-        viewModel.requestRuleEditorPresentation(for: group)
-        #expect(!viewModel.isAdGatePresented)
-        #expect(viewModel.isRuleEditorPresented)
     }
 
     @Test func adGateSkippedForDraftDelete() {
@@ -407,7 +403,8 @@ struct ViewModelTests {
     }
 
     @Test func adGateOpenedForAppliedUnlockedGroup() {
-        // 적용된 그룹은 잠겨 있지 않아도 편집/변경/삭제에 광고 게이트가 뜬다.
+        // 적용된 그룹은 잠겨 있지 않아도 앱 선택 편집/삭제에 진입 광고 게이트가 뜬다
+        // (규칙 변경은 진입이 아니라 완료 게이트 — 아래 Rule Commit Ad Gate 섹션에서 검증).
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
         let viewModel = ContentViewModel(
             manageGroupsUseCase: ManageGroupsUseCase(
@@ -424,11 +421,6 @@ struct ViewModelTests {
         viewModel.requestPickerPresentation(for: group)
         #expect(viewModel.isAdGatePresented)
         #expect(!viewModel.isPickerPresented)
-
-        viewModel.adGateCancelled()
-        viewModel.requestRuleEditorPresentation(for: group)
-        #expect(viewModel.isAdGatePresented)
-        #expect(!viewModel.isRuleEditorPresented)
 
         viewModel.adGateCancelled()
         viewModel.requestDeleteGroup(group.id)
@@ -498,28 +490,6 @@ struct ViewModelTests {
         #expect(viewModel.isAdGatePresented)
         #expect(viewModel.adGateFallbackLabel == "그래도 편집하기")
         #expect(!viewModel.isPickerPresented)
-    }
-
-    @Test func adGateOpenedForOverrideGroupLimitChange() {
-        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
-        let viewModel = ContentViewModel(
-            manageGroupsUseCase: ManageGroupsUseCase(
-                groupRepository: FakeGroupRepository(),
-                screenTimeRepository: FakeScreenTimeRepository()
-            ),
-            syncProtectionUseCase: makeSyncProtectionUseCase(),
-            loadDashboardUseCase: makeLoadDashboardUseCase(),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
-            userDefaults: makeUserDefaults()
-        )
-        viewModel.groups = [group]
-        viewModel.overrideGroupIDs = [group.id]
-
-        viewModel.requestRuleEditorPresentation(for: group)
-
-        #expect(viewModel.isAdGatePresented)
-        #expect(viewModel.adGateFallbackLabel == "그래도 변경하기")
-        #expect(!viewModel.isRuleEditorPresented)
     }
 
     @Test func adGateOpenedForOverrideGroupDelete() {
@@ -973,7 +943,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 1
         viewModel.limitPickerMinutes = 15
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.groups.first?.dailyLimitMinutes == 75)
         #expect(viewModel.groups.first?.ruleKind == .dailyLimit)
@@ -1005,7 +975,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 1
         viewModel.limitPickerMinutes = 15
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         let registered = analyticsRepo.parameters(for: "rule_monitoring_registered")
         #expect(registered?["rule_kind"] as? String == "dailyLimit")
@@ -1038,7 +1008,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 15
         viewModel.ruleEditorCooldownDurationMinutes = 60
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         let changed = analyticsRepo.parameters(for: "rule_changed")
         #expect(changed?["from_rule"] as? String == "dailyLimit")
@@ -1071,7 +1041,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 1
         viewModel.limitPickerMinutes = 15
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(analyticsRepo.parameters(for: "rule_changed") == nil)
     }
@@ -1101,7 +1071,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 15
         viewModel.ruleEditorCooldownDurationMinutes = 60
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(analyticsRepo.parameters(for: "rule_changed")?["was_locked"] as? Bool == true)
     }
@@ -1131,7 +1101,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 5
         viewModel.ruleEditorCooldownDurationMinutes = 60
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         let changed = analyticsRepo.parameters(for: "rule_changed")
         #expect(changed?["caused_lock"] as? Bool == true)
@@ -1177,7 +1147,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 1
         viewModel.limitPickerMinutes = 15
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(analyticsRepo.parameters(for: "rule_monitoring_registered") == nil)
     }
@@ -1205,7 +1175,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 10
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.pendingLimitLockWarning != nil)
@@ -1246,7 +1216,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 10
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
         viewModel.cancelLimitLockChange()
 
@@ -1278,7 +1248,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 20
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.pendingLimitLockWarning == nil)
         #expect(viewModel.groups.first?.dailyLimitMinutes == 20)
@@ -1338,7 +1308,7 @@ struct ViewModelTests {
             TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 11 * 60),
             TimeWindow(startMinuteOfDay: 10 * 60, endMinuteOfDay: 12 * 60)   // 겹침
         ]
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.alertMessage != nil)
         #expect(viewModel.groups.first?.ruleKind == .dailyLimit)   // 미변경
@@ -1370,7 +1340,7 @@ struct ViewModelTests {
         viewModel.presentRuleEditor(for: group)
         viewModel.ruleEditorSelectedKind = .timeWindows
         viewModel.ruleEditorTimeWindows = windows
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.alertMessage == nil)
         #expect(viewModel.groups.first?.ruleKind == .timeWindows)
@@ -1400,7 +1370,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 15
         viewModel.ruleEditorCooldownDurationMinutes = 240
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.alertMessage == nil)
         #expect(viewModel.groups.first?.ruleKind == .cooldown)
@@ -1436,7 +1406,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 5
         viewModel.ruleEditorCooldownDurationMinutes = 60
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         // 즉시 적용하지 않고 휴식 진입 경고를 대기시킨다.
@@ -1482,7 +1452,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 30
         viewModel.ruleEditorCooldownDurationMinutes = 60
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.pendingLimitLockWarning == nil)
         #expect(viewModel.groups.first?.cooldownUsageMinutes == 30)
@@ -1517,7 +1487,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 5     // 예산 그대로(5 ≤ used 7)
         viewModel.ruleEditorCooldownDurationMinutes = 90  // 휴식 간격만 변경
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.pendingLimitLockWarning == nil)   // 즉시 잠금 경고 없음
@@ -1555,7 +1525,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 20    // 예산만 변경
         viewModel.ruleEditorCooldownDurationMinutes = 60  // 휴식 간격 동일
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.pendingLimitLockWarning == nil)
@@ -1590,7 +1560,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 5     // 동일
         viewModel.ruleEditorCooldownDurationMinutes = 60  // 동일
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.alertMessage == nil)
@@ -1620,7 +1590,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 5
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.pendingLimitLockWarning == nil)   // 경고 없음
@@ -1649,7 +1619,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .cooldown
         viewModel.ruleEditorCooldownUsageMinutes = 0          // 범위 밖
         viewModel.ruleEditorCooldownDurationMinutes = 240
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.alertMessage != nil)
         #expect(viewModel.groups.first?.ruleKind == .dailyLimit)   // 미변경
@@ -1705,7 +1675,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 20
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.alertMessage?.title == "적용 안내")
@@ -1735,7 +1705,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 0
         viewModel.limitPickerMinutes = 20
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.alertMessage == nil)
@@ -1764,7 +1734,7 @@ struct ViewModelTests {
         viewModel.ruleEditorTimeWindows = [
             TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 10 * 60)
         ]
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.alertMessage == nil)
@@ -1823,7 +1793,7 @@ struct ViewModelTests {
         viewModel.ruleEditorTimeWindows = [
             TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 10 * 60)
         ]
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.groups.first?.ruleKind == .timeWindows)
         #expect(viewModel.groups.first?.dailyLimitMinutes == 42)   // 보존
@@ -3494,7 +3464,7 @@ struct ViewModelTests {
         viewModel.presentRuleEditor(for: group)
         let rules = (0..<7).map { SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 10 + $0) }
         viewModel.ruleEditorWeekdayRules = rules
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.groups.first?.weekdayRules == rules)
         #expect(groupRepo.screenTimeGroups.first?.weekdayRules == rules)
@@ -3519,7 +3489,7 @@ struct ViewModelTests {
 
         viewModel.presentRuleEditor(for: group)
         viewModel.ruleEditorWeekdayRules = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.groups.first?.weekdayRules == nil)   // 저장 안 됨
         #expect(screenTimeRepo.syncCallCount == 0)
@@ -3551,7 +3521,7 @@ struct ViewModelTests {
         viewModel.ruleEditorSelectedKind = .dailyLimit
         viewModel.limitPickerHours = 1
         viewModel.limitPickerMinutes = 0
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.groups.first?.weekdayRules == nil)
         #expect(viewModel.groups.first?.ruleKind == .dailyLimit)
@@ -3582,7 +3552,7 @@ struct ViewModelTests {
 
         viewModel.presentRuleEditor(for: group)
         viewModel.ruleEditorWeekdayRules = rules
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
         viewModel.handleRuleEditorDismiss()
 
         #expect(viewModel.pendingLimitLockWarning != nil)
@@ -3624,11 +3594,270 @@ struct ViewModelTests {
 
         viewModel.presentRuleEditor(for: group)
         viewModel.ruleEditorWeekdayRules = rules
-        viewModel.commitRuleSelection()
+        viewModel.performRuleCommit()
 
         #expect(viewModel.pendingLimitLockWarning == nil)
         #expect(viewModel.groups.first?.weekdayRules == rules)   // 즉시 적용
         #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    // MARK: - Rule Commit Ad Gate (완료 시점 광고 게이트)
+
+    @Test func ruleCommitSkipsAdGateForDraftGroup() {
+        // draft(미적용)는 변경이 있어도 완료 광고 게이트 없이 즉시 커밋된다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: false
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 1
+        viewModel.limitPickerMinutes = 15
+        viewModel.commitRuleSelection()
+
+        #expect(!viewModel.isRuleCommitAdGatePresented)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 75)
+    }
+
+    @Test func ruleCommitSkipsAdGateWhenNoChange() {
+        // 적용된 그룹이라도 변경이 없으면 광고 없이 커밋(집행 영향 없음).
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        // presentRuleEditor가 그룹 값(30분) 그대로 편집기를 채운다 → 무변경 완료.
+        viewModel.presentRuleEditor(for: group)
+        viewModel.commitRuleSelection()
+
+        #expect(!viewModel.isRuleCommitAdGatePresented)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 30)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func ruleCommitSkipsAdGateForExplicitUnrestrictedPromotionOnly() {
+        // 요일 규칙에서 표시 전용 isExplicitlyUnrestricted만 승격된 커밋은 집행 무영향 → 광고 없이 통과.
+        var rules = (0..<7).map { SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30 + $0) }
+        rules[0] = SharedStore.DayRule(kind: .unrestricted)   // 암묵 제한 없음
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        var promoted = rules
+        promoted[0] = SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true)  // 명시 승격만
+        viewModel.ruleEditorWeekdayRules = promoted
+        viewModel.commitRuleSelection()
+
+        #expect(!viewModel.isRuleCommitAdGatePresented)
+        #expect(viewModel.groups.first?.weekdayRules == promoted)   // 승격 persist
+    }
+
+    @Test func ruleCommitOpensAdGateForAppliedParameterChange() {
+        // 적용된 그룹의 파라미터 변경(일일 한도 분)은 완료 시 광고 게이트 cover를 띄우고
+        // 아직 커밋하지 않는다(안내 → 확인 → 광고 단계 전환은 cover 안 View 소관).
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 1
+        viewModel.limitPickerMinutes = 15
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.isRuleCommitAdGatePresented)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 30)   // 아직 미커밋
+        #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
+    @Test func ruleCommitAppliesChangeAfterAdGateCompleted() {
+        // 게이트 보상 후 cover dismiss에서 커밋이 반영된다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 1
+        viewModel.limitPickerMinutes = 15
+        viewModel.commitRuleSelection()
+        #expect(viewModel.isRuleCommitAdGatePresented)
+
+        viewModel.ruleCommitAdGateCompleted()
+        #expect(!viewModel.isRuleCommitAdGatePresented)
+        viewModel.handleRuleCommitAdGateDismiss()
+
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 75)
+        #expect(groupRepo.screenTimeGroups.first?.dailyLimitMinutes == 75)
+        #expect(screenTimeRepo.syncCallCount == 1)
+    }
+
+    @Test func ruleCommitCancelKeepsEditorSessionAndDoesNotCommit() {
+        // 게이트 취소 후 dismiss는 커밋하지 않고 편집 세션(ruleEditorGroupID)을 유지한다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorSelectedKind = .dailyLimit
+        viewModel.limitPickerHours = 1
+        viewModel.limitPickerMinutes = 15
+        viewModel.commitRuleSelection()
+        #expect(viewModel.isRuleCommitAdGatePresented)
+
+        viewModel.ruleCommitAdGateCancelled()
+        viewModel.handleRuleCommitAdGateDismiss()
+
+        #expect(!viewModel.isRuleCommitAdGatePresented)
+        #expect(viewModel.groups.first?.dailyLimitMinutes == 30)   // 미커밋
+        #expect(viewModel.ruleEditorGroupID == group.id)           // 편집 세션 유지
+        #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
+    @Test func ruleCommitOpensAdGateForModeSwitch() {
+        // 단일 → 요일 모드 전환은 파라미터가 유효해도 완료 시 광고 게이트를 띄운다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorWeekdayRules = (0..<7).map { SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 10 + $0) }
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.isRuleCommitAdGatePresented)
+        #expect(viewModel.groups.first?.weekdayRules == nil)   // 아직 미커밋
+        #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
+    @Test func ruleCommitOpensAdGateForWeekdayToSingleSwitch() {
+        // 요일 → 단일 모드 전환(토글 OFF 완료)도 집행 구조 변경이라 완료 시 광고 게이트를 띄운다.
+        let rules = (0..<7).map { SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 10 + $0) }
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorWeekdayRules = nil   // 요일 토글 OFF → base 규칙(변경 없음)으로 완료
+        viewModel.commitRuleSelection()
+
+        #expect(viewModel.isRuleCommitAdGatePresented)
+        #expect(viewModel.groups.first?.weekdayRules == rules)   // 아직 미커밋
+        #expect(screenTimeRepo.syncCallCount == 0)
+    }
+
+    @Test func ruleCommitSkipsAdGateForInvalidWeekdayAndAlerts() {
+        // 무효한 요일 상태(전부 제한 없음)는 광고 없이 기존 검증 alert 경로를 탄다(광고 낭비 방지).
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let screenTimeRepo = FakeScreenTimeRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(groupRepository: groupRepo, screenTimeRepository: screenTimeRepo),
+            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.presentRuleEditor(for: group)
+        viewModel.ruleEditorWeekdayRules = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
+        viewModel.commitRuleSelection()
+
+        #expect(!viewModel.isRuleCommitAdGatePresented)
+        #expect(viewModel.alertMessage?.title == "요일 규칙을 확인해주세요")
+        #expect(viewModel.groups.first?.weekdayRules == nil)   // 미커밋
+        #expect(screenTimeRepo.syncCallCount == 0)
     }
 
     // MARK: - 요일별 규칙 표시 (HomeViewModel)

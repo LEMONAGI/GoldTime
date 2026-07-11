@@ -124,6 +124,9 @@ final class ContentViewModel {
     var adGateFallbackLabel: String = ""
     private var adGatePendingAction: (() -> Void)? = nil
 
+    var isRuleCommitAdGatePresented = false
+    private var ruleCommitAdRewardEarned = false
+
     private let manageGroupsUseCase: ManageGroupsUseCase
     private let syncProtectionUseCase: SyncProtectionUseCase
     private let loadDashboardUseCase: LoadDashboardUseCase
@@ -341,8 +344,20 @@ final class ContentViewModel {
         }
     }
 
-    /// 규칙 편집기의 확인. 요일별 모드면 요일 규칙을, 아니면 선택된 규칙 종류를 각각 적용한다.
+    /// 규칙 편집기의 확인. 적용된 그룹에 집행 영향 변경이 있으면 광고 게이트 cover를 띄운다
+    /// (보기만 하는 진입은 무료 — 게이트는 진입이 아니라 변경 커밋에 건다). "광고를 봐야 한다"는
+    /// 안내는 cover 안 1단계(`RuleCommitAdGateView`)가 담당한다 — 냅다 광고가 아니라
+    /// 안내 → 확인 → 광고. 시트 안 다이얼로그 → cover 연쇄는 타이밍 글리치로 폐기(Presentation/CLAUDE.md).
     func commitRuleSelection() {
+        if requiresAdForRuleCommit() {
+            isRuleCommitAdGatePresented = true
+            return
+        }
+        performRuleCommit()
+    }
+
+    /// 규칙 편집기의 실제 커밋. 요일별 모드면 요일 규칙을, 아니면 선택된 규칙 종류를 각각 적용한다.
+    func performRuleCommit() {
         if ruleEditorWeekdayRules != nil {
             commitWeekdayRules()
             return
@@ -355,6 +370,72 @@ final class ContentViewModel {
         case .cooldown:
             commitCooldownRule()
         }
+    }
+
+    /// View가 완료 시점에 게이트 여부를 미리 알아야 할 때 사용 — 광고 cover는 시스템 슬라이드
+    /// 대신 자체 등장 연출(scrim 페이드+카드 rise)을 쓰므로, ContentView가 게이트 경로에서만
+    /// 프레젠테이션 애니메이션을 끄기 위해 커밋 전에 조회한다.
+    var isRuleCommitAdGateRequired: Bool { requiresAdForRuleCommit() }
+
+    /// 적용된 그룹에 집행 영향 변경이 있어 커밋 시 광고 게이트가 필요한지 판단한다.
+    /// draft는 무료, 무효한 요일 상태는 광고 없이 커밋으로 보내 기존 검증 alert 경로를 태운다.
+    private func requiresAdForRuleCommit() -> Bool {
+        guard let id = ruleEditorGroupID,
+              let group = groups.first(where: { $0.id == id }),
+              group.isApplied else { return false }
+        if let rules = ruleEditorWeekdayRules,
+           WeekdayRulePolicy.firstInvalidReason(for: rules) != nil {
+            return false
+        }
+        return hasEnforcementRelevantChange(group: group)
+    }
+
+    /// 편집기 상태가 그룹의 현재 규칙과 집행상 다른지 판단한다(요일 ↔ 단일 전환, 요일 규칙 배열
+    /// 변경, 단일 규칙 종류/파라미터 변경). `isExplicitlyUnrestricted`는 표시 전용이라 제외한다.
+    private func hasEnforcementRelevantChange(group: ScreenTimeGroup) -> Bool {
+        if let editorRules = ruleEditorWeekdayRules {
+            guard let groupRules = group.weekdayRules else { return true }   // 단일 → 요일 전환
+            return normalizedForEnforcement(editorRules) != normalizedForEnforcement(groupRules)
+        }
+        if group.weekdayRules != nil { return true }   // 요일 → 단일 전환
+
+        if ruleEditorSelectedKind != group.ruleKind { return true }
+        switch ruleEditorSelectedKind {
+        case .dailyLimit:
+            return limitPickerHours * 60 + limitPickerMinutes != group.dailyLimitMinutes
+        case .timeWindows:
+            return ruleEditorTimeWindows != group.timeWindows
+        case .cooldown:
+            return ruleEditorCooldownUsageMinutes != group.cooldownUsageMinutes
+                || ruleEditorCooldownDurationMinutes != group.cooldownDurationMinutes
+        }
+    }
+
+    /// 표시 전용 `isExplicitlyUnrestricted`를 false로 통일한 사본. 이 플래그만 바뀐
+    /// "암묵 → 명시 승격" 커밋은 집행에 무영향이라 광고 없이 통과시킨다.
+    private func normalizedForEnforcement(_ rules: [DayRule]) -> [DayRule] {
+        rules.map {
+            var copy = $0
+            copy.isExplicitlyUnrestricted = false
+            return copy
+        }
+    }
+
+    func ruleCommitAdGateCompleted() {
+        ruleCommitAdRewardEarned = true
+        isRuleCommitAdGatePresented = false
+    }
+
+    func ruleCommitAdGateCancelled() {
+        isRuleCommitAdGatePresented = false
+    }
+
+    /// 광고 cover가 닫힌 뒤 호출. 보상을 얻었으면 그때 커밋한다(cover dismiss와 시트 dismiss·
+    /// staged alert가 같은 사이클에 겹치지 않도록 순서 분리).
+    func handleRuleCommitAdGateDismiss() {
+        guard ruleCommitAdRewardEarned else { return }
+        ruleCommitAdRewardEarned = false
+        performRuleCommit()
     }
 
     /// 요일별 규칙 커밋. 검증 → 오늘 투영 기준 즉시 잠금 경고 판단 → persist+sync.
@@ -654,7 +735,8 @@ final class ContentViewModel {
         pendingLimitLockWarning = nil
     }
 
-    /// 적용(commit)된 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    /// 적용(commit)된 그룹은 우회 방지를 위해 앱 선택 편집·삭제 전에 광고 게이트를 거친다
+    /// (규칙 변경은 진입이 아니라 완료 시점 게이트로 옮겨졌다 — `requiresAdForRuleCommit`).
     /// applied는 잠금/연장 상태를 모두 포함(applied ⊃ locked ∪ override)하므로 더 엄격한 기준이다.
     /// draft(미적용) 그룹은 자유롭게 수정·삭제할 수 있도록 게이트 없음.
     private func isEditRestricted(_ id: UUID) -> Bool {
@@ -668,16 +750,6 @@ final class ContentViewModel {
         }
         adGatePendingAction = { [weak self] in self?.presentPicker(for: group) }
         adGateFallbackLabel = String(localized: "content.adGate.edit")
-        isAdGatePresented = true
-    }
-
-    func requestRuleEditorPresentation(for group: ScreenTimeGroup) {
-        guard isEditRestricted(group.id) else {
-            presentRuleEditor(for: group)
-            return
-        }
-        adGatePendingAction = { [weak self] in self?.presentRuleEditor(for: group) }
-        adGateFallbackLabel = String(localized: "content.adGate.change")
         isAdGatePresented = true
     }
 

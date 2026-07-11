@@ -17,7 +17,6 @@ struct GroupCardView: View {
     let onApplyGroup: (UUID) -> Void
 
     @State private var isShowingEditConfirm = false
-    @State private var isShowingLimitConfirm = false
     @State private var isShowingDeleteConfirm = false
     @State private var isShowingDeleteRegularConfirm = false
 
@@ -29,7 +28,8 @@ struct GroupCardView: View {
         viewModel.overrideGroupIDs.contains(group.id)
     }
 
-    /// 적용(commit)된 그룹은 우회 방지를 위해 편집/한도/삭제 전에 광고 게이트를 거친다.
+    /// 적용(commit)된 그룹은 우회 방지를 위해 앱 선택 편집·삭제는 진입 전에 광고 게이트를 거친다.
+    /// 규칙 변경은 진입은 무료고 완료(변경이 있을 때만) 시점에 게이트를 건다(ContentViewModel).
     /// draft(미적용) 그룹은 광고 없이 자유롭게 수정·삭제할 수 있다.
     private var isEditRestricted: Bool {
         group.isApplied
@@ -181,8 +181,10 @@ struct GroupCardView: View {
             Divider()
                 .padding(.bottom, 14)
 
+            // 규칙 편집기 진입은 무료(보기만 하는 진입에는 게이트 없음). 적용된 그룹의 광고
+            // 게이트는 완료 시점에 변경이 있을 때만 뜬다(ContentViewModel.requiresAdForRuleCommit).
             Button {
-                if isEditRestricted { isShowingLimitConfirm = true } else { onPresentRuleEditor(group) }
+                onPresentRuleEditor(group)
             } label: {
                 HStack(alignment: .center, spacing: 0) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -202,14 +204,6 @@ struct GroupCardView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .confirmationDialog(restrictedDialogTitle, isPresented: $isShowingLimitConfirm) {
-                Button("group.ad.change") {
-                    onPresentRuleEditor(group)
-                }
-                Button("common.cancel", role: .cancel) {}
-            } message: {
-                Text(restrictedDialogMessage)
-            }
             .padding(.bottom, 14)
 
             if isLocked {

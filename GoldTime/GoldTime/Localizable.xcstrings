@@ -5281,6 +5281,29 @@
         }
       }
     },
+    "rule.commit.adNotice.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "적용된 그룹은 광고를 본 뒤에 편집할 수 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch an ad to edit an applied group."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "適用済みのグループは広告を見た後に編集できます。"
+          }
+        }
+      }
+    },
     "rule.cooldown.hint": {
       "extractionState": "manual",
       "localizations": {
