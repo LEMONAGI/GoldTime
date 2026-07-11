@@ -171,6 +171,73 @@ struct WeekdayRuleTests {
         #expect(decoded.weekdayRules?.count == 7)            // 배열 전체 보존
         #expect(decoded.weekdayRules?[2].kind == .dailyLimit) // 손상 요소는 폴백
     }
+
+    // MARK: - 8. isExplicitlyUnrestricted 불변식 (표시 전용 플래그)
+
+    /// DayRule 하나를 JSON dict로 인코딩(플래그 조작용). 그룹 헬퍼와 이름만 같은 타입 오버로드다.
+    private func jsonObject(from rule: SharedStore.DayRule) throws -> [String: Any] {
+        try JSONSerialization.jsonObject(with: JSONEncoder().encode(rule)) as! [String: Any]
+    }
+
+    @Test func explicitUnrestrictedRoundTripsAndDiffersFromImplicit() throws {
+        // explicit 플래그는 왕복 보존되고, 값 동등성으로 implicit '제한 없음'과 자연 분리된다.
+        let explicit = SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true)
+        let implicit = SharedStore.DayRule(kind: .unrestricted)
+
+        let decoded = try JSONDecoder().decode(
+            SharedStore.DayRule.self, from: JSONEncoder().encode(explicit)
+        )
+        #expect(decoded.isExplicitlyUnrestricted)
+        #expect(decoded == explicit)
+        #expect(explicit != implicit)
+        #expect(!implicit.isExplicitlyUnrestricted)
+    }
+
+    @Test func flagOmittedInEncodingUnlessExplicitTrue() throws {
+        // false면 키 자체를 생략 → implicit·제한 요일 페이로드는 기존과 바이트 동일(하위 호환).
+        let implicitJSON = try jsonObject(from: SharedStore.DayRule(kind: .unrestricted))
+        let dailyJSON = try jsonObject(from: SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30))
+        #expect(implicitJSON["isExplicitlyUnrestricted"] == nil)
+        #expect(dailyJSON["isExplicitlyUnrestricted"] == nil)
+
+        let explicitJSON = try jsonObject(from: SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true))
+        #expect(explicitJSON["isExplicitlyUnrestricted"] as? Bool == true)
+    }
+
+    @Test func absentFlagKeyDecodesAsFalse() throws {
+        // 플래그 키가 없는(구조 이전) 페이로드는 false로 디코딩된다.
+        var json = try jsonObject(from: SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true))
+        json.removeValue(forKey: "isExplicitlyUnrestricted")
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(SharedStore.DayRule.self, from: data)
+        #expect(!decoded.isExplicitlyUnrestricted)
+    }
+
+    @Test func flagOnRestrictedKindNormalizesToFalseOnDecode() throws {
+        // 제한 kind에 flag:true가 섞여도 디코딩 후 false로 정규화된다(불변식: unrestricted에서만 유효).
+        var json = try jsonObject(from: SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30))
+        json["isExplicitlyUnrestricted"] = true
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(SharedStore.DayRule.self, from: data)
+        #expect(decoded.kind == .dailyLimit)
+        #expect(!decoded.isExplicitlyUnrestricted)
+    }
+
+    @Test func unknownKindWithFlagFallsBackToDailyLimitAndFalse() throws {
+        // 미지 kind + flag:true → kind는 .dailyLimit 폴백, flag는 정규화로 false.
+        var json = try jsonObject(from: SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true))
+        json["kind"] = "someFutureKind"
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try JSONDecoder().decode(SharedStore.DayRule.self, from: data)
+        #expect(decoded.kind == .dailyLimit)
+        #expect(!decoded.isExplicitlyUnrestricted)
+    }
+
+    @Test func initNormalizesFlagOnRestrictedKind() {
+        // init도 제한 kind의 flag를 false로 정규화한다(같은 파라미터가 두 행으로 쪼개지는 것 방지).
+        #expect(!SharedStore.DayRule(kind: .dailyLimit, isExplicitlyUnrestricted: true).isExplicitlyUnrestricted)
+        #expect(SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true).isExplicitlyUnrestricted)
+    }
 }
 
 /// WeekdayRulePolicy(검증·요일 인덱스)와 resolved(on:) 투영의 순수 로직 검증.
@@ -372,6 +439,29 @@ struct WeekdayRulePolicyTests {
         var todayEdited = indexedRules()
         todayEdited[0] = SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 999)
         #expect(projection(todayEdited) != base)      // 오늘 규칙 변경 → churn
+    }
+
+    // MARK: - explicit '제한 없음' 표시 전용 (정책·투영은 kind만 본다)
+
+    @Test func sevenExplicitUnrestrictedIsStillAllUnrestricted() {
+        // explicit 플래그는 표시 전용 — 정책은 kind만 보므로 7일 explicit도 여전히 .allUnrestricted다.
+        let rules = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true) }
+        #expect(WeekdayRulePolicy.firstInvalidReason(for: rules) == .allUnrestricted)
+    }
+
+    @Test func explicitFlagDoesNotAffectResolvedProjection() {
+        // flag만 다른 두 그룹(오늘 = index 0 '제한 없음')의 투영본은 동일 → churn 가드 무영향.
+        let id = UUID()
+        func projection(_ dayZero: SharedStore.DayRule) -> SharedStore.ScreenTimeGroup {
+            var rules = indexedRules()
+            rules[0] = dayZero
+            return SharedStore.ScreenTimeGroup(
+                id: id, name: "SNS", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+            ).resolved(on: date(2026, 7, 5), calendar: calendar)   // index 0 = 일
+        }
+        let implicit = projection(SharedStore.DayRule(kind: .unrestricted))
+        let explicit = projection(SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true))
+        #expect(implicit == explicit)
     }
 }
 

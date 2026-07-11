@@ -216,19 +216,25 @@ enum SharedStore {
         var timeWindows: [TimeWindow]
         var cooldownUsageMinutes: Int
         var cooldownDurationMinutes: Int
+        /// 표시 전용 — 편집 화면에서 직접 '제한 없음'을 골라 저장한 요일. 엔진/정책/투영은 kind만 본다.
+        /// (토글 시드·묶음 해제로 생긴 암묵적 '제한 없음'과 구분해 요일 묶음 행을 만들지 결정한다.)
+        var isExplicitlyUnrestricted: Bool
 
         init(
             kind: Kind,
             dailyLimitMinutes: Int = 30,
             timeWindows: [TimeWindow] = [],
             cooldownUsageMinutes: Int = ScreenTimeGroup.defaultCooldownUsageMinutes,
-            cooldownDurationMinutes: Int = ScreenTimeGroup.defaultCooldownDurationMinutes
+            cooldownDurationMinutes: Int = ScreenTimeGroup.defaultCooldownDurationMinutes,
+            isExplicitlyUnrestricted: Bool = false
         ) {
             self.kind = kind
             self.dailyLimitMinutes = dailyLimitMinutes
             self.timeWindows = timeWindows
             self.cooldownUsageMinutes = cooldownUsageMinutes
             self.cooldownDurationMinutes = cooldownDurationMinutes
+            // 불변식: 제한 kind에 flag가 섞이면 같은 파라미터 묶음이 두 행으로 쪼개진다 → unrestricted에서만 유효.
+            self.isExplicitlyUnrestricted = isExplicitlyUnrestricted && kind == .unrestricted
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -237,6 +243,7 @@ enum SharedStore {
             case timeWindows
             case cooldownUsageMinutes
             case cooldownDurationMinutes
+            case isExplicitlyUnrestricted
         }
 
         // 배열 요소 1개의 디코딩 실패가 배열 전체 소실로 이어지지 않도록 어떤 페이로드에서도 throw하지 않는다.
@@ -252,6 +259,9 @@ enum SharedStore {
             timeWindows = (try? container.decodeIfPresent([TimeWindow].self, forKey: .timeWindows)) ?? nil ?? []
             cooldownUsageMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownUsageMinutes)) ?? nil ?? ScreenTimeGroup.defaultCooldownUsageMinutes
             cooldownDurationMinutes = (try? container.decodeIfPresent(Int.self, forKey: .cooldownDurationMinutes)) ?? nil ?? ScreenTimeGroup.defaultCooldownDurationMinutes
+            // 표시 전용 플래그. 키 부재·손상 시 false, init과 동일하게 unrestricted에서만 유효하도록 정규화한다.
+            let explicitFlag = ((try? container.decodeIfPresent(Bool.self, forKey: .isExplicitlyUnrestricted)) ?? nil) ?? false
+            isExplicitlyUnrestricted = explicitFlag && kind == .unrestricted
         }
 
         func encode(to encoder: Encoder) throws {
@@ -261,6 +271,10 @@ enum SharedStore {
             try container.encode(timeWindows, forKey: .timeWindows)
             try container.encode(cooldownUsageMinutes, forKey: .cooldownUsageMinutes)
             try container.encode(cooldownDurationMinutes, forKey: .cooldownDurationMinutes)
+            // true일 때만 인코딩 — implicit·제한 요일 페이로드는 기존과 바이트 동일(하위 호환).
+            if isExplicitlyUnrestricted {
+                try container.encode(isExplicitlyUnrestricted, forKey: .isExplicitlyUnrestricted)
+            }
         }
     }
 

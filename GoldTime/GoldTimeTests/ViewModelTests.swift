@@ -4005,6 +4005,122 @@ struct WeekdayBundleApplyTests {
         #expect(result[6] == cooldown)
         for index in 1...5 { #expect(result[index] == daily) }
     }
+
+    @Test func applyingExplicitUnrestrictedMarksSelectedExplicitAndDeselectedImplicit() {
+        // 편집 화면에서 '제한 없음'(explicit)을 골라 저장: 선택 요일은 explicit, 이 묶음에서 해제된 요일은 implicit 강등.
+        let explicitUnrestricted = SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true)
+        let allDaily = Array(repeating: daily, count: 7)
+        let result = RuleEditorSheet.applyingBundle(
+            to: allDaily,
+            selectedDays: [0],
+            initialDays: [0, 6],
+            rule: explicitUnrestricted
+        )
+        #expect(result[0] == explicitUnrestricted)          // 선택 요일 = explicit(행 생성 대상)
+        #expect(result[0].isExplicitlyUnrestricted)
+        #expect(result[6].kind == .unrestricted)            // 해제 요일 = implicit(행 미생성)
+        #expect(!result[6].isExplicitlyUnrestricted)
+        for index in 1...5 { #expect(result[index] == daily) }
+    }
+}
+
+/// 요일 규칙 편집 시드·표시·탭 분기(seededWeekdayRules/visibleBundles/tapEditTarget) — implicit/explicit '제한 없음' 구분.
+@MainActor
+struct WeekdayRuleEditorTests {
+
+    private let daily = SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30)
+    private let cooldown = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 10, cooldownDurationMinutes: 180)
+    private let explicitUnrestricted = SharedStore.DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true)
+    private let implicitUnrestricted = SharedStore.DayRule(kind: .unrestricted)
+
+    /// 일요일 시작 표시 순서(0=일 … 6=토).
+    private let sundayFirst = [0, 1, 2, 3, 4, 5, 6]
+
+    // MARK: - seededWeekdayRules
+
+    @Test func seedForDraftGroupIsSevenImplicitUnrestricted() {
+        // 신규(draft) 그룹(currentKind == nil) → 7일 전부 암묵적 '제한 없음'(행 0개로 시작).
+        let seeded = RuleEditorSheet.seededWeekdayRules(currentKind: nil, base: daily)
+        #expect(seeded.count == 7)
+        #expect(seeded.allSatisfy { $0.kind == .unrestricted && !$0.isExplicitlyUnrestricted })
+    }
+
+    @Test func seedForExistingGroupIsSevenBaseCopies() {
+        // 기존 규칙 그룹(currentKind non-nil) → base 규칙 × 7(파라미터 보존).
+        let seeded = RuleEditorSheet.seededWeekdayRules(currentKind: .dailyLimit, base: daily)
+        #expect(seeded.count == 7)
+        #expect(seeded.allSatisfy { $0 == daily })
+    }
+
+    // MARK: - visibleBundles
+
+    @Test func visibleBundlesSkipImplicitUnrestricted() {
+        // 암묵적 '제한 없음'은 행을 만들지 않는다 → 7일 전부 implicit면 행 0개.
+        let rules = Array(repeating: implicitUnrestricted, count: 7)
+        #expect(RuleEditorSheet.visibleBundles(from: rules, orderedIndices: sundayFirst).isEmpty)
+    }
+
+    @Test func visibleBundlesShowExplicitUnrestrictedRow() {
+        // explicit '제한 없음'은 행이 된다(유일 값이라 explicit 요일들은 한 행으로 병합).
+        var rules = Array(repeating: implicitUnrestricted, count: 7)
+        rules[1] = explicitUnrestricted
+        rules[3] = explicitUnrestricted
+        let bundles = RuleEditorSheet.visibleBundles(from: rules, orderedIndices: sundayFirst)
+        #expect(bundles.count == 1)
+        #expect(bundles[0].days == [1, 3])
+        #expect(bundles[0].rule == explicitUnrestricted)
+    }
+
+    @Test func visibleBundlesMixExplicitRestrictedAndSkipImplicit() {
+        // 혼합: implicit(0,3,4) skip, daily 1행(1,2), cooldown 1행(5), explicit 1행(6).
+        var rules = Array(repeating: implicitUnrestricted, count: 7)
+        rules[1] = daily
+        rules[2] = daily
+        rules[5] = cooldown
+        rules[6] = explicitUnrestricted
+        let bundles = RuleEditorSheet.visibleBundles(from: rules, orderedIndices: sundayFirst)
+        #expect(bundles.count == 3)
+        #expect(bundles.contains { $0.rule == daily && $0.days == [1, 2] })
+        #expect(bundles.contains { $0.rule == cooldown && $0.days == [5] })
+        #expect(bundles.contains { $0.rule == explicitUnrestricted && $0.days == [6] })
+    }
+
+    // MARK: - tapEditTarget
+
+    @Test func tapImplicitUnrestrictedSelectsSingleDay() {
+        // 암묵적 '제한 없음' 요일 탭 → 그 하루만 선택 + '제한 없음' 규칙으로 편집 진입.
+        var rules = Array(repeating: daily, count: 7)
+        rules[3] = implicitUnrestricted
+        let target = RuleEditorSheet.tapEditTarget(day: 3, in: rules)
+        #expect(target?.days == [3])
+        #expect(target?.rule.kind == .unrestricted)
+    }
+
+    @Test func tapExplicitUnrestrictedSelectsExplicitBundleOnly() {
+        // explicit '제한 없음' 요일 탭 → explicit 묶음만(implicit 요일 제외).
+        var rules = Array(repeating: implicitUnrestricted, count: 7)
+        rules[1] = explicitUnrestricted
+        rules[4] = explicitUnrestricted
+        let target = RuleEditorSheet.tapEditTarget(day: 1, in: rules)
+        #expect(target?.days == [1, 4])
+        #expect(target?.rule == explicitUnrestricted)
+    }
+
+    @Test func tapRestrictedDayReturnsValueBundle() {
+        // 제한 요일 탭 → 기존 bundleContaining 회귀(값 동등성 묶음).
+        var rules = Array(repeating: daily, count: 7)
+        rules[0] = cooldown
+        rules[6] = cooldown
+        let target = RuleEditorSheet.tapEditTarget(day: 6, in: rules)
+        #expect(target?.days == [0, 6])
+        #expect(target?.rule == cooldown)
+    }
+
+    @Test func tapOutOfRangeReturnsNil() {
+        let rules = Array(repeating: daily, count: 7)
+        #expect(RuleEditorSheet.tapEditTarget(day: 7, in: rules) == nil)
+        #expect(RuleEditorSheet.tapEditTarget(day: -1, in: rules) == nil)
+    }
 }
 
 /// 주간 스트립 — 규칙 종류 아이콘 매핑과 요일 탭 → 묶음 조회(bundleContaining) 검증.

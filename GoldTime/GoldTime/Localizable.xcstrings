@@ -5856,6 +5856,29 @@
         }
       }
     },
+    "rule.weekday.empty.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No days are restricted yet. Tap a day or 'Add a day group' to set a rule."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まだ制限する曜日がありません。曜日か「曜日のまとまりを追加」をタップしてルールを設定してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 제한할 요일이 없어요. 요일 칸이나 '요일 묶음 추가'를 눌러 규칙을 정해 주세요."
+          }
+        }
+      }
+    },
     "rule.weekday.kind.header": {
       "extractionState": "manual",
       "localizations": {

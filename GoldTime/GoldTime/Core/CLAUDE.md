@@ -47,6 +47,13 @@ UserDefaults(suite `group.com.goldtime.shared`).
   폴백(그룹은 생존), 요소의 미지 kind는 `.dailyLimit` 폴백, nil은 `encodeIfPresent`로 키 생략
   (구버전 왕복 안전). **인코더는 7개 검증을 하지 않으므로 쓰기 시점(UseCase/정책)에 강제할 것**
   — 디코더의 drop-to-nil은 최후 방어선이지 검증이 아니다.
+- **`DayRule.isExplicitlyUnrestricted`(1.2.0)는 표시 전용 플래그** — 편집 화면에서 직접
+  '제한 없음'을 골라 저장한 요일만 true(요일 묶음 행 생성 여부 결정). synthesized
+  Equatable/Hashable에 포함되어 묶음 행 분리가 값 동등성으로 성립하지만, 엔진·정책·
+  `resolved(on:)`·분석은 전부 kind만 보고 투영본은 weekdayRules를 스트립하므로 **모니터링/
+  churn에 절대 무영향**. 인코딩은 true일 때만(false는 키 생략 — 기존 페이로드 바이트 동일),
+  디코딩은 non-throwing 기본 false. **불변식: `kind != .unrestricted`면 init/디코더가 강제
+  false** — 깨지면 같은 파라미터의 제한 묶음이 값 불일치로 두 행으로 쪼개진다.
 - **`resolved(on:)` 투영본은 등록/판정 전용 — 절대 persist 금지.** 투영본은 저장 모델과 같은
   타입·같은 id라서 실수로 `screenTimeGroups`에 다시 쓰면 weekdayRules가 컴파일 에러 없이
   조용히 소실된다. persist는 항상 원본, `lastRegisteredGroupsByID`에는 투영본(오늘 규칙 기준

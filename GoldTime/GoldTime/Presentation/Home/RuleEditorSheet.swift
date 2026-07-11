@@ -8,6 +8,12 @@
 //  묶음 리스트 상단의 주간 스트립(7칸)이 요일마다 규칙 종류를 아이콘으로 보여 주고,
 //  칸을 탭하면 그 요일이 속한 묶음 편집으로 바로 들어간다.
 //
+//  '제한 없음'은 두 갈래다: 암묵적(토글 시드·묶음에서 요일 해제)은 묶음 행을 만들지 않고
+//  스트립 대시로만 보이고, explicit(편집 화면에서 '제한 없음'을 직접 골라 저장한 요일)만 행을
+//  만든다. 암묵적 요일을 스트립에서 탭해 열고 무변경 완료해도 '완료' = 직접 설정이라 explicit로
+//  승격되어 행이 생긴다(의도된 동작). 신규(draft) 그룹의 토글 ON은 7일 암묵적 '제한 없음'으로
+//  시작해 행 0개이고, 기존 규칙 그룹은 현재 규칙 × 7로 시드한다.
+//
 
 import SwiftUI
 
@@ -33,6 +39,11 @@ struct RuleEditorSheet: View {
     /// 요일 묶음 편집 push 스택. 묶음 행·"+ 추가"의 NavigationLink(value:)와 주간 스트립의
     /// 프로그램적 push(append)가 같은 스택을 공유한다.
     @State private var path: [BundleEditContext] = []
+
+    /// 토글 OFF로 잠시 내려놓은 요일 규칙. 같은 시트 세션에서 다시 ON하면 시드 대신 복원해
+    /// 편집하던 내용을 잃지 않는다. 시트가 닫히면 @State와 함께 사라진다(세션 한정 —
+    /// 시트는 표시마다 새로 만들어지므로 다른 그룹으로 새지 않는다).
+    @State private var stashedWeekdayRules: [DayRule]?
 
     /// 요일 표시 순서(설정의 주 시작 요일 기준). 0=일 … 6=토.
     private var orderedIndices: [Int] {
@@ -91,15 +102,29 @@ struct RuleEditorSheet: View {
 
     // MARK: - 요일 토글
 
-    /// 토글 ON 시 현재 편집 중인 base 규칙(선택된 종류 + 파라미터)으로 7일을 시드하고,
-    /// OFF 시 nil로 되돌려 기존 규칙 3종 리스트로 복귀한다.
+    /// 토글 ON 시 규칙을 7일로 시드하고(같은 세션에서 껐다 켠 경우는 보관본 복원),
+    /// OFF 시 편집 내용을 보관한 뒤 nil로 되돌려 기존 규칙 3종 리스트로 복귀한다.
     private var weekdayToggleBinding: Binding<Bool> {
         Binding(
             get: { weekdayRules != nil },
             set: { isOn in
-                weekdayRules = isOn ? Array(repeating: currentBaseDayRule(), count: 7) : nil
+                if isOn {
+                    weekdayRules = stashedWeekdayRules
+                        ?? Self.seededWeekdayRules(currentKind: currentKind, base: currentBaseDayRule())
+                } else {
+                    stashedWeekdayRules = weekdayRules
+                    weekdayRules = nil
+                }
             }
         )
+    }
+
+    /// 요일 토글 ON 시드. 신규(draft) 그룹(currentKind == nil)은 7일 전부 암묵적 '제한 없음'으로
+    /// 시작해 묶음 행 0개, 기존 규칙이 있는 그룹은 현재 base 규칙 × 7로 시드한다.
+    static func seededWeekdayRules(currentKind: GroupRuleKind?, base: DayRule) -> [DayRule] {
+        currentKind == nil
+            ? Array(repeating: DayRule(kind: .unrestricted), count: 7)
+            : Array(repeating: base, count: 7)
     }
 
     private func currentBaseDayRule() -> DayRule {
@@ -221,14 +246,14 @@ struct RuleEditorSheet: View {
                         // path.isEmpty: NavigationLink와 달리 프로그램적 append는 debounce가
                         // 없어 연타 시 같은 화면이 중복 push되는 것을 막는다(스트립은 루트 전용).
                         guard path.isEmpty,
-                              let bundle = Self.bundleContaining(day: index, in: rules) else { return }
-                        path.append(BundleEditContext(days: bundle.days, rule: bundle.rule))
+                              let target = Self.tapEditTarget(day: index, in: rules) else { return }
+                        path.append(BundleEditContext(days: target.days, rule: target.rule))
                     }
                 )
                 .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
             }
 
-            ForEach(bundles(from: rules)) { bundle in
+            ForEach(Self.visibleBundles(from: rules, orderedIndices: orderedIndices)) { bundle in
                 NavigationLink(value: BundleEditContext(days: bundle.days, rule: bundle.rule)) {
                     bundleRow(bundle)
                 }
@@ -238,7 +263,10 @@ struct RuleEditorSheet: View {
                 Label("rule.weekday.addBundle", systemImage: "plus")
             }
         } footer: {
-            if let weekdayInvalidReason {
+            if weekdayInvalidReason == .allUnrestricted {
+                // 제한할 요일이 아직 없는 상태는 무효(완료 disabled)지만 에러가 아니라 안내다(빨강 금지).
+                Text("rule.weekday.empty.footer")
+            } else if let weekdayInvalidReason {
                 Text(weekdayInvalidReason.userMessage)
                     .foregroundStyle(.red)
             } else {
@@ -299,19 +327,33 @@ struct RuleEditorSheet: View {
     }
 
     /// 스트립에서 탭한 요일이 속한 묶음(같은 규칙 값을 공유하는 요일 집합). 묶음은 값 동등성으로
-    /// 정의되므로 표시 순서와 무관하다 — `bundles(from:)` 행 목록의 조회와 결과가 같다.
+    /// 정의되므로 표시 순서와 무관하다 — `visibleBundles` 행 목록의 조회와 결과가 같다.
     static func bundleContaining(day: Int, in rules: [DayRule]) -> (days: Set<Int>, rule: DayRule)? {
         guard rules.indices.contains(day) else { return nil }
         let rule = rules[day]
         return (Set(rules.indices.filter { rules[$0] == rule }), rule)
     }
 
-    /// 7개 DayRule을 값 동등성으로 그룹핑한 묶음 목록. 각 묶음의 첫 요일이 표시 순서에서 나타나는
-    /// 순서대로 정렬된다.
-    private func bundles(from rules: [DayRule]) -> [WeekdayBundle] {
+    /// 스트립 탭 대상. 암묵적 '제한 없음'(kind == .unrestricted && !isExplicitlyUnrestricted) 요일은
+    /// 그 하루만 선택해 '제한 없음'이 고른 상태로 편집 진입하고(사용자가 규칙을 골라 저장), 그 외
+    /// (explicit '제한 없음'·제한 있는 요일)는 기존 값 묶음(bundleContaining)으로 진입한다.
+    static func tapEditTarget(day: Int, in rules: [DayRule]) -> (days: Set<Int>, rule: DayRule)? {
+        guard rules.indices.contains(day) else { return nil }
+        let rule = rules[day]
+        if rule.kind == .unrestricted && !rule.isExplicitlyUnrestricted {
+            return ([day], rule)
+        }
+        return bundleContaining(day: day, in: rules)
+    }
+
+    /// 7개 DayRule을 값 동등성으로 그룹핑한 묶음 목록. 암묵적 '제한 없음'(kind == .unrestricted &&
+    /// !isExplicitlyUnrestricted) 요일은 행을 만들지 않고(규칙 없음 = 표시 안 함), explicit '제한 없음'과
+    /// 제한 규칙만 행이 된다. 각 묶음의 첫 요일이 표시 순서에서 나타나는 순서대로 정렬된다.
+    static func visibleBundles(from rules: [DayRule], orderedIndices: [Int]) -> [WeekdayBundle] {
         var result: [WeekdayBundle] = []
         for index in orderedIndices where rules.indices.contains(index) {
             let rule = rules[index]
+            if rule.kind == .unrestricted && !rule.isExplicitlyUnrestricted { continue }
             if let existing = result.firstIndex(where: { $0.rule == rule }) {
                 result[existing].days.insert(index)
             } else {
@@ -357,7 +399,8 @@ struct RuleEditorSheet: View {
 // MARK: - 요일 묶음 파생 표현
 
 /// 같은 DayRule 값을 가진 요일들을 묶은 파생 표현. 저장 모델(항상 7개)과 별개로 표시에만 쓴다.
-private struct WeekdayBundle: Identifiable {
+/// (internal — `visibleBundles` 반환 타입으로 테스트가 접근한다.)
+struct WeekdayBundle: Identifiable {
     var rule: DayRule
     var days: Set<Int>
     /// 요일 집합은 서로 겹치지 않으므로 정렬된 요일 문자열이 안정적인 식별자가 된다.
@@ -484,7 +527,8 @@ private struct WeekdayBundleEditView: View {
     private var composedRule: DayRule {
         switch kind {
         case .unrestricted:
-            return DayRule(kind: .unrestricted)
+            // 편집 화면에서 '제한 없음'을 직접 골라 저장 = explicit → 요일 묶음 행을 만든다.
+            return DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true)
         case .dailyLimit:
             return DayRule(kind: .dailyLimit, dailyLimitMinutes: limitHours * 60 + limitMinutes)
         case .timeWindows:
