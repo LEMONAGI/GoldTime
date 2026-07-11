@@ -56,7 +56,7 @@ GoldTime/ShieldActionExtension/CLAUDE.md            ← Shield 액션 쓰기 계
 | [docs/agent/architecture.md](docs/agent/architecture.md) | 레이어 의존 방향, 새 파일 배치, UseCase/Repository 추가 |
 | [docs/agent/critical-flows.md](docs/agent/critical-flows.md) | Screen Time/Shield/광고/App Group 런타임 흐름 전체 |
 | [docs/agent/testing.md](docs/agent/testing.md) | TDD, regression, 실기기 검증 시나리오 |
-| [docs/agent/working-rules.md](docs/agent/working-rules.md) | 작업 유형, 위험도, 검증 명령(Xcode MCP) |
+| [docs/agent/working-rules.md](docs/agent/working-rules.md) | 작업 유형, 위험도, 검증 명령(xcodebuild) |
 | [docs/agent/task-harness.md](docs/agent/task-harness.md) | 큰 작업 분해, step 상태, 병렬/직렬 판단 |
 | [docs/agent/definition-of-done.md](docs/agent/definition-of-done.md) | **작업 종료 규칙** (완료 직전 자가 점검) |
 | [docs/agent/decision-context.md](docs/agent/decision-context.md) | 제품 범위, 하지 않을 일, ADR |
@@ -91,7 +91,9 @@ GoldTime/ShieldActionExtension/CLAUDE.md            ← Shield 액션 쓰기 계
 
 ## 🛠 검증 명령
 
-빌드/테스트는 **반드시 Xcode MCP 툴**을 쓴다(`xcodebuild` CLI는 fallback).
-호출 전 `mcp__xcode__XcodeListWindows`로 `tabIdentifier`를 먼저 확인한다. 빌드
-`BuildProject`, 전체 테스트 `RunAllTests`, 특정 테스트 `RunSomeTests`. 자세히는
+빌드/테스트는 **`xcodebuild` CLI를 기본**으로 쓴다(Xcode MCP 툴은 CLI가 막히거나 IDE 상태가
+필요할 때만 fallback). 기본형:
+`xcodebuild -project GoldTime/GoldTime.xcodeproj -scheme GoldTime -destination 'platform=iOS Simulator,name=iPhone 17' -quiet build`(테스트는 `build`→`test`).
+특정 테스트 식별자는 **괄호 포함**(`-only-testing:'GoldTimeTests/Suite/이름()'`), 0매칭이면
+TEST SUCCEEDED로 뜨는 **거짓 성공 함정**이 있어 xcresult로 개수를 확인한다. 자세히는
 [docs/agent/working-rules.md](docs/agent/working-rules.md)의 "검증 명령".
