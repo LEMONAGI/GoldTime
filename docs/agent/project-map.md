@@ -27,7 +27,7 @@ GoldTime은 메인 iOS 앱 1개와 Screen Time 관련 extension 3개로 구성�
 
 | 영역 | 레이어 | 경로 | 이런 작업에서 먼저 확인 |
 | --- | --- | --- | --- |
-| 앱 진입점 + DI 조립 | App | `App/GoldTimeApp.swift`, `App/AppDIContainer.swift` | 앱 시작, scene phase, DI 조립, ViewModel 생성 |
+| 앱 진입점 | App | `App/GoldTimeApp.swift` | 앱 시작, scene phase, 루트 ViewModel 소유 (DI는 ViewModel 생성자 기본값 주입 — 컨테이너 없음) |
 | 공유 상태 | Core | `Core/Persistence/SharedStore.swift` | App Group 값, 통계, 카운터, 선택 앱, Shield 상태 |
 | Screen Time 조율 | Core | `Core/ScreenTime/ScreenTimeManager.swift` | 모니터링, Shield 적용/해제, 시간 연장, 일일 리셋 |
 | 권한 | Core | `Core/Authorization/AuthorizationService.swift` | FamilyControls 권한 상태 |

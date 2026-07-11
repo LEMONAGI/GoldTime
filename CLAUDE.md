@@ -13,8 +13,9 @@ Clean Architecture 5개 레이어(폴더링)로 구성됩니다.
 ## 🚨 작업 전 반드시 알 것 (Non-negotiables)
 
 1. **의존 방향은 단방향**: `App → Presentation → Domain ← Data → Core`.
-   역방향 import 금지. **Domain/Data에서 `@Observable`·`@Published` 금지**. Presentation은
-   UseCase만 의존하고 Core/Data를 직접 참조하지 않는다.
+   역방향 import 금지. **Domain/Data에서 `@Observable`·`@Published` 금지**. Presentation에서
+   집행 로직(`ScreenTimeManager` 호출, 잠금/모니터링 상태 변경)은 UseCase로만 — SharedStore
+   값 읽기 등 허용 경계는 `Presentation/CLAUDE.md`에 정의.
 2. **공유 상태(`SharedStore`, App Group)는 하위 호환 우선**. key 이름·Codable 구조 변경은
    설치된 앱 상태 마이그레이션이다. 새 `ScreenTimeGroup` 필드는 custom Codable로 throw하지
    않게 디코딩한다(배열 전체 `try?` 디코딩 → 1개 실패가 전체 소실).
@@ -35,7 +36,7 @@ Clean Architecture 5개 레이어(폴더링)로 구성됩니다.
 
 ```
 CLAUDE.md                                        ← 항상 (이 파일)
-GoldTime/GoldTime/App/CLAUDE.md                  ← DI 조립 규칙
+GoldTime/GoldTime/App/CLAUDE.md                  ← 진입점/DI 패턴(생성자 기본값 주입)
 GoldTime/GoldTime/Core/CLAUDE.md                 ← SharedStore/ScreenTime 함정 (High)
 GoldTime/GoldTime/Domain/CLAUDE.md               ← import/UseCase/Repository 규칙
 GoldTime/GoldTime/Data/CLAUDE.md                 ← Repository 구현/타입 매핑

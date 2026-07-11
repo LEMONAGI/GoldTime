@@ -80,8 +80,23 @@ ShieldAction)로 나뉘고, 메인 앱은 Clean Architecture 5개 레이어(`App
 - Screen Time / Shield 영역은 unit test보다 실기기 검증 시나리오를 먼저 고정합니다.
 - 공유 상태는 MVP에서 App Group UserDefaults를 사용합니다.
 - 외부 의존성은 실제 문제를 줄일 때만 추가합니다.
-- ViewModel은 UseCase만 의존하고, Core / Data 레이어를 직접 참조하지 않습니다.
+- ViewModel의 집행 로직(잠금·모니터링 상태 변경)은 UseCase로만 태웁니다. 값 읽기·사용자 설정
+  키·UI 부수효과의 Core 직접 참조 허용 경계는 `Presentation/CLAUDE.md`가 단일 출처입니다.
 - 물리 모듈 분리 없이 폴더링으로 Clean Architecture 레이어를 표현합니다.
+- DI는 ViewModel 생성자 기본값 주입(`XxxUseCase? = nil` → nil이면 내부 기본 조립)이 공식
+  패턴입니다. 중앙 DI 컨테이너는 재도입하지 않습니다 — 과거 `AppDIContainer`는 프로덕션
+  경로에서 한 번도 쓰이지 않는 이중 배선이라 2026-07-11 삭제했습니다.
+- `ScreenTimeGroup`은 `SharedStore` nested 타입이 원본이고 Domain은 typealias로 재노출합니다.
+  Domain 독립 타입으로 분리하지 않습니다 — App Group Codable 하위 호환과 extension 타겟
+  파일 공유(멤버십)가 우선이고, 분리하면 계층마다 매핑 코드만 늘어납니다.
+- 집행 비즈니스 로직(잠금·override·쿨다운·일일 리셋)의 실질 위치는
+  Core(`SharedStore`/`ScreenTimeManager`)의 static 함수입니다. extension 타겟과 파일 단위로
+  공유해야 해서 인스턴스/DI 기반으로 바꾸지 않습니다. Domain UseCase/Repository는 Presentation
+  테스트 경계(Fake 주입)로 유지하고, 순수 판단 로직은 `Domain/Policy`에 둡니다 — 새 판단
+  로직이 extension에서도 필요하면 Policy로 빼는 것이 기본입니다.
+- Shield extension 2개(Configuration/Action)는 `SharedStore`를 타겟에 넣지 않고 App Group
+  키·Codable 형태를 자체 복제합니다(의존 체인·바이너리 격리). 계약 변경 시
+  `SharedStore`·두 extension 3곳 동기화가 의무입니다(각 타겟 `CLAUDE.md`에 계약 명시).
 - 쿨다운 모드(사용 예산 소진 → 강제 휴식 → 재충전)는 별도 잠금 흐름이 아니라 기존 Shield 결제대로 모읍니다. 휴식 중에도 광고/1분 연장으로 풀 수 있어, "강제 휴식"이 아니라 "못 기다리면 비용을 치른다"는 GoldTime의 비용감 프레이밍을 유지합니다.
 - 쿨다운도 일일 한도와 동일하게 자정에 리셋합니다(휴식이 끝나기 전이라도). "모든 잠금은 하루 단위로 새로 시작"이라는 일관된 규칙이 구현·이해 모두 단순하기 때문입니다. 트레이드오프로 자정 근처에서 휴식이 짧아질 수 있으나 수용합니다.
 

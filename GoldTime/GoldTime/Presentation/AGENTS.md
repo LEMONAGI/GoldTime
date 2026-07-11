@@ -14,13 +14,18 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   참조에서만 예외.
 - View는 `@Bindable var viewModel: XxxViewModel`(소유는 GoldTimeApp 또는 상위 View).
 
-## 기술 부채 (의도된 예외 — 향후 이동 예정)
+## Core 직접 참조의 허용 경계 (ADR — 이동 계획 없음)
 
-- `SharedStore.weekStartDay`를 `SettingsViewModel`·`AppLifecycleViewModel`에서 직접 읽기/쓰기.
-- `SharedStore.suiteName`을 `ContentView`의 `@AppStorage` store로 사용.
-- `SharedStore.max*` 상수를 `AppPickerSheetViewModel`·`LockOptionsViewModel`에서 직접 참조.
+경계 기준: **집행 로직은 UseCase 경유, 값 읽기·사용자 설정 키·UI 부수효과는 직접 참조 허용.**
+잠금·모니터링 상태를 바꾸는 호출(`ScreenTimeManager`, SharedStore의 잠금/override/쿨다운 쓰기)은
+반드시 UseCase/Repository로만 태운다. 현재 허용 목록:
+
+- `SharedStore` 값 읽기·설정 키 쓰기: `weekStartDay`(Settings/AppLifecycle),
+  `suiteName`(`ContentView` `@AppStorage` store), `max*` 상수(AppPicker/LockOptions),
+  프리뷰 통계 시드(`seedForPreview`).
+- `SharedStore.drainPendingAnalyticsEvents()`(AppLifecycleViewModel — extension 이벤트 릴레이).
 - `ConsentService.shared`(Core/Ads)를 `OnboardingViewModel`·`SettingsViewModel`에서 직접 참조
-  (UMP 동의/철회). UseCase 미경유 — UMP 폼 표시는 부수효과만이라 UseCase가 과해서 둔 예외.
+  (UMP 동의/철회). UseCase 미경유 — UMP 폼 표시는 부수효과만이라 UseCase가 과함.
 
 ## UI / 컴포넌트 / 색상
 

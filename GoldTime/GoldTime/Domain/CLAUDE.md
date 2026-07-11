@@ -5,9 +5,15 @@
 
 ## import 규칙 (코드만 봐선 모르는 것)
 
-- import은 **`Foundation`만**.
-- `ManagedSettings`는 `Domain/Repository/ShieldRepository.swift`에서만 예외 허용.
-- `FamilyControls`는 `typealias` 선언 파일에서만 허용. 나머지 Domain 파일에서 직접 import 금지.
+- 기본은 **`Foundation`만**. 아래 파일별 예외 외에는 프레임워크 import 금지.
+- `ManagedSettings` 예외: `Repository/ShieldRepository.swift`,
+  `UseCase/ExtendGroupUseCase.swift` — Shield 토큰 타입(`ApplicationToken`/`WebDomainToken`)이
+  시그니처에 필요.
+- `FamilyControls` 예외: `UseCase/ManageGroupsUseCase.swift` — `FamilyActivitySelection` 파라미터.
+- `UIKit` 예외: `Repository/AdRepository.swift` — 광고 표시 anchor로 `UIViewController`를
+  프로토콜 시그니처에 노출(광고 SDK 계약상 불가피).
+- 예외 파일에서도 Apple 토큰/선택 타입은 **opaque 값으로 시그니처 통과만** 한다 — Domain에서
+  내용을 해석하거나 로직 분기하지 않는다.
 - `ScreenTimeManager`, `AuthorizationService` 등 Core 서비스 **직접 참조 금지**.
 
 ## 패턴
@@ -16,11 +22,13 @@
 - UseCase는 `final class`, Repository를 생성자에서 `any RepositoryProtocol`로 주입.
 - 상태 관리에 `@Observable`·`@Published` **사용 금지**(순수 값/참조 타입).
 
-## 기술 부채 (의도된 예외 — 향후 분리 예정)
+## 유지 결정 (기술 부채 아님 — ADR)
 
-- `Domain/Model/ScreenTimeGroup.swift`가 `typealias ScreenTimeGroup = SharedStore.ScreenTimeGroup`
-  으로 SharedStore 타입을 재노출 중. (Domain 독립 타입으로 분리 예정)
-- `ManageGroupsUseCase`가 `SharedStore.maxGroupCount` 상수를 직접 참조 중.
+- `Domain/Model/ScreenTimeGroup.swift`의 `typealias ScreenTimeGroup = SharedStore.ScreenTimeGroup`은
+  **유지한다**(Domain 독립 타입으로 분리하지 않는다). App Group Codable 하위 호환과 extension
+  타겟 파일 공유 때문에 원본이 SharedStore에 사는 게 맞고, 분리는 매핑 계층만 늘린다.
+  `ManageGroupsUseCase`의 `SharedStore.maxGroupCount` 같은 상수 참조도 같은 이유로 허용.
+  배경: `docs/agent/decision-context.md`의 ADR.
 
 ## 비즈니스 규칙
 
