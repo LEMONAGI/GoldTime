@@ -21,9 +21,9 @@ _(없음 — 1.2.0 요일별 제한 규칙은 `Feat/WeekdayRules`에 코드 완�
 
 ## 실기기 검증 대기
 
-- [ ] **1.2.0 요일별 제한 규칙** (`Feat/WeekdayRules`, `/device-verify` 세션 권장,
-      OSLog `subsystem:com.nagi.GoldTime`) — 자정 통과가 핵심이라 달력상 며칠 소요.
-      기기 날짜 수동 변경은 스모크용만, 최종 판정은 실제 자정 통과로.
+- [ ] **1.2.0 요일별 제한 규칙** (2026-07-11 main 머지됨 — **검증 완료 전 App Store 제출 금지**,
+      `/device-verify` 세션 권장, OSLog `subsystem:com.nagi.GoldTime`) — 자정 통과가
+      핵심이라 달력상 며칠 소요. 기기 날짜 수동 변경은 스모크용만, 최종 판정은 실제 자정 통과로.
   - [ ] ① daily(오늘)→쿨다운(내일) 전환: 자정 하트비트 "재무장: 예산 측정 등록" 로그
         + 아침 cdtick 도착·예산 소진 잠금
   - [ ] ② timeWindows(오늘)→제한 없음(내일): 자정 후 window 발화·잠금 없음
