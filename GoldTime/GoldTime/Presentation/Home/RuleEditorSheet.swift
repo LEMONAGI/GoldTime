@@ -124,7 +124,7 @@ struct RuleEditorSheet: View {
         Section {
             ruleRow(
                 kind: .dailyLimit,
-                systemName: "hourglass",
+                systemName: "timer",
                 title: "rule.dailyLimit.title",
                 subtitle: "rule.dailyLimit.subtitle"
             )
@@ -136,7 +136,7 @@ struct RuleEditorSheet: View {
             )
             ruleRow(
                 kind: .cooldown,
-                systemName: "hourglass.bottomhalf.filled",
+                systemName: "cup.and.saucer.fill",
                 title: "rule.cooldown.title",
                 subtitle: "rule.cooldown.subtitle"
             )
@@ -290,11 +290,11 @@ struct RuleEditorSheet: View {
         case .unrestricted:
             return "minus"
         case .dailyLimit:
-            return "hourglass"
+            return "timer"
         case .timeWindows:
             return "clock.badge.xmark"
         case .cooldown:
-            return "hourglass.bottomhalf.filled"
+            return "cup.and.saucer.fill"
         }
     }
 

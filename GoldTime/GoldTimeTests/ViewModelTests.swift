@@ -4017,9 +4017,9 @@ struct WeekdayRuleStripTests {
     @Test func stripIconNamesMatchRuleKinds() {
         // 규칙 3종 아이콘은 규칙 선택 행(ruleRow)과 동일해야 시각 언어가 이어진다.
         #expect(RuleEditorSheet.stripIconName(for: .unrestricted) == "minus")
-        #expect(RuleEditorSheet.stripIconName(for: .dailyLimit) == "hourglass")
+        #expect(RuleEditorSheet.stripIconName(for: .dailyLimit) == "timer")
         #expect(RuleEditorSheet.stripIconName(for: .timeWindows) == "clock.badge.xmark")
-        #expect(RuleEditorSheet.stripIconName(for: .cooldown) == "hourglass.bottomhalf.filled")
+        #expect(RuleEditorSheet.stripIconName(for: .cooldown) == "cup.and.saucer.fill")
     }
 
     @Test func bundleContainingGroupsSameRuleDays() {
