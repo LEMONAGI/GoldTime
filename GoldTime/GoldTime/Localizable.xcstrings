@@ -2532,29 +2532,6 @@
         }
       }
     },
-    "home.status.unrestrictedToday": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No limit today"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "今日は制限なし"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "오늘 제한 없음"
-          }
-        }
-      }
-    },
     "home.status.usableUntil %@": {
       "extractionState": "manual",
       "localizations": {
@@ -5822,13 +5799,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "曜日のまとまりを追加"
+            "value": "曜日グループを追加"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "요일 묶음 추가"
+            "value": "요일 그룹 추가"
           }
         }
       }
@@ -5891,13 +5868,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "まだ制限する曜日がありません。曜日か「曜日のまとまりを追加」をタップしてルールを設定してください。"
+            "value": "まだ制限する曜日がありません。曜日か「曜日グループを追加」をタップしてルールを設定してください。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "아직 제한할 요일이 없어요. 요일 칸이나 '요일 묶음 추가'를 눌러 규칙을 정해 주세요."
+            "value": "아직 제한할 요일이 없어요. 요일 칸이나 '요일 그룹 추가'를 눌러 규칙을 정해 주세요."
           }
         }
       }
@@ -5937,13 +5914,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "曜日のまとまりをタップするとルールを変更できます。"
+            "value": "曜日グループをタップするとルールを変更できます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "요일 묶음을 눌러 규칙을 바꿀 수 있어요."
+            "value": "요일 그룹을 눌러 규칙을 바꿀 수 있어요."
           }
         }
       }

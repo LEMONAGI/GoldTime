@@ -4,11 +4,12 @@
 //
 //  그룹의 차단 규칙(일일 한도 / 시간대별 차단 / 쿨다운)을 고르고 편집하는 시트.
 //  NavigationStack 2단계: 1단계 규칙 종류 선택 → 2단계 종류별 본문.
-//  "요일별 규칙" 토글을 켜면 요일 묶음 리스트로 바뀌고, 묶음을 눌러 요일별 규칙을 편집한다.
-//  묶음 리스트 상단의 주간 스트립(7칸)이 요일마다 규칙 종류를 아이콘으로 보여 주고,
-//  칸을 탭하면 그 요일이 속한 묶음 편집으로 바로 들어간다.
+//  "요일별 규칙" 토글을 켜면 요일 그룹 리스트로 바뀌고, 요일 그룹을 눌러 요일별 규칙을 편집한다.
+//  요일 그룹 리스트 상단의 주간 스트립(7칸)이 요일마다 규칙 종류를 아이콘으로 보여 주고,
+//  칸을 탭하면 그 요일 하루만 선택된 요일 그룹 편집으로 들어간다(여러 요일을 한 번에 바꾸려면
+//  아래 요일 그룹 행으로 진입).
 //
-//  '제한 없음'은 두 갈래다: 암묵적(토글 시드·묶음에서 요일 해제)은 묶음 행을 만들지 않고
+//  '제한 없음'은 두 갈래다: 암묵적(토글 시드·요일 그룹에서 요일 해제)은 요일 그룹 행을 만들지 않고
 //  스트립 대시로만 보이고, explicit(편집 화면에서 '제한 없음'을 직접 골라 저장한 요일)만 행을
 //  만든다. 암묵적 요일을 스트립에서 탭해 열고 무변경 완료해도 '완료' = 직접 설정이라 explicit로
 //  승격되어 행이 생긴다(의도된 동작). 신규(draft) 그룹의 토글 ON은 7일 암묵적 '제한 없음'으로
@@ -24,7 +25,7 @@ struct RuleEditorSheet: View {
     @Binding var timeWindows: [TimeWindow]
     @Binding var cooldownUsageMinutes: Int
     @Binding var cooldownDurationMinutes: Int
-    /// 요일별 규칙(7개). nil이면 요일별 모드 OFF(기존 규칙 3종 리스트). non-nil이면 요일 묶음 리스트.
+    /// 요일별 규칙(7개). nil이면 요일별 모드 OFF(기존 규칙 3종 리스트). non-nil이면 요일 그룹 리스트.
     @Binding var weekdayRules: [DayRule]?
     /// 설정의 주 시작 요일(1=일 … 7=토). 요일 표시 순서 계산에 쓴다.
     let weekStartDay: Int
@@ -36,7 +37,7 @@ struct RuleEditorSheet: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
-    /// 요일 묶음 편집 push 스택. 묶음 행·"+ 추가"의 NavigationLink(value:)와 주간 스트립의
+    /// 요일 그룹 편집 push 스택. 요일 그룹 행·"+ 추가"의 NavigationLink(value:)와 주간 스트립의
     /// 프로그램적 push(append)가 같은 스택을 공유한다.
     @State private var path: [BundleEditContext] = []
 
@@ -97,7 +98,8 @@ struct RuleEditorSheet: View {
                 }
             }
         }
-        .interactiveDismissDisabled()
+        // 규칙 편집 광고 게이트가 진입이 아니라 완료 시점으로 옮겨진 뒤로는 진입이 무료라
+        // 드래그/배경 탭으로 내리는 dismiss(= 취소)를 막을 이유가 없다.
     }
 
     // MARK: - 요일 토글
@@ -120,7 +122,7 @@ struct RuleEditorSheet: View {
     }
 
     /// 요일 토글 ON 시드. 신규(draft) 그룹(currentKind == nil)은 7일 전부 암묵적 '제한 없음'으로
-    /// 시작해 묶음 행 0개, 기존 규칙이 있는 그룹은 현재 base 규칙 × 7로 시드한다.
+    /// 시작해 요일 그룹 행 0개, 기존 규칙이 있는 그룹은 현재 base 규칙 × 7로 시드한다.
     static func seededWeekdayRules(currentKind: GroupRuleKind?, base: DayRule) -> [DayRule] {
         currentKind == nil
             ? Array(repeating: DayRule(kind: .unrestricted), count: 7)
@@ -232,7 +234,7 @@ struct RuleEditorSheet: View {
         }
     }
 
-    // MARK: - 요일 묶음 리스트(요일별 ON)
+    // MARK: - 요일 그룹 리스트(요일별 ON)
 
     @ViewBuilder
     private func weekdayBundleSection(_ rules: [DayRule]) -> some View {
@@ -292,9 +294,9 @@ struct RuleEditorSheet: View {
         weekdayRules = Self.applyingBundle(to: rules, selectedDays: selected, initialDays: initial, rule: rule)
     }
 
-    /// 묶음 저장을 7요일 배열에 반영한 사본. 선택된 요일 → 이 규칙(다른 묶음에서 빼앗기),
-    /// **이 묶음에서 해제된 요일 → 제한 없음**. 해제를 무동작으로 두면 토글 직후의 기본
-    /// "월~일" 단일 묶음에서 주말을 빼는 첫 조작이 아무 변화가 없어 "반영이 안 된다"로 느껴진다
+    /// 요일 그룹 저장을 7요일 배열에 반영한 사본. 선택된 요일 → 이 규칙(다른 요일 그룹에서 빼앗기),
+    /// **이 요일 그룹에서 해제된 요일 → 제한 없음**. 해제를 무동작으로 두면 토글 직후의 기본
+    /// "월~일" 단일 요일 그룹에서 주말을 빼는 첫 조작이 아무 변화가 없어 "반영이 안 된다"로 느껴진다
     /// ("요일을 빼면 그 요일은 규칙 없음"이라는 직관에 맞춘 동작 — 요일 섹션 footer로 안내).
     static func applyingBundle(
         to rules: [DayRule],
@@ -326,29 +328,17 @@ struct RuleEditorSheet: View {
         }
     }
 
-    /// 스트립에서 탭한 요일이 속한 묶음(같은 규칙 값을 공유하는 요일 집합). 묶음은 값 동등성으로
-    /// 정의되므로 표시 순서와 무관하다 — `visibleBundles` 행 목록의 조회와 결과가 같다.
-    static func bundleContaining(day: Int, in rules: [DayRule]) -> (days: Set<Int>, rule: DayRule)? {
-        guard rules.indices.contains(day) else { return nil }
-        let rule = rules[day]
-        return (Set(rules.indices.filter { rules[$0] == rule }), rule)
-    }
-
-    /// 스트립 탭 대상. 암묵적 '제한 없음'(kind == .unrestricted && !isExplicitlyUnrestricted) 요일은
-    /// 그 하루만 선택해 '제한 없음'이 고른 상태로 편집 진입하고(사용자가 규칙을 골라 저장), 그 외
-    /// (explicit '제한 없음'·제한 있는 요일)는 기존 값 묶음(bundleContaining)으로 진입한다.
+    /// 스트립 탭 대상. 어느 요일이든 **그 하루만 선택된** 요일 그룹으로, 그 요일의 현재 규칙을 들고
+    /// 편집 진입한다. 같은 규칙을 공유하는 다른 요일이 있어도 딸려 오지 않는다 — 스트립 탭은
+    /// "이 요일만 고치기" 진입이고, 여러 요일을 한 번에 바꾸는 진입은 아래 요일 그룹 행이 담당한다.
     static func tapEditTarget(day: Int, in rules: [DayRule]) -> (days: Set<Int>, rule: DayRule)? {
         guard rules.indices.contains(day) else { return nil }
-        let rule = rules[day]
-        if rule.kind == .unrestricted && !rule.isExplicitlyUnrestricted {
-            return ([day], rule)
-        }
-        return bundleContaining(day: day, in: rules)
+        return ([day], rules[day])
     }
 
-    /// 7개 DayRule을 값 동등성으로 그룹핑한 묶음 목록. 암묵적 '제한 없음'(kind == .unrestricted &&
+    /// 7개 DayRule을 값 동등성으로 그룹핑한 요일 그룹 목록. 암묵적 '제한 없음'(kind == .unrestricted &&
     /// !isExplicitlyUnrestricted) 요일은 행을 만들지 않고(규칙 없음 = 표시 안 함), explicit '제한 없음'과
-    /// 제한 규칙만 행이 된다. 각 묶음의 첫 요일이 표시 순서에서 나타나는 순서대로 정렬된다.
+    /// 제한 규칙만 행이 된다. 각 요일 그룹의 첫 요일이 표시 순서에서 나타나는 순서대로 정렬된다.
     static func visibleBundles(from rules: [DayRule], orderedIndices: [Int]) -> [WeekdayBundle] {
         var result: [WeekdayBundle] = []
         for index in orderedIndices where rules.indices.contains(index) {
@@ -363,7 +353,7 @@ struct RuleEditorSheet: View {
         return result
     }
 
-    /// 묶음 요일 라벨. 연속 2일 이상은 "월 ~ 금"처럼 물결로 압축하고, 나머지는 "월, 수, 금"처럼
+    /// 요일 그룹의 요일 라벨. 연속 2일 이상은 "월 ~ 금"처럼 물결로 압축하고, 나머지는 "월, 수, 금"처럼
     /// 쉼표로 나열한다(혼합이면 "월 ~ 수, 금").
     private func daysLabel(for days: Set<Int>) -> String {
         let symbols = Calendar.current.veryShortWeekdaySymbols
@@ -390,15 +380,16 @@ struct RuleEditorSheet: View {
         }.joined(separator: ", ")
     }
 
-    /// 묶음의 규칙을 한 줄로 요약("일일 한도 · 30분" — 규칙 종류 포함, 공용 포매터).
+    /// 요일 그룹의 규칙을 한 줄로 요약("일일 한도 · 30분" — 규칙 종류 포함, 공용 포매터).
     private func ruleSummary(for rule: DayRule) -> String {
         goldTimeDayRuleSummary(rule)
     }
 }
 
-// MARK: - 요일 묶음 파생 표현
+// MARK: - 요일 그룹 파생 표현
 
-/// 같은 DayRule 값을 가진 요일들을 묶은 파생 표현. 저장 모델(항상 7개)과 별개로 표시에만 쓴다.
+/// 같은 DayRule 값을 가진 요일들의 파생 표현 — UI 표기는 "요일 그룹"(타입명은 앱 그룹
+/// ScreenTimeGroup과의 혼동을 피해 Bundle 유지). 저장 모델(항상 7개)과 별개로 표시에만 쓴다.
 /// (internal — `visibleBundles` 반환 타입으로 테스트가 접근한다.)
 struct WeekdayBundle: Identifiable {
     var rule: DayRule
@@ -407,7 +398,7 @@ struct WeekdayBundle: Identifiable {
     var id: String { days.sorted().map(String.init).joined(separator: ",") }
 }
 
-/// 묶음 편집 진입 값(value 기반 push). 편집 대상 요일·규칙만 담는 순수 값이라
+/// 요일 그룹 편집 진입 값(value 기반 push). 편집 대상 요일·규칙만 담는 순수 값이라
 /// 같은 값을 다시 눌러도 push마다 destination이 새로 만들어진다(@State 신선 보장).
 private struct BundleEditContext: Hashable {
     let days: Set<Int>
@@ -416,9 +407,9 @@ private struct BundleEditContext: Hashable {
 
 // MARK: - 주간 스트립
 
-/// 요일 묶음 리스트 상단의 7칸 주간 시각화. 요일마다 규칙 종류를 아이콘으로 보여 주고
+/// 요일 그룹 리스트 상단의 7칸 주간 시각화. 요일마다 규칙 종류를 아이콘으로 보여 주고
 /// (제한 있음 accent / 제한 없음 회색 대시), 오늘 요일 라벨은 accent 캡슐로 강조한다.
-/// 칸을 탭하면 그 요일이 속한 묶음 편집으로 push. 요일 라벨·순서·칩 시각 언어는
+/// 칸을 탭하면 그 요일 하루만 선택된 요일 그룹 편집으로 push(`tapEditTarget`). 요일 라벨·순서·칩 시각 언어는
 /// `WeekdayChips`와 동일한 규칙을 따른다(List 행 안 다중 버튼도 같은 `.plain` 패턴).
 private struct WeekdayRuleStrip: View {
     /// 표시할 요일 인덱스 순서(0=일 … 6=토).
@@ -483,14 +474,14 @@ private struct WeekdayRuleStrip: View {
     }
 }
 
-// MARK: - 요일 묶음 편집
+// MARK: - 요일 그룹 편집
 
 /// 요일 다중 선택 + 규칙 4종(제한 없음/일일 한도/시간대/쿨다운) 선택 + 종류별 파라미터를
-/// 한 화면에서 편집한다. 완료 시 선택한 요일에 이 규칙을 쓰고, **이 묶음에서 해제한 요일은
+/// 한 화면에서 편집한다. 완료 시 선택한 요일에 이 규칙을 쓰고, **이 요일 그룹에서 해제한 요일은
 /// 제한 없음이 된다**(applyingBundle 참조).
 private struct WeekdayBundleEditView: View {
     let orderedIndices: [Int]
-    /// (선택 요일, 진입 시 묶음 요일, 조립된 규칙) — 해제 요일 계산에 initialDays가 필요하다.
+    /// (선택 요일, 진입 시 요일 그룹의 요일, 조립된 규칙) — 해제 요일 계산에 initialDays가 필요하다.
     let onSave: (Set<Int>, Set<Int>, DayRule) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -527,7 +518,7 @@ private struct WeekdayBundleEditView: View {
     private var composedRule: DayRule {
         switch kind {
         case .unrestricted:
-            // 편집 화면에서 '제한 없음'을 직접 골라 저장 = explicit → 요일 묶음 행을 만든다.
+            // 편집 화면에서 '제한 없음'을 직접 골라 저장 = explicit → 요일 그룹 행을 만든다.
             return DayRule(kind: .unrestricted, isExplicitlyUnrestricted: true)
         case .dailyLimit:
             return DayRule(kind: .dailyLimit, dailyLimitMinutes: limitHours * 60 + limitMinutes)
@@ -553,8 +544,8 @@ private struct WeekdayBundleEditView: View {
         }
     }
 
-    /// 신규 묶음(+ 추가)은 요일을 골라야 저장할 수 있다. 기존 묶음은 전부 해제도 유효한
-    /// 조작이다(= 이 묶음 삭제 → 해당 요일들이 제한 없음이 됨).
+    /// 신규 요일 그룹(+ 추가)은 요일을 골라야 저장할 수 있다. 기존 요일 그룹은 전부 해제도 유효한
+    /// 조작이다(= 이 요일 그룹 삭제 → 해당 요일들이 제한 없음이 됨).
     private var canSave: Bool {
         (!selectedDays.isEmpty || !initialDays.isEmpty) && !ruleParamInvalid
     }
@@ -693,7 +684,7 @@ private struct DailyLimitDetailView: View {
     }
 }
 
-/// 일일 한도 시/분 휠 피커. 상세 본문과 요일 묶음 편집에서 함께 쓴다.
+/// 일일 한도 시/분 휠 피커. 상세 본문과 요일 그룹 편집에서 함께 쓴다.
 private struct DailyLimitWheels: View {
     @Binding var hours: Int
     @Binding var minutes: Int
@@ -767,7 +758,7 @@ private struct TimeWindowsDetailView: View {
     }
 }
 
-/// 시간대 한 칸(시작/종료 DatePicker). 상세 본문과 요일 묶음 편집에서 함께 쓴다.
+/// 시간대 한 칸(시작/종료 DatePicker). 상세 본문과 요일 그룹 편집에서 함께 쓴다.
 /// onDelete는 각 화면의 `ForEach`(List Section 직속)에 붙이므로 여기서는 행만 그린다.
 private struct TimeWindowRow: View {
     @Binding var window: TimeWindow
@@ -789,7 +780,7 @@ private struct TimeWindowRow: View {
     }
 }
 
-/// 시간대 편집 공용 헬퍼(추가 로직 · Date↔분 변환). 상세 본문과 요일 묶음 편집이 함께 쓴다.
+/// 시간대 편집 공용 헬퍼(추가 로직 · Date↔분 변환). 상세 본문과 요일 그룹 편집이 함께 쓴다.
 private enum RuleEditorWindows {
     static func canAdd(_ windows: [TimeWindow]) -> Bool {
         windows.count < TimeWindowPolicy.maxWindowCount
@@ -876,7 +867,7 @@ private struct CooldownDetailView: View {
     }
 }
 
-/// 쿨다운 사용 예산 / 휴식 간격 휠 피커. 상세 본문과 요일 묶음 편집에서 함께 쓴다.
+/// 쿨다운 사용 예산 / 휴식 간격 휠 피커. 상세 본문과 요일 그룹 편집에서 함께 쓴다.
 private struct CooldownWheels: View {
     @Binding var usageMinutes: Int
     @Binding var durationMinutes: Int

@@ -464,11 +464,17 @@ final class ContentViewModel {
             return
         }
 
+        // 오늘 투영 변경 여부는 적용 전에 판정한다(applyWeekdayRules가 groups를 갱신하므로).
+        let todayChanged = groups.first(where: { $0.id == id }).map { group in
+            changesTodayProjection(of: group) { $0.weekdayRules = rules }
+        } ?? true
+
         applyWeekdayRules(id: id, rules: rules)
 
-        // 자정 근처 안내: 오늘 투영 kind가 daily/cooldown일 때만(측정창 영향).
+        // 자정 근처 안내: 오늘 투영 kind가 daily/cooldown이고 오늘 투영이 실제로 바뀔 때만
+        // (다른 요일만 편집한 커밋은 churn 가드가 재등록을 건너뛰어 안내가 거짓 정보가 된다).
         let todayTracked = todayRule.kind == .dailyLimit || todayRule.kind == .cooldown
-        if monitoringRegistrationGroupIDIfApplied(id) != nil && todayTracked
+        if monitoringRegistrationGroupIDIfApplied(id) != nil && todayTracked && todayChanged
             && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
             stagedRuleEditInfo = nearMidnightApplyNotice
         }
@@ -555,6 +561,7 @@ final class ContentViewModel {
 
     /// 자정 직전(23:45+) 적용·수정 직후 안내 alert. 모니터 등록이 막혀 규칙이 00:00부터
     /// 적용되는 상황을 알린다. 일일 한도·쿨다운만 — 시간대 차단은 측정창과 무관해 제외한다.
+    /// 커밋 경로에서는 `changesTodayProjection`이 true일 때만 띄운다(아래 참조).
     private var nearMidnightApplyNotice: GoldTimeAlertMessage {
         GoldTimeAlertMessage(
             title: String(localized: "content.alert.applyNotice.title"),
@@ -565,6 +572,18 @@ final class ContentViewModel {
     /// 모니터(자정 측정창)에 등록돼 23:45 too short의 영향을 받는 규칙인지(일일 한도·쿨다운).
     private func isMonitorTrackedRule(_ kind: SharedStore.ScreenTimeGroup.RuleKind?) -> Bool {
         kind == .dailyLimit || kind == .cooldown
+    }
+
+    /// 이 커밋이 **오늘의 집행 투영본**(`resolved(on:)`)을 실제로 바꾸는지. 자정 안내는 "지금은
+    /// 모니터 재등록이 막힌다"는 안내인데, 오늘 투영이 그대로면(예: 다른 요일만 편집한 커밋)
+    /// `syncDailyMonitoring`의 churn 가드(`last != group`)가 재등록 자체를 건너뛰어 모니터가
+    /// 빠질 일도 미추적 갭도 없다 — 그때 안내가 뜨면 거짓 정보(false positive)라서 거른다.
+    /// 비교는 churn 가드와 같은 술어(투영본 값 동등성)를 쓴다.
+    private func changesTodayProjection(of group: ScreenTimeGroup, edit: (inout ScreenTimeGroup) -> Void) -> Bool {
+        var edited = group
+        edit(&edited)
+        let now = Date()
+        return group.resolved(on: now) != edited.resolved(on: now)
     }
 
     private func commitCooldownRule() {
@@ -601,6 +620,15 @@ final class ContentViewModel {
         let isResting = (cooldownEndByGroupID[id].map { $0 > Date() }) ?? false
         let settingsChangedWhileResting = isResting && oldGroup != nil
             && (oldGroup!.cooldownUsageMinutes != usage || oldGroup!.cooldownDurationMinutes != duration)
+        // 자정 안내는 오늘 투영이 실제로 바뀌는 커밋만(무변경 완료는 churn 가드가 재등록을 건너뜀).
+        let todayChanged = oldGroup.map { group in
+            changesTodayProjection(of: group) {
+                $0.ruleKind = .cooldown
+                $0.cooldownUsageMinutes = usage
+                $0.cooldownDurationMinutes = duration
+                $0.weekdayRules = nil
+            }
+        } ?? true
 
         applyCooldownRule(id: id, usage: usage, duration: duration)
         if settingsChangedWhileResting {
@@ -608,7 +636,7 @@ final class ContentViewModel {
                 title: String(localized: "content.alert.changeNotice.title"),
                 message: String(localized: "content.alert.changeNotice.message")
             )
-        } else if monitoringRegistrationGroupIDIfApplied(id) != nil
+        } else if monitoringRegistrationGroupIDIfApplied(id) != nil && todayChanged
             && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
             stagedRuleEditInfo = nearMidnightApplyNotice
         }
@@ -651,8 +679,17 @@ final class ContentViewModel {
             return
         }
 
+        // 자정 안내는 오늘 투영이 실제로 바뀌는 커밋만(무변경 완료는 churn 가드가 재등록을 건너뜀).
+        let todayChanged = groups.first(where: { $0.id == id }).map { group in
+            changesTodayProjection(of: group) {
+                $0.ruleKind = .dailyLimit
+                $0.dailyLimitMinutes = minutes
+                $0.weekdayRules = nil
+            }
+        } ?? true
+
         applyDailyLimitRule(id: id, minutes: minutes)
-        if monitoringRegistrationGroupIDIfApplied(id) != nil
+        if monitoringRegistrationGroupIDIfApplied(id) != nil && todayChanged
             && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
             stagedRuleEditInfo = nearMidnightApplyNotice
         }

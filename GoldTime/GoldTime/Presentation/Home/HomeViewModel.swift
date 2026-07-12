@@ -113,10 +113,11 @@ struct HomeViewModel {
             let granted = overrideGrantedMinutesByGroupID[group.id] ?? 1
             return String(localized: "home.status.extraMinutes \(granted)")
         }
-        // 오늘이 '제한 없음' 요일이면 invalidReason 검사보다 앞에서 중립 배지로 처리한다
+        // 오늘이 '제한 없음' 요일이면 invalidReason 검사보다 앞에서 처리한다
         // (안 하면 투영 ruleKind nil이 .groupHasNoRule로 떨어져 "설정 필요"로 오표시된다).
+        // 하루 종일 자유라는 뜻이므로 untracked와 같은 "23:59까지 사용 가능" 문구를 쓴다.
         if group.isUnrestricted(on: Date()) {
-            return String(localized: "home.status.unrestrictedToday")
+            return String(localized: "home.status.usableUntilMidnight")
         }
         // 자정 직전 편집으로 추적이 멈춘 그룹: 분 진행 개념이 없어 바 대신 "23:59까지 사용 가능"으로.
         if isUntrackedNearMidnight(group) {
@@ -183,9 +184,10 @@ struct HomeViewModel {
         if overrideGroupIDs.contains(group.id) {
             return "checkmark.shield.fill"
         }
-        // 오늘 '제한 없음' 요일은 invalidReason보다 먼저 잡아 중립 아이콘으로 둔다.
+        // 오늘 '제한 없음' 요일은 invalidReason보다 먼저 잡는다("설정 필요" 오표시 방지).
+        // 값은 사용 가능 상태와 같은 초록 가드지만, invalidReason 뒤로 옮기면 안 된다.
         if group.isUnrestricted(on: Date()) {
-            return "shield.slash"
+            return "checkmark.shield.fill"
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return "shield"
@@ -203,9 +205,10 @@ struct HomeViewModel {
         if overrideGroupIDs.contains(group.id) {
             return .blue
         }
-        // 오늘 '제한 없음' 요일은 invalidReason보다 먼저 잡아 중립 색으로 둔다.
+        // 오늘 '제한 없음' 요일은 invalidReason보다 먼저 잡는다("설정 필요" 오표시 방지).
+        // 값은 사용 가능 상태와 같은 초록이지만, invalidReason 뒤로 옮기면 안 된다.
         if group.isUnrestricted(on: Date()) {
-            return .gray
+            return .green
         }
         if ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) != nil {
             return .orange
@@ -349,7 +352,7 @@ struct HomeViewModel {
         return ruleSummary(for: group)
     }
 
-    /// 요일별 그룹의 오늘 규칙 짧은 요약("일일 한도 · 30분" — 규칙 종류 포함, 요일 묶음 행과
+    /// 요일별 그룹의 오늘 규칙 짧은 요약("일일 한도 · 30분" — 규칙 종류 포함, 요일 그룹 행과
     /// 동일한 공용 포매터). 값만 표기하면 무슨 규칙인지 알 수 없다는 피드백 반영.
     private func todayRuleSummary(for group: ScreenTimeGroup) -> String {
         guard let rules = group.weekdayRules, rules.count == 7 else {
