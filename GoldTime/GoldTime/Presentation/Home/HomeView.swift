@@ -17,6 +17,7 @@ struct HomeView: View {
     let onPresentRuleEditor: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
     let onApplyGroup: (UUID) -> Void
+    let onPresentStrictLock: (ScreenTimeGroup) -> Void
 
     init(
         groups: [ScreenTimeGroup],
@@ -43,7 +44,8 @@ struct HomeView: View {
         onPresentPicker: @escaping (ScreenTimeGroup) -> Void,
         onPresentRuleEditor: @escaping (ScreenTimeGroup) -> Void,
         onUnlockGroup: @escaping (UUID) -> Void = { _ in },
-        onApplyGroup: @escaping (UUID) -> Void = { _ in }
+        onApplyGroup: @escaping (UUID) -> Void = { _ in },
+        onPresentStrictLock: @escaping (ScreenTimeGroup) -> Void = { _ in }
     ) {
         self.viewModel = HomeViewModel(
             groups: groups,
@@ -72,6 +74,7 @@ struct HomeView: View {
         self.onPresentRuleEditor = onPresentRuleEditor
         self.onUnlockGroup = onUnlockGroup
         self.onApplyGroup = onApplyGroup
+        self.onPresentStrictLock = onPresentStrictLock
     }
     
     var body: some View {
@@ -202,7 +205,8 @@ struct HomeView: View {
                             onPresentPicker: onPresentPicker,
                             onPresentRuleEditor: onPresentRuleEditor,
                             onUnlockGroup: onUnlockGroup,
-                            onApplyGroup: onApplyGroup
+                            onApplyGroup: onApplyGroup,
+                            onPresentStrictLock: onPresentStrictLock
                         )
                     }
                 }

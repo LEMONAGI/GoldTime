@@ -16,6 +16,10 @@ enum AnalyticsEvent {
     case oneMinuteUnlock
     case walkAway(lockedCount: Int)
     case ruleChanged(from: String, to: String, wasLocked: Bool, usedBucket: String, causedLock: Bool)
+    /// 금고 모드(기간 약정 강력 잠금) 켜기·연장 확정. days = 이번에 적용한 약정 기간 프리셋.
+    case strictLockCommit(days: Int, payload: RuleAnalyticsPayload)
+    /// 스크린타임 권한 철회로 금고 약정이 풀린 상태를 복구 화면에서 감지. (권한 재승인 유도용 관측)
+    case strictRevokeDetected
 
     // MARK: - 대시보드 퍼널 (Reward 광고 / Activation)
     // placement는 Core의 `RewardedAdService.Placement`를 안정적 snake_case 문자열로 매핑한 값
@@ -42,6 +46,8 @@ enum AnalyticsEvent {
         case .oneMinuteUnlock: return "one_minute_unlock"
         case .walkAway: return "walk_away"
         case .ruleChanged: return "rule_changed"
+        case .strictLockCommit: return "strict_lock_commit"
+        case .strictRevokeDetected: return "strict_revoke_detected"
         case .adStarted: return "ad_started"
         case .adRewardEarned: return "ad_reward_earned"
         case .adClosedNoReward: return "ad_closed_no_reward"
@@ -75,6 +81,11 @@ enum AnalyticsEvent {
                 "used_bucket": usedBucket,
                 "caused_lock": causedLock
             ]
+        case .strictLockCommit(let days, let payload):
+            var parameters = payload.parameters
+            parameters["days"] = days
+            return parameters
+        case .strictRevokeDetected: return [:]
         case .adStarted(let placement),
              .adRewardEarned(let placement),
              .adClosedNoReward(let placement),

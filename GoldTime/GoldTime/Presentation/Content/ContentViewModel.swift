@@ -83,6 +83,11 @@ final class ContentViewModel {
     /// 규칙 편집 적용 후 시트가 닫히면 띄울 단순 안내(예: 휴식 중 휴식 시간 변경).
     private var stagedRuleEditInfo: GoldTimeAlertMessage?
     private var pendingDeletedGroupName: String?
+    /// 금고 시트 표시 대상 그룹(nil이면 시트 닫힘). ruleEditorGroupID와 동일 패턴.
+    var strictLockSheetGroupID: UUID?
+    /// 스크린타임 권한 복구 화면에서 금고 약정 철회를 감지해 이미 1회 로깅했는지(중복 로깅 방지).
+    private var didLogStrictRevoke = false
+
     var isReconnecting = false
     var isScreenTimeRecoveryPresented = false
     var isRequestingScreenTimeAuthorization = false
@@ -303,7 +308,16 @@ final class ContentViewModel {
     }
 
     func deleteGroup(_ id: UUID) {
-        groups.removeAll { $0.id == id }
+        var updated = groups
+        guard manageGroupsUseCase.deleteGroup(id: id, in: &updated) else {
+            // 금고 약정 중이면 Domain이 삭제를 거부한다. 진입 경로(requestDeleteGroup)에서 이미
+            // 걸러지지만, 광고 게이트 완료 후 직접 호출되는 경로에도 방어를 겹친다.
+            if let group = groups.first(where: { $0.id == id }), group.isStrictLockActive() {
+                alertMessage = strictBlockedAlert(for: group, kind: .delete)
+            }
+            return
+        }
+        groups = updated
         successMessage = nil
         errorMessage = nil
         persistGroups()
@@ -322,6 +336,11 @@ final class ContentViewModel {
     }
 
     func presentRuleEditor(for group: ScreenTimeGroup) {
+        // 금고 약정 중엔 편집기 진입 자체를 막고 만료일을 안내한다(우회 방지).
+        if group.isStrictLockActive() {
+            alertMessage = strictBlockedAlert(for: group, kind: .edit)
+            return
+        }
         let clamped = min(group.dailyLimitMinutes, 5 * 60 + 55)
         limitPickerHours = clamped / 60
         let rawMinutes = clamped % 60
@@ -781,6 +800,11 @@ final class ContentViewModel {
     }
 
     func requestPickerPresentation(for group: ScreenTimeGroup) {
+        // 금고 약정 중엔 앱 선택 편집을 막고 만료일을 안내한다(광고 게이트 진입 전에 차단).
+        if group.isStrictLockActive() {
+            alertMessage = strictBlockedAlert(for: group, kind: .edit)
+            return
+        }
         guard isEditRestricted(group.id) else {
             presentPicker(for: group)
             return
@@ -791,6 +815,11 @@ final class ContentViewModel {
     }
 
     func requestDeleteGroup(_ id: UUID) {
+        // 금고 약정 중엔 삭제를 막고 만료일을 안내한다(광고 게이트 진입 전에 차단).
+        if let group = groups.first(where: { $0.id == id }), group.isStrictLockActive() {
+            alertMessage = strictBlockedAlert(for: group, kind: .delete)
+            return
+        }
         let name = groups.first(where: { $0.id == id })?.name ?? String(localized: "content.thisGroup")
         guard isEditRestricted(id) else {
             deleteGroup(id)
@@ -878,6 +907,73 @@ final class ContentViewModel {
     func presentUnlockSheet(groupID: UUID) {
         unlockSheetGroupID = groupID
         isUnlockSheetPresented = true
+    }
+
+    // MARK: - 금고 모드(기간 약정 강력 잠금)
+
+    private enum StrictBlockKind { case edit, delete }
+
+    /// 금고 시트 표시 대상 그룹(강제 unwrap 없이 항상 최신 groups에서 조회 — 확정 후 갱신 반영).
+    var strictLockSheetGroup: ScreenTimeGroup? {
+        guard let id = strictLockSheetGroupID else { return nil }
+        return groups.first(where: { $0.id == id })
+    }
+
+    /// 스크린타임 권한 철회로 금고 약정이 풀린 상태(복구 화면에서 강조·재승인 유도).
+    var hasActiveStrictCommitment: Bool {
+        groups.contains { $0.isStrictLockActive() }
+    }
+
+    /// 금고 시트 열기. applied 그룹만(draft·미적용은 무시).
+    func presentStrictLockSheet(for group: ScreenTimeGroup) {
+        guard group.isApplied else { return }
+        strictLockSheetGroupID = group.id
+    }
+
+    func setStrictLockSheetPresented(_ isPresented: Bool) {
+        if !isPresented { strictLockSheetGroupID = nil }
+    }
+
+    /// 금고 약정 시작·연장 확정. 성공 시 저장+sync(투영 스트립 덕에 모니터 재등록 없음)하고
+    /// 분석 로깅 후 시트를 닫는다. 실패(applied+유효 검증 후 진입이라 사실상 불가)면 조용히 시트만 닫는다.
+    func confirmStrictLock(days: Int) {
+        guard let id = strictLockSheetGroupID else { return }
+        var updated = groups
+        guard manageGroupsUseCase.activateStrictLock(id: id, days: days, in: &updated) else {
+            strictLockSheetGroupID = nil
+            return
+        }
+        groups = updated
+        if let group = groups.first(where: { $0.id == id }) {
+            analyticsRepository.log(.strictLockCommit(days: days, payload: RuleAnalyticsPayload(group: group)))
+        }
+        successMessage = nil
+        errorMessage = nil
+        persistGroups()
+        strictLockSheetGroupID = nil
+    }
+
+    /// 스크린타임 권한 복구 화면이 뜰 때 호출. 금고 약정이 살아 있으면 1회만 철회 감지를 로깅한다.
+    func handleScreenTimeRecoveryAppear() {
+        guard hasActiveStrictCommitment, !didLogStrictRevoke else { return }
+        didLogStrictRevoke = true
+        analyticsRepository.log(.strictRevokeDetected)
+    }
+
+    /// 금고 편집·삭제 차단 안내 alert. 만료 날짜(%@)는 공용 포매터로 포맷한다.
+    private func strictBlockedAlert(for group: ScreenTimeGroup, kind: StrictBlockKind) -> GoldTimeAlertMessage {
+        let expiry = group.strictUntil.map { goldTimeStrictExpiryDateText($0) } ?? ""
+        let message: String
+        switch kind {
+        case .edit:
+            message = String(localized: "content.alert.strictBlocked.edit \(expiry)")
+        case .delete:
+            message = String(localized: "content.alert.strictBlocked.delete \(expiry)")
+        }
+        return GoldTimeAlertMessage(
+            title: String(localized: "content.alert.strictBlocked.title"),
+            message: message
+        )
     }
 
     func reconnectMonitoring() {
@@ -995,6 +1091,8 @@ final class ContentViewModel {
         if authorized {
             isScreenTimeRecoveryPresented = false
             screenTimeRecoveryErrorMessage = nil
+            // 권한이 복구되면 다음 철회를 다시 관측할 수 있도록 로깅 플래그를 리셋한다.
+            didLogStrictRevoke = false
         } else if presentsRecoveryIfMissing && hasCompletedInitialHomeEntry {
             isScreenTimeRecoveryPresented = true
         }

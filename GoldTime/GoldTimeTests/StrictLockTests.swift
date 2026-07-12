@@ -426,6 +426,186 @@ struct StrictLockTests {
         }
         #expect(screenTimeRepo.extendCallCount == 0)
     }
+
+    // MARK: - 11. Presentation — ContentViewModel 진입 차단·확정
+
+    /// 강력 잠금(약정 활성) 그룹 + 유효 규칙(앱 선택 포함)의 applied 그룹을 만든다.
+    private func strictActiveGroup() -> SharedStore.ScreenTimeGroup {
+        SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true,
+            strictUntil: .distantFuture, strictStartedAt: date(2026, 7, 10, 9, 0)
+        )
+    }
+
+    private func makeContentViewModel(
+        groups: [SharedStore.ScreenTimeGroup],
+        groupRepository: StrictFakeGroupRepository = StrictFakeGroupRepository(),
+        analytics: StrictFakeAnalyticsRepository = StrictFakeAnalyticsRepository()
+    ) -> ContentViewModel {
+        groupRepository.screenTimeGroups = groups
+        let screenTimeRepo = StrictFakeScreenTimeRepository()
+        let defaults = UserDefaults(suiteName: "StrictLockTests.\(UUID().uuidString)")!
+        defaults.set(true, forKey: "hasCompletedInitialHomeEntry")
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepository,
+                screenTimeRepository: screenTimeRepo
+            ),
+            syncProtectionUseCase: SyncProtectionUseCase(
+                groupRepository: groupRepository,
+                screenTimeRepository: screenTimeRepo
+            ),
+            loadDashboardUseCase: LoadDashboardUseCase(
+                shieldRepository: StrictFakeShieldRepository(),
+                statsRepository: StrictFakeStatsRepository(),
+                screenTimeRepository: screenTimeRepo
+            ),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: StrictFakeAuthorizationRepository(),
+                notificationRepository: StrictFakeNotificationRepository()
+            ),
+            analyticsRepository: analytics,
+            userDefaults: defaults
+        )
+        viewModel.groups = groups
+        return viewModel
+    }
+
+    @Test func presentRuleEditorBlockedDuringStrictLock() {
+        // 약정 중 그룹의 규칙 편집기 진입은 막히고(ruleEditorGroupID nil 유지) 안내 alert가 뜬다.
+        let group = strictActiveGroup()
+        let viewModel = makeContentViewModel(groups: [group])
+
+        viewModel.presentRuleEditor(for: group)
+
+        #expect(viewModel.ruleEditorGroupID == nil)
+        #expect(viewModel.alertMessage != nil)
+    }
+
+    @Test func requestDeleteBlockedDuringStrictLock() {
+        // 약정 중 그룹의 삭제 진입은 막히고 그룹이 보존되며 안내 alert가 뜬다(광고 게이트 미진입).
+        let group = strictActiveGroup()
+        let viewModel = makeContentViewModel(groups: [group])
+
+        viewModel.requestDeleteGroup(group.id)
+
+        #expect(viewModel.groups.contains { $0.id == group.id })
+        #expect(!viewModel.isAdGatePresented)
+        #expect(viewModel.alertMessage != nil)
+    }
+
+    @Test func deleteGroupPreservesStrictLockedGroup() {
+        // deleteGroup 직접 호출(광고 게이트 완료 후 경로)도 Domain 방어로 그룹을 보존한다.
+        let group = strictActiveGroup()
+        let viewModel = makeContentViewModel(groups: [group])
+
+        viewModel.deleteGroup(group.id)
+
+        #expect(viewModel.groups.contains { $0.id == group.id })
+        #expect(viewModel.alertMessage != nil)
+    }
+
+    @Test func confirmStrictLockSetsExpiryAndClosesSheet() {
+        // 무약정 applied 그룹에 금고 켜기 → strictUntil 세팅 + 시트 닫힘 + strict_lock_commit 로깅.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let analytics = StrictFakeAnalyticsRepository()
+        let viewModel = makeContentViewModel(groups: [group], analytics: analytics)
+
+        viewModel.presentStrictLockSheet(for: group)
+        #expect(viewModel.strictLockSheetGroupID == group.id)
+
+        viewModel.confirmStrictLock(days: 3)
+
+        #expect(viewModel.strictLockSheetGroupID == nil)
+        #expect(viewModel.groups.first?.strictUntil != nil)
+        #expect(analytics.events.contains { $0.name == "strict_lock_commit" })
+    }
+
+    @Test func presentStrictLockSheetIgnoredForDraftGroup() {
+        // draft(미적용) 그룹은 금고 시트를 열 수 없다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", selection: validSelection(), ruleKind: .dailyLimit, isApplied: false
+        )
+        let viewModel = makeContentViewModel(groups: [group])
+
+        viewModel.presentStrictLockSheet(for: group)
+
+        #expect(viewModel.strictLockSheetGroupID == nil)
+    }
+
+    // MARK: - 12. Presentation — HomeViewModel 남은 일수·배지
+
+    private func makeHomeViewModel(groups: [SharedStore.ScreenTimeGroup]) -> HomeViewModel {
+        HomeViewModel(
+            groups: groups,
+            todayStats: DailyStats(dateKey: "2026-07-12"),
+            isMonitoring: true,
+            isShieldActive: false,
+            shieldOverrideUntil: nil,
+            successMessage: nil,
+            errorMessage: nil
+        )
+    }
+
+    @Test func strictRemainingDaysCountsWholeDays() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", ruleKind: .dailyLimit, isApplied: true,
+            strictUntil: date(2026, 7, 15, 0, 0)   // 3일 약정(7/12~7/14, 7/15 0시 해제)
+        )
+        let viewModel = makeHomeViewModel(groups: [group])
+
+        // 켠 날(7/12) = 3, 마지막 날(7/14) = 1.
+        #expect(viewModel.strictRemainingDays(for: group, now: date(2026, 7, 12, 14, 30), calendar: calendar) == 3)
+        #expect(viewModel.strictRemainingDays(for: group, now: date(2026, 7, 14, 10, 0), calendar: calendar) == 1)
+        // 만료(7/15 0시) 이후 = nil.
+        #expect(viewModel.strictRemainingDays(for: group, now: date(2026, 7, 15, 0, 0), calendar: calendar) == nil)
+
+        // 무약정 그룹 = nil.
+        let plain = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", ruleKind: .dailyLimit, isApplied: true)
+        #expect(viewModel.strictRemainingDays(for: plain, now: date(2026, 7, 12, 14, 30), calendar: calendar) == nil)
+    }
+
+    @Test func strictBadgeTextPresentOnlyWhileActive() {
+        let viewModel = makeHomeViewModel(groups: [])
+        let active = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
+        )
+        let plain = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", ruleKind: .dailyLimit, isApplied: true)
+
+        #expect(viewModel.strictBadgeText(for: active) != nil)
+        #expect(viewModel.strictBadgeText(for: plain) == nil)
+    }
+
+    // MARK: - 13. Presentation — LockOptionsViewModel 연장 차단
+
+    @Test func lockOptionsBlocksExtensionForStrictLockedGroup() {
+        // 약정 잠긴 그룹 선택 시 1분·광고 연장 모두 비활성 + 안내 문구 노출("그만 쓰기"는 유지).
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", selection: validSelection(),
+            ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
+        )
+        let shieldRepo = StrictFakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [group]
+        shieldRepo.oneMinuteRemaining = 5   // 연장 차단이 strict 때문임을 분명히 한다.
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: StrictFakeScreenTimeRepository()
+            ),
+            analyticsRepository: StrictFakeAnalyticsRepository()
+        )
+
+        viewModel.onAppear()
+
+        #expect(viewModel.isSelectedGroupStrictLocked)
+        #expect(!viewModel.canExtendOneMinute)
+        #expect(!viewModel.canExtendWithAd)
+        #expect(viewModel.strictLockNotice != nil)
+    }
 }
 
 // MARK: - 테스트 스텁(최소 프로토콜 충족)
@@ -478,4 +658,47 @@ private final class StrictFakeShieldRepository: ShieldRepository {
     func clearLastRequestedUnlockTokens() {}
     func clearShieldOpenRequest() {}
     func recordWalkAway() {}
+}
+
+private final class StrictFakeStatsRepository: StatsRepository {
+    var todayStats = DailyStats(dateKey: "2026-07-12")
+    func lastSevenDayStats() -> [DailyStats] { Array(repeating: todayStats, count: 7) }
+    func previousSevenDayStats() -> [DailyStats] { Array(repeating: todayStats, count: 7) }
+    func lastNDayStats(_ n: Int) -> [DailyStats] { [] }
+    func statsForCalendarWeek(weekOffset: Int) -> [DailyStats] { Array(repeating: todayStats, count: 7) }
+    func statsForCalendarMonth(monthOffset: Int) -> [DailyStats] { [] }
+    func calendarWeekRange(weekOffset: Int) -> (start: Date, end: Date)? { nil }
+    func calendarMonthRange(monthOffset: Int) -> (start: Date, end: Date)? { nil }
+    func allDailyStats() -> [DailyStats] { [] }
+    var oldestStatDate: Date? { nil }
+    var trackingStartDate: Date? { nil }
+}
+
+private final class StrictFakeAuthorizationRepository: AuthorizationRepository {
+    var isAuthorized = true
+    func refresh() {}
+    func request() async throws {}
+    func observeAuthorizationChanges(_ handler: @escaping AuthorizationChangeHandler) -> AuthorizationObservation {
+        AuthorizationObservation(onCancel: {})
+    }
+}
+
+private final class StrictFakeNotificationRepository: NotificationRepository {
+    func authorizationState() async -> NotificationPermissionState { .authorized }
+    func requestAuthorizationIfNeeded() async -> NotificationPermissionState { .authorized }
+    func isNotificationDeferredByScheduledSummary() async -> Bool { false }
+    func scheduleWeeklyStatsNotification(weekStartDay: Int) {}
+    func scheduleDailyMorningNotification(extraMinutes: Int) {}
+    var isDailyMorningNotificationEnabled = true
+    func setDailyMorningNotificationEnabled(_ enabled: Bool) {}
+    var isUsageAlertEnabled = true
+    func setUsageAlertEnabled(_ enabled: Bool) {}
+    func clearDeliveredNotifications() {}
+}
+
+private final class StrictFakeAnalyticsRepository: AnalyticsRepository {
+    private(set) var events: [AnalyticsEvent] = []
+    func log(_ event: AnalyticsEvent) { events.append(event) }
+    func setUserProperty(_ value: String?, for name: String) {}
+    func recordError(_ error: Error, context: String) {}
 }

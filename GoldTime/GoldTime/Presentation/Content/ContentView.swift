@@ -89,7 +89,8 @@ struct ContentView: View {
                     onPresentPicker: viewModel.requestPickerPresentation,
                     onPresentRuleEditor: viewModel.presentRuleEditor,
                     onUnlockGroup: viewModel.presentUnlockSheet,
-                    onApplyGroup: viewModel.requestApplyGroup
+                    onApplyGroup: viewModel.requestApplyGroup,
+                    onPresentStrictLock: viewModel.presentStrictLockSheet
                 )
             }
             .tabItem {
@@ -129,14 +130,26 @@ struct ContentView: View {
                 viewModel.commitPickerSelection()
             }
         }
+        .sheet(isPresented: Binding(
+            get: { viewModel.strictLockSheetGroupID != nil },
+            set: { viewModel.setStrictLockSheetPresented($0) }
+        )) {
+            if let group = viewModel.strictLockSheetGroup {
+                StrictLockSheet(group: group) { days in
+                    viewModel.confirmStrictLock(days: days)
+                }
+            }
+        }
         .fullScreenCover(isPresented: $viewModel.isScreenTimeRecoveryPresented) {
             ScreenTimeAuthorizationRecoveryView(
                 isRequesting: viewModel.isRequestingScreenTimeAuthorization,
-                errorMessage: viewModel.screenTimeRecoveryErrorMessage
+                errorMessage: viewModel.screenTimeRecoveryErrorMessage,
+                showsStrictNotice: viewModel.hasActiveStrictCommitment
             ) {
                 Task { await viewModel.requestScreenTimeAuthorizationOnEntry() }
             }
             .interactiveDismissDisabled()
+            .onAppear { viewModel.handleScreenTimeRecoveryAppear() }
         }
         .sheet(isPresented: Binding(
             get: { viewModel.isRuleEditorPresented },
@@ -245,6 +258,8 @@ struct ContentView: View {
 private struct ScreenTimeAuthorizationRecoveryView: View {
     let isRequesting: Bool
     let errorMessage: String?
+    /// 금고 약정이 살아 있으면 재승인 시 그대로 이어진다는 안내를 강조한다.
+    var showsStrictNotice: Bool = false
     let onRequest: () -> Void
 
     var body: some View {
@@ -272,6 +287,13 @@ private struct ScreenTimeAuthorizationRecoveryView: View {
                             .font(.body)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
+
+                        if showsStrictNotice {
+                            Text("recovery.strictNotice")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Color.accent)
+                                .multilineTextAlignment(.center)
+                        }
                     }
                 }
 

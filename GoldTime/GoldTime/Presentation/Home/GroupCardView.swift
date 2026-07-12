@@ -15,6 +15,7 @@ struct GroupCardView: View {
     let onPresentRuleEditor: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
     let onApplyGroup: (UUID) -> Void
+    let onPresentStrictLock: (ScreenTimeGroup) -> Void
 
     @State private var isShowingEditConfirm = false
     @State private var isShowingDeleteConfirm = false
@@ -26,6 +27,11 @@ struct GroupCardView: View {
 
     private var isOverrideActive: Bool {
         viewModel.overrideGroupIDs.contains(group.id)
+    }
+
+    /// 금고 약정 중인지. 규칙 행·금고 행의 자물쇠 신호와 삭제 버튼 비활성에 쓴다.
+    private var isStrictActive: Bool {
+        viewModel.isStrictLocked(group)
     }
 
     /// 적용(commit)된 그룹은 우회 방지를 위해 앱 선택 편집·삭제는 진입 전에 광고 게이트를 거친다.
@@ -108,15 +114,22 @@ struct GroupCardView: View {
                     ))
                     .font(.headline)
 
-                    GroupStatusBadge(
-                        title: viewModel.statusTitle(for: group),
-                        tint: viewModel.statusTint(for: group)
-                    )
+                    HStack(spacing: 6) {
+                        GroupStatusBadge(
+                            title: viewModel.statusTitle(for: group),
+                            tint: viewModel.statusTint(for: group)
+                        )
+                        if let strictText = viewModel.strictBadgeText(for: group) {
+                            strictBadge(strictText)
+                        }
+                    }
                 }
 
                 Spacer()
 
                 Button(role: .destructive) {
+                    // 금고 약정 중엔 삭제 다이얼로그도 뜨지 않게 한다(ContentViewModel에도 방어 있음).
+                    guard !isStrictActive else { return }
                     if isEditRestricted {
                         isShowingDeleteConfirm = true
                     } else {
@@ -127,6 +140,8 @@ struct GroupCardView: View {
                         .font(.body.weight(.semibold))
                 }
                 .buttonStyle(.plain)
+                .disabled(isStrictActive)
+                .opacity(isStrictActive ? 0.35 : 1)
                 .confirmationDialog("group.delete.title", isPresented: $isShowingDeleteRegularConfirm) {
                     Button("common.delete", role: .destructive) {
                         onDeleteGroup(group.id)
@@ -195,7 +210,8 @@ struct GroupCardView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Image(systemName: "chevron.right")
+                    // 약정 중이면 편집 진입이 막히는 시각 신호로 chevron 대신 자물쇠(탭은 그대로 가능).
+                    Image(systemName: isStrictActive ? "lock.fill" : "chevron.right")
                         .font(.system(size: 18))
                         .foregroundStyle(.secondary)
                         .padding(.leading, 18)
@@ -205,6 +221,13 @@ struct GroupCardView: View {
             }
             .buttonStyle(.plain)
             .padding(.bottom, 14)
+
+            if group.isApplied {
+                Divider()
+                    .padding(.bottom, 14)
+                strictRow
+                    .padding(.bottom, 14)
+            }
 
             if isLocked {
                 Button {
@@ -234,6 +257,49 @@ struct GroupCardView: View {
             }
         }
         .cardContainer()
+    }
+
+    /// 금고 모드 행(규칙 행 바로 아래). 규칙 행과 같은 시각 언어(제목+부제+trailing).
+    /// 약정 중이면 부제가 만료일, trailing은 자물쇠. 탭 → 금고 시트.
+    private var strictRow: some View {
+        Button {
+            onPresentStrictLock(group)
+        } label: {
+            HStack(alignment: .center, spacing: 0) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("group.strictRow.title")
+                        .font(.subheadline.weight(.semibold))
+                    strictRowSubtitle
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: isStrictActive ? "lock.fill" : "chevron.right")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 18)
+                    .padding(.vertical, 6)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var strictRowSubtitle: Text {
+        if isStrictActive, let until = group.strictUntil {
+            return Text("group.strictRow.subtitle.active \(goldTimeStrictExpiryDateText(until))")
+        }
+        return Text("group.strictRow.subtitle.inactive")
+    }
+
+    private func strictBadge(_ text: String) -> some View {
+        Label(text, systemImage: "lock.fill")
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(Color.accent)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Color.accent.opacity(0.15))
+            .clipShape(Capsule())
     }
 
     @ViewBuilder

@@ -108,29 +108,52 @@ struct LockOptionsView: View {
 
             walkAwayButton
 
-            if let notice = viewModel.nearMidnightNotice {
-                nearMidnightNoticeBanner(notice)
-            }
+            // 금고 약정 중인 그룹은 연장 버튼 대신 만료일 안내만 보여준다("그만 쓰기"는 유지).
+            if let strictNotice = viewModel.strictLockNotice {
+                strictNoticeCard(strictNotice)
+            } else {
+                if let notice = viewModel.nearMidnightNotice {
+                    nearMidnightNoticeBanner(notice)
+                }
 
-            VStack(spacing: 10) {
-                extensionOptionButton(
-                    systemName: "timer",
-                    title: String(localized: "lock.option.oneMinute"),
-                    subtitle: oneMinuteSubtitle,
-                    enabled: viewModel.canExtendOneMinute,
-                    action: viewModel.tapOneMinute
-                )
+                VStack(spacing: 10) {
+                    extensionOptionButton(
+                        systemName: "timer",
+                        title: String(localized: "lock.option.oneMinute"),
+                        subtitle: oneMinuteSubtitle,
+                        enabled: viewModel.canExtendOneMinute,
+                        action: viewModel.tapOneMinute
+                    )
 
-                extensionOptionButton(
-                    systemName: "play.rectangle",
-                    title: viewModel.adButtonTitle,
-                    subtitle: adSubtitle,
-                    enabled: viewModel.canExtendWithAd,
-                    action: viewModel.startAdFlow
-                )
+                    extensionOptionButton(
+                        systemName: "play.rectangle",
+                        title: viewModel.adButtonTitle,
+                        subtitle: adSubtitle,
+                        enabled: viewModel.canExtendWithAd,
+                        action: viewModel.startAdFlow
+                    )
+                }
             }
         }
         .padding(.top, 10)
+    }
+
+    /// 금고 약정 중 안내 카드(연장 버튼 자리). 자정 근처 안내와 같은 배너 스타일에 자물쇠 아이콘.
+    private func strictNoticeCard(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color.accent)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.accent.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var walkAwayButton: some View {

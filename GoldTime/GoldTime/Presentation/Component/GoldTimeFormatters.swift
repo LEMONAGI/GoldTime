@@ -31,6 +31,12 @@ func goldTimeClockText(date: Date, calendar: Calendar = .current) -> String {
     return goldTimeClockText(minuteOfDay: (components.hour ?? 0) * 60 + (components.minute ?? 0))
 }
 
+/// 금고 약정 만료 날짜(월·일)만 로케일 포맷. 만료는 항상 자정 경계라 "0시" 같은 시각 표현은
+/// 문구 키 안에 담는다(예: ko "%@ 0시에 풀려요"). 금고 시트·차단 alert·LockOptions가 공용 사용.
+func goldTimeStrictExpiryDateText(_ date: Date) -> String {
+    date.formatted(.dateTime.month().day())
+}
+
 /// DayRule 한 줄 요약(규칙 종류 포함 — "일일 한도 · 30분"). 값만 표기하면 무슨 규칙인지
 /// 알 수 없다는 피드백에 따라 종류를 앞에 붙인다. 요일 묶음 행과 홈 카드 '오늘' 부제가 함께 쓴다.
 func goldTimeDayRuleSummary(_ rule: DayRule) -> String {
