@@ -10,6 +10,21 @@
       아카이브·업로드, ASC "이번 버전의 새로운 기능"에
       [docs/release-notes/1.2.0.md](docs/release-notes/1.2.0.md) ko/en/ja 붙여넣기,
       스크린샷 갱신 여부 판단(요일별 규칙·주간 스트립이 이번 버전 핵심)
+- [ ] **금고 모드 — 기간 약정 강력 잠금** (`Feat/AbsoluteLock`, 2026-07-12 기획 확정) —
+      그룹별 약정(1/3/7/14일, 자정 경계 만료, **중도 해제 절대 불가**), 연장·편집·삭제 전면
+      차단 + `denyAppRemoval`·자동 날짜 강제. 기획: [feature-spec §5.8](docs/feature-spec.md)
+      + decision-context ADR 5건. 구현 단계(직렬 — SharedStore/ScreenTimeManager High):
+  - [ ] ① 모델: `strictUntil`(+표시용 `strictStartedAt`) non-throwing Codable + 약정 판정
+        헬퍼(lazy `strictUntil > now`) + 단위 테스트(자정 경계·Codable 왕복)
+  - [ ] ② Domain/Core 차단: `ExtendGroupUseCase` 거부 + `ScreenTimeManager.extendGroup` 방어,
+        `ManageGroupsUseCase.updateRule/updateWeekdayRules/deleteGroup` 방어 + 테스트,
+        숨은 복구 경로(재연결·전체 보호 초기화)가 약정 우회 안 되는지 점검
+  - [ ] ③ Presentation: 켜기 플로우(기간 선택 → 고지 → 2단계 확인)·카드 금고 배지(D-N)·
+        편집/삭제 차단 안내·LockOptions 연장 버튼 대체 + 로컬라이징(ko/en/ja)
+  - [ ] ④ 전역 설정: 약정 그룹 ≥1 ⇔ `denyAppRemoval` + `requireAutomaticDateAndTime`,
+        재평가는 `syncDailyMonitoring` + extension 자정 재무장(자정 만료 시 extension이 해제)
+  - [ ] ⑤ 실기기 검증 런북: 앱 삭제 시도·자동 날짜 강제·자정 만료 전역 설정 해제·
+        권한 철회→재승인 약정 복원·Shield→GoldTime 가기 금고 안내
 
 ## 다음 할 일
 
