@@ -398,7 +398,27 @@ struct StrictLockTests {
         #expect(groups[0].strictUntil == nil)
     }
 
-    // MARK: - 10. ExtendGroupUseCase 앞단 거부
+    // MARK: - 10. 전역 설정 판정(hasActiveStrictLock)
+
+    @Test func hasActiveStrictLockReflectsAppliedActiveCommitments() {
+        // 전역 설정(denyAppRemoval·자동 날짜)의 on/off 판정: 적용 + 활성 약정 그룹이 있을 때만 true.
+        let original = SharedStore.screenTimeGroups
+        defer { SharedStore.screenTimeGroups = original }
+
+        SharedStore.screenTimeGroups = [
+            SharedStore.ScreenTimeGroup(name: "무약정", ruleKind: .dailyLimit, isApplied: true),
+            SharedStore.ScreenTimeGroup(name: "만료", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantPast),
+            SharedStore.ScreenTimeGroup(name: "미적용", ruleKind: .dailyLimit, isApplied: false, strictUntil: .distantFuture)
+        ]
+        #expect(!SharedStore.hasActiveStrictLock())
+
+        SharedStore.screenTimeGroups += [
+            SharedStore.ScreenTimeGroup(name: "활성", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture)
+        ]
+        #expect(SharedStore.hasActiveStrictLock())
+    }
+
+    // MARK: - 11. ExtendGroupUseCase 앞단 거부
 
     @Test func extendUseCaseRejectsStrictLockedGroup() {
         // 금고 약정 활성 잠긴 그룹 → extendOneMinute/extendWithAd가 .strictLockActive를 돌려주고

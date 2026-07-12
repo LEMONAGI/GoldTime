@@ -222,3 +222,26 @@ enum UsageAlertPolicy {
         return [(90, thresholdTicks[count - 2])]
     }
 }
+
+/// 금고 모드 전역 설정(앱 삭제 방지 `denyAppRemoval`·자동 날짜 강제
+/// `requireAutomaticDateAndTime`) 집행 — 메인 앱·extension 공유.
+/// 약정 활성 그룹(`SharedStore.hasActiveStrictLock`)이 하나라도 있으면 켜고, 없으면
+/// nil로 설정을 제거한다. **기기 전체** 앱 삭제가 막히는 전역 설정이라 반드시 이 판정과
+/// 짝으로만 켜고 끈다(feature-spec §5.8, 켜기 고지 의무).
+/// 만료는 lazy 판정(만료 시각 청소 이벤트 없음)이므로 별도 해제 트리거가 없다 — 이 재평가가
+/// 곧 해제 경로다. 호출 시점: 메인 앱 `syncDailyMonitoring` 말미(전체 해체 경로 포함) +
+/// extension `applyShieldFromGroups` 서두(자정 하트비트·틱·시간대 콜백 전부 통과).
+/// 항상 설정하는 idempotent 쓰기라 두 프로세스가 경합해도 수렴하고, 로그는 전이 시에만 남긴다.
+enum StrictLockEnforcement {
+    nonisolated static func apply(to store: ManagedSettingsStore, now: Date = Date()) {
+        let active = SharedStore.hasActiveStrictLock(now: now)
+        let wasDenied = store.application.denyAppRemoval == true
+        store.application.denyAppRemoval = active ? true : nil
+        store.dateAndTime.requireAutomaticDateAndTime = active ? true : nil
+        if wasDenied != active {
+            GTLog.shield.notice(
+                "금고 전역 설정 \(active ? "적용" : "해제", privacy: .public) (denyAppRemoval·자동 날짜 강제)"
+            )
+        }
+    }
+}

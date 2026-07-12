@@ -254,6 +254,9 @@ enum ScreenTimeManager {
             SharedStore.isDailyMonitoringEnabled = false
             SharedStore.clearAllShieldState()
             SharedStore.lastRegisteredGenerationByID = [:]
+            // 전체 해체 경로에서도 금고 전역 설정은 재평가한다(약정 그룹은 valid를 유지해
+            // 사실상 이 경로에 오지 않지만, lazy 만료 해제가 새지 않게 방어).
+            StrictLockEnforcement.apply(to: store, now: now)
             return
         }
 
@@ -402,6 +405,9 @@ enum ScreenTimeManager {
         // 시간대 그룹의 '지금 시간대 안인지'를 shieldedGroupIDs에 반영한 뒤 쉴드를 적용한다.
         SharedStore.resyncTimeWindowLocks()
         applyShield()
+        // 금고 전역 설정(denyAppRemoval·자동 날짜) 재평가. 켜기는 confirmStrictLock → 이 sync가
+        // 즉시 반영하고, 만료 해제는 lazy 판정이라 만료 후 첫 sync(foreground)가 담당한다.
+        StrictLockEnforcement.apply(to: store, now: now)
 
         // 시간대 차단 5분 전·종료(재사용 가능) 알림을 현재 구성으로 재예약한다(고정 시각이라 캘린더 트리거,
         // DeviceActivity activity를 늘리지 않음). 토글 OFF면 내부에서 기존 예약만 정리한다.

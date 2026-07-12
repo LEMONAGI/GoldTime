@@ -588,6 +588,11 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
     @discardableResult
     private func applyShieldFromGroups() -> Int {
+        // 금고 전역 설정(denyAppRemoval·자동 날짜) 재평가. 만료는 lazy 판정이라 별도 해제
+        // 트리거가 없다 — 자정 하트비트·틱·시간대 콜백이 전부 이 함수를 지나므로, 여기서
+        // 재평가하면 자정 만료 해제가 extension 단독으로도 이뤄진다(리셋 지점 개별 삽입보다 견고).
+        StrictLockEnforcement.apply(to: store)
+
         let applicationTokens = SharedStore.shieldApplicationTokens()
         let webDomainTokens = SharedStore.shieldWebDomainTokens()
         let tokenCount = applicationTokens.count + webDomainTokens.count
