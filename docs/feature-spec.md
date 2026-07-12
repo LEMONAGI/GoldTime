@@ -441,8 +441,9 @@ GoldTime은 유효한 그룹마다 독립적인 DeviceActivity 모니터링을 �
 
 ## 5.8 금고 모드 (기간 약정 강력 잠금)
 
-> 상태: 2026-07-12 기획 확정(`Feat/AbsoluteLock`), 구현 전. 결정 근거·트레이드오프는
-> `docs/agent/decision-context.md`의 ADR 참조. 이름 "금고 모드"는 가칭(금 메타포).
+> 상태: 구현 완료(2026-07-13, `Feat/AbsoluteLock`) — **실기기 검증 대기**
+> (런북: [verify-strictlock-runbook](verify-strictlock-runbook.md), 검증 완료 전 제출 금지).
+> 결정 근거·트레이드오프는 `docs/agent/decision-context.md`의 ADR 참조. UI 명칭 "금고 모드".
 
 ### 개념
 

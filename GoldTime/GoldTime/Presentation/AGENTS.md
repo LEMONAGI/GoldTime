@@ -42,6 +42,16 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
 
 ## 주의사항 (작업 중 발견 시 누적)
 
+- **금고 모드(기간 약정 강력 잠금) UX 계약**: 진입 차단은 ContentViewModel 3곳
+  (`presentRuleEditor`/`requestPickerPresentation`/`requestDeleteGroup`) + `deleteGroup`의
+  Domain(`ManageGroupsUseCase.deleteGroup`) 경유가 세트다 — 새 편집/삭제 진입점을 만들면 같은
+  guard(`isStrictLockActive` + `strictBlockedAlert`)를 반드시 추가한다. **약정 판정은 항상 원본
+  그룹**(`resolved(on:)` 투영은 strict 필드가 스트립됨 — `LockOptionsViewModel`의
+  `selectedGroup?.resolved(...)` 체인에 판정을 얹지 말 것). 금고 시트(`StrictLockSheet`)의
+  강한 확인 2단계는 **같은 시트 안 콘텐츠 전환**이다(시트 안 dialog→modal 연쇄 금지 규칙).
+  켜기는 무료(광고 없음 — "강화는 무료, 완화에 통행료"), 이름 변경(`updateName`)만 약정 중에도
+  허용. 만료 날짜 표기는 `goldTimeStrictExpiryDateText` 공용("0시" 표현은 각 문구 키 안에).
+
 - **자정 직전 안내는 경계가 둘이고 서로 다르다(헷갈리기 쉬움)**. 편집 중 RuleEditor 안 인라인
   notice(`ContentViewModel.nearMidnightEditNotice` / `isNearMidnightEditNoticeWindow`)는 **23:30**부터
   예고용으로 뜨고, 규칙 적용·수정 **직후** alert(`nearMidnightApplyNotice` / UseCase

@@ -10,23 +10,12 @@
       아카이브·업로드, ASC "이번 버전의 새로운 기능"에
       [docs/release-notes/1.2.0.md](docs/release-notes/1.2.0.md) ko/en/ja 붙여넣기,
       스크린샷 갱신 여부 판단(요일별 규칙·주간 스트립이 이번 버전 핵심)
-- [ ] **금고 모드 — 기간 약정 강력 잠금** (`Feat/AbsoluteLock`, 2026-07-12 기획 확정) —
-      그룹별 약정(1/3/7/14일, 자정 경계 만료, **중도 해제 절대 불가**), 연장·편집·삭제 전면
-      차단 + `denyAppRemoval`·자동 날짜 강제. 기획: [feature-spec §5.8](docs/feature-spec.md)
-      + decision-context ADR 5건. 구현 단계(직렬 — SharedStore/ScreenTimeManager High):
-  - [ ] ① 모델: `strictUntil`(+표시용 `strictStartedAt`) non-throwing Codable + 약정 판정
-        헬퍼(lazy `strictUntil > now`) + 단위 테스트(자정 경계·Codable 왕복)
-  - [ ] ② Domain/Core 차단: `ExtendGroupUseCase` 거부 + `ScreenTimeManager.extendGroup` 방어,
-        `ManageGroupsUseCase.updateRule/updateWeekdayRules/deleteGroup` 방어 + 테스트,
-        숨은 복구 경로(재연결·전체 보호 초기화)가 약정 우회 안 되는지 점검
-  - [ ] ③ Presentation: 켜기 플로우(기간 선택 → 고지 → 2단계 확인)·카드 금고 배지(D-N)·
-        편집/삭제 차단 안내·LockOptions 연장 버튼 대체 + 로컬라이징(ko/en/ja)
-  - [ ] ④ 전역 설정: 약정 그룹 ≥1 ⇔ `denyAppRemoval` + `requireAutomaticDateAndTime`,
-        재평가는 `syncDailyMonitoring` + extension 자정 재무장(자정 만료 시 extension이 해제)
-  - [ ] ⑤ 실기기 검증 런북: 앱 삭제 시도·자동 날짜 강제·자정 만료 전역 설정 해제·
-        권한 철회→재승인 약정 복원·Shield→GoldTime 가기 금고 안내
 
 ## 다음 할 일
+
+- [ ] 대시보드(goldtime-dashboard): 금고 모드 신규 이벤트 처리 — `strict_lock_commit`(days),
+      `strict_revoke_detected`. 약정 중 그룹은 `group_edit_gate`·광고 노출이 0이 되는 게
+      정상(수익 감소가 아니라 기능 동작 — 추이 해석 주석 필요)
 
 - [ ] 대시보드(goldtime-dashboard): 1.2.0 신규 분석 값 처리 — rule_kind "weekday",
       weekday_restricted_days(days_N), 코호트 uses_weekday (shield_hit은 집행 규칙 유지라
@@ -41,6 +30,17 @@
 
 1.2.0 요일별 규칙 검증은 완료(2026-07-21, 판정 기록은
 [docs/verify-1.2.0-runbook.md](docs/verify-1.2.0-runbook.md)).
+
+- [ ] **금고 모드(기간 약정 강력 잠금)** (`Feat/AbsoluteLock` 구현 완료 2026-07-13 —
+      **검증 완료 전 머지·제출 금지**) 런북: [docs/verify-strictlock-runbook.md](docs/verify-strictlock-runbook.md)
+  - [ ] 세션 1(저녁 ~20분): 켜기 흐름·`금고 전역 설정 적용` 로그, 앱 꾹→"앱 제거" 불가,
+        날짜와 시간 자동 고정, 편집/삭제/연장/쿨다운 휴식 차단(+비금고 그룹 대조), 기간 연장
+  - [ ] 자정 넘김 후 세션 2(아침 ~15분): 1일 약정 자정 만료 `금고 전역 설정 해제` 로그
+        (extension 단독 여부 확인), 다른 약정 활성 시 전역 설정 유지, 권한 철회→복구 화면
+        금고 안내+`strict_revoke_detected`→재승인 시 약정 복원
+  - [ ] 시뮬 육안(런북 하단 체크리스트): 시트 2단계·연장 칩 활성/비활성·배지·차단 alert·
+        LockOptions 안내 카드·다크 모드·큰 글자·en/ja
+  - ⚠️ 검증용 약정은 **1일**로(실수로 14일 걸면 2주 못 푼다), denyAppRemoval은 기기 전체
 
 - [ ] **쿨다운 휴식 타이머 복구** (수정 완료 2026-07-31 `b7f43b9` — 시뮬은 DeviceActivity가
       실제로 돌지 않아 판정 불가). 쿨다운 그룹 하나(예산 5분/휴식 30분)로 확인:

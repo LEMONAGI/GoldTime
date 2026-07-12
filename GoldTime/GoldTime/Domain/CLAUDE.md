@@ -41,4 +41,4 @@
 
 ## 주의사항 (작업 중 발견 시 누적)
 
-- (작업 중 발견한 Domain 함정을 한 줄씩 누적)
+- **금고 약정 중 편집 차단은 `ManageGroupsUseCase`의 update 3종(`updateRule`/`updateWeekdayRules`/`updateSelection`)과 `deleteGroup`의 guard가 담당한다**(조용히 무시 패턴 — `updateName`은 집행 무관이라 의도적으로 제외). 그룹을 변경하는 새 UseCase 메서드를 추가하면 같은 `isStrictLockActive()` guard를 반드시 넣을 것. `activateStrictLock`은 프리셋(`strictLockDayPresets` 1/3/7/14) 검증 + applied·유효 규칙만 + **연장만 허용(만료 축소 거부)** + 최초 `strictStartedAt` 유지. `ExtendGroupUseCase`의 strict 판정은 원본 그룹(`shieldRepository.lockedGroups()`) 기준이다 — resolved 투영은 strict 필드가 스트립되므로 판정에 쓰지 말 것.

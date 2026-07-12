@@ -58,6 +58,14 @@ UserDefaults(suite `group.com.goldtime.shared`).
   타입·같은 id라서 실수로 `screenTimeGroups`에 다시 쓰면 weekdayRules가 컴파일 에러 없이
   조용히 소실된다. persist는 항상 원본, `lastRegisteredGroupsByID`에는 투영본(오늘 규칙 기준
   churn 비교), UI 주간 구조 표시는 원본·상태 판정은 투영본.
+- **`strictUntil`/`strictStartedAt`(금고 모드, 기간 약정 강력 잠금)**: non-throwing 디코딩
+  (`(try? decodeIfPresent) ?? nil`)·`encodeIfPresent`(nil 키 생략 — 구버전 바이트 왕복 안전).
+  약정 판정은 **lazy**(`isStrictLockActive` = `strictUntil > now`) — 만료 청소 이벤트가 없고
+  만료 후에도 과거 날짜로 남는다. `clearAllShieldState`(자정)에 strict 정리를 **추가하지 말
+  것**(약정은 자정을 넘겨 유지되는 유일한 상태). **`resolved(on:)` 투영은 strict 필드를 항상
+  스트립**한다 — 금고 켜기가 churn 가드에 값 변경으로 보여 모니터가 재등록되는 것을 막는
+  근거이므로, **약정 판정은 반드시 원본 그룹에서** 한다(투영본·`lastRegisteredGroupsByID`엔
+  strict가 없다). `SharedStore.lockedGroups()`/`group(id:)`는 원본 반환이라 안전.
 
 ## ScreenTimeManager (Core/ScreenTime)
 
@@ -73,6 +81,17 @@ Extension은 메인 앱 API에 의존하지 않고 `SharedStore` + 알림으로�
 중앙화 가능한 상태 로직을 앱과 extension에 중복 구현하지 말 것.
 
 전체 흐름(Daily Monitoring / Shield / 광고 / 1분 연장)은 `docs/agent/critical-flows.md`.
+
+## 금고 모드 전역 설정 (StrictLockEnforcement — DailyMonitor.swift 공유)
+
+`SharedStore.hasActiveStrictLock`(적용 + 활성 약정 그룹 ≥1) ⇔ `store.application.denyAppRemoval`
+(**기기 전체** 앱 삭제 금지) + `store.dateAndTime.requireAutomaticDateAndTime`(시계 조작으로
+자정 리셋을 유발하는 우회 봉쇄). **재평가 지점 계약**: 메인 앱 `syncDailyMonitoring` 말미 +
+전체 해체 경로, extension `applyShieldFromGroups` **서두**(모든 콜백 통과 — 자정 만료 시
+extension 단독 해제 보장). 만료 해제 트리거가 따로 없으므로(lazy 판정) 이 재평가 지점을
+옮기거나 지우면 만료 후에도 전역 설정이 남는다. 항상-쓰기 idempotent(두 프로세스 경합 수렴),
+로그는 전이 시에만. 연장 차단의 Core 최종 방어는 `extendGroup`의 strict guard 하나다
+(`releaseShield`에는 없다 — 호출 경로가 extendGroup뿐).
 
 ## 주의사항 (작업 중 발견 시 누적)
 
