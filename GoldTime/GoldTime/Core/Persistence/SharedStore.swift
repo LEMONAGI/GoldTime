@@ -304,6 +304,11 @@ enum SharedStore {
         /// 요일별 규칙. index = Calendar.component(.weekday) - 1 (0=일 … 6=토), 정확히 7개.
         /// nil이면 요일별 모드가 아니며 기존 필드(ruleKind 등)가 매일 적용된다.
         var weekdayRules: [DayRule]?
+        /// 금고 약정 만료 시각(자정 경계). nil = 약정 없음/무약정. 만료 판정은 항상 lazy
+        /// (저장값 청소 이벤트 없음)라 만료 후에도 과거 날짜로 남는다 — `isStrictLockActive` 참조.
+        var strictUntil: Date?
+        /// 금고 약정 시작 시각(표시용). nil 허용.
+        var strictStartedAt: Date?
 
         init(
             id: UUID = UUID(),
@@ -315,7 +320,9 @@ enum SharedStore {
             isApplied: Bool = true,
             cooldownUsageMinutes: Int = defaultCooldownUsageMinutes,
             cooldownDurationMinutes: Int = defaultCooldownDurationMinutes,
-            weekdayRules: [DayRule]? = nil
+            weekdayRules: [DayRule]? = nil,
+            strictUntil: Date? = nil,
+            strictStartedAt: Date? = nil
         ) {
             self.id = id
             self.name = name
@@ -327,6 +334,8 @@ enum SharedStore {
             self.cooldownUsageMinutes = cooldownUsageMinutes
             self.cooldownDurationMinutes = cooldownDurationMinutes
             self.weekdayRules = weekdayRules
+            self.strictUntil = strictUntil
+            self.strictStartedAt = strictStartedAt
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -340,6 +349,8 @@ enum SharedStore {
             case cooldownUsageMinutes
             case cooldownDurationMinutes
             case weekdayRules
+            case strictUntil
+            case strictStartedAt
         }
 
         // 새 필드는 어떤 페이로드에서도 throw하지 않아야 한다.
@@ -351,6 +362,11 @@ enum SharedStore {
             name = try container.decode(String.self, forKey: .name)
             selection = try container.decode(FamilyActivitySelection.self, forKey: .selection)
             dailyLimitMinutes = try container.decode(Int.self, forKey: .dailyLimitMinutes)
+
+            // 금고 약정 필드는 isApplied 분기와 무관하게 항상 같은 non-throwing 패턴으로 디코딩한다
+            // (구버전 페이로드는 키 부재 → nil). 분기 앞에서 한 번만 읽어 양쪽 분기에서 그대로 쓴다.
+            strictUntil = (try? container.decodeIfPresent(Date.self, forKey: .strictUntil)) ?? nil
+            strictStartedAt = (try? container.decodeIfPresent(Date.self, forKey: .strictStartedAt)) ?? nil
 
             if let isApplied = (try? container.decodeIfPresent(Bool.self, forKey: .isApplied)) ?? nil {
                 self.isApplied = isApplied
@@ -391,6 +407,9 @@ enum SharedStore {
             try container.encode(cooldownDurationMinutes, forKey: .cooldownDurationMinutes)
             // nil이면 키 자체가 없어 구버전과 왕복 안전.
             try container.encodeIfPresent(weekdayRules, forKey: .weekdayRules)
+            // 금고 약정: nil이면 키 생략 → 기존 페이로드 바이트 동일, 구버전 왕복 안전.
+            try container.encodeIfPresent(strictUntil, forKey: .strictUntil)
+            try container.encodeIfPresent(strictStartedAt, forKey: .strictStartedAt)
         }
 
         var appCount: Int {
@@ -424,14 +443,33 @@ enum SharedStore {
             return rules[index].kind == .unrestricted
         }
 
+        /// 금고 약정이 지금 유효한지. 만료 판정은 항상 lazy(저장값 청소 이벤트 없음) —
+        /// 만료 후에도 strictUntil은 과거 날짜로 남고 이 함수가 false를 돌려준다.
+        func isStrictLockActive(at now: Date = Date()) -> Bool {
+            guard let strictUntil else { return false }
+            return strictUntil > now
+        }
+
+        /// N일 약정의 만료 시각 = 오늘 포함 N일의 마지막 날 다음 자정 0시.
+        /// 예: 7/12 낮에 days=3 → 7/15 00:00. days=1 → 내일 00:00.
+        static func strictLockExpiry(days: Int, from now: Date = Date(), calendar: Calendar = .current) -> Date? {
+            calendar.date(byAdding: .day, value: days, to: calendar.startOfDay(for: now))
+        }
+
         /// 해당 날짜의 유효 규칙을 기존 규칙 필드에 투영한 사본을 반환한다.
-        /// - weekdayRules == nil이면 self 그대로(비요일 그룹 zero-cost 통과).
+        /// - 투영본은 항상 strict 필드(strictUntil/strictStartedAt)가 nil로 스트립된다. 금고 약정은
+        ///   집행 규칙이 아니므로 등록/churn 비교에서 제외한다 — 약정 판정은 반드시 원본 그룹에서.
+        /// - weekdayRules == nil이면 strict만 스트립한 self 사본(비요일 그룹 통과).
         /// - 투영본은 weekdayRules가 nil로 스트립된다(등록 기록·churn 비교가 오늘 규칙만 보게).
         /// - 오늘이 '제한 없음'이면 ruleKind = nil → 기존 정책이 모니터링에서 자연 제외.
         /// - 7개가 아닌 비정상 배열은 디코더 폴백과 동일하게 base 규칙으로 취급(weekdayRules만 스트립).
         func resolved(on date: Date, calendar: Calendar = .current) -> ScreenTimeGroup {
-            guard let rules = weekdayRules else { return self }
             var copy = self
+            // 금고 약정은 집행 규칙이 아니므로 투영에서 항상 스트립한다 — 남으면 금고 켜기가
+            // 값 변경으로 보여 불필요한 모니터 재등록(churn)이 일어난다.
+            copy.strictUntil = nil
+            copy.strictStartedAt = nil
+            guard let rules = weekdayRules else { return copy }
             copy.weekdayRules = nil
             guard rules.count == 7 else { return copy }
 
@@ -581,6 +619,11 @@ enum SharedStore {
     /// 요일별 모드가 아니면 저장된 그룹 그대로다(extension tick 핸들러에서 오늘 규칙만 보게).
     static func resolvedGroup(id: UUID, now: Date = Date()) -> ScreenTimeGroup? {
         group(id: id)?.resolved(on: now)
+    }
+
+    /// 적용된 그룹 중 금고 약정이 유효한 그룹이 하나라도 있는지(전역 설정 on/off 판정용).
+    static func hasActiveStrictLock(now: Date = Date()) -> Bool {
+        screenTimeGroups.contains { $0.isApplied && $0.isStrictLockActive(at: now) }
     }
 
     static var isDailyMonitoringEnabled: Bool {
