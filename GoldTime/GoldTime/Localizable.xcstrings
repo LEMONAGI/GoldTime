@@ -3038,6 +3038,29 @@
         }
       }
     },
+    "lock.error.strictLockActive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This group is in Vault Mode. No extensions until the commitment ends."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このグループは金庫モード中です。誓約が終わるまで延長できません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "금고 모드 약정 중이에요. 약정이 끝날 때까지 연장할 수 없어요."
+          }
+        }
+      }
+    },
     "lock.free": {
       "extractionState": "manual",
       "localizations": {

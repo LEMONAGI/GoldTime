@@ -26,6 +26,7 @@ private extension ScreenTimeManager.ExtensionFailure {
         case .groupNotFound: return .groupNotFound
         case .oneMinuteLimitReached: return .oneMinuteLimitReached
         case .relockTimerRegistrationFailed: return .relockTimerRegistrationFailed
+        case .strictLockActive: return .strictLockActive
         }
     }
 }

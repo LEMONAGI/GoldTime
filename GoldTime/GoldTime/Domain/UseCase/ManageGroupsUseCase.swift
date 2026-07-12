@@ -61,6 +61,8 @@ final class ManageGroupsUseCase {
         in groups: inout [ScreenTimeGroup]
     ) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        // 금고 약정 중엔 규칙/앱 선택 편집 전면 차단(강화 방향 포함 — 판별 없이 단순 차단).
+        guard !groups[index].isStrictLockActive() else { return }
         groups[index].ruleKind = kind
         if let dailyLimitMinutes {
             groups[index].dailyLimitMinutes = dailyLimitMinutes
@@ -83,6 +85,8 @@ final class ManageGroupsUseCase {
     /// 아무 변경도 하지 않는다 — 디코더의 drop-to-nil은 최후 방어선이지 검증이 아니다.
     func updateWeekdayRules(id: UUID, rules: [DayRule]?, in groups: inout [ScreenTimeGroup]) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        // 금고 약정 중엔 규칙/앱 선택 편집 전면 차단(강화 방향 포함 — 판별 없이 단순 차단).
+        guard !groups[index].isStrictLockActive() else { return }
         if let rules {
             guard rules.count == 7,
                   WeekdayRulePolicy.firstInvalidReason(for: rules) == nil else { return }
@@ -112,7 +116,40 @@ final class ManageGroupsUseCase {
 
     func updateSelection(id: UUID, selection: FamilyActivitySelection, in groups: inout [ScreenTimeGroup]) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        // 금고 약정 중엔 규칙/앱 선택 편집 전면 차단(강화 방향 포함 — 판별 없이 단순 차단).
+        guard !groups[index].isStrictLockActive() else { return }
         groups[index].selection = selection.supportedTokenSelection
+    }
+
+    /// 그룹을 삭제한다. 금고 약정 중이면 삭제하지 않고 false를 반환한다.
+    @discardableResult
+    func deleteGroup(id: UUID, in groups: inout [ScreenTimeGroup]) -> Bool {
+        guard let index = groups.firstIndex(where: { $0.id == id }) else { return false }
+        guard !groups[index].isStrictLockActive() else { return false }
+        groups.remove(at: index)
+        return true
+    }
+
+    /// 금고 약정 기간 프리셋(일). 상한 14일은 실수 보호.
+    static let strictLockDayPresets: [Int] = [1, 3, 7, 14]
+
+    /// 금고 약정을 시작하거나 연장한다(만료가 늘어나는 방향만 — 축소 불가).
+    /// applied + 유효 규칙 그룹만. 성공 시 true.
+    @discardableResult
+    func activateStrictLock(id: UUID, days: Int, now: Date = Date(), in groups: inout [ScreenTimeGroup]) -> Bool {
+        guard Self.strictLockDayPresets.contains(days),
+              let index = groups.firstIndex(where: { $0.id == id }),
+              groups[index].isApplied,
+              ScreenTimeGroupPolicy.invalidReason(for: groups[index].policySnapshot) == nil,
+              let expiry = ScreenTimeGroup.strictLockExpiry(days: days, from: now) else { return false }
+        // 이미 활성 약정이 있으면 연장만 허용(축소 거부), 시작 시각은 최초 약정 것을 유지.
+        if let current = groups[index].strictUntil, groups[index].isStrictLockActive(at: now) {
+            guard expiry > current else { return false }
+        } else {
+            groups[index].strictStartedAt = now
+        }
+        groups[index].strictUntil = expiry
+        return true
     }
 
     func currentGroups() -> [ScreenTimeGroup] {

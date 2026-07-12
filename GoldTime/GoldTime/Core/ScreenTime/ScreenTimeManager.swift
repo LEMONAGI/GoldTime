@@ -83,6 +83,7 @@ enum ScreenTimeManager {
         case groupNotFound
         case oneMinuteLimitReached
         case relockTimerRegistrationFailed
+        case strictLockActive
     }
 
     struct GroupExtensionResult {
@@ -721,6 +722,12 @@ enum ScreenTimeManager {
     ) -> Result<GroupExtensionResult, ExtensionFailure> {
         guard let group = SharedStore.group(id: groupID) else {
             return .failure(.groupNotFound)
+        }
+
+        // 금고 약정 중엔 어떤 연장(1분/광고)도 거부한다 — UI가 버튼을 숨겨도 집행부가 최종 방어.
+        guard !group.isStrictLockActive(at: now) else {
+            GTLog.override.notice("연장 거부(금고 약정 중) group=\(group.name, privacy: .public)#\(groupID.uuidString.prefix(4), privacy: .public) until=\(group.strictUntil.map(String.init(describing:)) ?? "-", privacy: .public)")
+            return .failure(.strictLockActive)
         }
 
         if source == .oneMinute {

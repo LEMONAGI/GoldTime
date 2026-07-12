@@ -322,6 +322,8 @@ final class LockOptionsViewModel {
                 : String(localized: "lock.error.adFailed")
         case .relockTimerRegistrationFailed:
             return String(localized: "lock.error.relockFailed")
+        case .strictLockActive:
+            return String(localized: "lock.error.strictLockActive")
         }
     }
 

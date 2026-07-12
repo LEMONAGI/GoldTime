@@ -10,6 +10,7 @@
 import Testing
 import Foundation
 import FamilyControls
+import ManagedSettings
 @testable import GoldTime
 
 @MainActor
@@ -36,6 +37,22 @@ struct StrictLockTests {
     /// 그룹을 JSON dict로 인코딩한다(부분 조작용, WeekdayRuleTests와 동일 패턴).
     private func jsonObject(from group: SharedStore.ScreenTimeGroup) throws -> [String: Any] {
         try JSONSerialization.jsonObject(with: JSONEncoder().encode(group)) as! [String: Any]
+    }
+
+    /// 앱 토큰 1개를 가진 유효 선택. 실기기 없이 selectionCount>0 → invalidReason==nil을 만든다.
+    /// 토큰 바이트는 opaque라 ManagedSettings에 실제 적용되진 않지만, 정책 판정엔 개수만 쓰인다
+    /// (앱 토큰의 인코딩 형태 `{"data":"<base64>"}`를 크래프팅해 디코딩).
+    private func validSelection() -> FamilyActivitySelection {
+        let json = "{\"categoryTokens\":[],\"applicationTokens\":[{\"data\":\"AQID\"}],\"untokenizedWebDomainIdentifiers\":[],\"untokenizedApplicationIdentifiers\":[],\"untokenizedCategoryIdentifiers\":[],\"webDomainTokens\":[],\"includeEntireCategory\":false}"
+        return try! JSONDecoder().decode(FamilyActivitySelection.self, from: Data(json.utf8))
+    }
+
+    /// 편집·삭제·금고 켜기 방어를 검증할 ManageGroupsUseCase(순수 inout 조작이라 repo는 스텁).
+    private func makeManageUseCase() -> ManageGroupsUseCase {
+        ManageGroupsUseCase(
+            groupRepository: StrictFakeGroupRepository(),
+            screenTimeRepository: StrictFakeScreenTimeRepository()
+        )
     }
 
     // MARK: - 1. 왕복
@@ -190,4 +207,275 @@ struct StrictLockTests {
         }
         #expect(weekdayProjection(nil) == weekdayProjection(date(2026, 7, 20, 0, 0)))
     }
+
+    // MARK: - 7. 편집 방어(updateRule/updateWeekdayRules/updateSelection)
+
+    @Test func updateRuleBlockedDuringStrictLockAllowedWhenExpired() {
+        let useCase = makeManageUseCase()
+        let id = UUID()
+
+        // 활성 약정(미래 만료) → 규칙/한도 변경 시도 무시.
+        var active = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", dailyLimitMinutes: 30, ruleKind: .dailyLimit,
+            isApplied: true, strictUntil: .distantFuture
+        )]
+        useCase.updateRule(id: id, kind: .cooldown, dailyLimitMinutes: 99, in: &active)
+        #expect(active[0].ruleKind == .dailyLimit)      // 무변경
+        #expect(active[0].dailyLimitMinutes == 30)      // 무변경
+
+        // 비활성(만료 지난 strictUntil) → 정상 변경.
+        var expired = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", dailyLimitMinutes: 30, ruleKind: .dailyLimit,
+            isApplied: true, strictUntil: .distantPast
+        )]
+        useCase.updateRule(id: id, kind: .dailyLimit, dailyLimitMinutes: 99, in: &expired)
+        #expect(expired[0].dailyLimitMinutes == 99)     // 변경됨
+    }
+
+    @Test func updateWeekdayRulesBlockedDuringStrictLockAllowedWhenExpired() {
+        let useCase = makeManageUseCase()
+        let valid = indexedRules()
+
+        var active = [SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
+        )]
+        let idA = active[0].id
+        useCase.updateWeekdayRules(id: idA, rules: valid, in: &active)
+        #expect(active[0].weekdayRules == nil)          // 무변경(원래 nil 유지)
+
+        var expired = [SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantPast
+        )]
+        let idE = expired[0].id
+        useCase.updateWeekdayRules(id: idE, rules: valid, in: &expired)
+        #expect(expired[0].weekdayRules == valid)       // 변경됨
+    }
+
+    @Test func updateSelectionBlockedDuringStrictLockAllowedWhenExpired() {
+        let useCase = makeManageUseCase()
+
+        var active = [SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
+        )]
+        let idA = active[0].id
+        useCase.updateSelection(id: idA, selection: validSelection(), in: &active)
+        #expect(active[0].selectionCount == 0)          // 무변경(빈 선택 유지)
+
+        var expired = [SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantPast
+        )]
+        let idE = expired[0].id
+        useCase.updateSelection(id: idE, selection: validSelection(), in: &expired)
+        #expect(expired[0].selectionCount == 1)         // 변경됨
+    }
+
+    @Test func updateNameAllowedDuringStrictLock() {
+        // 이름 변경은 집행 무관이라 금고 약정 중에도 허용된다.
+        let useCase = makeManageUseCase()
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
+        )]
+        useCase.updateName(id: id, name: "새 이름", in: &groups)
+        #expect(groups[0].name == "새 이름")
+    }
+
+    // MARK: - 8. 삭제 방어(deleteGroup)
+
+    @Test func deleteGroupBlockedDuringStrictLockAllowedWhenExpired() {
+        let useCase = makeManageUseCase()
+
+        // 활성 약정 → false + 배열 보존.
+        let idA = UUID()
+        var active = [SharedStore.ScreenTimeGroup(
+            id: idA, name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
+        )]
+        #expect(useCase.deleteGroup(id: idA, in: &active) == false)
+        #expect(active.contains { $0.id == idA })
+
+        // 비활성 → true + 제거.
+        let idE = UUID()
+        var expired = [SharedStore.ScreenTimeGroup(
+            id: idE, name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantPast
+        )]
+        #expect(useCase.deleteGroup(id: idE, in: &expired) == true)
+        #expect(expired.isEmpty)
+    }
+
+    // MARK: - 9. 금고 켜기(activateStrictLock)
+
+    /// 자정 경계 만료 기대값을 코드와 동일하게(.current 캘린더) 계산 — 실행 지역 무관.
+    private func expectedExpiry(days: Int, from now: Date) -> Date {
+        Calendar.current.date(byAdding: .day, value: days, to: Calendar.current.startOfDay(for: now))!
+    }
+
+    @Test func activateStrictLockStartsCommitment() {
+        // (a) 정상 시작 — strictUntil = 자정 경계 만료, strictStartedAt = now.
+        let useCase = makeManageUseCase()
+        let now = date(2026, 7, 12, 14, 30)
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )]
+        #expect(useCase.activateStrictLock(id: id, days: 3, now: now, in: &groups) == true)
+        let expiry = expectedExpiry(days: 3, from: now)
+        #expect(groups[0].strictUntil == expiry)
+        #expect(Calendar.current.startOfDay(for: expiry) == expiry)   // 자정 경계
+        #expect(groups[0].strictStartedAt == now)
+    }
+
+    @Test func activateStrictLockRejectsDraftGroup() {
+        // (b) draft(isApplied=false) 거부.
+        let useCase = makeManageUseCase()
+        let now = date(2026, 7, 12, 14, 30)
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", selection: validSelection(), ruleKind: .dailyLimit, isApplied: false
+        )]
+        #expect(useCase.activateStrictLock(id: id, days: 3, now: now, in: &groups) == false)
+        #expect(groups[0].strictUntil == nil)
+    }
+
+    @Test func activateStrictLockRejectsNonPresetDays() {
+        // (c) 프리셋 외 days(2, 0, 15) 거부.
+        let useCase = makeManageUseCase()
+        let now = date(2026, 7, 12, 14, 30)
+        let id = UUID()
+        let base = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )]
+        for bad in [2, 0, 15] {
+            var groups = base
+            #expect(useCase.activateStrictLock(id: id, days: bad, now: now, in: &groups) == false)
+            #expect(groups[0].strictUntil == nil)
+        }
+    }
+
+    @Test func activateStrictLockExtendsToLongerKeepingStart() {
+        // (d) 활성 약정 중 더 긴 기간 → 연장 성공 + strictStartedAt 최초 값 유지.
+        let useCase = makeManageUseCase()
+        let now = date(2026, 7, 12, 14, 30)
+        let firstStart = date(2026, 7, 10, 9, 0)
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true,
+            strictUntil: date(2026, 7, 13, 0, 0), strictStartedAt: firstStart
+        )]
+        #expect(useCase.activateStrictLock(id: id, days: 7, now: now, in: &groups) == true)
+        #expect(groups[0].strictUntil == expectedExpiry(days: 7, from: now))
+        #expect(groups[0].strictStartedAt == firstStart)   // 최초 시작 유지
+    }
+
+    @Test func activateStrictLockRejectsShorterExpiry() {
+        // (e) 활성 약정 중 더 짧은 만료가 되는 시도 → 거부(축소 불가).
+        let useCase = makeManageUseCase()
+        let now = date(2026, 7, 12, 14, 30)
+        let firstStart = date(2026, 7, 10, 9, 0)
+        let existingUntil = date(2026, 7, 20, 0, 0)   // 활성, 먼 미래
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true,
+            strictUntil: existingUntil, strictStartedAt: firstStart
+        )]
+        #expect(useCase.activateStrictLock(id: id, days: 1, now: now, in: &groups) == false)
+        #expect(groups[0].strictUntil == existingUntil)     // 기존 유지
+        #expect(groups[0].strictStartedAt == firstStart)
+    }
+
+    @Test func activateStrictLockRejectsInvalidGroup() {
+        // (f) 유효하지 않은 규칙 그룹(선택 비어 있음 → invalidReason != nil) 거부.
+        let useCase = makeManageUseCase()
+        let now = date(2026, 7, 12, 14, 30)
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )]
+        #expect(useCase.activateStrictLock(id: id, days: 3, now: now, in: &groups) == false)
+        #expect(groups[0].strictUntil == nil)
+    }
+
+    // MARK: - 10. ExtendGroupUseCase 앞단 거부
+
+    @Test func extendUseCaseRejectsStrictLockedGroup() {
+        // 금고 약정 활성 잠긴 그룹 → extendOneMinute/extendWithAd가 .strictLockActive를 돌려주고
+        // repository의 extendGroup은 호출되지 않는다(집행부 진입 차단).
+        let id = UUID()
+        let shieldRepo = StrictFakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
+        )]
+        let screenTimeRepo = StrictFakeScreenTimeRepository()
+        let useCase = ExtendGroupUseCase(
+            shieldRepository: shieldRepo,
+            screenTimeRepository: screenTimeRepo
+        )
+
+        if case .failure(let f) = useCase.extendOneMinute(groupID: id) {
+            #expect(f == .strictLockActive)
+        } else {
+            Issue.record("extendOneMinute이 실패를 돌려주지 않았다")
+        }
+        if case .failure(let f) = useCase.extendWithAd(groupID: id) {
+            #expect(f == .strictLockActive)
+        } else {
+            Issue.record("extendWithAd가 실패를 돌려주지 않았다")
+        }
+        #expect(screenTimeRepo.extendCallCount == 0)
+    }
+}
+
+// MARK: - 테스트 스텁(최소 프로토콜 충족)
+
+private final class StrictFakeGroupRepository: GroupRepository {
+    var screenTimeGroups: [ScreenTimeGroup] = []
+    func defaultGroupName(for index: Int) -> String { "그룹 \(index + 1)" }
+}
+
+private final class StrictFakeScreenTimeRepository: ScreenTimeRepository {
+    var isDailyMonitoringEnabled = false
+    private(set) var extendCallCount = 0
+
+    func rolloverCounterIfNeeded() {}
+    @discardableResult func reapplyShieldIfOverrideExpired() -> Bool { false }
+    func syncDailyMonitoring(groups: [ScreenTimeGroup]) throws {}
+    func reconnectMonitoring() throws {}
+    func validDailyMonitoringGroups(from groups: [ScreenTimeGroup]) -> [ScreenTimeGroup] { groups }
+    func monitoredGroupIDs() -> Set<UUID> { [] }
+    func extendGroup(
+        groupID: UUID,
+        duration seconds: Int,
+        source: ExtensionSource
+    ) -> Result<GroupExtensionResult, ExtensionFailure> {
+        extendCallCount += 1
+        return .failure(.groupNotFound)
+    }
+    func isNearMidnightOverrideCutoff(now: Date) -> Bool { false }
+    func isWithinNearMidnightNoticeWindow(now: Date) -> Bool { false }
+}
+
+private final class StrictFakeShieldRepository: ShieldRepository {
+    var isShieldActive = false
+    var currentShieldOverrideUntil: Date?
+    var overrideUntilByGroupID: [UUID: Date] = [:]
+    var usedTimeByGroupID: [UUID: Int] = [:]
+    var overrideBaselineUsedTimeByGroupID: [UUID: Int] = [:]
+    var overrideGrantedMinutesByGroupID: [UUID: Int] = [:]
+    var cooldownEndByGroupID: [UUID: Date] = [:]
+    var oneMinuteRemaining = 5
+    var lastRequestedUnlockApplicationToken: ApplicationToken?
+    var lastRequestedUnlockWebDomainToken: WebDomainToken?
+    var lockedGroupsValue: [ScreenTimeGroup] = []
+
+    func lockedGroups() -> [ScreenTimeGroup] { lockedGroupsValue }
+    func lockedGroups(containing token: ApplicationToken) -> [ScreenTimeGroup] { lockedGroupsValue }
+    func lockedGroups(containing token: WebDomainToken) -> [ScreenTimeGroup] { lockedGroupsValue }
+    func groupsInOverride() -> [ScreenTimeGroup] { [] }
+    func hasPendingShieldOpenRequest() -> Bool { false }
+    func clearLastRequestedUnlockTokens() {}
+    func clearShieldOpenRequest() {}
+    func recordWalkAway() {}
 }

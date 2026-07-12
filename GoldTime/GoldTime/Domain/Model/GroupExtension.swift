@@ -11,6 +11,7 @@ enum ExtensionFailure: Error, Equatable {
     case groupNotFound
     case oneMinuteLimitReached
     case relockTimerRegistrationFailed
+    case strictLockActive
 }
 
 struct GroupExtensionResult {
