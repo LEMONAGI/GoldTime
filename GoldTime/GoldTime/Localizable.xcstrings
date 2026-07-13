@@ -1940,19 +1940,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lock it down for a set period"
+            "value": "A lock no ad can undo, for as long as you choose"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "期間を決めて強くロックします"
+            "value": "決めた期間、広告でも解除できないロック"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기간을 정해 강하게 잠가요"
+            "value": "정한 기간 동안 광고로도 못 푸는 잠금"
           }
         }
       }
@@ -7196,19 +7196,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lock a group for a set period — nothing can be changed until it ends."
+            "value": "For when you actually mean it — no ad, no edit can undo it."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "期間を決めてグループをロックし、その間は何も変更できません。"
+            "value": "今度こそ本気で断ちたいときに。広告でも編集でも解除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기간을 정해 그룹을 잠그고, 그동안 아무것도 못 바꿔요."
+            "value": "이번엔 진짜로 끊고 싶을 때. 광고로도, 편집으로도 못 여는 잠금."
           }
         }
       }
