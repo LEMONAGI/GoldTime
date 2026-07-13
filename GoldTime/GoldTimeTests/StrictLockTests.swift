@@ -425,6 +425,57 @@ struct StrictLockTests {
         #expect(SharedStore.hasActiveStrictLock())
     }
 
+    // MARK: - 9-b. 기능 토글(설정) — 기본 Off, 약정 중엔 끌 수 없음
+
+    @Test func activateStrictLockRejectedWhenFeatureDisabled() {
+        // 설정 토글이 꺼져 있으면(프로덕션 기본값) 켜기가 거부된다 — UI가 진입을 막지만 집행부도 방어.
+        let repo = StrictFakeGroupRepository()
+        repo.isStrictLockEnabled = false
+        let useCase = ManageGroupsUseCase(
+            groupRepository: repo,
+            screenTimeRepository: StrictFakeScreenTimeRepository()
+        )
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )]
+
+        #expect(useCase.activateStrictLock(id: id, days: 3, now: date(2026, 7, 12), in: &groups) == false)
+        #expect(groups[0].strictUntil == nil)
+    }
+
+    @Test func featureToggleCannotBeDisabledWhileCommitmentRuns() {
+        // 진행 중인 약정이 있으면 기능 토글을 끌 수 없다 — 끄기로 약정을 우회 해제하는 구멍 차단.
+        // 약정이 없으면(또는 만료됐으면) 끌 수 있고, 켜기는 언제나 가능하다.
+        let repo = StrictFakeGroupRepository()
+        let useCase = ManageGroupsUseCase(
+            groupRepository: repo,
+            screenTimeRepository: StrictFakeScreenTimeRepository()
+        )
+
+        repo.screenTimeGroups = [SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", selection: validSelection(),
+            ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
+        )]
+        #expect(useCase.hasActiveStrictLock())
+        #expect(useCase.setStrictLockEnabled(false) == false)
+        #expect(repo.isStrictLockEnabled)              // 끄기 거부 → 켜진 상태 유지
+
+        // 만료된 약정만 남으면 끌 수 있다.
+        repo.screenTimeGroups = [SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", selection: validSelection(),
+            ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantPast
+        )]
+        #expect(!useCase.hasActiveStrictLock())
+        #expect(useCase.setStrictLockEnabled(false) == true)
+        #expect(!repo.isStrictLockEnabled)
+
+        // 켜기는 약정 유무와 무관하게 가능.
+        #expect(useCase.setStrictLockEnabled(true) == true)
+        #expect(repo.isStrictLockEnabled)
+    }
+
     // MARK: - 10-a. 쿨다운 휴식은 금고 중에도 정상 종료·재충전된다 (집행 규칙 무영향)
 
     @Test func cooldownRestStillEndsAndRechargesDuringStrictLock() {
@@ -734,6 +785,9 @@ struct StrictLockTests {
 private final class StrictFakeGroupRepository: GroupRepository {
     var screenTimeGroups: [ScreenTimeGroup] = []
     func defaultGroupName(for index: Int) -> String { "그룹 \(index + 1)" }
+    /// 금고 기능 토글. 대부분의 테스트가 약정 켜기를 다루므로 기본 On으로 둔다
+    /// (기본 Off인 프로덕션 기본값은 `activateStrictLockRejectedWhenFeatureDisabled`가 검증).
+    var isStrictLockEnabled: Bool = true
 }
 
 private final class StrictFakeScreenTimeRepository: ScreenTimeRepository {

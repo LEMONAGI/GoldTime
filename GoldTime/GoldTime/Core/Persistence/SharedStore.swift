@@ -49,6 +49,16 @@ enum SharedStore {
         static let overrideAlertSentByGroupID = "overrideAlertSentByGroupID"
         static let statsTrackingStartDate = "statsTrackingStartDate"
         static let pendingAnalyticsEvents = "pendingAnalyticsEvents"
+        static let isStrictLockEnabled = "isStrictLockEnabled"
+    }
+
+    /// 금고 모드(기간 약정 강력 잠금) 기능 사용 여부. **기본값 Off** — 한 번 걸면 어떤 수단으로도
+    /// 못 푸는 기능이라 원하는 사용자만 명시적으로 켠다(설정 → 금고 모드 사용).
+    /// Off면 그룹 카드에 금고 행이 보이지 않고 켜기 진입도 막힌다. **약정 중인 그룹이 있으면
+    /// 끌 수 없다**(끄기로 우회 해제하는 구멍 차단 — `ManageGroupsUseCase.setStrictLockEnabled`).
+    static var isStrictLockEnabled: Bool {
+        get { defaults.bool(forKey: Key.isStrictLockEnabled) }
+        set { defaults.set(newValue, forKey: Key.isStrictLockEnabled) }
     }
 
     /// 하루 요약(오전 9시) 알림 수신 여부. 기본값 On.

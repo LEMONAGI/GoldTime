@@ -10,4 +10,9 @@ struct GroupRepositoryImpl: GroupRepository {
     func defaultGroupName(for index: Int) -> String {
         SharedStore.defaultGroupName(for: index)
     }
+
+    var isStrictLockEnabled: Bool {
+        get { SharedStore.isStrictLockEnabled }
+        set { SharedStore.isStrictLockEnabled = newValue }
+    }
 }

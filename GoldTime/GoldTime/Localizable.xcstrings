@@ -6500,6 +6500,52 @@
         }
       }
     },
+    "settings.alert.strictLockInUse.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can turn it off once the running commitment ends."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "進行中の誓約が終わればオフにできます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "진행 중인 약정이 끝나면 끌 수 있어요."
+          }
+        }
+      }
+    },
+    "settings.alert.strictLockInUse.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't turn off Vault Mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金庫モードをオフにできません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "금고 모드를 끌 수 없어요"
+          }
+        }
+      }
+    },
     "settings.feedback.email": {
       "extractionState": "manual",
       "localizations": {
@@ -7117,6 +7163,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "문제 해결"
+          }
+        }
+      }
+    },
+    "settings.strictLock.inUse": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A commitment is running, so this can't be turned off right now."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "進行中の誓約があるため、今はオフにできません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "진행 중인 약정이 있어 지금은 끌 수 없어요."
+          }
+        }
+      }
+    },
+    "settings.strictLock.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lock a group for a set period — nothing can be changed until it ends."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "期間を決めてグループをロックし、その間は何も変更できません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기간을 정해 그룹을 잠그고, 그동안 아무것도 못 바꿔요."
+          }
+        }
+      }
+    },
+    "settings.strictLock.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Vault Mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金庫モードを使う"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "금고 모드 사용"
           }
         }
       }

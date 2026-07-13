@@ -90,7 +90,8 @@ struct ContentView: View {
                     onPresentRuleEditor: viewModel.presentRuleEditor,
                     onUnlockGroup: viewModel.presentUnlockSheet,
                     onApplyGroup: viewModel.requestApplyGroup,
-                    onPresentStrictLock: viewModel.presentStrictLockSheet
+                    onPresentStrictLock: viewModel.presentStrictLockSheet,
+                    isStrictLockFeatureEnabled: viewModel.isStrictLockFeatureEnabled
                 )
             }
             .tabItem {
@@ -231,6 +232,10 @@ struct ContentView: View {
             if !newValue { viewModel.refreshDashboardState() }
         }
         .onChange(of: weekStartDay) { _, _ in
+            viewModel.refreshDashboardState()
+        }
+        // 설정에서 금고 기능을 켜고 끄면 홈 카드의 금고 행 노출이 즉시 따라가야 한다.
+        .onChange(of: settingsViewModel.isStrictLockEnabled) { _, _ in
             viewModel.refreshDashboardState()
         }
         .onReceive(refreshTimer) { _ in

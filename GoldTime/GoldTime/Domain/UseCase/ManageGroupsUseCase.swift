@@ -137,11 +137,32 @@ final class ManageGroupsUseCase {
     /// 때문에 무한정 긴 약정은 도움이 아니라 사고가 된다. 이 상한을 올리기 전에 반드시 재고할 것.
     static let strictLockDayRange: ClosedRange<Int> = 1...30
 
+    /// 금고 모드 기능 사용 여부(설정 토글, 기본 Off). Off면 카드에 금고 행이 숨겨지고 켜기도 막힌다.
+    var isStrictLockEnabled: Bool {
+        groupRepository.isStrictLockEnabled
+    }
+
+    /// 지금 약정이 진행 중인 그룹이 하나라도 있는지(설정 토글을 끌 수 있는지 판정).
+    func hasActiveStrictLock(now: Date = Date()) -> Bool {
+        groupRepository.screenTimeGroups.contains { $0.isApplied && $0.isStrictLockActive(at: now) }
+    }
+
+    /// 금고 모드 기능 토글. **약정 중인 그룹이 있으면 끌 수 없다**(false 반환) — 기능을 끄는 것으로
+    /// 진행 중인 약정을 우회 해제하는 구멍을 막는다. 켜기는 언제나 가능하다.
+    @discardableResult
+    func setStrictLockEnabled(_ enabled: Bool, now: Date = Date()) -> Bool {
+        if !enabled && hasActiveStrictLock(now: now) { return false }
+        groupRepository.isStrictLockEnabled = enabled
+        return true
+    }
+
     /// 금고 약정을 시작하거나 연장한다(만료가 늘어나는 방향만 — 축소 불가).
     /// applied + 유효 규칙 그룹만. 성공 시 true.
     @discardableResult
     func activateStrictLock(id: UUID, days: Int, now: Date = Date(), in groups: inout [ScreenTimeGroup]) -> Bool {
-        guard Self.strictLockDayRange.contains(days),
+        // 기능 토글이 꺼져 있으면 켤 수 없다(UI가 진입을 막지만 집행부에서도 방어).
+        guard groupRepository.isStrictLockEnabled,
+              Self.strictLockDayRange.contains(days),
               let index = groups.firstIndex(where: { $0.id == id }),
               groups[index].isApplied,
               ScreenTimeGroupPolicy.invalidReason(for: groups[index].policySnapshot) == nil,

@@ -42,18 +42,48 @@ final class SettingsViewModel {
         ConsentService.shared.isPrivacyOptionsRequired
     }
 
-    private let manageSettingsUseCase: ManageSettingsUseCase
+    /// 금고 모드 기능 사용 여부(기본 Off). Off면 그룹 카드에 금고 행이 아예 보이지 않는다.
+    var isStrictLockEnabled: Bool
 
-    init(manageSettingsUseCase: ManageSettingsUseCase? = nil) {
+    /// 진행 중인 약정이 있으면 기능을 끌 수 없다(끄기로 우회 해제하는 구멍 차단).
+    var canDisableStrictLock: Bool {
+        !manageGroupsUseCase.hasActiveStrictLock()
+    }
+
+    private let manageSettingsUseCase: ManageSettingsUseCase
+    private let manageGroupsUseCase: ManageGroupsUseCase
+
+    init(
+        manageSettingsUseCase: ManageSettingsUseCase? = nil,
+        manageGroupsUseCase: ManageGroupsUseCase? = nil
+    ) {
         let authRepo = AuthorizationRepositoryImpl()
         let notifRepo = NotificationRepositoryImpl()
         self.manageSettingsUseCase = manageSettingsUseCase ?? ManageSettingsUseCase(
             authRepository: authRepo,
             notificationRepository: notifRepo
         )
+        self.manageGroupsUseCase = manageGroupsUseCase ?? ManageGroupsUseCase(
+            groupRepository: GroupRepositoryImpl(),
+            screenTimeRepository: ScreenTimeRepositoryImpl()
+        )
         isScreenTimeAuthorized = self.manageSettingsUseCase.isScreenTimeAuthorized
         isDailyMorningNotificationEnabled = self.manageSettingsUseCase.isDailyMorningNotificationEnabled
         isUsageAlertEnabled = self.manageSettingsUseCase.isUsageAlertEnabled
+        isStrictLockEnabled = self.manageGroupsUseCase.isStrictLockEnabled
+    }
+
+    /// 금고 모드 기능 토글. 약정 중인 그룹이 있으면 끄기가 거부되고(토글 원복) 사유를 안내한다.
+    func setStrictLockEnabled(_ enabled: Bool) {
+        guard manageGroupsUseCase.setStrictLockEnabled(enabled) else {
+            isStrictLockEnabled = true   // 끄기 실패 → 켜진 상태 유지
+            alertMessage = SettingsAlertMessage(
+                title: String(localized: "settings.alert.strictLockInUse.title"),
+                message: String(localized: "settings.alert.strictLockInUse.message")
+            )
+            return
+        }
+        isStrictLockEnabled = enabled
     }
 
     func setDailyMorningNotificationEnabled(_ enabled: Bool) {
@@ -72,6 +102,7 @@ final class SettingsViewModel {
         isNotificationDeferredBySummary = await manageSettingsUseCase.isNotificationDeferredByScheduledSummary()
         isDailyMorningNotificationEnabled = manageSettingsUseCase.isDailyMorningNotificationEnabled
         isUsageAlertEnabled = manageSettingsUseCase.isUsageAlertEnabled
+        isStrictLockEnabled = manageGroupsUseCase.isStrictLockEnabled
     }
 
     func requestScreenTimeAuthorization() async {

@@ -177,6 +177,7 @@ final class ContentViewModel {
 
         isAuthorized = self.authorizeUseCase.isAuthorized
         hasCompletedInitialHomeEntry = userDefaults.bool(forKey: Self.hasCompletedInitialHomeEntryKey)
+        isStrictLockFeatureEnabled = self.manageGroupsUseCase.isStrictLockEnabled
         usedTimeByGroupID = shieldRepo.usedTimeByGroupID
         isShieldActive = shieldRepo.isShieldActive
         oneMinuteRemaining = shieldRepo.oneMinuteRemaining
@@ -286,6 +287,8 @@ final class ContentViewModel {
     func refreshDashboardState() {
         let state = loadDashboardUseCase.refresh(groups: groups)
         applyDashboardState(state)
+        // 설정에서 금고 기능 토글을 바꿨을 수 있으므로 홈 갱신 시 함께 읽는다.
+        isStrictLockFeatureEnabled = manageGroupsUseCase.isStrictLockEnabled
     }
 
     func handlePickerPresentationChange(isPresented: Bool) {
@@ -924,12 +927,16 @@ final class ContentViewModel {
         groups.contains { $0.isStrictLockActive() }
     }
 
-    /// 금고 시트 열기. applied + **유효 규칙** 그룹만 — `activateStrictLock`이 같은 검증으로
-    /// 거부하므로, 무효 그룹(예: 적용 후 항목을 전부 해제)에서 진입을 허용하면 최종 확인까지
+    /// 금고 모드 기능 사용 여부(설정 토글, 기본 Off). Off면 카드에 금고 행이 보이지 않는다.
+    /// 설정에서 토글을 바꾼 뒤 홈으로 돌아오면 `refreshDashboardState`가 갱신한다.
+    var isStrictLockFeatureEnabled: Bool = false
+
+    /// 금고 시트 열기. 기능 토글 On + applied + **유효 규칙** 그룹만 — `activateStrictLock`이 같은
+    /// 검증으로 거부하므로, 무효 그룹(예: 적용 후 항목을 전부 해제)에서 진입을 허용하면 최종 확인까지
     /// 눌러도 확정이 조용히 실패해 "켜졌다"고 오인하게 된다. 이미 약정 중인 그룹(연장 진입)은
     /// 편집이 막혀 무효가 될 수 없으므로 검증을 건너뛴다.
     func presentStrictLockSheet(for group: ScreenTimeGroup) {
-        guard group.isApplied else { return }
+        guard isStrictLockFeatureEnabled, group.isApplied else { return }
         if !group.isStrictLockActive(),
            let reason = ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) {
             alertMessage = GoldTimeAlertMessage(

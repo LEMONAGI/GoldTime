@@ -53,7 +53,11 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   허용. **만료 표기는 `goldTimeStrictLockedUntilText` 공용** — 저장값 `strictUntil`은 자정 경계라
   그대로 쓰면 "7/14 0시에 풀려요"처럼 하루 밀린 느낌이 든다. 1초를 빼 마지막 잠금 날을 뽑고
   문구는 "%@ 23:59까지 잠겨요"로 통일한다(시각 리터럴은 문구 키 안에). 시작일 등 "날짜 자체"는
-  `goldTimeShortDateText`.
+  `goldTimeShortDateText`. **기능 자체가 설정 토글(기본 Off)로 게이트된다**
+  (`SharedStore.isStrictLockEnabled` → `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView`):
+  Off면 카드에 금고 행을 그리지 않고 `presentStrictLockSheet`도 거부한다. **약정 중엔 토글을 끌 수
+  없다**(끄기로 우회 해제하는 구멍) — 잠그기만 하지 말고 왜 못 끄는지 캡션으로 보여줄 것.
+  설정에서 토글을 바꾸면 `ContentView`의 `onChange`가 `refreshDashboardState`로 카드 노출을 즉시 맞춘다.
   **금고 그룹에서는 광고 게이트 다이얼로그를 절대 먼저 띄우지 않는다**(`GroupCardView`의
   `tapEditSelection`·trash 분기): "광고 보고 편집하기"는 금고와 모순되는 안내이고, 다이얼로그가
   닫히는 사이클에 차단 alert를 세팅하게 돼 SwiftUI가 alert 표시를 건너뛴다 — 곧장 ViewModel

@@ -16,6 +16,8 @@ struct GroupCardView: View {
     let onUnlockGroup: (UUID) -> Void
     let onApplyGroup: (UUID) -> Void
     let onPresentStrictLock: (ScreenTimeGroup) -> Void
+    /// 금고 모드 기능 토글(설정, 기본 Off). Off면 금고 행 자체를 그리지 않는다.
+    let isStrictLockFeatureEnabled: Bool
 
     @State private var isShowingEditConfirm = false
     @State private var isShowingDeleteConfirm = false
@@ -224,7 +226,7 @@ struct GroupCardView: View {
             .buttonStyle(.plain)
             .padding(.bottom, 14)
 
-            if group.isApplied {
+            if isStrictLockFeatureEnabled && group.isApplied {
                 Divider()
                     .padding(.bottom, 14)
                 strictRow
@@ -447,7 +449,8 @@ private func makeCardPreview(strictUntil: Date?) -> some View {
             onPresentRuleEditor: { _ in },
             onUnlockGroup: { _ in },
             onApplyGroup: { _ in },
-            onPresentStrictLock: { _ in }
+            onPresentStrictLock: { _ in },
+            isStrictLockFeatureEnabled: true
         )
         .padding(16)
     }
