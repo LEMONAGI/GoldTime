@@ -8392,19 +8392,42 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deleting any app on the device is blocked."
+            "value": "You can't delete GoldTime."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "端末全体のアプリ削除がブロックされます。"
+            "value": "GoldTimeアプリを削除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기기 전체 앱 삭제가 막혀요."
+            "value": "골드타임 앱을 삭제할 수 없어요."
+          }
+        }
+      }
+    },
+    "strict.notice.appRemoval.footnote": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An iOS limitation: deleting any other app on this device is blocked too, for the duration."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOSの制約により、この期間は端末の他のアプリの削除も一緒にブロックされます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS 제약이라 이 기간엔 기기의 다른 앱 삭제도 함께 막혀요."
           }
         }
       }
@@ -8415,19 +8438,42 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Date and time are pinned to automatic — no winding the clock forward to unlock."
+            "value": "You can't unlock by winding the clock."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "日付・時刻が自動に固定されます。時計を進めて解除する抜け道を塞ぎます。"
+            "value": "時計を進めて解除することはできません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "날짜·시간이 자동으로 고정돼요. 시계를 돌려서 푸는 길을 막아요."
+            "value": "시간을 돌려서 해제할 수 없어요."
+          }
+        }
+      }
+    },
+    "strict.notice.autoDateTime.footnote": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date and time get pinned to automatic."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日付・時刻が自動に固定されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "날짜·시간이 자동으로 고정돼요."
           }
         }
       }

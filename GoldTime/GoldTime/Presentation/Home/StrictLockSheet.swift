@@ -151,6 +151,9 @@ struct StrictLockSheet: View {
         }
     }
 
+    /// 고지 5행. 주 문장은 **사용자가 겪는 결과**만 말하고, 그렇게 되는 수단·부작용(기기 전체 앱
+    /// 삭제가 함께 막힘 / 날짜·시간이 자동 고정됨)은 각주로 내린다 — 수단을 앞세우면 "왜 날짜를
+    /// 건드리지?" 같은 의심이 먼저 온다.
     private var disclosureList: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("strict.sheet.intro")
@@ -158,16 +161,27 @@ struct StrictLockSheet: View {
             noticeRow("lock.fill", "strict.notice.noRelease")
             noticeRow("pencil.slash", "strict.notice.editLocked")
             noticeRow("hourglass", "strict.notice.extendLocked")
-            noticeRow("trash.slash", "strict.notice.appRemoval")
-            noticeRow("calendar.badge.clock", "strict.notice.autoDateTime")
+            noticeRow("trash.slash", "strict.notice.appRemoval", footnote: "strict.notice.appRemoval.footnote")
+            noticeRow("clock.badge.xmark", "strict.notice.autoDateTime", footnote: "strict.notice.autoDateTime.footnote")
         }
     }
 
-    private func noticeRow(_ icon: String, _ text: LocalizedStringKey) -> some View {
+    private func noticeRow(
+        _ icon: String,
+        _ text: LocalizedStringKey,
+        footnote: LocalizedStringKey? = nil
+    ) -> some View {
         Label {
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                if let footnote {
+                    Text(footnote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         } icon: {
             Image(systemName: icon)
                 .foregroundStyle(Color.accent)
