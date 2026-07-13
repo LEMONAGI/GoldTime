@@ -8300,19 +8300,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Let me think again"
+            "value": "Back"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "もう一度考えます"
+            "value": "戻る"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "다시 생각할래요"
+            "value": "돌아가기"
           }
         }
       }
@@ -8323,19 +8323,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked for %lld days — until 11:59 PM on %@, and not a minute sooner."
+            "value": "This group stays locked for %lld days — until 11:59 PM on %@. It can't be changed in between."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld日間ロックされます。%@ 23:59まで、それより早くは開けません。"
+            "value": "%lld日間このグループがロックされます。%@ 23:59まで続き、途中で変更できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld일 동안 잠겨요. %@ 23:59까지, 그 전엔 못 열어요."
+            "value": "%lld일 동안 이 그룹이 잠겨요. %@ 23:59까지 유지되고, 중간에 바꿀 수 없어요."
           }
         }
       }
@@ -8346,19 +8346,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Yes, lock it"
+            "value": "Set up"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "はい、ロックします"
+            "value": "設定する"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "네, 잠글게요"
+            "value": "설정하기"
           }
         }
       }
@@ -8369,19 +8369,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lock it for real?"
+            "value": "Set up Vault Mode?"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "本当にロックしますか？"
+            "value": "金庫モードを設定しますか？"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "정말 잠글까요?"
+            "value": "금고 모드를 설정할까요?"
           }
         }
       }
@@ -8530,19 +8530,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No early exit. Really."
+            "value": "It can't be turned off early."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "途中解除はありません。本当にです。"
+            "value": "途中で解除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "중도 해제는 없어요. 정말로요."
+            "value": "중간에 해제할 수 없어요."
           }
         }
       }
