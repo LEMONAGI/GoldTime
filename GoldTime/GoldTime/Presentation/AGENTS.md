@@ -50,7 +50,10 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   `selectedGroup?.resolved(...)` 체인에 판정을 얹지 말 것). 금고 시트(`StrictLockSheet`)의
   강한 확인 2단계는 **같은 시트 안 콘텐츠 전환**이다(시트 안 dialog→modal 연쇄 금지 규칙).
   켜기는 무료(광고 없음 — "강화는 무료, 완화에 통행료"), 이름 변경(`updateName`)만 약정 중에도
-  허용. 만료 날짜 표기는 `goldTimeStrictExpiryDateText` 공용("0시" 표현은 각 문구 키 안에).
+  허용. **만료 표기는 `goldTimeStrictLockedUntilText` 공용** — 저장값 `strictUntil`은 자정 경계라
+  그대로 쓰면 "7/14 0시에 풀려요"처럼 하루 밀린 느낌이 든다. 1초를 빼 마지막 잠금 날을 뽑고
+  문구는 "%@ 23:59까지 잠겨요"로 통일한다(시각 리터럴은 문구 키 안에). 시작일 등 "날짜 자체"는
+  `goldTimeShortDateText`.
   **금고 그룹에서는 광고 게이트 다이얼로그를 절대 먼저 띄우지 않는다**(`GroupCardView`의
   `tapEditSelection`·trash 분기): "광고 보고 편집하기"는 금고와 모순되는 안내이고, 다이얼로그가
   닫히는 사이클에 차단 alert를 세팅하게 돼 SwiftUI가 alert 표시를 건너뛴다 — 곧장 ViewModel

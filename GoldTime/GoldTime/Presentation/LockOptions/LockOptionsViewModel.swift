@@ -132,7 +132,7 @@ final class LockOptionsViewModel {
     /// 선택된 그룹이 금고 약정 중이면 연장 대신 만료일을 안내한다.
     var strictLockNotice: String? {
         guard let group = selectedGroup, group.isStrictLockActive(), let until = group.strictUntil else { return nil }
-        return String(localized: "lock.strict.notice \(goldTimeStrictExpiryDateText(until))")
+        return String(localized: "lock.strict.notice \(goldTimeStrictLockedUntilText(until))")
     }
 
     /// 자정 근처는 광고를 봐도 10분이 아니라 "자정까지"만 열리므로 버튼 제목을 정직하게 바꾼다.

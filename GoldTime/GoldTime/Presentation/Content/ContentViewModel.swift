@@ -982,7 +982,7 @@ final class ContentViewModel {
 
     /// 금고 편집·삭제 차단 안내 alert. 만료 날짜(%@)는 공용 포매터로 포맷한다.
     private func strictBlockedAlert(for group: ScreenTimeGroup, kind: StrictBlockKind) -> GoldTimeAlertMessage {
-        let expiry = group.strictUntil.map { goldTimeStrictExpiryDateText($0) } ?? ""
+        let expiry = group.strictUntil.map { goldTimeStrictLockedUntilText($0) } ?? ""
         let message: String
         switch kind {
         case .edit:

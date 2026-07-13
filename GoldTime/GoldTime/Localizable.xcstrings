@@ -859,19 +859,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can delete this after the commitment ends. Unlocks at midnight on %@."
+            "value": "You can delete this after the commitment ends. Locked until 11:59 PM on %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "誓約が終わってから削除できます。%@ 0時に解除されます。"
+            "value": "誓約が終わってから削除できます。%@ 23:59までロックされます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "약정이 끝나야 지울 수 있어요. %@ 0시에 풀려요."
+            "value": "약정이 끝나야 지울 수 있어요. %@ 23:59까지 잠겨요."
           }
         }
       }
@@ -882,19 +882,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can change this after the commitment ends. Unlocks at midnight on %@."
+            "value": "You can change this after the commitment ends. Locked until 11:59 PM on %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "誓約が終わってから変更できます。%@ 0時に解除されます。"
+            "value": "誓約が終わってから変更できます。%@ 23:59までロックされます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "약정이 끝나야 바꿀 수 있어요. %@ 0시에 풀려요."
+            "value": "약정이 끝나야 바꿀 수 있어요. %@ 23:59까지 잠겨요."
           }
         }
       }
@@ -1917,19 +1917,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unlocks at midnight on %@"
+            "value": "Locked until 11:59 PM on %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 0時に解除されます"
+            "value": "%@ 23:59までロックされます"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 0시에 풀려요"
+            "value": "%@ 23:59까지 잠겨요"
           }
         }
       }
@@ -3780,19 +3780,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vault Mode is running. Unlocks at midnight on %@."
+            "value": "Vault Mode is running. Locked until 11:59 PM on %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モードが進行中です。%@ 0時に解除されます。"
+            "value": "金庫モードが進行中です。%@ 23:59までロックされます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드 진행 중이에요. %@ 0시에 풀려요."
+            "value": "금고 모드 진행 중이에요. %@ 23:59까지 잠겨요."
           }
         }
       }
@@ -8093,19 +8093,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unlocks at midnight on %@"
+            "value": "Locked until 11:59 PM on %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 0時に解除されます"
+            "value": "%@ 23:59までロックされます"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 0시에 풀려요"
+            "value": "%@ 23:59까지 잠겨요"
           }
         }
       }
@@ -8323,19 +8323,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked for %lld days. Unlocks at midnight on %@, and not before."
+            "value": "Locked for %lld days — until 11:59 PM on %@, and not a minute sooner."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld日間ロックされます。%@ 0時に解除され、それまで開けません。"
+            "value": "%lld日間ロックされます。%@ 23:59まで、それより早くは開けません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld일 동안 잠겨요. %@ 0시에 풀리고, 그 전엔 못 열어요."
+            "value": "%lld일 동안 잠겨요. %@ 23:59까지, 그 전엔 못 열어요."
           }
         }
       }
@@ -8599,19 +8599,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unlocks at midnight on %@"
+            "value": "Locked until 11:59 PM on %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 0時に解除されます"
+            "value": "%@ 23:59までロックされます"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 0시에 풀려요"
+            "value": "%@ 23:59까지 잠겨요"
           }
         }
       }
@@ -8622,19 +8622,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked for this whole period"
+            "value": "During this period"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "この期間ずっとロックされます"
+            "value": "この期間中"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 기간 동안 잠겨요"
+            "value": "이 기간 동안"
           }
         }
       }

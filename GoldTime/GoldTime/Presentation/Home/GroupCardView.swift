@@ -289,7 +289,7 @@ struct GroupCardView: View {
 
     private var strictRowSubtitle: Text {
         if isStrictActive, let until = group.strictUntil {
-            return Text("group.strictRow.subtitle.active \(goldTimeStrictExpiryDateText(until))")
+            return Text("group.strictRow.subtitle.active \(goldTimeStrictLockedUntilText(until))")
         }
         return Text("group.strictRow.subtitle.inactive")
     }

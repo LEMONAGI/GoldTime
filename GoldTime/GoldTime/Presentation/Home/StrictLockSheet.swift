@@ -144,7 +144,7 @@ struct StrictLockSheet: View {
     private var expiryPreview: some View {
         if let expiry = Self.expiry(days: selectedDays, now: now) {
             Label(
-                String(localized: "strict.sheet.expiry \(goldTimeStrictExpiryDateText(expiry))"),
+                String(localized: "strict.sheet.expiry \(goldTimeStrictLockedUntilText(expiry))"),
                 systemImage: "calendar"
             )
             .foregroundStyle(Color.accent)
@@ -232,10 +232,10 @@ struct StrictLockSheet: View {
                     .foregroundStyle(Color.accent)
             }
             if let started = group.strictStartedAt {
-                infoRow("play.circle", String(localized: "strict.active.startedAt \(goldTimeStrictExpiryDateText(started))"))
+                infoRow("play.circle", String(localized: "strict.active.startedAt \(goldTimeShortDateText(started))"))
             }
             if let until = group.strictUntil {
-                infoRow("calendar", String(localized: "strict.active.expiresAt \(goldTimeStrictExpiryDateText(until))"))
+                infoRow("calendar", String(localized: "strict.active.expiresAt \(goldTimeStrictLockedUntilText(until))"))
             }
             infoRow("lock.fill", String(localized: "strict.active.noRelease"))
         }
@@ -282,7 +282,7 @@ struct StrictLockSheet: View {
                 Text("strict.confirm.title")
                     .font(.title2.bold())
                 if let expiry = Self.expiry(days: selectedDays, now: now) {
-                    Text("strict.confirm.body \(selectedDays) \(goldTimeStrictExpiryDateText(expiry))")
+                    Text("strict.confirm.body \(selectedDays) \(goldTimeStrictLockedUntilText(expiry))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
