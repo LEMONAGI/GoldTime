@@ -100,7 +100,6 @@ struct StrictLockSheet: View {
                 periodSection
                 expiryPreview.font(.subheadline.weight(.semibold))
                 disclosureList
-                honestRow
                 targetSection
             }
             .padding(20)
@@ -173,22 +172,6 @@ struct StrictLockSheet: View {
             Image(systemName: icon)
                 .foregroundStyle(Color.accent)
         }
-    }
-
-    /// 솔직 고지: 권한을 끄면 풀린다는 점을 숨기지 않는다(스스로와의 약속).
-    private var honestRow: some View {
-        Label {
-            Text("strict.notice.permission")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        } icon: {
-            Image(systemName: "exclamationmark.triangle")
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.secondary.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     /// 잠글 그룹 재확인(이름 + 항목 개수). 토큰 아이콘 나열은 과해서 텍스트로만 요약한다.

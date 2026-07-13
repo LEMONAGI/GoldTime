@@ -57,7 +57,9 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   guard로 보내 alert만 띄운다. 금고 시트 진입은 **applied + 유효 규칙**일 때만 연다
   (`presentStrictLockSheet` — 무효 그룹을 열어주면 `activateStrictLock`이 거부해 최종 확인을
   눌러도 조용히 실패하고 사용자는 켜졌다고 오인한다). 확정 실패 alert은 시트 dismiss와 겹치지
-  않게 `Task { @MainActor }`로 미룬다.
+  않게 `Task { @MainActor }`로 미룬다. **켜기 화면에 "권한을 끄면 풀린다"는 고지를 다시 넣지
+  말 것**(2026-07-13 제거) — 사실이지만 잠그려는 순간에 탈출 방법을 알려주는 셈이다. 권한 철회는
+  이미 풀린 뒤의 복구 화면(`recovery.strictNotice`)에서만 다룬다.
 
 - **자정 직전 안내는 경계가 둘이고 서로 다르다(헷갈리기 쉬움)**. 편집 중 RuleEditor 안 인라인
   notice(`ContentViewModel.nearMidnightEditNotice` / `isNearMidnightEditNoticeWindow`)는 **23:30**부터

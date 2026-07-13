@@ -8501,29 +8501,6 @@
         }
       }
     },
-    "strict.notice.permission": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turning off permission in Settings ends it. It's a promise to yourself."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "設定で権限をオフにすると解除されます。自分への約束です。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "설정에서 권한을 끄면 풀려요. 스스로에게 한 약속이에요."
-          }
-        }
-      }
-    },
     "strict.sheet.commit": {
       "extractionState": "manual",
       "localizations": {
