@@ -418,6 +418,45 @@ struct StrictLockTests {
         #expect(SharedStore.hasActiveStrictLock())
     }
 
+    // MARK: - 10-a. 쿨다운 휴식은 금고 중에도 정상 종료·재충전된다 (집행 규칙 무영향)
+
+    @Test func cooldownRestStillEndsAndRechargesDuringStrictLock() {
+        // 금고가 막는 것은 "휴식을 광고/1분으로 건너뛰기"이지 휴식 자체가 아니다.
+        // 예산을 다 써 휴식에 들어간 그룹은 약정 중에도 시간이 지나면 정상 종료되고 예산이
+        // 재충전된다(사용 시간을 정당하게 돌려받는 쿨다운의 핵심). 재충전 경로
+        // (endCooldownAndRecharge / handleCooldownTimerEnded / rechargeExpiredCooldowns)에
+        // strict guard를 "일관성"을 이유로 넣지 말 것 — 넣으면 휴식이 영영 안 끝난다.
+        SharedStore.clearGroupStateForTesting()
+        let original = SharedStore.screenTimeGroups
+        defer {
+            SharedStore.clearGroupStateForTesting()
+            SharedStore.screenTimeGroups = original
+        }
+
+        let id = UUID()
+        SharedStore.screenTimeGroups = [
+            SharedStore.ScreenTimeGroup(
+                id: id, name: "쿨다운-금고", selection: validSelection(),
+                ruleKind: .cooldown, isApplied: true,
+                cooldownUsageMinutes: 5, cooldownDurationMinutes: 30,
+                strictUntil: .distantFuture
+            )
+        ]
+        // 예산 소진 → 휴식 진입(잠김).
+        _ = SharedStore.raiseUsedTime(to: 5, for: id)
+        SharedStore.startCooldown(until: Date().addingTimeInterval(30 * 60), for: id)
+        #expect(SharedStore.isInCooldown(id))
+        #expect(SharedStore.shieldedGroupIDs.contains(id))
+
+        // 휴식 시간 경과 → 재충전(약정 중이어도 막히지 않는다).
+        _ = SharedStore.endCooldownAndRecharge(for: id)
+
+        #expect(!SharedStore.isInCooldown(id))
+        #expect(!SharedStore.shieldedGroupIDs.contains(id))       // 잠금 해제
+        #expect(SharedStore.usedTimeByGroupID[id] == nil)         // 예산 0부터 새 사이클
+        #expect(SharedStore.group(id: id)?.isStrictLockActive() == true)   // 약정은 그대로 유지
+    }
+
     // MARK: - 10-b. 하트비트 유지(자정 만료 해제 경로 보장)
 
     @Test func heartbeatStaysAliveForStrictLockedTimeWindowOnlyGroup() {

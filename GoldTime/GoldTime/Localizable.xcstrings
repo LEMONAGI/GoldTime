@@ -8461,19 +8461,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "1-minute and ad extensions are locked. Cooldown breaks too."
+            "value": "1-minute and ad extensions are locked. You can't skip a cooldown break either — it still ends on its own."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "1分・広告延長がロックされます。クールダウンの休憩もです。"
+            "value": "1分・広告延長がロックされます。クールダウンの休憩もスキップできません（時間が経てば通常どおり解除されます）。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "1분·광고 연장이 잠겨요. 쿨다운 휴식도요."
+            "value": "1분·광고 연장이 잠겨요. 쿨다운 휴식도 건너뛸 수 없어요(시간이 지나면 평소대로 풀려요)."
           }
         }
       }
