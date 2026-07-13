@@ -337,8 +337,9 @@ struct StrictLockTests {
         #expect(groups[0].strictUntil == nil)
     }
 
-    @Test func activateStrictLockRejectsNonPresetDays() {
-        // (c) 프리셋 외 days(2, 0, 15) 거부.
+    @Test func activateStrictLockRejectsDaysOutsideRange() {
+        // (c) 허용 범위(1...30일) 밖은 거부. 상한 30일은 실수 보호 — 못 푸는 모드라 무한정 긴
+        // 약정은 사고가 된다. 범위 안이면 프리셋 칩(1/3/7)에 없는 직접 입력 값도 허용한다.
         let useCase = makeManageUseCase()
         let now = date(2026, 7, 12, 14, 30)
         let id = UUID()
@@ -346,10 +347,16 @@ struct StrictLockTests {
             id: id, name: "게임", selection: validSelection(),
             dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
         )]
-        for bad in [2, 0, 15] {
+        for bad in [0, -1, 31, 365] {
             var groups = base
             #expect(useCase.activateStrictLock(id: id, days: bad, now: now, in: &groups) == false)
             #expect(groups[0].strictUntil == nil)
+        }
+        // 직접 입력 값(프리셋 아님)과 상한값은 허용.
+        for good in [2, 12, 30] {
+            var groups = base
+            #expect(useCase.activateStrictLock(id: id, days: good, now: now, in: &groups) == true)
+            #expect(groups[0].strictUntil == expectedExpiry(days: good, from: now))
         }
     }
 

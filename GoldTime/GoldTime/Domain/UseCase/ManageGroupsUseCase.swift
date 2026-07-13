@@ -130,14 +130,18 @@ final class ManageGroupsUseCase {
         return true
     }
 
-    /// 금고 약정 기간 프리셋(일). 상한 14일은 실수 보호.
-    static let strictLockDayPresets: [Int] = [1, 3, 7, 14]
+    /// 금고 약정 기간 빠른 선택 칩(일). 그 외 기간은 직접 입력(`strictLockDayRange`).
+    static let strictLockDayPresets: [Int] = [1, 3, 7]
+
+    /// 직접 입력 포함 허용 범위. **상한 30일은 실수 보호** — 한 번 걸면 어떤 수단으로도 못 풀기
+    /// 때문에 무한정 긴 약정은 도움이 아니라 사고가 된다. 이 상한을 올리기 전에 반드시 재고할 것.
+    static let strictLockDayRange: ClosedRange<Int> = 1...30
 
     /// 금고 약정을 시작하거나 연장한다(만료가 늘어나는 방향만 — 축소 불가).
     /// applied + 유효 규칙 그룹만. 성공 시 true.
     @discardableResult
     func activateStrictLock(id: UUID, days: Int, now: Date = Date(), in groups: inout [ScreenTimeGroup]) -> Bool {
-        guard Self.strictLockDayPresets.contains(days),
+        guard Self.strictLockDayRange.contains(days),
               let index = groups.firstIndex(where: { $0.id == id }),
               groups[index].isApplied,
               ScreenTimeGroupPolicy.invalidReason(for: groups[index].policySnapshot) == nil,

@@ -375,7 +375,9 @@ struct GroupCardView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                         Spacer()
-                        Image(systemName: "square.grid.2x2")
+                        // 약정 중이면 항목 편집도 막히므로 규칙 행과 같은 자물쇠 신호를 준다
+                        // (탭은 가능 — ContentViewModel이 만료일 안내 alert을 띄운다).
+                        Image(systemName: isStrictActive ? "lock.fill" : "square.grid.2x2")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(.secondary)
                     }

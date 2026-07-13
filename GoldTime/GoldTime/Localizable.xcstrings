@@ -8593,6 +8593,29 @@
         }
       }
     },
+    "strict.sheet.day.custom": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접"
+          }
+        }
+      }
+    },
     "strict.sheet.expiry %@": {
       "extractionState": "manual",
       "localizations": {

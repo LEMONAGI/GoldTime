@@ -28,20 +28,30 @@ struct StrictLockSheet: View {
 
     private let presets = ManageGroupsUseCase.strictLockDayPresets
 
+    /// `initialStage`·`initialDays`는 프리뷰가 특정 화면·선택 상태를 바로 열기 위한 값이다
+    /// (기본값은 프로덕션 동작 그대로: 설정 단계 + 아래 규칙으로 계산한 기본 기간).
     init(
         group: ScreenTimeGroup,
         now: Date = Date(),
         initialStage: Stage = .config,
+        initialDays: Int? = nil,
         onConfirm: @escaping (Int) -> Void
     ) {
         self.group = group
         self.now = now
         self.onConfirm = onConfirm
         _stage = State(initialValue: initialStage)
-        // 기본 선택: 켜기면 첫 프리셋, 연장이면 만료가 늘어나는 첫 프리셋.
+        if let initialDays {
+            _selectedDays = State(initialValue: initialDays)
+            return
+        }
+        // 기본 선택: 켜기면 첫 프리셋. 연장이면 만료가 실제로 늘어나는 가장 짧은 기간 —
+        // 프리셋이 전부 지금 만료보다 짧으면(예: 8일 남음) 직접 입력 범위에서 고른다.
         let presets = ManageGroupsUseCase.strictLockDayPresets
-        let firstEnabled = presets.first { Self.isDayEnabled($0, group: group, now: now) }
-        _selectedDays = State(initialValue: firstEnabled ?? presets.first ?? 1)
+        let enabledPreset = presets.first { Self.isDayEnabled($0, group: group, now: now) }
+        let enabledCustom = ManageGroupsUseCase.strictLockDayRange
+            .first { Self.isDayEnabled($0, group: group, now: now) }
+        _selectedDays = State(initialValue: enabledPreset ?? enabledCustom ?? presets.first ?? 1)
     }
 
     private var isActive: Bool { group.isStrictLockActive(at: now) }
@@ -69,8 +79,18 @@ struct StrictLockSheet: View {
         Self.isDayEnabled(day, group: group, now: now)
     }
 
-    /// 연장 가능한 프리셋이 하나라도 있는지(전부 만료 축소면 이미 최대).
-    private var canExtend: Bool { presets.contains { isDayEnabled($0) } }
+    /// 연장 가능한 기간이 하나라도 있는지(직접 입력 상한까지 전부 만료 축소면 이미 최대).
+    private var canExtend: Bool {
+        ManageGroupsUseCase.strictLockDayRange.contains { isDayEnabled($0) }
+    }
+
+    /// 직접 입력 칩이 선택된 상태(프리셋 칩에 없는 기간을 고른 것).
+    private var isCustomSelected: Bool { !presets.contains(selectedDays) }
+
+    /// 직접 입력 휠에서 고를 수 있는 기간. 연장이면 만료가 실제로 늘어나는 값만 남긴다.
+    private var selectableCustomDays: [Int] {
+        ManageGroupsUseCase.strictLockDayRange.filter { isDayEnabled($0) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -121,29 +141,66 @@ struct StrictLockSheet: View {
             Text("strict.sheet.period")
                 .font(.subheadline.weight(.semibold))
             presetChips
+            if isCustomSelected {
+                customDaysWheel
+            }
         }
     }
 
-    /// 기간 선택 칩. 연장 모드에서 만료가 늘지 않는 프리셋은 disabled 처리한다.
+    /// 기간 선택 칩(1·3·7일 + 직접 입력). 연장 모드에서 만료가 늘지 않는 값은 disabled 처리한다.
     private var presetChips: some View {
         HStack(spacing: 8) {
             ForEach(presets, id: \.self) { day in
-                let enabled = isDayEnabled(day)
-                Button {
+                chip(title: Text("strict.sheet.day \(day)"), selected: selectedDays == day, enabled: isDayEnabled(day)) {
                     selectedDays = day
-                } label: {
-                    Text("strict.sheet.day \(day)")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(selectedDays == day ? Color.accent : Color(.tertiarySystemGroupedBackground))
-                        .foregroundStyle(selectedDays == day ? .black : (enabled ? .primary : .secondary))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .buttonStyle(.plain)
-                .disabled(!enabled)
-                .opacity(enabled ? 1 : 0.4)
             }
+            // 직접 입력: 선택된 값이 프리셋에 없으면 칩에 그 값을 그대로 보여준다("12일").
+            chip(
+                title: isCustomSelected ? Text("strict.sheet.day \(selectedDays)") : Text("strict.sheet.day.custom"),
+                selected: isCustomSelected,
+                enabled: !selectableCustomDays.isEmpty
+            ) {
+                // 직접 입력으로 전환할 때는 고를 수 있는 가장 작은 기간부터 시작한다.
+                selectedDays = selectableCustomDays.first(where: { !presets.contains($0) })
+                    ?? selectableCustomDays.first
+                    ?? selectedDays
+            }
+        }
+    }
+
+    private func chip(
+        title: Text,
+        selected: Bool,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            title
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(selected ? Color.accent : Color(.tertiarySystemGroupedBackground))
+                .foregroundStyle(selected ? .black : (enabled ? .primary : .secondary))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.4)
+    }
+
+    /// 직접 입력 휠(최대 30일). 상한은 실수 보호 — 한 번 걸면 못 푸는 모드라 무한정 긴 약정은 사고다.
+    @ViewBuilder
+    private var customDaysWheel: some View {
+        if !selectableCustomDays.isEmpty {
+            Picker("strict.sheet.period", selection: $selectedDays) {
+                ForEach(selectableCustomDays, id: \.self) { day in
+                    Text("strict.sheet.day \(day)").tag(day)
+                }
+            }
+            .pickerStyle(.wheel)
+            .frame(height: 120)
+            .clipped()
         }
     }
 
@@ -268,6 +325,9 @@ struct StrictLockSheet: View {
                 .foregroundStyle(.secondary)
             if canExtend {
                 presetChips
+                if isCustomSelected {
+                    customDaysWheel
+                }
                 expiryPreview.font(.footnote.weight(.semibold))
             } else {
                 Text("strict.active.extend.none")
@@ -351,6 +411,10 @@ private func makePreviewGroup(strictUntil: Date? = nil, startedAt: Date? = nil) 
     let until = Calendar.current.date(byAdding: .day, value: 5, to: Calendar.current.startOfDay(for: now))
     let started = Calendar.current.date(byAdding: .day, value: -2, to: now)
     return StrictLockSheet(group: makePreviewGroup(strictUntil: until, startedAt: started)) { _ in }
+}
+
+#Preview("켜기 — 직접 입력(휠)") {
+    StrictLockSheet(group: makePreviewGroup(), initialDays: 12) { _ in }
 }
 
 #Preview("최종 확인") {
