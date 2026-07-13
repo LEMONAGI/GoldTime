@@ -20,17 +20,24 @@ struct StrictLockSheet: View {
     let onConfirm: (Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var stage: Stage = .config
+    @State private var stage: Stage
     @State private var selectedDays: Int
 
-    private enum Stage { case config, confirm }
+    /// 시트 안 콘텐츠 단계. 프리뷰가 최종 확인 화면을 바로 열 수 있게 internal로 둔다.
+    enum Stage { case config, confirm }
 
     private let presets = ManageGroupsUseCase.strictLockDayPresets
 
-    init(group: ScreenTimeGroup, now: Date = Date(), onConfirm: @escaping (Int) -> Void) {
+    init(
+        group: ScreenTimeGroup,
+        now: Date = Date(),
+        initialStage: Stage = .config,
+        onConfirm: @escaping (Int) -> Void
+    ) {
         self.group = group
         self.now = now
         self.onConfirm = onConfirm
+        _stage = State(initialValue: initialStage)
         // 기본 선택: 켜기면 첫 프리셋, 연장이면 만료가 늘어나는 첫 프리셋.
         let presets = ManageGroupsUseCase.strictLockDayPresets
         let firstEnabled = presets.first { Self.isDayEnabled($0, group: group, now: now) }
@@ -322,3 +329,31 @@ struct StrictLockSheet: View {
         .background(.bar)
     }
 }
+
+#if DEBUG
+private func makePreviewGroup(strictUntil: Date? = nil, startedAt: Date? = nil) -> ScreenTimeGroup {
+    ScreenTimeGroup(
+        name: "SNS",
+        dailyLimitMinutes: 30,
+        ruleKind: .dailyLimit,
+        isApplied: true,
+        strictUntil: strictUntil,
+        strictStartedAt: startedAt
+    )
+}
+
+#Preview("켜기 — 기간 선택") {
+    StrictLockSheet(group: makePreviewGroup()) { _ in }
+}
+
+#Preview("약정 중 — 현황·연장") {
+    let now = Date()
+    let until = Calendar.current.date(byAdding: .day, value: 5, to: Calendar.current.startOfDay(for: now))
+    let started = Calendar.current.date(byAdding: .day, value: -2, to: now)
+    return StrictLockSheet(group: makePreviewGroup(strictUntil: until, startedAt: started)) { _ in }
+}
+
+#Preview("최종 확인") {
+    StrictLockSheet(group: makePreviewGroup(), initialStage: .confirm) { _ in }
+}
+#endif

@@ -416,3 +416,48 @@ struct GroupCardView: View {
         }
     }
 }
+
+#if DEBUG
+private func makeCardPreview(strictUntil: Date?) -> some View {
+    let group = ScreenTimeGroup(
+        name: "SNS",
+        dailyLimitMinutes: 30,
+        ruleKind: .dailyLimit,
+        isApplied: true,
+        strictUntil: strictUntil
+    )
+    let viewModel = HomeViewModel(
+        groups: [group],
+        todayStats: DailyStats(dateKey: "2026-07-13"),
+        isMonitoring: true,
+        isShieldActive: false,
+        shieldOverrideUntil: nil,
+        successMessage: nil,
+        errorMessage: nil
+    )
+    return ScrollView {
+        GroupCardView(
+            group: group,
+            viewModel: viewModel,
+            onDeleteGroup: { _ in },
+            onUpdateGroupName: { _, _ in },
+            onPresentPicker: { _ in },
+            onPresentRuleEditor: { _ in },
+            onUnlockGroup: { _ in },
+            onApplyGroup: { _ in },
+            onPresentStrictLock: { _ in }
+        )
+        .padding(16)
+    }
+    .background(Color(.systemGroupedBackground))
+}
+
+#Preview("카드 — 금고 약정 중") {
+    let until = Calendar.current.date(byAdding: .day, value: 5, to: Calendar.current.startOfDay(for: Date()))
+    return makeCardPreview(strictUntil: until)
+}
+
+#Preview("카드 — 무약정(금고 행)") {
+    makeCardPreview(strictUntil: nil)
+}
+#endif
