@@ -615,8 +615,9 @@ enum SharedStore {
         screenTimeGroups.first { $0.id == id }
     }
 
-    /// id에 해당하는 그룹을 찾아 `now`의 유효 규칙으로 투영한 사본을 반환한다.
-    /// 요일별 모드가 아니면 저장된 그룹 그대로다(extension tick 핸들러에서 오늘 규칙만 보게).
+    /// id에 해당하는 그룹을 찾아 `now`의 유효 규칙으로 투영한 사본을 반환한다
+    /// (extension tick 핸들러에서 오늘 규칙만 보게). 요일별 모드가 아니면 규칙 필드는 저장값 그대로다.
+    /// **단 strict 필드는 항상 스트립된다** — 금고 약정 판정에는 절대 쓰지 말 것(원본 `group(id:)`로).
     static func resolvedGroup(id: UUID, now: Date = Date()) -> ScreenTimeGroup? {
         group(id: id)?.resolved(on: now)
     }

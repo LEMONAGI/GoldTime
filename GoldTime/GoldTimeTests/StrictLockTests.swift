@@ -418,6 +418,31 @@ struct StrictLockTests {
         #expect(SharedStore.hasActiveStrictLock())
     }
 
+    // MARK: - 10-b. 하트비트 유지(자정 만료 해제 경로 보장)
+
+    @Test func heartbeatStaysAliveForStrictLockedTimeWindowOnlyGroup() {
+        // 시간대-only 구성은 원래 하트비트가 불필요하지만(window는 repeats:true), 금고 약정이
+        // 걸리면 유지해야 한다 — 만료는 lazy 판정이라 extension 콜백이 와야 전역 설정
+        // (기기 전체 앱 삭제 금지)이 해제된다. 콜백이 없으면 자정 만료 후에도 최대 하루 남는다.
+        let window = TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 12 * 60)
+        let plain = SharedStore.ScreenTimeGroup(
+            name: "시간대", selection: validSelection(), ruleKind: .timeWindows,
+            timeWindows: [window], isApplied: true
+        )
+        var strict = plain
+        strict.strictUntil = .distantFuture
+
+        // 대조: 금고 없는 시간대-only는 기존대로 하트비트 불필요.
+        #expect(!DailyMonitor.needsHeartbeat(for: [plain], appliedGroups: [plain]))
+        // 금고 약정 중이면 하트비트 유지.
+        #expect(DailyMonitor.needsHeartbeat(for: [strict], appliedGroups: [strict]))
+
+        // 만료된 약정은 다시 불필요(해제까지 마친 뒤엔 슬롯을 돌려준다).
+        var expired = plain
+        expired.strictUntil = .distantPast
+        #expect(!DailyMonitor.needsHeartbeat(for: [expired], appliedGroups: [expired]))
+    }
+
     // MARK: - 11. ExtendGroupUseCase 앞단 거부
 
     @Test func extendUseCaseRejectsStrictLockedGroup() {
@@ -555,6 +580,36 @@ struct StrictLockTests {
         viewModel.presentStrictLockSheet(for: group)
 
         #expect(viewModel.strictLockSheetGroupID == nil)
+    }
+
+    @Test func presentStrictLockSheetBlockedForInvalidAppliedGroup() {
+        // applied이지만 무효한 그룹(항목 0개 — 적용 후 picker에서 전부 해제)은 시트를 열지 않고
+        // 사유를 안내한다. 열어주면 activateStrictLock이 같은 검증으로 거부해 최종 확인을 눌러도
+        // 확정이 조용히 실패하고, 사용자는 금고가 켜졌다고 오인한다.
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let viewModel = makeContentViewModel(groups: [group])
+
+        viewModel.presentStrictLockSheet(for: group)
+
+        #expect(viewModel.strictLockSheetGroupID == nil)
+        #expect(viewModel.alertMessage != nil)
+    }
+
+    @Test func presentStrictLockSheetOpensForActiveCommitmentEvenIfInvalid() {
+        // 이미 약정 중인 그룹은 편집이 막혀 무효가 될 수 없으므로 유효성 검증을 건너뛰고
+        // 현황·연장 진입을 허용한다(방어적 — 진입까지 막으면 만료일도 못 본다).
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", dailyLimitMinutes: 30, ruleKind: .dailyLimit,
+            isApplied: true, strictUntil: .distantFuture
+        )
+        let viewModel = makeContentViewModel(groups: [group])
+
+        viewModel.presentStrictLockSheet(for: group)
+
+        #expect(viewModel.strictLockSheetGroupID == group.id)
+        #expect(viewModel.alertMessage == nil)
     }
 
     // MARK: - 12. Presentation — HomeViewModel 남은 일수·배지

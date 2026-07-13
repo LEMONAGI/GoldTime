@@ -192,13 +192,20 @@ enum DailyMonitor {
     ///   재무장의 주 경로인 하트비트를 유지해야 한다(오늘 전부 '제한 없음'이어도 살려둔다). 요일별 그룹
     ///   5개가 전부 오늘 시간대인 최악의 경우 4×5+1=21로 상한을 넘을 수 있으나(알려진 한계),
     ///   BGTask·foreground sync가 전환 fallback이라 문서화만 하고 여기서 정밀화하지 않는다.
-    /// - `validGroups`는 오늘 규칙 투영본(모니터링 대상), `appliedGroups`는 요일 판정용 원본을 넘긴다.
+    /// - **금고 약정 그룹**(`isStrictLockActive`)도 하트비트를 유지한다. 약정 만료는 lazy 판정이라
+    ///   해제 트리거가 `StrictLockEnforcement` 재평가뿐인데, extension 재평가는 콜백이 와야 돈다 →
+    ///   시간대-only 금고 그룹은 하트비트가 없으면 자정 만료 후에도 **기기 전체 앱 삭제 금지**가
+    ///   최대 하루 남는다(사용자가 앱을 열 때까지). 전역 부작용이라 activity 슬롯보다 우선한다.
+    /// - `validGroups`는 오늘 규칙 투영본(모니터링 대상), `appliedGroups`는 요일·약정 판정용 원본을
+    ///   넘긴다(투영본은 weekdayRules·strict 필드가 스트립되어 판정에 못 쓴다).
     nonisolated static func needsHeartbeat(
         for validGroups: [SharedStore.ScreenTimeGroup],
-        appliedGroups: [SharedStore.ScreenTimeGroup] = []
+        appliedGroups: [SharedStore.ScreenTimeGroup] = [],
+        now: Date = Date()
     ) -> Bool {
         validGroups.contains { $0.ruleKind == .dailyLimit || $0.ruleKind == .cooldown }
             || appliedGroups.contains { $0.isApplied && $0.usesWeekdayRules }
+            || appliedGroups.contains { $0.isApplied && $0.isStrictLockActive(at: now) }
     }
 }
 

@@ -51,6 +51,13 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   강한 확인 2단계는 **같은 시트 안 콘텐츠 전환**이다(시트 안 dialog→modal 연쇄 금지 규칙).
   켜기는 무료(광고 없음 — "강화는 무료, 완화에 통행료"), 이름 변경(`updateName`)만 약정 중에도
   허용. 만료 날짜 표기는 `goldTimeStrictExpiryDateText` 공용("0시" 표현은 각 문구 키 안에).
+  **금고 그룹에서는 광고 게이트 다이얼로그를 절대 먼저 띄우지 않는다**(`GroupCardView`의
+  `tapEditSelection`·trash 분기): "광고 보고 편집하기"는 금고와 모순되는 안내이고, 다이얼로그가
+  닫히는 사이클에 차단 alert를 세팅하게 돼 SwiftUI가 alert 표시를 건너뛴다 — 곧장 ViewModel
+  guard로 보내 alert만 띄운다. 금고 시트 진입은 **applied + 유효 규칙**일 때만 연다
+  (`presentStrictLockSheet` — 무효 그룹을 열어주면 `activateStrictLock`이 거부해 최종 확인을
+  눌러도 조용히 실패하고 사용자는 켜졌다고 오인한다). 확정 실패 alert은 시트 dismiss와 겹치지
+  않게 `Task { @MainActor }`로 미룬다.
 
 - **자정 직전 안내는 경계가 둘이고 서로 다르다(헷갈리기 쉬움)**. 편집 중 RuleEditor 안 인라인
   notice(`ContentViewModel.nearMidnightEditNotice` / `isNearMidnightEditNoticeWindow`)는 **23:30**부터

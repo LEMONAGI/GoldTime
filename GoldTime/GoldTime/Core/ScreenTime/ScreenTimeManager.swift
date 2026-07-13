@@ -270,9 +270,10 @@ enum ScreenTimeManager {
         // 재무장의 주 경로). 시간대-only 구성은 window가 repeats:true라 불필요하고, 시간대 그룹은
         // window+override로 그룹당 최대 4개 activity를 쓸 수 있어(5그룹×4=20) 하트비트를 더하면 동시
         // 모니터링 상한을 넘길 수 있으므로 등록하지 않는다(DailyMonitor.needsHeartbeat 참조). 요일 그룹은
-        // 오늘 전부 '제한 없음'이어도 다음날 자정 재무장을 위해 하트비트를 유지한다. 등록 실패는 이
-        // 변경의 핵심 경로가 사라지는 것이므로 try?로 삼키지 않고 firstError로 전파한다(관측 가능).
-        if DailyMonitor.needsHeartbeat(for: validGroups, appliedGroups: sanitizedGroups) {
+        // 오늘 전부 '제한 없음'이어도 다음날 자정 재무장을 위해 하트비트를 유지한다. 금고 약정 그룹도
+        // 유지한다(자정 만료 시 extension이 전역 설정을 해제하려면 콜백이 필요 — needsHeartbeat 참조).
+        // 등록 실패는 이 변경의 핵심 경로가 사라지는 것이므로 try?로 삼키지 않고 firstError로 전파한다.
+        if DailyMonitor.needsHeartbeat(for: validGroups, appliedGroups: sanitizedGroups, now: now) {
             do {
                 try center.startMonitoring(.dailyHeartbeat, during: DailyMonitor.heartbeatSchedule, events: [:])
             } catch {

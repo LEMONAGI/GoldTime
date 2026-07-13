@@ -924,9 +924,20 @@ final class ContentViewModel {
         groups.contains { $0.isStrictLockActive() }
     }
 
-    /// 금고 시트 열기. applied 그룹만(draft·미적용은 무시).
+    /// 금고 시트 열기. applied + **유효 규칙** 그룹만 — `activateStrictLock`이 같은 검증으로
+    /// 거부하므로, 무효 그룹(예: 적용 후 항목을 전부 해제)에서 진입을 허용하면 최종 확인까지
+    /// 눌러도 확정이 조용히 실패해 "켜졌다"고 오인하게 된다. 이미 약정 중인 그룹(연장 진입)은
+    /// 편집이 막혀 무효가 될 수 없으므로 검증을 건너뛴다.
     func presentStrictLockSheet(for group: ScreenTimeGroup) {
         guard group.isApplied else { return }
+        if !group.isStrictLockActive(),
+           let reason = ScreenTimeGroupPolicy.invalidReason(for: group.policySnapshot) {
+            alertMessage = GoldTimeAlertMessage(
+                title: String(localized: "content.alert.strictCannotStart.title"),
+                message: reason.userMessage
+            )
+            return
+        }
         strictLockSheetGroupID = group.id
     }
 
@@ -935,12 +946,21 @@ final class ContentViewModel {
     }
 
     /// 금고 약정 시작·연장 확정. 성공 시 저장+sync(투영 스트립 덕에 모니터 재등록 없음)하고
-    /// 분석 로깅 후 시트를 닫는다. 실패(applied+유효 검증 후 진입이라 사실상 불가)면 조용히 시트만 닫는다.
+    /// 분석 로깅 후 시트를 닫는다. 실패는 진입 검증 뒤라 드물지만(경합 등) **조용히 닫지 않고**
+    /// 사유를 안내한다 — 사용자가 금고가 켜졌다고 오인하면 안 된다. alert은 시트가 닫히는
+    /// 사이클과 겹치면 누락되므로 다음 런루프로 미룬다(Presentation/CLAUDE.md).
     func confirmStrictLock(days: Int) {
         guard let id = strictLockSheetGroupID else { return }
         var updated = groups
         guard manageGroupsUseCase.activateStrictLock(id: id, days: days, in: &updated) else {
+            let reason = groups.first(where: { $0.id == id })
+                .flatMap { ScreenTimeGroupPolicy.invalidReason(for: $0.policySnapshot) }
+            let failure = GoldTimeAlertMessage(
+                title: String(localized: "content.alert.strictCannotStart.title"),
+                message: reason?.userMessage ?? String(localized: "content.alert.strictCannotStart.message")
+            )
             strictLockSheetGroupID = nil
+            Task { @MainActor in self.alertMessage = failure }
             return
         }
         groups = updated

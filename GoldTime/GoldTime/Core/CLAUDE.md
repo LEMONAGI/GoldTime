@@ -93,6 +93,12 @@ extension 단독 해제 보장). 만료 해제 트리거가 따로 없으므로(
 로그는 전이 시에만. 연장 차단의 Core 최종 방어는 `extendGroup`의 strict guard 하나다
 (`releaseShield`에는 없다 — 호출 경로가 extendGroup뿐).
 
+**extension 재평가는 콜백이 와야 돈다** → `DailyMonitor.needsHeartbeat`가 **금고 약정 그룹에서도
+true**여야 한다(시간대-only 금고 그룹은 하트비트가 없으면 자정 만료 후에도 기기 전체 앱 삭제
+금지가 최대 하루 남는다 — 사용자가 앱을 열 때까지). 이 조건을 activity 슬롯 절약을 이유로
+빼지 말 것: 전역 부작용이 슬롯보다 무겁다. 구버전 다운그레이드는 알려진 구멍이다(구버전에
+해제 코드가 없어 `denyAppRemoval` 좀비 — 탈출구는 스크린타임 권한 OFF뿐, 런북에 경고).
+
 ## 주의사항 (작업 중 발견 시 누적)
 
 - ATT 버튼의 로딩은 UMP 동의와 ATT 응답까지만 기다린다. `MobileAds.start()` 완료 콜백은 네트워크·WebKit

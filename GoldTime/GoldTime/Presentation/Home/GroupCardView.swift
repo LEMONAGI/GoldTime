@@ -128,9 +128,12 @@ struct GroupCardView: View {
                 Spacer()
 
                 Button(role: .destructive) {
-                    // 금고 약정 중엔 삭제 다이얼로그도 뜨지 않게 한다(ContentViewModel에도 방어 있음).
-                    guard !isStrictActive else { return }
-                    if isEditRestricted {
+                    // 금고 약정 중엔 광고 게이트 다이얼로그를 띄우지 않고 곧장 ContentViewModel로
+                    // 보낸다 — 거기 strict guard가 "약정이 끝나야 지울 수 있어요" alert을 띄운다.
+                    // (버튼을 disabled로 두면 왜 안 되는지 설명할 자리가 없어 dim만 남긴다.)
+                    if isStrictActive {
+                        onDeleteGroup(group.id)
+                    } else if isEditRestricted {
                         isShowingDeleteConfirm = true
                     } else {
                         isShowingDeleteRegularConfirm = true
@@ -140,8 +143,7 @@ struct GroupCardView: View {
                         .font(.body.weight(.semibold))
                 }
                 .buttonStyle(.plain)
-                .disabled(isStrictActive)
-                .opacity(isStrictActive ? 0.35 : 1)
+                .opacity(isStrictActive ? 0.45 : 1)
                 .confirmationDialog("group.delete.title", isPresented: $isShowingDeleteRegularConfirm) {
                     Button("common.delete", role: .destructive) {
                         onDeleteGroup(group.id)
@@ -327,11 +329,23 @@ struct GroupCardView: View {
         }
     }
 
+    /// 항목(앱 선택) 편집 탭. **금고 약정 중이면 광고 게이트 다이얼로그를 띄우지 않고** 곧장
+    /// ContentViewModel로 보낸다 — 거기 strict guard가 차단 안내 alert만 띄운다. 다이얼로그를
+    /// 먼저 띄우면 "광고 보고 편집하기"라는 금고와 모순되는 안내가 뜨고, 확인 시 다이얼로그가
+    /// 닫히는 같은 사이클에 alert를 세팅하게 돼 SwiftUI가 표시를 건너뛴다(Presentation/CLAUDE.md).
+    private func tapEditSelection() {
+        if isStrictActive || !isEditRestricted {
+            onPresentPicker(group)
+            return
+        }
+        isShowingEditConfirm = true
+    }
+
     @ViewBuilder
     private var editTokenList: some View {
         if group.selectionCount == 0 {
             Button {
-                if isEditRestricted { isShowingEditConfirm = true } else { onPresentPicker(group) }
+                tapEditSelection()
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "square.grid.2x2")
@@ -347,7 +361,7 @@ struct GroupCardView: View {
             .buttonStyle(GoldTimeButtonStyle(background: Color(.tertiarySystemGroupedBackground), foreground: .primary))
         } else {
             Button {
-                if isEditRestricted { isShowingEditConfirm = true } else { onPresentPicker(group) }
+                tapEditSelection()
             } label: {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {

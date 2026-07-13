@@ -922,6 +922,52 @@
         }
       }
     },
+    "content.alert.strictCannotStart.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vault Mode can't start right now. Try again in a moment."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今は金庫モードを開始できません。少し後にもう一度お試しください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금은 금고 모드를 켤 수 없어요. 잠시 뒤 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "content.alert.strictCannotStart.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't start Vault Mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "金庫モードを開始できません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "금고를 켤 수 없어요"
+          }
+        }
+      }
+    },
     "content.alert.timeWindowCheck.title": {
       "extractionState": "manual",
       "localizations": {
