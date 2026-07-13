@@ -8415,19 +8415,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Date and time are pinned to automatic."
+            "value": "Date and time are pinned to automatic — no winding the clock forward to unlock."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "日付・時刻が自動に固定されます。"
+            "value": "日付・時刻が自動に固定されます。時計を進めて解除する抜け道を塞ぎます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "날짜·시간이 자동으로 고정돼요."
+            "value": "날짜·시간이 자동으로 고정돼요. 시계를 돌려서 푸는 길을 막아요."
           }
         }
       }
