@@ -8323,19 +8323,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This group stays locked for %lld days — until 11:59 PM on %@. It can't be changed in between."
+            "value": "This group stays locked for %lld days — until 11:59 PM on %@.\nIt can't be turned off early."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld日間このグループがロックされます。%@ 23:59まで続き、途中で変更できません。"
+            "value": "%lld日間このグループがロックされます。%@ 23:59まで。\n途中で解除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld일 동안 이 그룹이 잠겨요. %@ 23:59까지 유지되고, 중간에 바꿀 수 없어요."
+            "value": "%lld일 동안 이 그룹이 잠겨요. %@ 23:59까지.\n중간에 해제할 수 없어요."
           }
         }
       }
