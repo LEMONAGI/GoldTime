@@ -174,6 +174,7 @@ enum NotificationService {
             content.body = String(localized: "notification.usage.override.almost.body \(remainingMinutes)")
         }
         content.sound = .default
+        content.interruptionLevel = .timeSensitive
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
@@ -186,6 +187,7 @@ enum NotificationService {
         content.title = String(localized: "notification.recharge.title \(groupName)")
         content.body = String(localized: "notification.recharge.body")
         content.sound = .default
+        content.interruptionLevel = .timeSensitive
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
@@ -389,6 +391,7 @@ enum NotificationService {
             content.body = String(localized: "notification.timeWindow.ended.body")
         }
         content.sound = .default
+        content.interruptionLevel = .timeSensitive
         var components = DateComponents()
         components.hour = plan.hour
         components.minute = plan.minute
