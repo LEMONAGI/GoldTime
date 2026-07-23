@@ -94,104 +94,97 @@ struct GoldTimeTests {
         #expect(NotificationService.timeWindowAlertMinute(baseMinute: 720, offset: 1) == 721)   // 12:00 끝 → 12:01
     }
 
-    // MARK: - 요일 트리거 wrap(weekdayAlertComponents) — 분과 함께 요일도 ±1 wrap
-
-    @Test func weekdayAlertComponentsWrapsWeekdayAndMinute() {
-        // 5분 전 00:03 → 전날 23:58: weekday도 −1. 일(0)→토(6) 포함.
-        let sunWarn = NotificationService.weekdayAlertComponents(weekdayIndex: 0, baseMinute: 3, offset: -5)
-        #expect(sunWarn.weekdayIndex == 6)
-        #expect(sunWarn.minuteOfDay == 1438)
-        let wedWarn = NotificationService.weekdayAlertComponents(weekdayIndex: 3, baseMinute: 3, offset: -5)
-        #expect(wedWarn.weekdayIndex == 2)
-        #expect(wedWarn.minuteOfDay == 1438)
-
-        // inclusive 끝 1439 종료 → 익일 00:00: weekday도 +1. 토(6)→일(0) 포함.
-        let satEnd = NotificationService.weekdayAlertComponents(weekdayIndex: 6, baseMinute: 1439, offset: 1)
-        #expect(satEnd.weekdayIndex == 0)
-        #expect(satEnd.minuteOfDay == 0)
-        let tueEnd = NotificationService.weekdayAlertComponents(weekdayIndex: 2, baseMinute: 1439, offset: 1)
-        #expect(tueEnd.weekdayIndex == 3)
-        #expect(tueEnd.minuteOfDay == 0)
-
-        // 일반 케이스: 날짜 안 넘어가면 요일 그대로.
-        let normalWarn = NotificationService.weekdayAlertComponents(weekdayIndex: 4, baseMinute: 600, offset: -5)
-        #expect(normalWarn.weekdayIndex == 4)
-        #expect(normalWarn.minuteOfDay == 595)
-        let normalEnd = NotificationService.weekdayAlertComponents(weekdayIndex: 1, baseMinute: 720, offset: 1)
-        #expect(normalEnd.weekdayIndex == 1)
-        #expect(normalEnd.minuteOfDay == 721)
+    @Test func imminentTimeWindowAlertIsPreservedAcrossMidnightReschedule() {
+        let now = notificationDate(2026, 7, 7, 0, 0)
+        // 전날 23:59 시간대 종료 알림(00:00)은 자정 하트비트가 재예약하더라도 취소하면 안 된다.
+        #expect(NotificationService.shouldKeepImminentTimeWindowAlert(fireDate: now, now: now))
+        #expect(NotificationService.shouldKeepImminentTimeWindowAlert(
+            fireDate: notificationDate(2026, 7, 7, 0, 1), now: now
+        ))
+        #expect(!NotificationService.shouldKeepImminentTimeWindowAlert(
+            fireDate: notificationDate(2026, 7, 7, 0, 2), now: now
+        ))
+        #expect(!NotificationService.shouldKeepImminentTimeWindowAlert(
+            fireDate: notificationDate(2026, 7, 6, 23, 59), now: now
+        ))
     }
 
-    // MARK: - 시간대 알림 예약 계획(timeWindowAlertPlans) — dedupe·요일 트리거·회귀
+    // MARK: - 시간대 알림 예약 계획(timeWindowAlertPlans) — 요일별 롤링·비요일 회귀
 
-    @Test func timeWindowAlertPlansDedupesSevenDaySameWindowToDaily() {
-        // 7요일 전부 같은 시간대(08:00–08:59) → 매일 반복 1쌍(요일 접미사·weekday 없음).
-        let prefix = NotificationService.timeWindowAlertPrefix
-        let id = UUID()
-        let window = TimeWindow(startMinuteOfDay: 8 * 60, endMinuteOfDay: 8 * 60 + 59)
-        let rules = (0..<7).map { _ in SharedStore.DayRule(kind: .timeWindows, timeWindows: [window]) }
-        let group = SharedStore.ScreenTimeGroup(
-            id: id, name: "수면", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
-        )
-
-        let plans = NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: true)
-
-        #expect(plans.count == 2)
-        #expect(plans.allSatisfy { $0.weekday == nil })
-        let warn = plans.first { $0.phase == .warn }
-        #expect(warn?.identifier == "\(prefix)warn.\(id.uuidString).480-539")
-        #expect(warn?.hour == 7 && warn?.minute == 55)   // 08:00 − 5분 = 07:55
-        let end = plans.first { $0.phase == .end }
-        #expect(end?.identifier == "\(prefix)end.\(id.uuidString).480-539")
-        #expect(end?.hour == 9 && end?.minute == 0)      // inclusive 08:59 종료 = 09:00
+    private var notificationCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        return calendar
     }
 
-    @Test func timeWindowAlertPlansWeekdayOnlyWindowsProduceWeekdayTriggers() {
-        // 평일(월~금, index 1~5)만 같은 시간대(09:00–17:59) → 5요일 트리거(각 weekday 컴포넌트).
+    private func notificationDate(_ year: Int, _ month: Int, _ day: Int, _ hour: Int, _ minute: Int) -> Date {
+        notificationCalendar.date(from: DateComponents(
+            year: year, month: month, day: day, hour: hour, minute: minute
+        ))!
+    }
+
+    @Test func weekdayTimeWindowAlertPlansRollOnlyToday() {
+        // 2026-07-06(월) 08:00 기준. 월·화 모두 시간대여도 오늘(월) 것만 날짜 포함 일회성으로 만든다.
+        let now = notificationDate(2026, 7, 6, 8, 0)
         let id = UUID()
-        let window = TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 17 * 60 + 59)
         var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30) }
-        for i in 1...5 { rules[i] = SharedStore.DayRule(kind: .timeWindows, timeWindows: [window]) }
+        rules[1] = SharedStore.DayRule(kind: .timeWindows, timeWindows: [
+            TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 9 * 60 + 59)
+        ])
+        rules[2] = SharedStore.DayRule(kind: .timeWindows, timeWindows: [
+            TimeWindow(startMinuteOfDay: 10 * 60, endMinuteOfDay: 10 * 60 + 59)
+        ])
         let group = SharedStore.ScreenTimeGroup(
             id: id, name: "집중", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
         )
 
-        let plans = NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: true)
-
-        #expect(plans.count == 10)   // 5요일 × (warn+end)
-        // 각 요일 트리거의 weekday = index + 1 → {2,3,4,5,6} (날짜 안 넘어가 wrap 없음).
-        let warnWeekdays = Set(plans.filter { $0.phase == .warn }.map { $0.weekday })
-        #expect(warnWeekdays == Set([2, 3, 4, 5, 6].map(Optional.init)))
-        let endWeekdays = Set(plans.filter { $0.phase == .end }.map { $0.weekday })
-        #expect(endWeekdays == Set([2, 3, 4, 5, 6].map(Optional.init)))
-        // 월요일(index 1) 5분 전: 08:55, weekday 2, 식별자에 .d1 접미사.
-        let mondayWarn = plans.first { $0.phase == .warn && $0.identifier.hasSuffix(".d1") }
-        #expect(mondayWarn?.weekday == 2)
-        #expect(mondayWarn?.hour == 8 && mondayWarn?.minute == 55)
-    }
-
-    @Test func timeWindowAlertPlansOnlyTodayTimeWindowsProducesSingleWeekday() {
-        // 수요일(index 3)만 timeWindows(22:00–23:59), 다른 날 daily → 그 요일 트리거만.
-        // 종료가 익일 00:00로 넘어가 weekday도 +1(수→목)되는 wrap을 함께 검증한다.
-        let id = UUID()
-        var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30) }
-        rules[3] = SharedStore.DayRule(
-            kind: .timeWindows,
-            timeWindows: [TimeWindow(startMinuteOfDay: 22 * 60, endMinuteOfDay: 23 * 60 + 59)]
+        let plans = NotificationService.timeWindowAlertPlans(
+            groups: [group], isEnabled: true, now: now, calendar: notificationCalendar
         )
-        let group = SharedStore.ScreenTimeGroup(
-            id: id, name: "수면", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
-        )
-
-        let plans = NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: true)
 
         #expect(plans.count == 2)
         let warn = plans.first { $0.phase == .warn }
-        #expect(warn?.weekday == 4)      // 수요일(index 3) → weekday 4, 21:55 (같은 날)
-        #expect(warn?.hour == 21 && warn?.minute == 55)
+        #expect(warn?.identifier == "\(NotificationService.timeWindowAlertPrefix)warn.\(id.uuidString).540-599.20260706")
+        #expect(warn?.trigger == .oneTime(notificationDate(2026, 7, 6, 8, 55)))
         let end = plans.first { $0.phase == .end }
-        #expect(end?.weekday == 5)        // 23:59 종료 = 익일 00:00 → 목요일(weekday 5)
-        #expect(end?.hour == 0 && end?.minute == 0)
+        #expect(end?.trigger == .oneTime(notificationDate(2026, 7, 6, 10, 0)))
+    }
+
+    @Test func weekdayTimeWindowAlertPlansPrebooksTomorrowMidnightWarning() {
+        // 화요일 00:03 시작은 5분 전이 월요일 23:58이다. 자정 하트비트보다 먼저 예약돼야 한다.
+        let now = notificationDate(2026, 7, 6, 20, 0)
+        var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30) }
+        rules[2] = SharedStore.DayRule(kind: .timeWindows, timeWindows: [
+            TimeWindow(startMinuteOfDay: 3, endMinuteOfDay: 17)
+        ])
+        let group = SharedStore.ScreenTimeGroup(
+            name: "수면", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+
+        let plans = NotificationService.timeWindowAlertPlans(
+            groups: [group], isEnabled: true, now: now, calendar: notificationCalendar
+        )
+
+        #expect(plans.count == 1)
+        #expect(plans[0].phase == .warn)
+        #expect(plans[0].trigger == .oneTime(notificationDate(2026, 7, 6, 23, 58)))
+    }
+
+    @Test func weekdayTimeWindowAlertPlansExcludePastAlerts() {
+        let now = notificationDate(2026, 7, 6, 10, 0)
+        var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30) }
+        rules[1] = SharedStore.DayRule(kind: .timeWindows, timeWindows: [
+            TimeWindow(startMinuteOfDay: 8 * 60, endMinuteOfDay: 8 * 60 + 59)
+        ])
+        let group = SharedStore.ScreenTimeGroup(
+            name: "집중", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+
+        let plans = NotificationService.timeWindowAlertPlans(
+            groups: [group], isEnabled: true, now: now, calendar: notificationCalendar
+        )
+
+        #expect(plans.isEmpty)
     }
 
     @Test func timeWindowAlertPlansNonWeekdayGroupMatchesLegacy() {
@@ -206,9 +199,15 @@ struct GoldTimeTests {
             ]
         )
 
-        let plans = NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: true)
+        let plans = NotificationService.timeWindowAlertPlans(
+            groups: [group], isEnabled: true,
+            now: notificationDate(2026, 7, 6, 8, 0), calendar: notificationCalendar
+        )
 
-        #expect(plans.allSatisfy { $0.weekday == nil })
+        #expect(plans.allSatisfy {
+            if case .daily = $0.trigger { return true }
+            return false
+        })
         #expect(plans.map(\.identifier) == [
             "\(prefix)warn.\(id.uuidString).0",
             "\(prefix)end.\(id.uuidString).0",
@@ -223,7 +222,39 @@ struct GoldTimeTests {
             name: "수면", ruleKind: .timeWindows,
             timeWindows: [TimeWindow(startMinuteOfDay: 8 * 60, endMinuteOfDay: 8 * 60 + 59)]
         )
-        #expect(NotificationService.timeWindowAlertPlans(groups: [group], isEnabled: false).isEmpty)
+        #expect(NotificationService.timeWindowAlertPlans(
+            groups: [group], isEnabled: false,
+            now: notificationDate(2026, 7, 6, 8, 0), calendar: notificationCalendar
+        ).isEmpty)
+    }
+
+    @Test func timeWindowAlertPlansStayBelowSoftLimitAtMaximumValidConfiguration() {
+        // 현재 상한(5그룹·요일당 최대 3시간대)에서 오늘 30개 + 내일 자정 직전 경고 5개다.
+        let now = notificationDate(2026, 7, 6, 8, 0)
+        let todayIndex = WeekdayRulePolicy.weekdayIndex(for: now, calendar: notificationCalendar)
+        let tomorrowIndex = (todayIndex + 1) % 7
+        let todayWindows = [
+            TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 9 * 60 + 14),
+            TimeWindow(startMinuteOfDay: 12 * 60, endMinuteOfDay: 12 * 60 + 14),
+            TimeWindow(startMinuteOfDay: 18 * 60, endMinuteOfDay: 18 * 60 + 14),
+        ]
+        let groups = (0..<SharedStore.maxGroupCount).map { index -> SharedStore.ScreenTimeGroup in
+            var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30) }
+            rules[todayIndex] = SharedStore.DayRule(kind: .timeWindows, timeWindows: todayWindows)
+            rules[tomorrowIndex] = SharedStore.DayRule(kind: .timeWindows, timeWindows: [
+                TimeWindow(startMinuteOfDay: 0, endMinuteOfDay: 14)
+            ])
+            return SharedStore.ScreenTimeGroup(
+                name: "그룹 \(index)", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+            )
+        }
+
+        let plans = NotificationService.timeWindowAlertPlans(
+            groups: groups, isEnabled: true, now: now, calendar: notificationCalendar
+        )
+
+        #expect(plans.count == 35)
+        #expect(plans.count <= NotificationService.timeWindowAlertSoftLimit)
     }
 
     @Test func dailyHeartbeatScheduleIsCanonicalRepeatingMidnightWindow() {

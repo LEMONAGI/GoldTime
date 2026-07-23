@@ -96,11 +96,14 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         }
         GTLog.shield.notice("자정 리셋 + 재무장 시작")
 
+        let now = Date()
         // 어제 데이터 확정 시점에 오늘 9시 알림 예약(SharedStore 가드가 하루 1회만 통과).
-        NotificationService.scheduleDailyMorningNotificationIfNeeded()
+        NotificationService.scheduleDailyMorningNotificationIfNeeded(now: now)
+        // 요일별 시간대 알림은 오늘 날짜 기준 일회성 예약이라, 자정 전환 때 다음 날분을 다시 건다.
+        // 00:00~00:05 시작의 5분 전 알림은 전날 예약본이 담당한다.
+        NotificationService.rescheduleTimeWindowAlerts(groups: SharedStore.screenTimeGroups, now: now)
         clearSystemShield()
 
-        let now = Date()
         let center = DeviceActivityCenter()
         var dailyGens = SharedStore.lastRegisteredGenerationByID   // 리셋으로 [:]
         var cooldownGens = SharedStore.cooldownGenerationByID
