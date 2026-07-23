@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-/// 요일 다중 선택 칩. 요일 라벨은 `Calendar.current.veryShortWeekdaySymbols`(로케일 자동)를 쓰고,
+/// 요일 다중 선택 칩. 요일 라벨은 `Calendar.current.shortWeekdaySymbols`(로케일 자동)를 쓰고,
 /// 표시 순서는 설정의 주 시작 요일에서 계산한 `orderedIndices`(0=일 … 6=토)를 그대로 따른다.
 /// 선택 상태는 `Set<Int>` 바인딩이라 어떤 요일이 골라졌는지 인덱스로 다룬다.
 struct WeekdayChips: View {
@@ -14,7 +14,7 @@ struct WeekdayChips: View {
     @Binding var selection: Set<Int>
 
     private var shortSymbols: [String] {
-        Calendar.current.veryShortWeekdaySymbols
+        Calendar.current.shortWeekdaySymbols
     }
 
     private var fullSymbols: [String] {

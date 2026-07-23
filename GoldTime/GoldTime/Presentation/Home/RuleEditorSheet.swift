@@ -356,7 +356,7 @@ struct RuleEditorSheet: View {
     /// 요일 그룹의 요일 라벨. 연속 2일 이상은 "월 ~ 금"처럼 물결로 압축하고, 나머지는 "월, 수, 금"처럼
     /// 쉼표로 나열한다(혼합이면 "월 ~ 수, 금").
     private func daysLabel(for days: Set<Int>) -> String {
-        let symbols = Calendar.current.veryShortWeekdaySymbols
+        let symbols = Calendar.current.shortWeekdaySymbols
         let ordered = orderedIndices.filter { days.contains($0) }
         guard !ordered.isEmpty else { return "" }
 
@@ -421,7 +421,7 @@ private struct WeekdayRuleStrip: View {
     let onSelect: (Int) -> Void
 
     private var shortSymbols: [String] {
-        Calendar.current.veryShortWeekdaySymbols
+        Calendar.current.shortWeekdaySymbols
     }
 
     private var fullSymbols: [String] {
