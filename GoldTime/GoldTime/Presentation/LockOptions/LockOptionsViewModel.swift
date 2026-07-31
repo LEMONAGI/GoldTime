@@ -115,12 +115,24 @@ final class LockOptionsViewModel {
         extendGroupUseCase.isNearMidnightCutoff()
     }
 
+    /// 선택된 그룹이 연장 불가 기간 중인지. 반드시 원본 selectedGroup으로 판정한다
+    /// (resolved 투영은 strict 필드가 스트립되므로 금지).
+    var isSelectedGroupStrictLocked: Bool {
+        selectedGroup?.isStrictLockActive() == true
+    }
+
     var canExtendOneMinute: Bool {
-        selectedGroup != nil && oneMinuteRemaining > 0 && !isExtending && !isNearMidnightCutoff
+        selectedGroup != nil && oneMinuteRemaining > 0 && !isExtending && !isNearMidnightCutoff && !isSelectedGroupStrictLocked
     }
 
     var canExtendWithAd: Bool {
-        selectedGroup != nil && !isExtending
+        selectedGroup != nil && !isExtending && !isSelectedGroupStrictLocked
+    }
+
+    /// 선택된 그룹이 연장 불가 기간 중이면 연장 대신 만료일을 안내한다.
+    var strictLockNotice: String? {
+        guard let group = selectedGroup, group.isStrictLockActive(), let until = group.strictUntil else { return nil }
+        return String(localized: "lock.strict.notice \(goldTimeStrictLockedUntilText(until))")
     }
 
     /// 자정 근처는 광고를 봐도 10분이 아니라 "자정까지"만 열리므로 버튼 제목을 정직하게 바꾼다.
@@ -322,6 +334,8 @@ final class LockOptionsViewModel {
                 : String(localized: "lock.error.adFailed")
         case .relockTimerRegistrationFailed:
             return String(localized: "lock.error.relockFailed")
+        case .strictLockActive:
+            return String(localized: "lock.error.strictLockActive")
         }
     }
 

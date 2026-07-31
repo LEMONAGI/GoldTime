@@ -53,11 +53,18 @@ final class ExtendGroupUseCase {
     }
 
     func extendOneMinute(groupID: UUID) -> Result<GroupExtensionResult, ExtensionFailure> {
-        screenTimeRepository.extendGroup(groupID: groupID, duration: 60, source: .oneMinute)
+        guard !isStrictLocked(groupID: groupID) else { return .failure(.strictLockActive) }
+        return screenTimeRepository.extendGroup(groupID: groupID, duration: 60, source: .oneMinute)
     }
 
     func extendWithAd(groupID: UUID) -> Result<GroupExtensionResult, ExtensionFailure> {
-        screenTimeRepository.extendGroup(groupID: groupID, duration: 10 * 60, source: .adReward)
+        guard !isStrictLocked(groupID: groupID) else { return .failure(.strictLockActive) }
+        return screenTimeRepository.extendGroup(groupID: groupID, duration: 10 * 60, source: .adReward)
+    }
+
+    /// 연장 불가 기간 판정은 원본 그룹에서 한다(투영본은 strict 필드가 스트립됨).
+    private func isStrictLocked(groupID: UUID, now: Date = Date()) -> Bool {
+        shieldRepository.lockedGroups().first { $0.id == groupID }?.isStrictLockActive(at: now) ?? false
     }
 
     /// 자정까지 < 15분이라 1분 연장(정확 차감)이 불가능한 시점인지. = 23:45부터.

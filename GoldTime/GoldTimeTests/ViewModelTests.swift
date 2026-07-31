@@ -4499,6 +4499,7 @@ private final class FakeAnalyticsRepository: AnalyticsRepository {
 @MainActor
 private final class FakeGroupRepository: GroupRepository {
     var screenTimeGroups: [ScreenTimeGroup] = []
+    var isStrictLockEnabled: Bool = false
 
     func defaultGroupName(for index: Int) -> String {
         "그룹 \(index + 1)"

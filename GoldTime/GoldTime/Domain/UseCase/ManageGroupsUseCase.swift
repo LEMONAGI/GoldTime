@@ -61,6 +61,8 @@ final class ManageGroupsUseCase {
         in groups: inout [ScreenTimeGroup]
     ) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        // 연장 불가 기간 중엔 규칙/앱 선택 편집 전면 차단(강화 방향 포함 — 판별 없이 단순 차단).
+        guard !groups[index].isStrictLockActive() else { return }
         groups[index].ruleKind = kind
         if let dailyLimitMinutes {
             groups[index].dailyLimitMinutes = dailyLimitMinutes
@@ -83,6 +85,8 @@ final class ManageGroupsUseCase {
     /// 아무 변경도 하지 않는다 — 디코더의 drop-to-nil은 최후 방어선이지 검증이 아니다.
     func updateWeekdayRules(id: UUID, rules: [DayRule]?, in groups: inout [ScreenTimeGroup]) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        // 연장 불가 기간 중엔 규칙/앱 선택 편집 전면 차단(강화 방향 포함 — 판별 없이 단순 차단).
+        guard !groups[index].isStrictLockActive() else { return }
         if let rules {
             guard rules.count == 7,
                   WeekdayRulePolicy.firstInvalidReason(for: rules) == nil else { return }
@@ -112,7 +116,75 @@ final class ManageGroupsUseCase {
 
     func updateSelection(id: UUID, selection: FamilyActivitySelection, in groups: inout [ScreenTimeGroup]) {
         guard let index = groups.firstIndex(where: { $0.id == id }) else { return }
+        // 연장 불가 기간 중엔 규칙/앱 선택 편집 전면 차단(강화 방향 포함 — 판별 없이 단순 차단).
+        guard !groups[index].isStrictLockActive() else { return }
         groups[index].selection = selection.supportedTokenSelection
+    }
+
+    /// 그룹을 삭제한다. 연장 불가 기간 중이면 삭제하지 않고 false를 반환한다.
+    @discardableResult
+    func deleteGroup(id: UUID, in groups: inout [ScreenTimeGroup]) -> Bool {
+        guard let index = groups.firstIndex(where: { $0.id == id }) else { return false }
+        guard !groups[index].isStrictLockActive() else { return false }
+        groups.remove(at: index)
+        return true
+    }
+
+    /// 연장 불가 기간 빠른 선택 칩(일). 그 외 기간은 커스텀 입력(`strictLockDayRange`).
+    static let strictLockDayPresets: [Int] = [1, 3, 7]
+
+    /// 커스텀 입력 포함 허용 범위. **상한 30일은 실수 보호** — 한 번 걸면 어떤 수단으로도 못 풀기
+    /// 때문에 무한정 긴 기간은 도움이 아니라 사고가 된다. 이 상한을 올리기 전에 반드시 재고할 것.
+    static let strictLockDayRange: ClosedRange<Int> = 1...30
+
+    /// 시트를 열었을 때 기본으로 잡히는 기간. **가장 짧은 프리셋(1일)** — 한 번 걸면 못 푸는
+    /// 모드라 기본값은 사용자가 가장 잃을 게 적은 쪽이어야 한다. **프리셋에 있는 값이라 시트가
+    /// "1일 칩 선택 + 휠 접힘" 상태로 열린다**(2026-07-31 변경 — 이전 기본값 14일은 커스텀 칩이
+    /// 선택된 채 휠이 펼쳐져 열려서, 처음 보는 화면이 곧바로 2주 잠금을 권하는 모양이었다).
+    static let strictLockDefaultDays = 1
+
+    /// 커스텀 칩을 눌렀을 때 휠이 처음 잡는 기간. **프리셋에 없는 값이어야** 커스텀 칩이 선택된
+    /// 상태로 표시된다(프리셋 값이면 칩 선택이 프리셋으로 되돌아간다).
+    static let strictLockCustomSeedDays = 14
+
+    /// 연장 불가 모드 기능 사용 여부(설정 토글, 기본 Off). Off면 카드에 연장 불가 행이 숨겨지고 켜기도 막힌다.
+    var isStrictLockEnabled: Bool {
+        groupRepository.isStrictLockEnabled
+    }
+
+    /// 지금 연장 불가 기간이 진행 중인 그룹이 하나라도 있는지(설정 토글을 끌 수 있는지 판정).
+    func hasActiveStrictLock(now: Date = Date()) -> Bool {
+        groupRepository.screenTimeGroups.contains { $0.isApplied && $0.isStrictLockActive(at: now) }
+    }
+
+    /// 연장 불가 모드 기능 토글. **연장 불가 기간 중인 그룹이 있으면 끌 수 없다**(false 반환) — 기능을 끄는 것으로
+    /// 진행 중인 연장 불가 기간을 우회 해제하는 구멍을 막는다. 켜기는 언제나 가능하다.
+    @discardableResult
+    func setStrictLockEnabled(_ enabled: Bool, now: Date = Date()) -> Bool {
+        if !enabled && hasActiveStrictLock(now: now) { return false }
+        groupRepository.isStrictLockEnabled = enabled
+        return true
+    }
+
+    /// 연장 불가 기간을 시작하거나 연장한다(만료가 늘어나는 방향만 — 축소 불가).
+    /// applied + 유효 규칙 그룹만. 성공 시 true.
+    @discardableResult
+    func activateStrictLock(id: UUID, days: Int, now: Date = Date(), in groups: inout [ScreenTimeGroup]) -> Bool {
+        // 기능 토글이 꺼져 있으면 켤 수 없다(UI가 진입을 막지만 집행부에서도 방어).
+        guard groupRepository.isStrictLockEnabled,
+              Self.strictLockDayRange.contains(days),
+              let index = groups.firstIndex(where: { $0.id == id }),
+              groups[index].isApplied,
+              ScreenTimeGroupPolicy.invalidReason(for: groups[index].policySnapshot) == nil,
+              let expiry = ScreenTimeGroup.strictLockExpiry(days: days, from: now) else { return false }
+        // 이미 진행 중인 기간이 있으면 연장만 허용(축소 거부), 시작 시각은 최초 적용 값을 유지.
+        if let current = groups[index].strictUntil, groups[index].isStrictLockActive(at: now) {
+            guard expiry > current else { return false }
+        } else {
+            groups[index].strictStartedAt = now
+        }
+        groups[index].strictUntil = expiry
+        return true
     }
 
     func currentGroups() -> [ScreenTimeGroup] {

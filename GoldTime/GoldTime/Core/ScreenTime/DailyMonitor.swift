@@ -192,13 +192,20 @@ enum DailyMonitor {
     ///   재무장의 주 경로인 하트비트를 유지해야 한다(오늘 전부 '제한 없음'이어도 살려둔다). 요일별 그룹
     ///   5개가 전부 오늘 시간대인 최악의 경우 4×5+1=21로 상한을 넘을 수 있으나(알려진 한계),
     ///   BGTask·foreground sync가 전환 fallback이라 문서화만 하고 여기서 정밀화하지 않는다.
-    /// - `validGroups`는 오늘 규칙 투영본(모니터링 대상), `appliedGroups`는 요일 판정용 원본을 넘긴다.
+    /// - **연장 불가 그룹**(`isStrictLockActive`)도 하트비트를 유지한다. 연장 불가 기간 만료는 lazy 판정이라
+    ///   해제 트리거가 `StrictLockEnforcement` 재평가뿐인데, extension 재평가는 콜백이 와야 돈다 →
+    ///   시간대-only 연장 불가 그룹은 하트비트가 없으면 자정 만료 후에도 **기기 전체 앱 삭제 금지**가
+    ///   최대 하루 남는다(사용자가 앱을 열 때까지). 전역 부작용이라 activity 슬롯보다 우선한다.
+    /// - `validGroups`는 오늘 규칙 투영본(모니터링 대상), `appliedGroups`는 요일·연장 불가 기간 판정용 원본을
+    ///   넘긴다(투영본은 weekdayRules·strict 필드가 스트립되어 판정에 못 쓴다).
     nonisolated static func needsHeartbeat(
         for validGroups: [SharedStore.ScreenTimeGroup],
-        appliedGroups: [SharedStore.ScreenTimeGroup] = []
+        appliedGroups: [SharedStore.ScreenTimeGroup] = [],
+        now: Date = Date()
     ) -> Bool {
         validGroups.contains { $0.ruleKind == .dailyLimit || $0.ruleKind == .cooldown }
             || appliedGroups.contains { $0.isApplied && $0.usesWeekdayRules }
+            || appliedGroups.contains { $0.isApplied && $0.isStrictLockActive(at: now) }
     }
 }
 
@@ -220,5 +227,28 @@ enum UsageAlertPolicy {
             return [(50, thresholdTicks[4]), (90, thresholdTicks[8])]
         }
         return [(90, thresholdTicks[count - 2])]
+    }
+}
+
+/// 연장 불가 모드 전역 설정(앱 삭제 방지 `denyAppRemoval`·자동 날짜 강제
+/// `requireAutomaticDateAndTime`) 집행 — 메인 앱·extension 공유.
+/// 연장 불가 기간 활성 그룹(`SharedStore.hasActiveStrictLock`)이 하나라도 있으면 켜고, 없으면
+/// nil로 설정을 제거한다. **기기 전체** 앱 삭제가 막히는 전역 설정이라 반드시 이 판정과
+/// 짝으로만 켜고 끈다(feature-spec §5.8, 켜기 고지 의무).
+/// 만료는 lazy 판정(만료 시각 청소 이벤트 없음)이므로 별도 해제 트리거가 없다 — 이 재평가가
+/// 곧 해제 경로다. 호출 시점: 메인 앱 `syncDailyMonitoring` 말미(전체 해체 경로 포함) +
+/// extension `applyShieldFromGroups` 서두(자정 하트비트·틱·시간대 콜백 전부 통과).
+/// 항상 설정하는 idempotent 쓰기라 두 프로세스가 경합해도 수렴하고, 로그는 전이 시에만 남긴다.
+enum StrictLockEnforcement {
+    nonisolated static func apply(to store: ManagedSettingsStore, now: Date = Date()) {
+        let active = SharedStore.hasActiveStrictLock(now: now)
+        let wasDenied = store.application.denyAppRemoval == true
+        store.application.denyAppRemoval = active ? true : nil
+        store.dateAndTime.requireAutomaticDateAndTime = active ? true : nil
+        if wasDenied != active {
+            GTLog.shield.notice(
+                "연장 불가 전역 설정 \(active ? "적용" : "해제", privacy: .public) (denyAppRemoval·자동 날짜 강제)"
+            )
+        }
     }
 }

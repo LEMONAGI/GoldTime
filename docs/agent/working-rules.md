@@ -96,6 +96,39 @@ CLI가 막히거나 IDE 상태(RenderPreview, 네비게이터 이슈 등)가 필
   xcresult 경로 라인도 생략되니 DerivedData에서 최신 xcresult를 찾는다(위 명령).
 - `xcodebuild test`는 시뮬레이터 앱 데이터를 초기화할 수 있다(TEST_HOST + 공유 App Group).
   실사용 기기와는 무관.
+- **`git worktree`로 만든 트리는 Firebase 빌드가 깨진다**(`Could not get GOOGLE_APP_ID in
+  Google Services file from build environment`). `GoogleService-Info.plist`가 `.gitignore`
+  대상이고 `GoldTime/GoldTime/Resources/`에는 그 파일 **하나뿐**이라, git 입장에선 폴더 자체가
+  없어 체크아웃되지 않는다. 워크트리를 만들 때마다 재발 → 메인 트리에서 복사한다:
+  `mkdir -p <worktree>/GoldTime/GoldTime/Resources && cp GoldTime/GoldTime/Resources/GoogleService-Info.plist <worktree>/GoldTime/GoldTime/Resources/`.
+  프로젝트가 `PBXFileSystemSynchronizedRootGroup`(Xcode 16 폴더 동기화)이라 파일만 놓으면
+  타겟에 자동 포함된다(pbxproj 수정 불필요).
+
+### 실기기 OSLog 수집 (실측)
+
+extension은 별도 프로세스라 Xcode 콘솔에 안 잡힌다 → 자정 재무장·백그라운드 tick 같은 "사람이
+안 볼 때 일어나는 일"의 유일한 증거는 기기 OSLog다(GTLog, `subsystem == "com.nagi.GoldTime"`).
+로그는 앱 종료·재부팅 후에도 남으므로 사후 수집이 되지만, **GTLog는 오래 보존되지 않는다**
+(`Df` = Debug 레벨). 자정 로그를 13시간 뒤 오후에 수집한 실측(2026-07-30)에서 같은 시각 Apple
+프레임워크 로그 75줄은 남았는데 **GTLog는 2줄만** 남아 콜백 진입 로그(`▶︎ intervalDidStart`)
+까지 유실됐다 — `--last`를 늘려도 복구되지 않는다(수집 창의 문제가 아니라 보존의 문제).
+
+- **자정 판정이 목적이면 자정 직후 `00:05~00:15`에 `--last 30m`으로 수집한다**(최선). 로그가
+  신선해 유실이 없고 파싱도 가볍다. **00:00 정각은 이르다** — iOS가 하트비트
+  `intervalDidStart`를 자정보다 수 분 늦게 발화시킨 실측이 있다(00:02:50,
+  `DeviceActivityMonitorExtension/CLAUDE.md`). 차선은 아침 일찍이고, 오후 수집은 GTLog 판정을
+  포기하는 것과 같다.
+
+- **수집은 사용자가 별도 터미널에서** 실행해야 한다: `sudo log collect --device --last 30m
+  --output /tmp/x.logarchive`. Claude Code의 `!` 프리픽스는 **tty가 없어 sudo 비밀번호를 못
+  받는다**(`a terminal is required to read the password`). 아카이브만 만들어지면 파싱은
+  sudo 없이 에이전트가 한다.
+- **조회는 반드시 `/usr/bin/log` 절대경로**. zsh에는 `log` **builtin**이 있어 `/usr/bin/log`를
+  가린다 → `(eval):log:1: too many arguments`. `2>/dev/null`을 붙여두면 이 에러가 숨어
+  **조용히 0줄**이 나와 "로그가 안 남았다"고 오판하기 쉽다.
+  `/usr/bin/log show /tmp/x.logarchive --info --debug --predicate 'subsystem == "com.nagi.GoldTime"' --style compact`
+  (GTLog `notice`는 `Df`로 찍히므로 `--info --debug` 필수).
+- 디버그 빌드에서만 나온다. 검증 중에는 앱을 삭제·재설치하지 말 것(판정 대상 바이너리 고정).
 
 ### Xcode MCP (fallback)
 

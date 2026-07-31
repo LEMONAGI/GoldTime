@@ -31,6 +31,20 @@ func goldTimeClockText(date: Date, calendar: Calendar = .current) -> String {
     return goldTimeClockText(minuteOfDay: (components.hour ?? 0) * 60 + (components.minute ?? 0))
 }
 
+/// 날짜(월·일)만 로케일 포맷. 연장 불가 기간 시작일 표시처럼 "그 날짜 자체"를 보여줄 때 쓴다.
+func goldTimeShortDateText(_ date: Date) -> String {
+    date.formatted(.dateTime.month().day())
+}
+
+/// 연장 불가 기간이 **잠겨 있는 마지막 날**(월·일). 저장된 만료(`strictUntil`)는 자정 경계(다음날 0시)라
+/// 그대로 보여주면 "7/14 0시에 풀려요"처럼 하루 밀린 느낌을 준다 — 사람이 체감하는 마지막 잠금 날은
+/// 그 전날이므로 1초를 빼서 "7/13 23:59까지 잠겨요"로 표기한다(시각 "23:59"는 문구 키 안에 담는다).
+/// 연장 불가 시트·카드·차단 alert·LockOptions가 공용 사용한다.
+func goldTimeStrictLockedUntilText(_ expiry: Date, calendar: Calendar = .current) -> String {
+    let lastLockedMoment = calendar.date(byAdding: .second, value: -1, to: expiry) ?? expiry
+    return goldTimeShortDateText(lastLockedMoment)
+}
+
 /// DayRule 한 줄 요약(규칙 종류 포함 — "일일 한도 · 30분"). 값만 표기하면 무슨 규칙인지
 /// 알 수 없다는 피드백에 따라 종류를 앞에 붙인다. 요일 묶음 행과 홈 카드 '오늘' 부제가 함께 쓴다.
 func goldTimeDayRuleSummary(_ rule: DayRule) -> String {

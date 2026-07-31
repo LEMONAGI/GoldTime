@@ -17,6 +17,8 @@ struct HomeView: View {
     let onPresentRuleEditor: (ScreenTimeGroup) -> Void
     let onUnlockGroup: (UUID) -> Void
     let onApplyGroup: (UUID) -> Void
+    let onPresentStrictLock: (ScreenTimeGroup) -> Void
+    let isStrictLockFeatureEnabled: Bool
 
     init(
         groups: [ScreenTimeGroup],
@@ -43,7 +45,9 @@ struct HomeView: View {
         onPresentPicker: @escaping (ScreenTimeGroup) -> Void,
         onPresentRuleEditor: @escaping (ScreenTimeGroup) -> Void,
         onUnlockGroup: @escaping (UUID) -> Void = { _ in },
-        onApplyGroup: @escaping (UUID) -> Void = { _ in }
+        onApplyGroup: @escaping (UUID) -> Void = { _ in },
+        onPresentStrictLock: @escaping (ScreenTimeGroup) -> Void = { _ in },
+        isStrictLockFeatureEnabled: Bool = false
     ) {
         self.viewModel = HomeViewModel(
             groups: groups,
@@ -72,6 +76,8 @@ struct HomeView: View {
         self.onPresentRuleEditor = onPresentRuleEditor
         self.onUnlockGroup = onUnlockGroup
         self.onApplyGroup = onApplyGroup
+        self.onPresentStrictLock = onPresentStrictLock
+        self.isStrictLockFeatureEnabled = isStrictLockFeatureEnabled
     }
     
     var body: some View {
@@ -202,7 +208,9 @@ struct HomeView: View {
                             onPresentPicker: onPresentPicker,
                             onPresentRuleEditor: onPresentRuleEditor,
                             onUnlockGroup: onUnlockGroup,
-                            onApplyGroup: onApplyGroup
+                            onApplyGroup: onApplyGroup,
+                            onPresentStrictLock: onPresentStrictLock,
+                            isStrictLockFeatureEnabled: isStrictLockFeatureEnabled
                         )
                     }
                 }
@@ -250,7 +258,7 @@ struct HomeView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth:  .infinity)
         .cardContainer(padding: 20)
     }
     

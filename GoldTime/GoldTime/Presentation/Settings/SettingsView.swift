@@ -118,10 +118,48 @@ struct SettingsView: View {
                 weekStartDayRow
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+
+                Divider().padding(.horizontal, 20)
+
+                strictLockRow
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
             }
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 20))
         }
+    }
+
+    /// 연장 불가 모드 기능 토글(기본 Off). Off면 그룹 카드에 연장 불가 행이 보이지 않는다.
+    /// 연장 불가 기간 중인 그룹이 있으면 끌 수 없다 — 토글을 잠그고 이유를 캡션으로 알린다
+    /// (막기만 하고 이유를 안 보여주면 고장으로 보인다).
+    private var strictLockRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                IconTile(systemName: "lock.square.stack", tint: Color.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("settings.strictLock.title")
+                        .font(.subheadline.weight(.semibold))
+                    Text("settings.strictLock.subtitle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Toggle("settings.strictLock.title", isOn: Binding(
+                    get: { viewModel.isStrictLockEnabled },
+                    set: { viewModel.setStrictLockEnabled($0) }
+                ))
+                .labelsHidden()
+                .disabled(viewModel.isStrictLockEnabled && !viewModel.canDisableStrictLock)
+            }
+            if viewModel.isStrictLockEnabled && !viewModel.canDisableStrictLock {
+                Text("settings.strictLock.inUse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 
     private var troubleshootingCard: some View {
@@ -400,3 +438,15 @@ struct SettingsView: View {
         openURL(url)
     }
 }
+
+#if DEBUG
+#Preview("설정") {
+    NavigationStack {
+        SettingsView(
+            viewModel: SettingsViewModel(),
+            isReconnecting: false,
+            onRequestReconnect: {}
+        )
+    }
+}
+#endif
