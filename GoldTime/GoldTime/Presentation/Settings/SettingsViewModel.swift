@@ -42,10 +42,10 @@ final class SettingsViewModel {
         ConsentService.shared.isPrivacyOptionsRequired
     }
 
-    /// 금고 모드 기능 사용 여부(기본 Off). Off면 그룹 카드에 금고 행이 아예 보이지 않는다.
+    /// 연장 불가 모드 기능 사용 여부(기본 Off). Off면 그룹 카드에 연장 불가 행이 아예 보이지 않는다.
     var isStrictLockEnabled: Bool
 
-    /// 진행 중인 약정이 있으면 기능을 끌 수 없다(끄기로 우회 해제하는 구멍 차단).
+    /// 진행 중인 연장 불가 기간이 있으면 기능을 끌 수 없다(끄기로 우회 해제하는 구멍 차단).
     var canDisableStrictLock: Bool {
         !manageGroupsUseCase.hasActiveStrictLock()
     }
@@ -73,7 +73,7 @@ final class SettingsViewModel {
         isStrictLockEnabled = self.manageGroupsUseCase.isStrictLockEnabled
     }
 
-    /// 금고 모드 기능 토글. 약정 중인 그룹이 있으면 끄기가 거부되고(토글 원복) 사유를 안내한다.
+    /// 연장 불가 모드 기능 토글. 연장 불가 기간 중인 그룹이 있으면 끄기가 거부되고(토글 원복) 사유를 안내한다.
     func setStrictLockEnabled(_ enabled: Bool) {
         guard manageGroupsUseCase.setStrictLockEnabled(enabled) else {
             isStrictLockEnabled = true   // 끄기 실패 → 켜진 상태 유지

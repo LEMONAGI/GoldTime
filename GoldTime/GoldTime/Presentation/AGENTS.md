@@ -42,31 +42,56 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
 
 ## 주의사항 (작업 중 발견 시 누적)
 
-- **금고 모드(기간 약정 강력 잠금) UX 계약**: 진입 차단은 ContentViewModel 3곳
+- **연장 불가 모드(기간 강력 잠금) UX 계약**: 진입 차단은 ContentViewModel 3곳
   (`presentRuleEditor`/`requestPickerPresentation`/`requestDeleteGroup`) + `deleteGroup`의
   Domain(`ManageGroupsUseCase.deleteGroup`) 경유가 세트다 — 새 편집/삭제 진입점을 만들면 같은
-  guard(`isStrictLockActive` + `strictBlockedAlert`)를 반드시 추가한다. **약정 판정은 항상 원본
+  guard(`isStrictLockActive` + `strictBlockedAlert`)를 반드시 추가한다. **연장 불가 기간 판정은 항상 원본
   그룹**(`resolved(on:)` 투영은 strict 필드가 스트립됨 — `LockOptionsViewModel`의
-  `selectedGroup?.resolved(...)` 체인에 판정을 얹지 말 것). 금고 시트(`StrictLockSheet`)의
+  `selectedGroup?.resolved(...)` 체인에 판정을 얹지 말 것). 연장 불가 시트(`StrictLockSheet`)의
   강한 확인 2단계는 **같은 시트 안 콘텐츠 전환**이다(시트 안 dialog→modal 연쇄 금지 규칙).
-  켜기는 무료(광고 없음 — "강화는 무료, 완화에 통행료"), 이름 변경(`updateName`)만 약정 중에도
+  켜기는 무료(광고 없음 — "강화는 무료, 완화에 통행료"), 이름 변경(`updateName`)만 연장 불가 기간 중에도
   허용. **만료 표기는 `goldTimeStrictLockedUntilText` 공용** — 저장값 `strictUntil`은 자정 경계라
   그대로 쓰면 "7/14 0시에 풀려요"처럼 하루 밀린 느낌이 든다. 1초를 빼 마지막 잠금 날을 뽑고
-  문구는 "%@ 23:59까지 잠겨요"로 통일한다(시각 리터럴은 문구 키 안에). 시작일 등 "날짜 자체"는
+  문구는 "%@ 23:59까지 연장 불가"로 통일한다(시각 리터럴은 문구 키 안에). 시작일 등 "날짜 자체"는
   `goldTimeShortDateText`. **기능 자체가 설정 토글(기본 Off)로 게이트된다**
   (`SharedStore.isStrictLockEnabled` → `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView`):
-  Off면 카드에 금고 행을 그리지 않고 `presentStrictLockSheet`도 거부한다. **약정 중엔 토글을 끌 수
+  Off면 카드에 연장 불가 행을 그리지 않고 `presentStrictLockSheet`도 거부한다. **연장 불가 기간 중엔 토글을 끌 수
   없다**(끄기로 우회 해제하는 구멍) — 잠그기만 하지 말고 왜 못 끄는지 캡션으로 보여줄 것.
   설정에서 토글을 바꾸면 `ContentView`의 `onChange`가 `refreshDashboardState`로 카드 노출을 즉시 맞춘다.
-  **금고 그룹에서는 광고 게이트 다이얼로그를 절대 먼저 띄우지 않는다**(`GroupCardView`의
-  `tapEditSelection`·trash 분기): "광고 보고 편집하기"는 금고와 모순되는 안내이고, 다이얼로그가
+  **연장 불가 그룹에서는 광고 게이트 다이얼로그를 절대 먼저 띄우지 않는다**(`GroupCardView`의
+  `tapEditSelection`·trash 분기): "광고 보고 편집하기"는 연장 불가 모드와 모순되는 안내이고, 다이얼로그가
   닫히는 사이클에 차단 alert를 세팅하게 돼 SwiftUI가 alert 표시를 건너뛴다 — 곧장 ViewModel
-  guard로 보내 alert만 띄운다. 금고 시트 진입은 **applied + 유효 규칙**일 때만 연다
+  guard로 보내 alert만 띄운다. 연장 불가 시트 진입은 **applied + 유효 규칙**일 때만 연다
   (`presentStrictLockSheet` — 무효 그룹을 열어주면 `activateStrictLock`이 거부해 최종 확인을
   눌러도 조용히 실패하고 사용자는 켜졌다고 오인한다). 확정 실패 alert은 시트 dismiss와 겹치지
   않게 `Task { @MainActor }`로 미룬다. **켜기 화면에 "권한을 끄면 풀린다"는 고지를 다시 넣지
   말 것**(2026-07-13 제거) — 사실이지만 잠그려는 순간에 탈출 방법을 알려주는 셈이다. 권한 철회는
   이미 풀린 뒤의 복구 화면(`recovery.strictNotice`)에서만 다룬다.
+
+- **연장 불가 모드 표기 계약(2026-07-29 실사용 피드백 반영 — 되돌리지 말 것)**: ① 카드의 연장 불가
+  행 제목은 **적용 전/후 두 키**다(`group.strictRow.title.inactive` "연장 불가 모드 설정" /
+  `.active` "연장 불가 중") — 규칙 행의 "차단 규칙 선택 → 일일 한도"와 같은 문법(할 일 → 현재
+  상태)이고, 한 키로 합치면 이미 걸렸는지를 부제로만 판별하게 된다. ② 배지는 **"N일 남음"**
+  (`home.badge.strict %lld`) — **D-N 표기 금지**(D-day 관습상 "연장 불가가 N일 뒤 시작"으로
+  읽힌다). 자물쇠 아이콘이 무엇이 남았는지 말하므로 배지 문구에 "연장 불가"를 다시 넣지 않는다.
+  배지는 `Label`이 아니라 `HStack(spacing: 3)`으로 조립한다(Label은 아이콘–텍스트 간격을 제어할
+  수 없어 자물쇠 오른쪽 여백이 뜬다). ③ **만료 안내는 날짜를 문장 앞에** 둔다("%@ 23:59까지는
+  바꿀 수 없어요") — "…끝나야 바꿀 수 있어요. 7/13 23:59까지." 같은 도치는 두 번 읽게 된다.
+  ④ 기간 기본값은 `ManageGroupsUseCase.strictLockDefaultDays`(**1일 — 가장 짧은 프리셋**,
+  2026-07-31 변경)이라 시트가 "1일 칩 선택 + 휠 접힘"으로 열린다. 한 번 걸면 못 푸는 모드라
+  처음 화면이 긴 기간을 권하면 안 된다 — 기본값을 프리셋 밖 값으로 되돌리지 말 것. 커스텀 칩을
+  누를 때만 `strictLockCustomSeedDays`(14일, 프리셋 밖 값)로 휠이 펼쳐진다(회귀 테스트
+  `strictLockDefaultDaysStartsOnShortestPresetChipAndCommits`).
+- **확정 순간의 피드백**: `confirmStrictLock` 성공 시 시작/연장 alert(`content.alert.strictStarted.*`
+  /`.strictExtended.*`, 확정 **전** `isStrictLockActive`로 분기)을 띄우며 `LockFeedback.play()`
+  (Core/Feedback)를 함께 재생한다. 둘 다 **시트가 닫히는 사이클과 겹치면 누락**되므로 실패
+  alert과 같은 `Task { @MainActor }` 지연 안에서 실행한다. `Core/Feedback`의 사운드·햅틱은
+  Presentation에서 **직접 참조 허용**(집행이 아닌 UI 부수효과 — `PurchaseFeedback`을 쓰는
+  `LockOptionsViewModel`이 선례).
+  **잠금은 소리 없이 햅틱만**이다(묵직한 두 박, 2026-07-31 채택) — 시스템 사운드 3종·번들 음원
+  7종을 실기기 청취로 전부 기각한 결과이고 기각 이력은 `LockFeedback.swift` 상단 주석에 있다.
+  "잠금음이 없다"를 버그로 보고 채우지 말 것. 광고 연장(`PurchaseFeedback`)만 소리를 내며,
+  **소리 유무 자체가 두 이벤트의 대비**다(연장=소리+success 햅틱 / 잠금=햅틱만).
 
 - **자정 직전 안내는 경계가 둘이고 서로 다르다(헷갈리기 쉬움)**. 편집 중 RuleEditor 안 인라인
   notice(`ContentViewModel.nearMidnightEditNotice` / `isNearMidnightEditNoticeWindow`)는 **23:30**부터

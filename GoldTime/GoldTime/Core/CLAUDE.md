@@ -58,13 +58,13 @@ UserDefaults(suite `group.com.goldtime.shared`).
   타입·같은 id라서 실수로 `screenTimeGroups`에 다시 쓰면 weekdayRules가 컴파일 에러 없이
   조용히 소실된다. persist는 항상 원본, `lastRegisteredGroupsByID`에는 투영본(오늘 규칙 기준
   churn 비교), UI 주간 구조 표시는 원본·상태 판정은 투영본.
-- **`strictUntil`/`strictStartedAt`(금고 모드, 기간 약정 강력 잠금)**: non-throwing 디코딩
+- **`strictUntil`/`strictStartedAt`(연장 불가 모드, 기간 강력 잠금)**: non-throwing 디코딩
   (`(try? decodeIfPresent) ?? nil`)·`encodeIfPresent`(nil 키 생략 — 구버전 바이트 왕복 안전).
-  약정 판정은 **lazy**(`isStrictLockActive` = `strictUntil > now`) — 만료 청소 이벤트가 없고
+  연장 불가 기간 판정은 **lazy**(`isStrictLockActive` = `strictUntil > now`) — 만료 청소 이벤트가 없고
   만료 후에도 과거 날짜로 남는다. `clearAllShieldState`(자정)에 strict 정리를 **추가하지 말
-  것**(약정은 자정을 넘겨 유지되는 유일한 상태). **`resolved(on:)` 투영은 strict 필드를 항상
-  스트립**한다 — 금고 켜기가 churn 가드에 값 변경으로 보여 모니터가 재등록되는 것을 막는
-  근거이므로, **약정 판정은 반드시 원본 그룹에서** 한다(투영본·`lastRegisteredGroupsByID`엔
+  것**(연장 불가 기간은 자정을 넘겨 유지되는 유일한 상태). **`resolved(on:)` 투영은 strict 필드를 항상
+  스트립**한다 — 연장 불가 모드 적용가 churn 가드에 값 변경으로 보여 모니터가 재등록되는 것을 막는
+  근거이므로, **연장 불가 기간 판정은 반드시 원본 그룹에서** 한다(투영본·`lastRegisteredGroupsByID`엔
   strict가 없다). `SharedStore.lockedGroups()`/`group(id:)`는 원본 반환이라 안전.
 
 ## ScreenTimeManager (Core/ScreenTime)
@@ -82,9 +82,9 @@ Extension은 메인 앱 API에 의존하지 않고 `SharedStore` + 알림으로�
 
 전체 흐름(Daily Monitoring / Shield / 광고 / 1분 연장)은 `docs/agent/critical-flows.md`.
 
-## 금고 모드 전역 설정 (StrictLockEnforcement — DailyMonitor.swift 공유)
+## 연장 불가 모드 전역 설정 (StrictLockEnforcement — DailyMonitor.swift 공유)
 
-`SharedStore.hasActiveStrictLock`(적용 + 활성 약정 그룹 ≥1) ⇔ `store.application.denyAppRemoval`
+`SharedStore.hasActiveStrictLock`(적용 + 활성 연장 불가 그룹 ≥1) ⇔ `store.application.denyAppRemoval`
 (**기기 전체** 앱 삭제 금지) + `store.dateAndTime.requireAutomaticDateAndTime`(시계 조작으로
 자정 리셋을 유발하는 우회 봉쇄). **재평가 지점 계약**: 메인 앱 `syncDailyMonitoring` 말미 +
 전체 해체 경로, extension `applyShieldFromGroups` **서두**(모든 콜백 통과 — 자정 만료 시
@@ -94,13 +94,13 @@ extension 단독 해제 보장). 만료 해제 트리거가 따로 없으므로(
 (`releaseShield`에는 없다 — 호출 경로가 extendGroup뿐).
 
 **쿨다운 재충전 경로(`endCooldownAndRecharge`/`handleCooldownTimerEnded`/`rechargeExpiredCooldowns`)에
-strict guard를 넣지 말 것.** 금고가 막는 것은 "휴식을 광고·1분으로 **건너뛰기**"(= `extendGroup`)이지
-휴식 자체가 아니다 — 5분 쓰고 30분 휴식이면 약정 중에도 30분 뒤 정상 종료·예산 재충전된다(쿨다운의
+strict guard를 넣지 말 것.** 연장 불가 모드가 막는 것은 "휴식을 광고·1분으로 **건너뛰기**"(= `extendGroup`)이지
+휴식 자체가 아니다 — 5분 쓰고 30분 휴식이면 연장 불가 기간 중에도 30분 뒤 정상 종료·예산 재충전된다(쿨다운의
 핵심인 "시간을 정당하게 돌려받기"). 여기 가드를 넣으면 휴식이 영영 안 끝나 사실상 영구 차단이 된다
 (회귀 테스트 `cooldownRestStillEndsAndRechargesDuringStrictLock`).
 
-**extension 재평가는 콜백이 와야 돈다** → `DailyMonitor.needsHeartbeat`가 **금고 약정 그룹에서도
-true**여야 한다(시간대-only 금고 그룹은 하트비트가 없으면 자정 만료 후에도 기기 전체 앱 삭제
+**extension 재평가는 콜백이 와야 돈다** → `DailyMonitor.needsHeartbeat`가 **연장 불가 그룹에서도
+true**여야 한다(시간대-only 연장 불가 그룹은 하트비트가 없으면 자정 만료 후에도 기기 전체 앱 삭제
 금지가 최대 하루 남는다 — 사용자가 앱을 열 때까지). 이 조건을 activity 슬롯 절약을 이유로
 빼지 말 것: 전역 부작용이 슬롯보다 무겁다. 구버전 다운그레이드는 알려진 구멍이다(구버전에
 해제 코드가 없어 `denyAppRemoval` 좀비 — 탈출구는 스크린타임 권한 OFF뿐, 런북에 경고).

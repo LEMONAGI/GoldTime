@@ -108,7 +108,7 @@ struct LockOptionsView: View {
 
             walkAwayButton
 
-            // 금고 약정 중인 그룹은 연장 버튼 대신 만료일 안내만 보여준다("그만 쓰기"는 유지).
+            // 연장 불가 기간 중인 그룹은 연장 버튼 대신 만료일 안내만 보여준다("그만 쓰기"는 유지).
             if let strictNotice = viewModel.strictLockNotice {
                 strictNoticeCard(strictNotice)
             } else {
@@ -138,7 +138,7 @@ struct LockOptionsView: View {
         .padding(.top, 10)
     }
 
-    /// 금고 약정 중 안내 카드(연장 버튼 자리). 자정 근처 안내와 같은 배너 스타일에 자물쇠 아이콘.
+    /// 연장 불가 기간 중 안내 카드(연장 버튼 자리). 자정 근처 안내와 같은 배너 스타일에 자물쇠 아이콘.
     private func strictNoticeCard(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "lock.fill")

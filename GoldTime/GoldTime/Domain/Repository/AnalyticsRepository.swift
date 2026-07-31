@@ -16,9 +16,9 @@ enum AnalyticsEvent {
     case oneMinuteUnlock
     case walkAway(lockedCount: Int)
     case ruleChanged(from: String, to: String, wasLocked: Bool, usedBucket: String, causedLock: Bool)
-    /// 금고 모드(기간 약정 강력 잠금) 켜기·연장 확정. days = 이번에 적용한 약정 기간 프리셋.
+    /// 연장 불가 모드(기간 강력 잠금) 켜기·연장 확정. days = 이번에 적용한 기간 프리셋.
     case strictLockCommit(days: Int, payload: RuleAnalyticsPayload)
-    /// 스크린타임 권한 철회로 금고 약정이 풀린 상태를 복구 화면에서 감지. (권한 재승인 유도용 관측)
+    /// 스크린타임 권한 철회로 연장 불가 기간이 풀린 상태를 복구 화면에서 감지. (권한 재승인 유도용 관측)
     case strictRevokeDetected
 
     // MARK: - 대시보드 퍼널 (Reward 광고 / Activation)

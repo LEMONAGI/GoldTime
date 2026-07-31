@@ -254,7 +254,7 @@ enum ScreenTimeManager {
             SharedStore.isDailyMonitoringEnabled = false
             SharedStore.clearAllShieldState()
             SharedStore.lastRegisteredGenerationByID = [:]
-            // 전체 해체 경로에서도 금고 전역 설정은 재평가한다(약정 그룹은 valid를 유지해
+            // 전체 해체 경로에서도 연장 불가 전역 설정은 재평가한다(연장 불가 그룹은 valid를 유지해
             // 사실상 이 경로에 오지 않지만, lazy 만료 해제가 새지 않게 방어).
             StrictLockEnforcement.apply(to: store, now: now)
             return
@@ -270,7 +270,7 @@ enum ScreenTimeManager {
         // 재무장의 주 경로). 시간대-only 구성은 window가 repeats:true라 불필요하고, 시간대 그룹은
         // window+override로 그룹당 최대 4개 activity를 쓸 수 있어(5그룹×4=20) 하트비트를 더하면 동시
         // 모니터링 상한을 넘길 수 있으므로 등록하지 않는다(DailyMonitor.needsHeartbeat 참조). 요일 그룹은
-        // 오늘 전부 '제한 없음'이어도 다음날 자정 재무장을 위해 하트비트를 유지한다. 금고 약정 그룹도
+        // 오늘 전부 '제한 없음'이어도 다음날 자정 재무장을 위해 하트비트를 유지한다. 연장 불가 그룹도
         // 유지한다(자정 만료 시 extension이 전역 설정을 해제하려면 콜백이 필요 — needsHeartbeat 참조).
         // 등록 실패는 이 변경의 핵심 경로가 사라지는 것이므로 try?로 삼키지 않고 firstError로 전파한다.
         if DailyMonitor.needsHeartbeat(for: validGroups, appliedGroups: sanitizedGroups, now: now) {
@@ -406,7 +406,7 @@ enum ScreenTimeManager {
         // 시간대 그룹의 '지금 시간대 안인지'를 shieldedGroupIDs에 반영한 뒤 쉴드를 적용한다.
         SharedStore.resyncTimeWindowLocks()
         applyShield()
-        // 금고 전역 설정(denyAppRemoval·자동 날짜) 재평가. 켜기는 confirmStrictLock → 이 sync가
+        // 연장 불가 전역 설정(denyAppRemoval·자동 날짜) 재평가. 켜기는 confirmStrictLock → 이 sync가
         // 즉시 반영하고, 만료 해제는 lazy 판정이라 만료 후 첫 sync(foreground)가 담당한다.
         StrictLockEnforcement.apply(to: store, now: now)
 
@@ -731,9 +731,9 @@ enum ScreenTimeManager {
             return .failure(.groupNotFound)
         }
 
-        // 금고 약정 중엔 어떤 연장(1분/광고)도 거부한다 — UI가 버튼을 숨겨도 집행부가 최종 방어.
+        // 연장 불가 기간 중엔 어떤 연장(1분/광고)도 거부한다 — UI가 버튼을 숨겨도 집행부가 최종 방어.
         guard !group.isStrictLockActive(at: now) else {
-            GTLog.override.notice("연장 거부(금고 약정 중) group=\(group.name, privacy: .public)#\(groupID.uuidString.prefix(4), privacy: .public) until=\(group.strictUntil.map(String.init(describing:)) ?? "-", privacy: .public)")
+            GTLog.override.notice("연장 거부(연장 불가 기간 중) group=\(group.name, privacy: .public)#\(groupID.uuidString.prefix(4), privacy: .public) until=\(group.strictUntil.map(String.init(describing:)) ?? "-", privacy: .public)")
             return .failure(.strictLockActive)
         }
 

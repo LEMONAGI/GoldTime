@@ -115,7 +115,7 @@ final class LockOptionsViewModel {
         extendGroupUseCase.isNearMidnightCutoff()
     }
 
-    /// 선택된 그룹이 금고 약정 중인지. 반드시 원본 selectedGroup으로 판정한다
+    /// 선택된 그룹이 연장 불가 기간 중인지. 반드시 원본 selectedGroup으로 판정한다
     /// (resolved 투영은 strict 필드가 스트립되므로 금지).
     var isSelectedGroupStrictLocked: Bool {
         selectedGroup?.isStrictLockActive() == true
@@ -129,7 +129,7 @@ final class LockOptionsViewModel {
         selectedGroup != nil && !isExtending && !isSelectedGroupStrictLocked
     }
 
-    /// 선택된 그룹이 금고 약정 중이면 연장 대신 만료일을 안내한다.
+    /// 선택된 그룹이 연장 불가 기간 중이면 연장 대신 만료일을 안내한다.
     var strictLockNotice: String? {
         guard let group = selectedGroup, group.isStrictLockActive(), let until = group.strictUntil else { return nil }
         return String(localized: "lock.strict.notice \(goldTimeStrictLockedUntilText(until))")

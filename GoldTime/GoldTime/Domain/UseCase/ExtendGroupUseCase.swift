@@ -62,7 +62,7 @@ final class ExtendGroupUseCase {
         return screenTimeRepository.extendGroup(groupID: groupID, duration: 10 * 60, source: .adReward)
     }
 
-    /// 금고 약정 판정은 원본 그룹에서 한다(투영본은 strict 필드가 스트립됨).
+    /// 연장 불가 기간 판정은 원본 그룹에서 한다(투영본은 strict 필드가 스트립됨).
     private func isStrictLocked(groupID: UUID, now: Date = Date()) -> Bool {
         shieldRepository.lockedGroups().first { $0.id == groupID }?.isStrictLockActive(at: now) ?? false
     }

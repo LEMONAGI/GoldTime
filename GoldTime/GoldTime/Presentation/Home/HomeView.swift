@@ -258,7 +258,7 @@ struct HomeView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth:  .infinity)
         .cardContainer(padding: 20)
     }
     

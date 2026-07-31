@@ -83,9 +83,9 @@ final class ContentViewModel {
     /// 규칙 편집 적용 후 시트가 닫히면 띄울 단순 안내(예: 휴식 중 휴식 시간 변경).
     private var stagedRuleEditInfo: GoldTimeAlertMessage?
     private var pendingDeletedGroupName: String?
-    /// 금고 시트 표시 대상 그룹(nil이면 시트 닫힘). ruleEditorGroupID와 동일 패턴.
+    /// 연장 불가 시트 표시 대상 그룹(nil이면 시트 닫힘). ruleEditorGroupID와 동일 패턴.
     var strictLockSheetGroupID: UUID?
-    /// 스크린타임 권한 복구 화면에서 금고 약정 철회를 감지해 이미 1회 로깅했는지(중복 로깅 방지).
+    /// 스크린타임 권한 복구 화면에서 연장 불가 기간 철회를 감지해 이미 1회 로깅했는지(중복 로깅 방지).
     private var didLogStrictRevoke = false
 
     var isReconnecting = false
@@ -287,7 +287,7 @@ final class ContentViewModel {
     func refreshDashboardState() {
         let state = loadDashboardUseCase.refresh(groups: groups)
         applyDashboardState(state)
-        // 설정에서 금고 기능 토글을 바꿨을 수 있으므로 홈 갱신 시 함께 읽는다.
+        // 설정에서 연장 불가 기능 토글을 바꿨을 수 있으므로 홈 갱신 시 함께 읽는다.
         isStrictLockFeatureEnabled = manageGroupsUseCase.isStrictLockEnabled
     }
 
@@ -313,7 +313,7 @@ final class ContentViewModel {
     func deleteGroup(_ id: UUID) {
         var updated = groups
         guard manageGroupsUseCase.deleteGroup(id: id, in: &updated) else {
-            // 금고 약정 중이면 Domain이 삭제를 거부한다. 진입 경로(requestDeleteGroup)에서 이미
+            // 연장 불가 기간 중이면 Domain이 삭제를 거부한다. 진입 경로(requestDeleteGroup)에서 이미
             // 걸러지지만, 광고 게이트 완료 후 직접 호출되는 경로에도 방어를 겹친다.
             if let group = groups.first(where: { $0.id == id }), group.isStrictLockActive() {
                 alertMessage = strictBlockedAlert(for: group, kind: .delete)
@@ -339,7 +339,7 @@ final class ContentViewModel {
     }
 
     func presentRuleEditor(for group: ScreenTimeGroup) {
-        // 금고 약정 중엔 편집기 진입 자체를 막고 만료일을 안내한다(우회 방지).
+        // 연장 불가 기간 중엔 편집기 진입 자체를 막고 만료일을 안내한다(우회 방지).
         if group.isStrictLockActive() {
             alertMessage = strictBlockedAlert(for: group, kind: .edit)
             return
@@ -803,7 +803,7 @@ final class ContentViewModel {
     }
 
     func requestPickerPresentation(for group: ScreenTimeGroup) {
-        // 금고 약정 중엔 앱 선택 편집을 막고 만료일을 안내한다(광고 게이트 진입 전에 차단).
+        // 연장 불가 기간 중엔 앱 선택 편집을 막고 만료일을 안내한다(광고 게이트 진입 전에 차단).
         if group.isStrictLockActive() {
             alertMessage = strictBlockedAlert(for: group, kind: .edit)
             return
@@ -818,7 +818,7 @@ final class ContentViewModel {
     }
 
     func requestDeleteGroup(_ id: UUID) {
-        // 금고 약정 중엔 삭제를 막고 만료일을 안내한다(광고 게이트 진입 전에 차단).
+        // 연장 불가 기간 중엔 삭제를 막고 만료일을 안내한다(광고 게이트 진입 전에 차단).
         if let group = groups.first(where: { $0.id == id }), group.isStrictLockActive() {
             alertMessage = strictBlockedAlert(for: group, kind: .delete)
             return
@@ -912,28 +912,28 @@ final class ContentViewModel {
         isUnlockSheetPresented = true
     }
 
-    // MARK: - 금고 모드(기간 약정 강력 잠금)
+    // MARK: - 연장 불가 모드(기간 강력 잠금)
 
     private enum StrictBlockKind { case edit, delete }
 
-    /// 금고 시트 표시 대상 그룹(강제 unwrap 없이 항상 최신 groups에서 조회 — 확정 후 갱신 반영).
+    /// 연장 불가 시트 표시 대상 그룹(강제 unwrap 없이 항상 최신 groups에서 조회 — 확정 후 갱신 반영).
     var strictLockSheetGroup: ScreenTimeGroup? {
         guard let id = strictLockSheetGroupID else { return nil }
         return groups.first(where: { $0.id == id })
     }
 
-    /// 스크린타임 권한 철회로 금고 약정이 풀린 상태(복구 화면에서 강조·재승인 유도).
+    /// 스크린타임 권한 철회로 연장 불가 기간이 풀린 상태(복구 화면에서 강조·재승인 유도).
     var hasActiveStrictCommitment: Bool {
         groups.contains { $0.isStrictLockActive() }
     }
 
-    /// 금고 모드 기능 사용 여부(설정 토글, 기본 Off). Off면 카드에 금고 행이 보이지 않는다.
+    /// 연장 불가 모드 기능 사용 여부(설정 토글, 기본 Off). Off면 카드에 연장 불가 행이 보이지 않는다.
     /// 설정에서 토글을 바꾼 뒤 홈으로 돌아오면 `refreshDashboardState`가 갱신한다.
     var isStrictLockFeatureEnabled: Bool = false
 
-    /// 금고 시트 열기. 기능 토글 On + applied + **유효 규칙** 그룹만 — `activateStrictLock`이 같은
+    /// 연장 불가 시트 열기. 기능 토글 On + applied + **유효 규칙** 그룹만 — `activateStrictLock`이 같은
     /// 검증으로 거부하므로, 무효 그룹(예: 적용 후 항목을 전부 해제)에서 진입을 허용하면 최종 확인까지
-    /// 눌러도 확정이 조용히 실패해 "켜졌다"고 오인하게 된다. 이미 약정 중인 그룹(연장 진입)은
+    /// 눌러도 확정이 조용히 실패해 "켜졌다"고 오인하게 된다. 이미 연장 불가 기간 중인 그룹(연장 진입)은
     /// 편집이 막혀 무효가 될 수 없으므로 검증을 건너뛴다.
     func presentStrictLockSheet(for group: ScreenTimeGroup) {
         guard isStrictLockFeatureEnabled, group.isApplied else { return }
@@ -952,12 +952,15 @@ final class ContentViewModel {
         if !isPresented { strictLockSheetGroupID = nil }
     }
 
-    /// 금고 약정 시작·연장 확정. 성공 시 저장+sync(투영 스트립 덕에 모니터 재등록 없음)하고
+    /// 연장 불가 기간 시작·연장 확정. 성공 시 저장+sync(투영 스트립 덕에 모니터 재등록 없음)하고
     /// 분석 로깅 후 시트를 닫는다. 실패는 진입 검증 뒤라 드물지만(경합 등) **조용히 닫지 않고**
-    /// 사유를 안내한다 — 사용자가 금고가 켜졌다고 오인하면 안 된다. alert은 시트가 닫히는
+    /// 사유를 안내한다 — 사용자가 연장 불가 모드가 켜졌다고 오인하면 안 된다. alert은 시트가 닫히는
     /// 사이클과 겹치면 누락되므로 다음 런루프로 미룬다(Presentation/CLAUDE.md).
+    /// 성공 alert도 같은 이유로 미루며, 잠금 피드백(소리·햅틱)을 그 자리에서 함께 재생한다 —
+    /// 한 번 걸면 못 푸는 결정이라 확정 순간에 체감되는 신호가 있어야 한다.
     func confirmStrictLock(days: Int) {
         guard let id = strictLockSheetGroupID else { return }
+        let wasActive = groups.first(where: { $0.id == id })?.isStrictLockActive() == true
         var updated = groups
         guard manageGroupsUseCase.activateStrictLock(id: id, days: days, in: &updated) else {
             let reason = groups.first(where: { $0.id == id })
@@ -971,23 +974,38 @@ final class ContentViewModel {
             return
         }
         groups = updated
-        if let group = groups.first(where: { $0.id == id }) {
+        let group = groups.first(where: { $0.id == id })
+        if let group {
             analyticsRepository.log(.strictLockCommit(days: days, payload: RuleAnalyticsPayload(group: group)))
         }
         successMessage = nil
         errorMessage = nil
         persistGroups()
         strictLockSheetGroupID = nil
+        let expiry = group?.strictUntil.map { goldTimeStrictLockedUntilText($0) } ?? ""
+        let confirmed = wasActive
+            ? GoldTimeAlertMessage(
+                title: String(localized: "content.alert.strictExtended.title"),
+                message: String(localized: "content.alert.strictExtended.message \(expiry)")
+            )
+            : GoldTimeAlertMessage(
+                title: String(localized: "content.alert.strictStarted.title"),
+                message: String(localized: "content.alert.strictStarted.message \(expiry)")
+            )
+        Task { @MainActor in
+            LockFeedback.play()
+            self.alertMessage = confirmed
+        }
     }
 
-    /// 스크린타임 권한 복구 화면이 뜰 때 호출. 금고 약정이 살아 있으면 1회만 철회 감지를 로깅한다.
+    /// 스크린타임 권한 복구 화면이 뜰 때 호출. 연장 불가 기간이 살아 있으면 1회만 철회 감지를 로깅한다.
     func handleScreenTimeRecoveryAppear() {
         guard hasActiveStrictCommitment, !didLogStrictRevoke else { return }
         didLogStrictRevoke = true
         analyticsRepository.log(.strictRevokeDetected)
     }
 
-    /// 금고 편집·삭제 차단 안내 alert. 만료 날짜(%@)는 공용 포매터로 포맷한다.
+    /// 연장 불가 모드 편집·삭제 차단 안내 alert. 만료 날짜(%@)는 공용 포매터로 포맷한다.
     private func strictBlockedAlert(for group: ScreenTimeGroup, kind: StrictBlockKind) -> GoldTimeAlertMessage {
         let expiry = group.strictUntil.map { goldTimeStrictLockedUntilText($0) } ?? ""
         let message: String

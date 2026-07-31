@@ -130,8 +130,8 @@ struct SettingsView: View {
         }
     }
 
-    /// 금고 모드 기능 토글(기본 Off). Off면 그룹 카드에 금고 행이 보이지 않는다.
-    /// 약정 중인 그룹이 있으면 끌 수 없다 — 토글을 잠그고 이유를 캡션으로 알린다
+    /// 연장 불가 모드 기능 토글(기본 Off). Off면 그룹 카드에 연장 불가 행이 보이지 않는다.
+    /// 연장 불가 기간 중인 그룹이 있으면 끌 수 없다 — 토글을 잠그고 이유를 캡션으로 알린다
     /// (막기만 하고 이유를 안 보여주면 고장으로 보인다).
     private var strictLockRow: some View {
         VStack(alignment: .leading, spacing: 6) {
