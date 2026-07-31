@@ -859,19 +859,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can delete this after the commitment ends. Locked until 11:59 PM on %@."
+            "value": "You can't delete this until 11:59 PM on %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "誓約が終わってから削除できます。%@ 23:59までロックされます。"
+            "value": "%@ 23:59までは削除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "약정이 끝나야 지울 수 있어요. %@ 23:59까지 잠겨요."
+            "value": "%@ 23:59까지는 지울 수 없어요."
           }
         }
       }
@@ -882,19 +882,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can change this after the commitment ends. Locked until 11:59 PM on %@."
+            "value": "You can't change this until 11:59 PM on %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "誓約が終わってから変更できます。%@ 23:59までロックされます。"
+            "value": "%@ 23:59までは変更できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "약정이 끝나야 바꿀 수 있어요. %@ 23:59까지 잠겨요."
+            "value": "%@ 23:59까지는 바꿀 수 없어요."
           }
         }
       }
@@ -905,19 +905,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked by Vault Mode"
+            "value": "Locked-in period"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モードでロック中"
+            "value": "延長不可期間中です"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드 잠금 중"
+            "value": "연장 불가 기간이에요"
           }
         }
       }
@@ -928,19 +928,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vault Mode can't start right now. Try again in a moment."
+            "value": "You can't lock in this group right now. Try again in a moment."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "今は金庫モードを開始できません。少し後にもう一度お試しください。"
+            "value": "今は延長不可にできません。少し後にもう一度お試しください。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "지금은 금고 모드를 켤 수 없어요. 잠시 뒤 다시 시도해 주세요."
+            "value": "지금은 연장 불가로 둘 수 없어요. 잠시 뒤 다시 시도해 주세요."
           }
         }
       }
@@ -951,19 +951,111 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Can't start Vault Mode"
+            "value": "Can't lock in right now"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モードを開始できません"
+            "value": "今は設定できません"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고를 켤 수 없어요"
+            "value": "지금은 설정할 수 없어요"
+          }
+        }
+      }
+    },
+    "content.alert.strictExtended.message %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 23:59까지로 늘어났어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now locked in until 11:59 PM on %@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 23:59まで延びました。"
+          }
+        }
+      }
+    },
+    "content.alert.strictExtended.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기간을 늘렸어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Period extended"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "期間を延ばしました"
+          }
+        }
+      }
+    },
+    "content.alert.strictStarted.message %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 23:59까지 연장·편집·삭제가 막혀요. 중간에 해제할 수 없어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extensions, edits, and deletion are blocked until 11:59 PM on %@. It can't be released early."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 23:59まで延長・編集・削除がブロックされます。途中で解除できません。"
+          }
+        }
+      }
+    },
+    "content.alert.strictStarted.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연장 불가 기간이 시작됐어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locked-in period started"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "延長不可期間が始まりました"
           }
         }
       }
@@ -1917,19 +2009,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked until 11:59 PM on %@"
+            "value": "Until 11:59 PM on %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 23:59までロックされます"
+            "value": "%@ 23:59まで"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 23:59까지 잠겨요"
+            "value": "%@ 23:59까지"
           }
         }
       }
@@ -1940,42 +2032,65 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A lock no ad can undo, for as long as you choose"
+            "value": "Once locked, no more extensions"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "決めた期間、広告でも解除できないロック"
+            "value": "ロックされたら延長できません"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "정한 기간 동안 광고로도 못 푸는 잠금"
+            "value": "잠그면 더 이상 연장할 수 없어요"
           }
         }
       }
     },
-    "group.strictRow.title": {
+    "group.strictRow.title.active": {
       "extractionState": "manual",
       "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연장 불가 중"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vault Mode"
+            "value": "Locked In"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モード"
+            "value": "延長不可中"
           }
-        },
+        }
+      }
+    },
+    "group.strictRow.title.inactive": {
+      "extractionState": "manual",
+      "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드"
+            "value": "연장 불가 모드 설정"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set Up Locked-In Mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "延長不可モードを設定"
           }
         }
       }
@@ -2053,21 +2168,33 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vault D-%lld"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld day left"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld days left"
+                }
+              }
+            }
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫 D-%lld"
+            "value": "残り%lld日"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 D-%lld"
+            "value": "%lld일 남음"
           }
         }
       }
@@ -3251,19 +3378,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This group is in Vault Mode. No extensions until the commitment ends."
+            "value": "This group is locked in. No extensions until the period ends."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このグループは金庫モード中です。誓約が終わるまで延長できません。"
+            "value": "延長不可期間中です。期間が終わるまで延長できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드 약정 중이에요. 약정이 끝날 때까지 연장할 수 없어요."
+            "value": "연장 불가 기간이에요. 기간이 끝날 때까지 연장할 수 없어요."
           }
         }
       }
@@ -3780,19 +3907,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vault Mode is running. Locked until 11:59 PM on %@."
+            "value": "No extensions until 11:59 PM on %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モードが進行中です。%@ 23:59までロックされます。"
+            "value": "%@ 23:59まで延長できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드 진행 중이에요. %@ 23:59까지 잠겨요."
+            "value": "%@ 23:59까지 연장할 수 없어요."
           }
         }
       }
@@ -5517,19 +5644,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A Vault commitment is running — turn permission back on and it picks up right where it left off."
+            "value": "A locked-in period is running — turn permission back on and it picks up right where it left off."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫の誓約が進行中です — 権限を再度オンにすると誓約はそのまま続きます。"
+            "value": "延長不可期間が進行中です — 権限を再度オンにすると、そのまま続きます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 약정이 진행 중이에요 — 권한을 다시 켜면 약정이 그대로 이어져요."
+            "value": "연장 불가 기간이 진행 중이에요 — 권한을 다시 켜면 그대로 이어져요."
           }
         }
       }
@@ -6506,19 +6633,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You can turn it off once the running commitment ends."
+            "value": "You can turn it off once the locked-in period ends."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "進行中の誓約が終わればオフにできます。"
+            "value": "延長不可期間が終わればオフにできます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "진행 중인 약정이 끝나면 끌 수 있어요."
+            "value": "연장 불가 기간이 끝나면 끌 수 있어요."
           }
         }
       }
@@ -6529,19 +6656,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Can't turn off Vault Mode"
+            "value": "Can't turn off Locked-In Mode"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モードをオフにできません"
+            "value": "延長不可モードをオフにできません"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드를 끌 수 없어요"
+            "value": "연장 불가 모드를 끌 수 없어요"
           }
         }
       }
@@ -7173,19 +7300,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A commitment is running, so this can't be turned off right now."
+            "value": "You can turn this off once the locked-in period ends."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "進行中の誓約があるため、今はオフにできません。"
+            "value": "延長不可期間が終わってからオフにできます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "진행 중인 약정이 있어 지금은 끌 수 없어요."
+            "value": "연장 불가 기간이 끝나야 끌 수 있어요."
           }
         }
       }
@@ -7196,19 +7323,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "For when you actually mean it — no ad, no edit can undo it."
+            "value": "For when you really mean it this time. No ad or edit lets you slip out."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "今度こそ本気で断ちたいときに。広告でも編集でも解除できません。"
+            "value": "今度こそ本気で断ちたいときに。広告でも編集でも抜け出せません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이번엔 진짜로 끊고 싶을 때. 광고로도, 편집으로도 못 여는 잠금."
+            "value": "이번엔 진짜로 끊고 싶을 때. 광고로도 편집으로도 빠져나갈 수 없어요."
           }
         }
       }
@@ -7219,19 +7346,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Use Vault Mode"
+            "value": "Locked-In Mode"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モードを使う"
+            "value": "延長不可モード"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드 사용"
+            "value": "연장 불가 모드"
           }
         }
       }
@@ -8208,19 +8335,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked until 11:59 PM on %@"
+            "value": "No extensions until 11:59 PM on %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 23:59までロックされます"
+            "value": "%@ 23:59まで延長不可"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 23:59까지 잠겨요"
+            "value": "%@ 23:59까지 연장 불가"
           }
         }
       }
@@ -8323,19 +8450,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No early exit."
+            "value": "It can't be turned off early."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "途中解除はありません。"
+            "value": "途中で解除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "중도 해제는 없어요."
+            "value": "중간에 해제할 수 없어요."
           }
         }
       }
@@ -8392,19 +8519,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vault Mode"
+            "value": "Locked-In Mode"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モード"
+            "value": "延長不可モード"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드"
+            "value": "연장 불가 모드"
           }
         }
       }
@@ -8438,19 +8565,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This group stays locked for %lld days — until 11:59 PM on %@.\nIt can't be turned off early."
+            "value": "Applied for %1$lld days — until 11:59 PM on %2$@.\nIt can't be turned off early."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld日間このグループがロックされます。%@ 23:59まで。\n途中で解除できません。"
+            "value": "%2$@ 23:59まで%1$lld日間適用されます。\n途中で解除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld일 동안 이 그룹이 잠겨요. %@ 23:59까지.\n중간에 해제할 수 없어요."
+            "value": "%2$@ 23:59까지 %1$lld일간 적용돼요.\n중간에 해제할 수 없어요."
           }
         }
       }
@@ -8461,19 +8588,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set up"
+            "value": "Apply"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "設定する"
+            "value": "適用する"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "설정하기"
+            "value": "적용하기"
           }
         }
       }
@@ -8484,19 +8611,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set up Vault Mode?"
+            "value": "Lock in this group?"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モードを設定しますか？"
+            "value": "このグループを延長不可にしますか？"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드를 설정할까요?"
+            "value": "이 그룹을 연장 불가로 둘까요?"
           }
         }
       }
@@ -8599,19 +8726,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Rule changes and deletion are locked."
+            "value": "Item and rule edits, and group deletion, are blocked."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ルールの変更・削除がロックされます。"
+            "value": "制限項目とルールの編集、グループの削除がブロックされます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "규칙 변경·삭제가 잠겨요."
+            "value": "제한 항목과 규칙 편집 및 그룹 삭제가 막혀요."
           }
         }
       }
@@ -8622,19 +8749,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "1-minute and ad extensions are locked."
+            "value": "Ad and 1-minute extensions are blocked."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "1分・広告延長がロックされます。"
+            "value": "広告・1分延長がブロックされます。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "1분·광고 연장이 잠겨요."
+            "value": "광고·1분 연장이 막혀요."
           }
         }
       }
@@ -8645,19 +8772,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "It can't be turned off early."
+            "value": "Once applied, it can't be turned off early."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "途中で解除できません。"
+            "value": "適用すると途中で解除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "중간에 해제할 수 없어요."
+            "value": "적용하면 중간에 해제할 수 없어요."
           }
         }
       }
@@ -8668,19 +8795,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Put it in the Vault"
+            "value": "Apply Locked-In Mode"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫に入れる"
+            "value": "延長不可モードを適用"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고에 넣기"
+            "value": "연장 불가 모드 적용하기"
           }
         }
       }
@@ -8726,7 +8853,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "직접"
+            "value": "커스텀"
           }
         }
       }
@@ -8737,19 +8864,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked until 11:59 PM on %@"
+            "value": "No extensions until 11:59 PM on %@"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 23:59までロックされます"
+            "value": "%@ 23:59まで延長不可"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 23:59까지 잠겨요"
+            "value": "%@ 23:59까지 연장 불가"
           }
         }
       }
@@ -8829,19 +8956,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Group to lock"
+            "value": "Group to lock in"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ロックするグループ"
+            "value": "延長不可にするグループ"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "잠글 그룹"
+            "value": "연장 불가로 둘 그룹"
           }
         }
       }
@@ -8852,19 +8979,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vault Mode"
+            "value": "Locked-In Mode"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "金庫モード"
+            "value": "延長不可モード"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "금고 모드"
+            "value": "연장 불가 모드"
           }
         }
       }

@@ -2,8 +2,8 @@
 //  StrictLockTests.swift
 //  GoldTimeTests
 //
-//  금고 모드(기간 약정 강력 잠금) 데이터 모델(ScreenTimeGroup.strictUntil/strictStartedAt)의
-//  Codable 하위 호환·약정 판정·만료 계산·resolved(on:) 투영 스트립을 검증한다.
+//  연장 불가 모드(기간 강력 잠금) 데이터 모델(ScreenTimeGroup.strictUntil/strictStartedAt)의
+//  Codable 하위 호환·연장 불가 기간 판정·만료 계산·resolved(on:) 투영 스트립을 검증한다.
 //  never-throw 원칙(구버전 페이로드가 그룹 전체 소실로 이어지지 않음)에 초점을 둔다.
 //
 
@@ -47,7 +47,7 @@ struct StrictLockTests {
         return try! JSONDecoder().decode(FamilyActivitySelection.self, from: Data(json.utf8))
     }
 
-    /// 편집·삭제·금고 켜기 방어를 검증할 ManageGroupsUseCase(순수 inout 조작이라 repo는 스텁).
+    /// 편집·삭제·연장 불가 모드 적용 방어를 검증할 ManageGroupsUseCase(순수 inout 조작이라 repo는 스텁).
     private func makeManageUseCase() -> ManageGroupsUseCase {
         ManageGroupsUseCase(
             groupRepository: StrictFakeGroupRepository(),
@@ -124,7 +124,7 @@ struct StrictLockTests {
         #expect(json["strictStartedAt"] == nil)
     }
 
-    // MARK: - 4. 약정 판정 경계
+    // MARK: - 4. 연장 불가 기간 판정 경계
 
     @Test func isStrictLockActiveBoundary() {
         let now = date(2026, 7, 12, 14, 30)
@@ -137,7 +137,7 @@ struct StrictLockTests {
         #expect(!group(now.addingTimeInterval(-1)).isStrictLockActive(at: now))
         // now+1초 → 활성.
         #expect(group(now.addingTimeInterval(1)).isStrictLockActive(at: now))
-        // nil(무약정) → 비활성.
+        // nil(미적용) → 비활성.
         #expect(!group(nil).isStrictLockActive(at: now))
     }
 
@@ -187,7 +187,7 @@ struct StrictLockTests {
     }
 
     @Test func strictToggleDoesNotChangeProjection() {
-        // 금고 켜기 전후(같은 그룹, strictUntil만 다름)의 투영본이 == → 불필요한 churn 없음.
+        // 연장 불가 모드 적용 전후(같은 그룹, strictUntil만 다름)의 투영본이 == → 불필요한 churn 없음.
         let id = UUID()
 
         // 비요일 그룹.
@@ -214,7 +214,7 @@ struct StrictLockTests {
         let useCase = makeManageUseCase()
         let id = UUID()
 
-        // 활성 약정(미래 만료) → 규칙/한도 변경 시도 무시.
+        // 활성 기간(미래 만료) → 규칙/한도 변경 시도 무시.
         var active = [SharedStore.ScreenTimeGroup(
             id: id, name: "게임", dailyLimitMinutes: 30, ruleKind: .dailyLimit,
             isApplied: true, strictUntil: .distantFuture
@@ -270,7 +270,7 @@ struct StrictLockTests {
     }
 
     @Test func updateNameAllowedDuringStrictLock() {
-        // 이름 변경은 집행 무관이라 금고 약정 중에도 허용된다.
+        // 이름 변경은 집행 무관이라 연장 불가 기간 중에도 허용된다.
         let useCase = makeManageUseCase()
         let id = UUID()
         var groups = [SharedStore.ScreenTimeGroup(
@@ -285,7 +285,7 @@ struct StrictLockTests {
     @Test func deleteGroupBlockedDuringStrictLockAllowedWhenExpired() {
         let useCase = makeManageUseCase()
 
-        // 활성 약정 → false + 배열 보존.
+        // 활성 기간 → false + 배열 보존.
         let idA = UUID()
         var active = [SharedStore.ScreenTimeGroup(
             id: idA, name: "게임", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
@@ -302,7 +302,7 @@ struct StrictLockTests {
         #expect(expired.isEmpty)
     }
 
-    // MARK: - 9. 금고 켜기(activateStrictLock)
+    // MARK: - 9. 연장 불가 모드 적용(activateStrictLock)
 
     /// 자정 경계 만료 기대값을 코드와 동일하게(.current 캘린더) 계산 — 실행 지역 무관.
     private func expectedExpiry(days: Int, from now: Date) -> Date {
@@ -339,7 +339,7 @@ struct StrictLockTests {
 
     @Test func activateStrictLockRejectsDaysOutsideRange() {
         // (c) 허용 범위(1...30일) 밖은 거부. 상한 30일은 실수 보호 — 못 푸는 모드라 무한정 긴
-        // 약정은 사고가 된다. 범위 안이면 프리셋 칩(1/3/7)에 없는 직접 입력 값도 허용한다.
+        // 연장 불가 기간은 사고가 된다. 범위 안이면 프리셋 칩(1/3/7)에 없는 커스텀 값도 허용한다.
         let useCase = makeManageUseCase()
         let now = date(2026, 7, 12, 14, 30)
         let id = UUID()
@@ -361,7 +361,7 @@ struct StrictLockTests {
     }
 
     @Test func activateStrictLockExtendsToLongerKeepingStart() {
-        // (d) 활성 약정 중 더 긴 기간 → 연장 성공 + strictStartedAt 최초 값 유지.
+        // (d) 활성 기간 중 더 긴 기간 → 연장 성공 + strictStartedAt 최초 값 유지.
         let useCase = makeManageUseCase()
         let now = date(2026, 7, 12, 14, 30)
         let firstStart = date(2026, 7, 10, 9, 0)
@@ -377,7 +377,7 @@ struct StrictLockTests {
     }
 
     @Test func activateStrictLockRejectsShorterExpiry() {
-        // (e) 활성 약정 중 더 짧은 만료가 되는 시도 → 거부(축소 불가).
+        // (e) 활성 기간 중 더 짧은 만료가 되는 시도 → 거부(축소 불가).
         let useCase = makeManageUseCase()
         let now = date(2026, 7, 12, 14, 30)
         let firstStart = date(2026, 7, 10, 9, 0)
@@ -405,15 +405,37 @@ struct StrictLockTests {
         #expect(groups[0].strictUntil == nil)
     }
 
+    @Test func strictLockDefaultDaysStartsOnShortestPresetChipAndCommits() {
+        // (g) 시트 초기 상태 계약(2026-07-31 변경): 기본 기간은 **가장 짧은 프리셋(1일)** 이어야 한다 —
+        // 프리셋에서 빠지는 순간 시트가 커스텀 칩 선택 + 휠 펼침으로 열려 처음 화면이 긴 기간을 권한다.
+        // 커스텀 시드(14일)는 반대로 **프리셋에 없어야** 커스텀 칩 선택 상태가 유지된다.
+        let defaultDays = ManageGroupsUseCase.strictLockDefaultDays
+        #expect(ManageGroupsUseCase.strictLockDayRange.contains(defaultDays))
+        #expect(defaultDays == ManageGroupsUseCase.strictLockDayPresets.min())
+        let seedDays = ManageGroupsUseCase.strictLockCustomSeedDays
+        #expect(ManageGroupsUseCase.strictLockDayRange.contains(seedDays))
+        #expect(!ManageGroupsUseCase.strictLockDayPresets.contains(seedDays))
+        // 기본값 그대로 확정도 가능해야 한다(범위 검증 통과).
+        let useCase = makeManageUseCase()
+        let now = date(2026, 7, 12, 14, 30)
+        let id = UUID()
+        var groups = [SharedStore.ScreenTimeGroup(
+            id: id, name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )]
+        #expect(useCase.activateStrictLock(id: id, days: defaultDays, now: now, in: &groups) == true)
+        #expect(groups[0].strictUntil == expectedExpiry(days: defaultDays, from: now))
+    }
+
     // MARK: - 10. 전역 설정 판정(hasActiveStrictLock)
 
     @Test func hasActiveStrictLockReflectsAppliedActiveCommitments() {
-        // 전역 설정(denyAppRemoval·자동 날짜)의 on/off 판정: 적용 + 활성 약정 그룹이 있을 때만 true.
+        // 전역 설정(denyAppRemoval·자동 날짜)의 on/off 판정: 적용 + 활성 연장 불가 그룹이 있을 때만 true.
         let original = SharedStore.screenTimeGroups
         defer { SharedStore.screenTimeGroups = original }
 
         SharedStore.screenTimeGroups = [
-            SharedStore.ScreenTimeGroup(name: "무약정", ruleKind: .dailyLimit, isApplied: true),
+            SharedStore.ScreenTimeGroup(name: "미적용", ruleKind: .dailyLimit, isApplied: true),
             SharedStore.ScreenTimeGroup(name: "만료", ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantPast),
             SharedStore.ScreenTimeGroup(name: "미적용", ruleKind: .dailyLimit, isApplied: false, strictUntil: .distantFuture)
         ]
@@ -425,7 +447,7 @@ struct StrictLockTests {
         #expect(SharedStore.hasActiveStrictLock())
     }
 
-    // MARK: - 9-b. 기능 토글(설정) — 기본 Off, 약정 중엔 끌 수 없음
+    // MARK: - 9-b. 기능 토글(설정) — 기본 Off, 연장 불가 기간 중엔 끌 수 없음
 
     @Test func activateStrictLockRejectedWhenFeatureDisabled() {
         // 설정 토글이 꺼져 있으면(프로덕션 기본값) 켜기가 거부된다 — UI가 진입을 막지만 집행부도 방어.
@@ -446,8 +468,8 @@ struct StrictLockTests {
     }
 
     @Test func featureToggleCannotBeDisabledWhileCommitmentRuns() {
-        // 진행 중인 약정이 있으면 기능 토글을 끌 수 없다 — 끄기로 약정을 우회 해제하는 구멍 차단.
-        // 약정이 없으면(또는 만료됐으면) 끌 수 있고, 켜기는 언제나 가능하다.
+        // 진행 중인 연장 불가 기간이 있으면 기능 토글을 끌 수 없다 — 끄기로 연장 불가 기간을 우회 해제하는 구멍 차단.
+        // 연장 불가 기간이 없으면(또는 만료됐으면) 끌 수 있고, 켜기는 언제나 가능하다.
         let repo = StrictFakeGroupRepository()
         let useCase = ManageGroupsUseCase(
             groupRepository: repo,
@@ -462,7 +484,7 @@ struct StrictLockTests {
         #expect(useCase.setStrictLockEnabled(false) == false)
         #expect(repo.isStrictLockEnabled)              // 끄기 거부 → 켜진 상태 유지
 
-        // 만료된 약정만 남으면 끌 수 있다.
+        // 만료된 연장 불가 기간만 남으면 끌 수 있다.
         repo.screenTimeGroups = [SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", selection: validSelection(),
             ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantPast
@@ -471,16 +493,16 @@ struct StrictLockTests {
         #expect(useCase.setStrictLockEnabled(false) == true)
         #expect(!repo.isStrictLockEnabled)
 
-        // 켜기는 약정 유무와 무관하게 가능.
+        // 켜기는 연장 불가 기간 유무와 무관하게 가능.
         #expect(useCase.setStrictLockEnabled(true) == true)
         #expect(repo.isStrictLockEnabled)
     }
 
-    // MARK: - 10-a. 쿨다운 휴식은 금고 중에도 정상 종료·재충전된다 (집행 규칙 무영향)
+    // MARK: - 10-a. 쿨다운 휴식은 연장 불가 모드 중에도 정상 종료·재충전된다 (집행 규칙 무영향)
 
     @Test func cooldownRestStillEndsAndRechargesDuringStrictLock() {
-        // 금고가 막는 것은 "휴식을 광고/1분으로 건너뛰기"이지 휴식 자체가 아니다.
-        // 예산을 다 써 휴식에 들어간 그룹은 약정 중에도 시간이 지나면 정상 종료되고 예산이
+        // 연장 불가 모드가 막는 것은 "휴식을 광고/1분으로 건너뛰기"이지 휴식 자체가 아니다.
+        // 예산을 다 써 휴식에 들어간 그룹은 연장 불가 기간 중에도 시간이 지나면 정상 종료되고 예산이
         // 재충전된다(사용 시간을 정당하게 돌려받는 쿨다운의 핵심). 재충전 경로
         // (endCooldownAndRecharge / handleCooldownTimerEnded / rechargeExpiredCooldowns)에
         // strict guard를 "일관성"을 이유로 넣지 말 것 — 넣으면 휴식이 영영 안 끝난다.
@@ -494,7 +516,7 @@ struct StrictLockTests {
         let id = UUID()
         SharedStore.screenTimeGroups = [
             SharedStore.ScreenTimeGroup(
-                id: id, name: "쿨다운-금고", selection: validSelection(),
+                id: id, name: "쿨다운-연장 불가 모드", selection: validSelection(),
                 ruleKind: .cooldown, isApplied: true,
                 cooldownUsageMinutes: 5, cooldownDurationMinutes: 30,
                 strictUntil: .distantFuture
@@ -506,19 +528,19 @@ struct StrictLockTests {
         #expect(SharedStore.isInCooldown(id))
         #expect(SharedStore.shieldedGroupIDs.contains(id))
 
-        // 휴식 시간 경과 → 재충전(약정 중이어도 막히지 않는다).
+        // 휴식 시간 경과 → 재충전(연장 불가 기간 중이어도 막히지 않는다).
         _ = SharedStore.endCooldownAndRecharge(for: id)
 
         #expect(!SharedStore.isInCooldown(id))
         #expect(!SharedStore.shieldedGroupIDs.contains(id))       // 잠금 해제
         #expect(SharedStore.usedTimeByGroupID[id] == nil)         // 예산 0부터 새 사이클
-        #expect(SharedStore.group(id: id)?.isStrictLockActive() == true)   // 약정은 그대로 유지
+        #expect(SharedStore.group(id: id)?.isStrictLockActive() == true)   // 연장 불가 기간은 그대로 유지
     }
 
     // MARK: - 10-b. 하트비트 유지(자정 만료 해제 경로 보장)
 
     @Test func heartbeatStaysAliveForStrictLockedTimeWindowOnlyGroup() {
-        // 시간대-only 구성은 원래 하트비트가 불필요하지만(window는 repeats:true), 금고 약정이
+        // 시간대-only 구성은 원래 하트비트가 불필요하지만(window는 repeats:true), 연장 불가 기간이
         // 걸리면 유지해야 한다 — 만료는 lazy 판정이라 extension 콜백이 와야 전역 설정
         // (기기 전체 앱 삭제 금지)이 해제된다. 콜백이 없으면 자정 만료 후에도 최대 하루 남는다.
         let window = TimeWindow(startMinuteOfDay: 9 * 60, endMinuteOfDay: 12 * 60)
@@ -529,12 +551,12 @@ struct StrictLockTests {
         var strict = plain
         strict.strictUntil = .distantFuture
 
-        // 대조: 금고 없는 시간대-only는 기존대로 하트비트 불필요.
+        // 대조: 연장 불가 모드 없는 시간대-only는 기존대로 하트비트 불필요.
         #expect(!DailyMonitor.needsHeartbeat(for: [plain], appliedGroups: [plain]))
-        // 금고 약정 중이면 하트비트 유지.
+        // 연장 불가 기간 중이면 하트비트 유지.
         #expect(DailyMonitor.needsHeartbeat(for: [strict], appliedGroups: [strict]))
 
-        // 만료된 약정은 다시 불필요(해제까지 마친 뒤엔 슬롯을 돌려준다).
+        // 만료된 연장 불가 기간은 다시 불필요(해제까지 마친 뒤엔 슬롯을 돌려준다).
         var expired = plain
         expired.strictUntil = .distantPast
         #expect(!DailyMonitor.needsHeartbeat(for: [expired], appliedGroups: [expired]))
@@ -543,7 +565,7 @@ struct StrictLockTests {
     // MARK: - 11. ExtendGroupUseCase 앞단 거부
 
     @Test func extendUseCaseRejectsStrictLockedGroup() {
-        // 금고 약정 활성 잠긴 그룹 → extendOneMinute/extendWithAd가 .strictLockActive를 돌려주고
+        // 연장 불가 기간 활성 잠긴 그룹 → extendOneMinute/extendWithAd가 .strictLockActive를 돌려주고
         // repository의 extendGroup은 호출되지 않는다(집행부 진입 차단).
         let id = UUID()
         let shieldRepo = StrictFakeShieldRepository()
@@ -571,7 +593,7 @@ struct StrictLockTests {
 
     // MARK: - 11. Presentation — ContentViewModel 진입 차단·확정
 
-    /// 강력 잠금(약정 활성) 그룹 + 유효 규칙(앱 선택 포함)의 applied 그룹을 만든다.
+    /// 강력 잠금(연장 불가 기간 활성) 그룹 + 유효 규칙(앱 선택 포함)의 applied 그룹을 만든다.
     private func strictActiveGroup() -> SharedStore.ScreenTimeGroup {
         SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", selection: validSelection(),
@@ -615,7 +637,7 @@ struct StrictLockTests {
     }
 
     @Test func presentRuleEditorBlockedDuringStrictLock() {
-        // 약정 중 그룹의 규칙 편집기 진입은 막히고(ruleEditorGroupID nil 유지) 안내 alert가 뜬다.
+        // 연장 불가 기간 중인 그룹의 규칙 편집기 진입은 막히고(ruleEditorGroupID nil 유지) 안내 alert가 뜬다.
         let group = strictActiveGroup()
         let viewModel = makeContentViewModel(groups: [group])
 
@@ -626,7 +648,7 @@ struct StrictLockTests {
     }
 
     @Test func requestDeleteBlockedDuringStrictLock() {
-        // 약정 중 그룹의 삭제 진입은 막히고 그룹이 보존되며 안내 alert가 뜬다(광고 게이트 미진입).
+        // 연장 불가 기간 중인 그룹의 삭제 진입은 막히고 그룹이 보존되며 안내 alert가 뜬다(광고 게이트 미진입).
         let group = strictActiveGroup()
         let viewModel = makeContentViewModel(groups: [group])
 
@@ -649,7 +671,7 @@ struct StrictLockTests {
     }
 
     @Test func confirmStrictLockSetsExpiryAndClosesSheet() {
-        // 무약정 applied 그룹에 금고 켜기 → strictUntil 세팅 + 시트 닫힘 + strict_lock_commit 로깅.
+        // 미적용 applied 그룹에 연장 불가 모드 적용 → strictUntil 세팅 + 시트 닫힘 + strict_lock_commit 로깅.
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", selection: validSelection(),
             dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
@@ -668,7 +690,7 @@ struct StrictLockTests {
     }
 
     @Test func presentStrictLockSheetIgnoredForDraftGroup() {
-        // draft(미적용) 그룹은 금고 시트를 열 수 없다.
+        // draft(미적용) 그룹은 연장 불가 시트를 열 수 없다.
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", selection: validSelection(), ruleKind: .dailyLimit, isApplied: false
         )
@@ -682,7 +704,7 @@ struct StrictLockTests {
     @Test func presentStrictLockSheetBlockedForInvalidAppliedGroup() {
         // applied이지만 무효한 그룹(항목 0개 — 적용 후 picker에서 전부 해제)은 시트를 열지 않고
         // 사유를 안내한다. 열어주면 activateStrictLock이 같은 검증으로 거부해 최종 확인을 눌러도
-        // 확정이 조용히 실패하고, 사용자는 금고가 켜졌다고 오인한다.
+        // 확정이 조용히 실패하고, 사용자는 연장 불가 모드가 켜졌다고 오인한다.
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
         )
@@ -695,7 +717,7 @@ struct StrictLockTests {
     }
 
     @Test func presentStrictLockSheetOpensForActiveCommitmentEvenIfInvalid() {
-        // 이미 약정 중인 그룹은 편집이 막혀 무효가 될 수 없으므로 유효성 검증을 건너뛰고
+        // 이미 연장 불가 기간 중인 그룹은 편집이 막혀 무효가 될 수 없으므로 유효성 검증을 건너뛰고
         // 현황·연장 진입을 허용한다(방어적 — 진입까지 막으면 만료일도 못 본다).
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", dailyLimitMinutes: 30, ruleKind: .dailyLimit,
@@ -726,7 +748,7 @@ struct StrictLockTests {
     @Test func strictRemainingDaysCountsWholeDays() {
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", ruleKind: .dailyLimit, isApplied: true,
-            strictUntil: date(2026, 7, 15, 0, 0)   // 3일 약정(7/12~7/14, 7/15 0시 해제)
+            strictUntil: date(2026, 7, 15, 0, 0)   // 3일 연장 불가 기간(7/12~7/14, 7/15 0시 해제)
         )
         let viewModel = makeHomeViewModel(groups: [group])
 
@@ -736,7 +758,7 @@ struct StrictLockTests {
         // 만료(7/15 0시) 이후 = nil.
         #expect(viewModel.strictRemainingDays(for: group, now: date(2026, 7, 15, 0, 0), calendar: calendar) == nil)
 
-        // 무약정 그룹 = nil.
+        // 미적용 그룹 = nil.
         let plain = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", ruleKind: .dailyLimit, isApplied: true)
         #expect(viewModel.strictRemainingDays(for: plain, now: date(2026, 7, 12, 14, 30), calendar: calendar) == nil)
     }
@@ -755,7 +777,7 @@ struct StrictLockTests {
     // MARK: - 13. Presentation — LockOptionsViewModel 연장 차단
 
     @Test func lockOptionsBlocksExtensionForStrictLockedGroup() {
-        // 약정 잠긴 그룹 선택 시 1분·광고 연장 모두 비활성 + 안내 문구 노출("그만 쓰기"는 유지).
+        // 연장 불가 기간 잠긴 그룹 선택 시 1분·광고 연장 모두 비활성 + 안내 문구 노출("그만 쓰기"는 유지).
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", selection: validSelection(),
             ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
@@ -785,7 +807,7 @@ struct StrictLockTests {
 private final class StrictFakeGroupRepository: GroupRepository {
     var screenTimeGroups: [ScreenTimeGroup] = []
     func defaultGroupName(for index: Int) -> String { "그룹 \(index + 1)" }
-    /// 금고 기능 토글. 대부분의 테스트가 약정 켜기를 다루므로 기본 On으로 둔다
+    /// 연장 불가 기능 토글. 대부분의 테스트가 연장 불가 기간 켜기를 다루므로 기본 On으로 둔다
     /// (기본 Off인 프로덕션 기본값은 `activateStrictLockRejectedWhenFeatureDisabled`가 검증).
     var isStrictLockEnabled: Bool = true
 }

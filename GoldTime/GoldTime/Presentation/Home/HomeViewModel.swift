@@ -392,21 +392,22 @@ struct HomeViewModel {
         todayStats.totalUnlockedSeconds > 0
     }
 
-    // MARK: - 금고 모드(기간 약정 강력 잠금)
+    // MARK: - 연장 불가 모드(기간 강력 잠금)
 
-    /// 그룹이 지금 금고 약정 중인지. 판정은 항상 원본 그룹에서(투영본은 strict 필드가 스트립됨).
+    /// 그룹이 지금 연장 불가 기간 중인지. 판정은 항상 원본 그룹에서(투영본은 strict 필드가 스트립됨).
     func isStrictLocked(_ group: ScreenTimeGroup, now: Date = Date()) -> Bool {
         group.isStrictLockActive(at: now)
     }
 
-    /// 금고 약정의 남은 일수(마지막 날 = 1). 약정 중이 아니면 nil.
+    /// 연장 불가 기간의 남은 일수(마지막 날 = 1). 연장 불가 기간 중이 아니면 nil.
     /// 만료는 항상 자정 경계라 오늘 00:00부터 만료까지의 일 수가 곧 남은 일수다.
     func strictRemainingDays(for group: ScreenTimeGroup, now: Date = Date(), calendar: Calendar = .current) -> Int? {
         guard group.isStrictLockActive(at: now), let until = group.strictUntil else { return nil }
         return calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: until).day
     }
 
-    /// 그룹 카드 금고 배지 문구("금고 D-N"). 약정 중이 아니면 nil.
+    /// 그룹 카드 연장 불가 배지 문구("N일 남음" — 자물쇠 아이콘이 무엇이 남았는지 말한다).
+    /// D-N 표기는 쓰지 않는다: D-day 관습상 "연장 불가가 N일 뒤 시작"으로 읽힌다. 연장 불가 기간 중이 아니면 nil.
     func strictBadgeText(for group: ScreenTimeGroup) -> String? {
         guard let days = strictRemainingDays(for: group) else { return nil }
         return String(localized: "home.badge.strict \(days)")

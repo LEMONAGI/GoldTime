@@ -16,7 +16,7 @@ struct GroupCardView: View {
     let onUnlockGroup: (UUID) -> Void
     let onApplyGroup: (UUID) -> Void
     let onPresentStrictLock: (ScreenTimeGroup) -> Void
-    /// 금고 모드 기능 토글(설정, 기본 Off). Off면 금고 행 자체를 그리지 않는다.
+    /// 연장 불가 모드 기능 토글(설정, 기본 Off). Off면 연장 불가 행 자체를 그리지 않는다.
     let isStrictLockFeatureEnabled: Bool
 
     @State private var isShowingEditConfirm = false
@@ -31,7 +31,7 @@ struct GroupCardView: View {
         viewModel.overrideGroupIDs.contains(group.id)
     }
 
-    /// 금고 약정 중인지. 규칙 행·금고 행의 자물쇠 신호와 삭제 버튼 비활성에 쓴다.
+    /// 연장 불가 기간 중인지. 규칙 행·연장 불가 행의 자물쇠 신호와 삭제 버튼 비활성에 쓴다.
     private var isStrictActive: Bool {
         viewModel.isStrictLocked(group)
     }
@@ -130,8 +130,8 @@ struct GroupCardView: View {
                 Spacer()
 
                 Button(role: .destructive) {
-                    // 금고 약정 중엔 광고 게이트 다이얼로그를 띄우지 않고 곧장 ContentViewModel로
-                    // 보낸다 — 거기 strict guard가 "약정이 끝나야 지울 수 있어요" alert을 띄운다.
+                    // 연장 불가 기간 중엔 광고 게이트 다이얼로그를 띄우지 않고 곧장 ContentViewModel로
+                    // 보낸다 — 거기 strict guard가 "연장 불가 기간이 끝나야 지울 수 있어요" alert을 띄운다.
                     // (버튼을 disabled로 두면 왜 안 되는지 설명할 자리가 없어 dim만 남긴다.)
                     if isStrictActive {
                         onDeleteGroup(group.id)
@@ -214,7 +214,7 @@ struct GroupCardView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    // 약정 중이면 편집 진입이 막히는 시각 신호로 chevron 대신 자물쇠(탭은 그대로 가능).
+                    // 연장 불가 기간 중이면 편집 진입이 막히는 시각 신호로 chevron 대신 자물쇠(탭은 그대로 가능).
                     Image(systemName: isStrictActive ? "lock.fill" : "chevron.right")
                         .font(.system(size: 18))
                         .foregroundStyle(.secondary)
@@ -263,15 +263,16 @@ struct GroupCardView: View {
         .cardContainer()
     }
 
-    /// 금고 모드 행(규칙 행 바로 아래). 규칙 행과 같은 시각 언어(제목+부제+trailing).
-    /// 약정 중이면 부제가 만료일, trailing은 자물쇠. 탭 → 금고 시트.
+    /// 연장 불가 행(규칙 행 바로 아래). 규칙 행과 같은 시각 언어(제목+부제+trailing)이자 같은 문법 —
+    /// **제목이 적용 전엔 할 일("연장 불가 모드 설정"), 적용 중엔 현재 상태("연장 불가 중")** 로 바뀐다
+    /// (규칙 행의 "차단 규칙 선택" → "일일 한도"와 동일). 부제는 적용 중이면 만료일, trailing은 자물쇠.
     private var strictRow: some View {
         Button {
             onPresentStrictLock(group)
         } label: {
             HStack(alignment: .center, spacing: 0) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("group.strictRow.title")
+                    Text(isStrictActive ? "group.strictRow.title.active" : "group.strictRow.title.inactive")
                         .font(.subheadline.weight(.semibold))
                     strictRowSubtitle
                         .font(.footnote)
@@ -296,14 +297,19 @@ struct GroupCardView: View {
         return Text("group.strictRow.subtitle.inactive")
     }
 
+    /// 연장 불가 배지("🔒 N일 남음"). `Label`은 아이콘–텍스트 간격을 제어할 수 없어 자물쇠 오른쪽에
+    /// 큰 여백이 남는다 — HStack으로 직접 조립한다.
     private func strictBadge(_ text: String) -> some View {
-        Label(text, systemImage: "lock.fill")
-            .font(.caption2.weight(.bold))
-            .foregroundStyle(Color.accent)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(Color.accent.opacity(0.15))
-            .clipShape(Capsule())
+        HStack(spacing: 3) {
+            Image(systemName: "lock.fill")
+            Text(text)
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(Color.accent)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Color.accent.opacity(0.15))
+        .clipShape(Capsule())
     }
 
     @ViewBuilder
@@ -331,9 +337,9 @@ struct GroupCardView: View {
         }
     }
 
-    /// 항목(앱 선택) 편집 탭. **금고 약정 중이면 광고 게이트 다이얼로그를 띄우지 않고** 곧장
+    /// 항목(앱 선택) 편집 탭. **연장 불가 기간 중이면 광고 게이트 다이얼로그를 띄우지 않고** 곧장
     /// ContentViewModel로 보낸다 — 거기 strict guard가 차단 안내 alert만 띄운다. 다이얼로그를
-    /// 먼저 띄우면 "광고 보고 편집하기"라는 금고와 모순되는 안내가 뜨고, 확인 시 다이얼로그가
+    /// 먼저 띄우면 "광고 보고 편집하기"라는 연장 불가 모드와 모순되는 안내가 뜨고, 확인 시 다이얼로그가
     /// 닫히는 같은 사이클에 alert를 세팅하게 돼 SwiftUI가 표시를 건너뛴다(Presentation/CLAUDE.md).
     private func tapEditSelection() {
         if isStrictActive || !isEditRestricted {
@@ -377,7 +383,7 @@ struct GroupCardView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                         Spacer()
-                        // 약정 중이면 항목 편집도 막히므로 규칙 행과 같은 자물쇠 신호를 준다
+                        // 연장 불가 기간 중이면 항목 편집도 막히므로 규칙 행과 같은 자물쇠 신호를 준다
                         // (탭은 가능 — ContentViewModel이 만료일 안내 alert을 띄운다).
                         Image(systemName: isStrictActive ? "lock.fill" : "square.grid.2x2")
                             .font(.footnote.weight(.semibold))
@@ -457,12 +463,31 @@ private func makeCardPreview(strictUntil: Date?) -> some View {
     .background(Color(.systemGroupedBackground))
 }
 
-#Preview("카드 — 금고 약정 중") {
+#Preview("카드 — 연장 불가 진행 중") {
     let until = Calendar.current.date(byAdding: .day, value: 5, to: Calendar.current.startOfDay(for: Date()))
     return makeCardPreview(strictUntil: until)
 }
 
-#Preview("카드 — 무약정(금고 행)") {
+#Preview("카드 — 대기(연장 불가 행)") {
     makeCardPreview(strictUntil: nil)
+}
+
+// 언어 variant — en/ja 잘림 확인용(다크·큰 글자는 Canvas Variants 버튼). 배지·만료일은
+// String(localized:)라 locale을 안 따르지만 "5일 남음"처럼 짧아 잘림 위험이 없다. 반면 행 제목
+// ("연장 불가 모드 설정")은 LocalizedStringKey라 여기서 en/ja 폭을 확인한다.
+#Preview("카드 연장불가행 — EN") {
+    makeCardPreview(strictUntil: nil)
+        .environment(\.locale, .init(identifier: "en"))
+}
+
+#Preview("카드 연장불가행 — JA") {
+    makeCardPreview(strictUntil: nil)
+        .environment(\.locale, .init(identifier: "ja"))
+}
+
+#Preview("카드 진행중 — EN") {
+    let until = Calendar.current.date(byAdding: .day, value: 5, to: Calendar.current.startOfDay(for: Date()))
+    return makeCardPreview(strictUntil: until)
+        .environment(\.locale, .init(identifier: "en"))
 }
 #endif

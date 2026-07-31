@@ -2,14 +2,14 @@
 //  StrictLockSheet.swift
 //  GoldTime
 //
-//  금고 모드(기간 약정 강력 잠금) 켜기·연장 시트. 단일 sheet 안에서 콘텐츠 단계를
+//  연장 불가 모드(기간 강력 잠금) 켜기·연장 시트. 단일 sheet 안에서 콘텐츠 단계를
 //  전환한다(설정 → 최종 확인). 시트 안에서 confirmationDialog → modal 연쇄는 타이밍
 //  글리치가 남아 쓰지 않는다(Presentation/CLAUDE.md "presentation 전환 타이밍" 참조) —
 //  강한 확인 2단계는 같은 시트의 @State 콘텐츠 전환으로만 구현한다.
 //
 //  두 진입 모드가 있다:
-//  - 비약정 그룹(켜기): 기간 선택 + 고지 목록 + 최종 확인.
-//  - 약정 중 그룹(현황/연장): 약정 정보 + "지금보다 길게만" 연장(만료가 늘어나는 프리셋만 활성).
+//  - 적용 전 그룹(켜기): 기간 선택 + 고지 목록 + 최종 확인.
+//  - 연장 불가 기간 중인 그룹(현황/연장): 현재 상태 + "지금보다 길게만" 연장(만료가 늘어나는 프리셋만 활성).
 //
 
 import SwiftUI
@@ -45,9 +45,15 @@ struct StrictLockSheet: View {
             _selectedDays = State(initialValue: initialDays)
             return
         }
-        // 기본 선택: 켜기면 첫 프리셋. 연장이면 만료가 실제로 늘어나는 가장 짧은 기간 —
-        // 프리셋이 전부 지금 만료보다 짧으면(예: 8일 남음) 직접 입력 범위에서 고른다.
+        // 기본 선택은 기본 기간(1일 — 첫 프리셋이라 칩이 선택되고 휠은 접힌 채로 열린다).
+        // 연장 진입에서 이미 그보다 길게 잠겨 있으면 만료가 실제로 늘어나는 가장 짧은 기간으로
+        // 폴백한다(프리셋 → 커스텀 범위 순).
         let presets = ManageGroupsUseCase.strictLockDayPresets
+        let defaultDays = ManageGroupsUseCase.strictLockDefaultDays
+        if Self.isDayEnabled(defaultDays, group: group, now: now) {
+            _selectedDays = State(initialValue: defaultDays)
+            return
+        }
         let enabledPreset = presets.first { Self.isDayEnabled($0, group: group, now: now) }
         let enabledCustom = ManageGroupsUseCase.strictLockDayRange
             .first { Self.isDayEnabled($0, group: group, now: now) }
@@ -56,7 +62,7 @@ struct StrictLockSheet: View {
 
     private var isActive: Bool { group.isStrictLockActive(at: now) }
 
-    /// 남은 일수(마지막 날 = 1). 약정 중이 아니면 nil.
+    /// 남은 일수(마지막 날 = 1). 연장 불가 기간 중이 아니면 nil.
     private var remainingDays: Int? {
         guard isActive, let until = group.strictUntil else { return nil }
         return Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: now), to: until).day
@@ -79,15 +85,15 @@ struct StrictLockSheet: View {
         Self.isDayEnabled(day, group: group, now: now)
     }
 
-    /// 연장 가능한 기간이 하나라도 있는지(직접 입력 상한까지 전부 만료 축소면 이미 최대).
+    /// 연장 가능한 기간이 하나라도 있는지(커스텀 상한까지 전부 만료 축소면 이미 최대).
     private var canExtend: Bool {
         ManageGroupsUseCase.strictLockDayRange.contains { isDayEnabled($0) }
     }
 
-    /// 직접 입력 칩이 선택된 상태(프리셋 칩에 없는 기간을 고른 것).
+    /// 커스텀 칩이 선택된 상태(프리셋 칩에 없는 기간을 고른 것 — 기본값 1일은 프리셋이라 해당 없음).
     private var isCustomSelected: Bool { !presets.contains(selectedDays) }
 
-    /// 직접 입력 휠에서 고를 수 있는 기간. 연장이면 만료가 실제로 늘어나는 값만 남긴다.
+    /// 커스텀 휠에서 고를 수 있는 기간. 연장이면 만료가 실제로 늘어나는 값만 남긴다.
     private var selectableCustomDays: [Int] {
         ManageGroupsUseCase.strictLockDayRange.filter { isDayEnabled($0) }
     }
@@ -119,7 +125,7 @@ struct StrictLockSheet: View {
         }
     }
 
-    // MARK: - 켜기(비약정)
+    // MARK: - 켜기(적용 전)
 
     private var turnOnConfigStage: some View {
         ScrollView {
@@ -147,7 +153,7 @@ struct StrictLockSheet: View {
         }
     }
 
-    /// 기간 선택 칩(1·3·7일 + 직접 입력). 연장 모드에서 만료가 늘지 않는 값은 disabled 처리한다.
+    /// 기간 선택 칩(1·3·7일 + 커스텀). 연장 모드에서 만료가 늘지 않는 값은 disabled 처리한다.
     private var presetChips: some View {
         HStack(spacing: 8) {
             ForEach(presets, id: \.self) { day in
@@ -155,14 +161,16 @@ struct StrictLockSheet: View {
                     selectedDays = day
                 }
             }
-            // 직접 입력: 선택된 값이 프리셋에 없으면 칩에 그 값을 그대로 보여준다("12일").
+            // 커스텀: 선택된 값이 프리셋에 없으면 칩에 그 값을 그대로 보여준다("14일").
             chip(
                 title: isCustomSelected ? Text("strict.sheet.day \(selectedDays)") : Text("strict.sheet.day.custom"),
                 selected: isCustomSelected,
                 enabled: !selectableCustomDays.isEmpty
             ) {
-                // 직접 입력으로 전환할 때는 고를 수 있는 가장 작은 기간부터 시작한다.
-                selectedDays = selectableCustomDays.first(where: { !presets.contains($0) })
+                // 커스텀으로 전환할 때는 시드 기간(14일)을 우선 잡고, 연장이라 그게 이미 짧으면
+                // 고를 수 있는 가장 작은 비프리셋 기간부터 시작한다.
+                selectedDays = selectableCustomDays.first(where: { $0 == ManageGroupsUseCase.strictLockCustomSeedDays })
+                    ?? selectableCustomDays.first(where: { !presets.contains($0) })
                     ?? selectableCustomDays.first
                     ?? selectedDays
             }
@@ -189,7 +197,7 @@ struct StrictLockSheet: View {
         .opacity(enabled ? 1 : 0.4)
     }
 
-    /// 직접 입력 휠(최대 30일). 상한은 실수 보호 — 한 번 걸면 못 푸는 모드라 무한정 긴 약정은 사고다.
+    /// 커스텀 휠(최대 30일). 상한은 실수 보호 — 한 번 걸면 못 푸는 모드라 무한정 긴 기간은 사고다.
     @ViewBuilder
     private var customDaysWheel: some View {
         if !selectableCustomDays.isEmpty {
@@ -222,9 +230,9 @@ struct StrictLockSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("strict.sheet.intro")
                 .font(.headline)
-            noticeRow("lock.fill", "strict.notice.noRelease")
-            noticeRow("pencil.slash", "strict.notice.editLocked")
             noticeRow("hourglass", "strict.notice.extendLocked")
+            noticeRow("pencil.slash", "strict.notice.editLocked")
+            noticeRow("lock.fill", "strict.notice.noRelease")
             noticeRow("trash.slash", "strict.notice.appRemoval", footnote: "strict.notice.appRemoval.footnote")
             noticeRow("clock.badge.xmark", "strict.notice.autoDateTime", footnote: "strict.notice.autoDateTime.footnote")
         }
@@ -273,7 +281,7 @@ struct StrictLockSheet: View {
         }
     }
 
-    // MARK: - 현황/연장(약정 중)
+    // MARK: - 현황/연장(연장 불가 기간 중)
 
     private var activeConfigStage: some View {
         ScrollView {
@@ -357,7 +365,7 @@ struct StrictLockSheet: View {
             }
             Spacer()
             VStack(spacing: 12) {
-                // 파괴가 아니라 약정이므로 빨강이 아니라 accent.
+                // 파괴가 아니라 설정이므로 빨강이 아니라 accent.
                 Button {
                     onConfirm(selectedDays)
                 } label: {
@@ -406,18 +414,42 @@ private func makePreviewGroup(strictUntil: Date? = nil, startedAt: Date? = nil) 
     StrictLockSheet(group: makePreviewGroup()) { _ in }
 }
 
-#Preview("약정 중 — 현황·연장") {
+#Preview("진행 중 — 현황·연장") {
     let now = Date()
     let until = Calendar.current.date(byAdding: .day, value: 5, to: Calendar.current.startOfDay(for: now))
     let started = Calendar.current.date(byAdding: .day, value: -2, to: now)
     return StrictLockSheet(group: makePreviewGroup(strictUntil: until, startedAt: started)) { _ in }
 }
 
-#Preview("켜기 — 직접 입력(휠)") {
+// 기본값(1일)은 프리셋 칩이라 휠이 접힌 채 열린다 — 휠 상태는 이 프리뷰로만 본다.
+#Preview("켜기 — 커스텀(휠)") {
     StrictLockSheet(group: makePreviewGroup(), initialDays: 12) { _ in }
 }
 
 #Preview("최종 확인") {
     StrictLockSheet(group: makePreviewGroup(), initialStage: .confirm) { _ in }
+}
+
+// 언어 variant — Canvas에서 en/ja 잘림 확인용. 다크·큰 글자는 Canvas의 Variants 버튼으로 토글한다.
+// LocalizedStringKey 문구(고지·본문·부제)는 아래 locale을 따르지만, 코드의 String(localized:)
+// (만료일·남은 일수)는 스킴 App Language로만 바뀐다 — 잘림 위험이 큰 문구는 전부 전자라 여기서 잡힌다.
+#Preview("켜기 — EN") {
+    StrictLockSheet(group: makePreviewGroup()) { _ in }
+        .environment(\.locale, .init(identifier: "en"))
+}
+
+#Preview("켜기 — JA") {
+    StrictLockSheet(group: makePreviewGroup()) { _ in }
+        .environment(\.locale, .init(identifier: "ja"))
+}
+
+#Preview("최종 확인 — EN") {
+    StrictLockSheet(group: makePreviewGroup(), initialStage: .confirm) { _ in }
+        .environment(\.locale, .init(identifier: "en"))
+}
+
+#Preview("최종 확인 — JA") {
+    StrictLockSheet(group: makePreviewGroup(), initialStage: .confirm) { _ in }
+        .environment(\.locale, .init(identifier: "ja"))
 }
 #endif
