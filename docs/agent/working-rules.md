@@ -108,7 +108,16 @@ CLI가 막히거나 IDE 상태(RenderPreview, 네비게이터 이슈 등)가 필
 
 extension은 별도 프로세스라 Xcode 콘솔에 안 잡힌다 → 자정 재무장·백그라운드 tick 같은 "사람이
 안 볼 때 일어나는 일"의 유일한 증거는 기기 OSLog다(GTLog, `subsystem == "com.nagi.GoldTime"`).
-로그는 앱 종료·재부팅 후에도 남으므로 **사후 수집이 된다**(아침에 `--last 12h`로 밤사이 전부).
+로그는 앱 종료·재부팅 후에도 남으므로 사후 수집이 되지만, **GTLog는 오래 보존되지 않는다**
+(`Df` = Debug 레벨). 자정 로그를 13시간 뒤 오후에 수집한 실측(2026-07-30)에서 같은 시각 Apple
+프레임워크 로그 75줄은 남았는데 **GTLog는 2줄만** 남아 콜백 진입 로그(`▶︎ intervalDidStart`)
+까지 유실됐다 — `--last`를 늘려도 복구되지 않는다(수집 창의 문제가 아니라 보존의 문제).
+
+- **자정 판정이 목적이면 자정 직후 `00:05~00:15`에 `--last 30m`으로 수집한다**(최선). 로그가
+  신선해 유실이 없고 파싱도 가볍다. **00:00 정각은 이르다** — iOS가 하트비트
+  `intervalDidStart`를 자정보다 수 분 늦게 발화시킨 실측이 있다(00:02:50,
+  `DeviceActivityMonitorExtension/CLAUDE.md`). 차선은 아침 일찍이고, 오후 수집은 GTLog 판정을
+  포기하는 것과 같다.
 
 - **수집은 사용자가 별도 터미널에서** 실행해야 한다: `sudo log collect --device --last 30m
   --output /tmp/x.logarchive`. Claude Code의 `!` 프리픽스는 **tty가 없어 sudo 비밀번호를 못
