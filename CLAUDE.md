@@ -25,7 +25,8 @@ Clean Architecture 5개 레이어(폴더링)로 구성됩니다.
    금지(`AccentColor`는 `Color.accent` 자동 생성).
 5. **`.xcodeproj`, entitlements, App Group, `SharedStore`, `ScreenTimeManager`, extension은
    위험도 High** → 직렬로 처리하고 검증 메모를 남긴다. 워크트리의 사용자 변경은 보존한다.
-6. 브랜치 `Type/이슈`, 커밋 `[Type] 한글 설명`. **광고 관련 변경은 `[Ad]` 태그**.
+6. 커밋 `[Type] 한글 설명`. **광고 관련 변경은 `[Ad]` 태그**. **브랜치는 스스로 만들지 않는다**
+   — `main` 포함 현재 브랜치에서 그대로 작업하고, 분리가 필요하면 사용자가 요청한다.
 
 ---
 
