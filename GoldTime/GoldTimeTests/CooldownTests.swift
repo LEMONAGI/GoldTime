@@ -438,6 +438,58 @@ struct CooldownTests {
         ) == .keepCooldownRest)
     }
 
+    // MARK: - 사라진 휴식 타이머 복구 (shouldRestoreCooldownTimer 순수 판정)
+
+    /// 핵심 회귀: 휴식은 남아 있는데 타이머 activity가 사라졌으면 되살린다.
+    /// 전체 stop 경로(권한 철회→재승인, "스크린 타임 재연결")가 타이머만 지우고 가면
+    /// intervalDidEnd가 영영 오지 않아 휴식이 자동 종료되지 않았다(2026-07-29 실기기 실측).
+    @Test func restoresCooldownTimerWhenActivityMissing() {
+        let now = Date()
+        #expect(CooldownMonitor.shouldRestoreCooldownTimer(
+            cooldownEnd: now.addingTimeInterval(30 * 60),
+            isTimerMonitored: false,
+            now: now
+        ))
+    }
+
+    /// 짝이 되는 기존 계약: 타이머가 살아 있으면 절대 재등록하지 않는다.
+    /// 재등록하면 intervalDidEnd가 새로 잡혀 휴식 시작이 리셋되므로,
+    /// "편집이 휴식을 리셋하지 않는다"가 깨진다.
+    @Test func preservesLiveCooldownTimer() {
+        let now = Date()
+        #expect(!CooldownMonitor.shouldRestoreCooldownTimer(
+            cooldownEnd: now.addingTimeInterval(30 * 60),
+            isTimerMonitored: true,
+            now: now
+        ))
+    }
+
+    /// 휴식 중이 아니면(cooldownEnd 없음) 복구 대상이 아니다.
+    @Test func doesNotRestoreCooldownTimerWhenNotResting() {
+        #expect(!CooldownMonitor.shouldRestoreCooldownTimer(
+            cooldownEnd: nil,
+            isTimerMonitored: false,
+            now: Date()
+        ))
+    }
+
+    /// 남은 휴식이 DeviceActivitySchedule 최소 간격(15분)보다 짧으면 등록 자체가
+    /// intervalTooShort로 실패하므로 시도하지 않는다 — 이미 만료된 휴식도 같다.
+    /// 이 구간은 foreground 자가치유와 자정 리셋이 처리한다.
+    @Test func doesNotRestoreCooldownTimerBelowMinimumSchedule() {
+        let now = Date()
+        #expect(!CooldownMonitor.shouldRestoreCooldownTimer(
+            cooldownEnd: now.addingTimeInterval(10 * 60),
+            isTimerMonitored: false,
+            now: now
+        ))
+        #expect(!CooldownMonitor.shouldRestoreCooldownTimer(
+            cooldownEnd: now.addingTimeInterval(-60),
+            isTimerMonitored: false,
+            now: now
+        ))
+    }
+
     // MARK: - 재동기화 stop 대상 결정 (cooldownActivitiesToStop 순수 판정)
 
     /// 변경 없는 유효 쿨다운 그룹은 재등록 churn 방지를 위해 아무것도 멈추지 않는다.

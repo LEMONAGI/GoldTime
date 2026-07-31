@@ -111,6 +111,32 @@ enum CooldownMonitor {
         return end <= now
     }
 
+    /// `DeviceActivitySchedule`의 최소 간격(Apple 제약). 이보다 짧은 창은 `intervalTooShort`로 실패한다.
+    nonisolated static let minimumScheduleSeconds: TimeInterval = 15 * 60
+
+    /// 사라진 휴식 타이머를 되살려야 하는지 판정(Apple framework 호출 없는 순수 판정).
+    ///
+    /// `registerCooldownGroup`의 "휴식 중이면 등록하지 않는다" early-return은 **타이머가 이미
+    /// 살아 있다**를 전제하는데, 전체 stop 경로가 그 전제를 깬다: 스크린타임 권한 철회→재승인,
+    /// 그리고 설정의 "스크린 타임 재연결"(`reconnectMonitoring`의 `center.stopMonitoring()`)이
+    /// `cooldownTimer`까지 지운다. 그러면 `intervalDidEnd`가 영영 오지 않아 **휴식이 자동으로
+    /// 끝나지 않는다**(2026-07-29 실기기 실측 — 30분이 지나도 안 풀렸고, 앱을 열어 foreground
+    /// 자가치유가 돌아야 풀렸다).
+    ///
+    /// - **살아 있으면 절대 재등록하지 않는다**: 재등록하면 intervalDidEnd가 새로 잡혀 휴식이
+    ///   리셋된다. "편집이 휴식을 리셋하지 않는다"는 기존 계약을 지키는 핵심 조건이다.
+    /// - 남은 휴식이 최소 간격보다 짧으면 등록 자체가 실패하므로 시도하지 않는다. 그 구간은
+    ///   foreground 자가치유(`rechargeExpiredCooldowns`)와 자정 리셋이 처리한다.
+    nonisolated static func shouldRestoreCooldownTimer(
+        cooldownEnd: Date?,
+        isTimerMonitored: Bool,
+        now: Date = Date()
+    ) -> Bool {
+        guard let end = cooldownEnd else { return false }        // 휴식 중이 아님
+        guard !isTimerMonitored else { return false }            // 살아 있음 → 보존
+        return end.timeIntervalSince(now) >= minimumScheduleSeconds
+    }
+
     /// 연장분 소진 시 재잠금해야 하는지 판정(Apple framework 호출 없는 순수 판정).
     /// 쿨다운 그룹은 휴식이 아직 진행 중일 때만 재잠금한다 — 휴식이 이미 재충전된 뒤 살아남은
     /// 연장의 소진이 cooldownUntil 없는 좀비 잠금(자정까지 해제 경로 없음)을 만들지 않게 한다.

@@ -413,7 +413,12 @@ enum ScreenTimeManager {
     /// 끝나면 extension이 재충전). 만료된 휴식 상태가 남아 있으면(타이머 놓침) 정리하고 새 사이클로
     /// 충전한다. usage 모니터는 cooldownUsageMinutes분 사용 시 cdtick 이벤트로 잠금을 트리거한다.
     private static func registerCooldownGroup(_ group: SharedStore.ScreenTimeGroup) throws {
-        if SharedStore.isInCooldown(group.id) { return }
+        if SharedStore.isInCooldown(group.id) {
+            // 휴식 중엔 사용 예산 모니터를 등록하지 않는다(휴식이 끝나야 새 사이클). 단 그 전에
+            // 타이머가 실제로 살아 있는지 확인한다 — 전체 stop 경로가 타이머만 지우고 가는 일이 있다.
+            restoreCooldownTimerIfNeeded(for: group.id)
+            return
+        }
 
         let generation: Int
         if SharedStore.cooldownEnd(for: group.id) != nil {
@@ -426,6 +431,37 @@ enum ScreenTimeManager {
             generation = SharedStore.cooldownGenerationByID[group.id] ?? 0
         }
         try CooldownMonitor.startUsageMonitoring(center: center, group: group, generation: generation)
+    }
+
+    /// 휴식 중인데 `cooldownTimer` activity가 사라졌으면 남은 휴식 시간으로 되살린다.
+    ///
+    /// 전체 stop 경로(스크린타임 권한 철회→재승인, 설정의 "스크린 타임 재연결" =
+    /// `reconnectMonitoring`의 `center.stopMonitoring()`)는 타이머까지 지우지만 휴식 상태
+    /// (`cooldownUntil`)는 SharedStore에 그대로 남는다. 그 뒤 재등록이 `.keepCooldownRest`로
+    /// 들어와 early-return하면 **휴식 종료 콜백이 영영 오지 않아 휴식이 자동으로 안 끝난다**
+    /// (2026-07-29 실기기 실측). 복구 조건 판정은 `CooldownMonitor.shouldRestoreCooldownTimer` —
+    /// **타이머가 살아 있으면 손대지 않는다**(재등록은 휴식 시작을 리셋한다).
+    private static func restoreCooldownTimerIfNeeded(for groupID: UUID, now: Date = Date()) {
+        let timer = DeviceActivityName.cooldownTimer(for: groupID)
+        guard let until = SharedStore.cooldownEnd(for: groupID),
+              CooldownMonitor.shouldRestoreCooldownTimer(
+                  cooldownEnd: until,
+                  isTimerMonitored: center.activities.contains(timer),
+                  now: now
+              ) else { return }
+
+        do {
+            try CooldownMonitor.startCooldownTimer(center: center, groupID: groupID, until: until, now: now)
+            GTLog.cooldown.notice(
+                "휴식 타이머 복구 \(groupID.uuidString.prefix(4), privacy: .public) 남은=\(Int(until.timeIntervalSince(now) / 60), privacy: .public)m"
+            )
+        } catch {
+            // 자가치유(foreground)·자정 리셋이 남아 있어 치명적이진 않지만 조용히 삼키지 않는다.
+            SharedStore.enqueueScreenTimeError(context: "cooldownTimerRestore", message: "\(error)")
+            GTLog.cooldown.error(
+                "휴식 타이머 복구 실패 \(groupID.uuidString.prefix(4), privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+        }
     }
 
     /// 쿨다운 그룹을 즉시 휴식 진입시킨다(편집으로 사용 예산이 현재 사용량 이하로 바뀐 경우 등).
