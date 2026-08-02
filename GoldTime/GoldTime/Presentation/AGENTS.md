@@ -31,9 +31,8 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
 
 - 기본 iOS 컴포넌트 우선. 날짜/시간·선택·설정·확인은 `DatePicker`/`Picker`/`Form`/
   `confirmationDialog`를 먼저 검토하고, 대체 커스텀 UI는 이유를 남긴다. HIG/iOS 26.0 적합성 확인.
-- 공용 컴포넌트는 `Presentation/Component/`(현재 10개: CardContainerModifier,
-  CountUpDurationText, DashboardMetricCard, GoldTimeButtonStyle, GoldTimeFormatters, IconTile,
-  SectionHeader, SegmentedProgressBar, StatusBadge, StreakCard). 2곳 이상 반복되면 추출 검토.
+- 공용 컴포넌트는 `Presentation/Component/`(목록은 폴더를 직접 볼 것). 2곳 이상 반복되면
+  추출 검토.
 - 색상: 새 색은 RGB/hex literal 금지, Asset Color로 추가해 이름으로 사용. `AccentColor`는
   `Color.accent`(Xcode 자동 생성, extension 불필요 — `Color+Brand.swift` 만들면 `invalid
   redeclaration`). 자세히는 `docs/agent/ui-design-system.md`.

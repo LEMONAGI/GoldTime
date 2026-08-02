@@ -34,17 +34,17 @@ GoldTime은 메인 iOS 앱 1개와 Screen Time 관련 extension 3개로 구성�
 | 알림 | Core | `Core/Notification/NotificationService.swift` | 로컬 알림 권한과 앱 복귀 알림 |
 | 보상형 광고 | Core | `Core/Ads/RewardedAdService.swift` | AdMob 로드, 표시, 보상 콜백 |
 | 도메인 모델 | Domain | `Domain/Model/` | ScreenTimeGroup, DailyStats, GroupExtension 타입 |
-| Repository 계약 | Domain | `Domain/Repository/` | 데이터 접근 프로토콜 7개 |
-| 비즈니스 로직 | Domain | `Domain/UseCase/` | ManageGroups, SyncProtection, LoadDashboard, ExtendGroup, Authorize |
-| 그룹 유효성 규칙 | Domain | `Domain/Policy/ScreenTimeGroupPolicy.swift` | 그룹 앱 수 / 한도 / 토큰 타입 판단 |
+| Repository 계약 | Domain | `Domain/Repository/` | 데이터 접근 프로토콜 |
+| 비즈니스 로직 | Domain | `Domain/UseCase/` | 그룹 관리, 보호 동기화, 대시보드, 연장, 권한, 설정 |
+| 그룹 유효성 규칙 | Domain | `Domain/Policy/` | 그룹 앱 수 / 한도 / 시간대 / 쿨다운 판단 (extension과 공유) |
 | Repository 구현체 | Data | `Data/` | Core 서비스 호출, Core ↔ Domain 타입 매핑 |
 | 홈 대시보드 | Presentation | `Presentation/Home/HomeView.swift`, `HomeViewModel.swift` | 홈 상태, 그룹 카드, 통계, 보호 상태 |
 | 통계 화면 | Presentation | `Presentation/Stats/StatsView.swift`, `StatsViewModel.swift`, `EmptyChartState.swift` | 스트릭·어제 비교·주간 비교·차트 |
-| 온보딩 | Presentation | `Presentation/Onboarding/OnboardingView.swift` | 권한 요청, 최초 설정 |
 | 잠금 선택지 | Presentation | `Presentation/LockOptions/LockOptionsView.swift` | 1분 연장, 광고 해제, 참기 선택지 |
-| 광고 화면 | Presentation | `Presentation/RewardedAd/RewardedAdView.swift` | 보상형 광고 표시 래퍼와 fallback UI |
-| 공용 UI 컴포넌트 | Presentation | `Presentation/Component/` | 여러 화면에서 반복되는 SwiftUI 컴포넌트와 ButtonStyle |
 | 색상 Asset | — | `Assets.xcassets` | `AccentColor`(=`Color.accent`)와 `gray100` Color Set. 색상 규칙은 `docs/agent/ui-design-system.md` |
+
+나머지 화면(Onboarding/RewardedAd/Component 등)은 `Presentation/{화면}/` 규칙이라 폴더를 직접
+봅니다 — 이 표는 **이름만으론 위치를 추측하기 어려운 것**만 담습니다.
 
 ## 프로젝트 설정
 

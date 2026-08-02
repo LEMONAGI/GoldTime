@@ -1,66 +1,43 @@
 # Working Rules
 
-Read when: 작업 위험도, 검증 수준, 완료 보고 기준을 정해야 할 때.
+Read when: 작업 위험도를 판단하거나, 빌드/테스트/실기기 로그 수집 명령이 필요할 때.
 
 Skip when: 이미 작고 명확한 문서/문구 수정이며 검증 기준이 자명할 때.
 
-변경을 어느 정도 조심해서 다뤄야 하는지 판단하는 기준입니다.
-
-## 기본 작업 흐름
-
-1. `AGENTS.md`에서 작업 유형, 읽을 상세 문서, 검증 방식을 먼저 고정합니다.
-2. 수정 전에 관련 코드 경로와 현재 구현 흐름을 읽습니다.
-3. 위험도를 분류하고, high-risk 작업은 직렬로 처리합니다.
-4. 목표를 만족하는 가장 작은 변경을 합니다.
-5. 먼저 정한 테스트/시나리오로 실행 또는 확인합니다.
-6. 변경 파일, 실행한 검증, 실행하지 못한 검증을 보고합니다.
-7. 테스트 코드로 대체할 수 없는 실기기 확인 항목이 남으면 최종 보고에 사용자 체크리스트로 적습니다.
-
-## 작업 유형
-
-| 유형 | 예시 | 먼저 정할 검증 |
-| --- | --- | --- |
-| UI-only | SwiftUI 레이아웃, 문구, 색상 | acceptance criteria 먼저, HIG/iOS 26.0 적합성 확인, 가능하면 build 또는 preview 성격의 확인 |
-| Shared state | `SharedStore`, 카운터, 통계 | unit test 또는 regression test 먼저 |
-| Screen Time / Shield | `ScreenTimeManager`, DeviceActivity, Shield extension | 실기기 검증 시나리오 먼저, 가능한 순수 로직은 unit test |
-| Ads | `RewardedAdService`, `AdMockView`, 보상 콜백 | reward/fallback 시나리오 먼저, 가능한 wrapper/helper는 unit test |
-| Project config | `.xcodeproj`, SPM, entitlements, App Group | 설정 검증 시나리오 먼저, build와 target membership 검토 |
-| Docs-only | Markdown guide, setup note | 링크/경로 일치, 중복 확인, `CLAUDE.md`만 편집 후 `scripts/sync-agent-docs.sh`로 `AGENTS.md` 동기화 |
-
-## 검증 선택 규칙
-
-- 순수 로직, 저장/조회, 날짜 key, 카운터, formatter/helper는 unit test 또는 regression test로 확인합니다.
-- UI-only 변경은 acceptance criteria를 먼저 쓰고, 가능하면 build로 컴파일 회귀를 확인합니다. HIG/iOS 26.0 적합성, 기본 iOS 컴포넌트 우선 여부, 접근성/동적 글자 크기도 함께 봅니다.
-- 날짜/시간, 선택, 설정, 확인 흐름은 `DatePicker`, `Picker`, `Form`, `confirmationDialog` 같은 의미에 맞는 시스템 컴포넌트를 먼저 검토합니다.
-- 공용 가능성이 있는 UI는 `GoldTime/GoldTime/Presentation/Component/` 추출 여부를 판단합니다.
-- 새 색상은 `AccentColor`를 제외하고 RGB literal 대신 Asset Color로 추가했는지 확인합니다.
-- FamilyControls, DeviceActivity, ManagedSettings Shield, Shield extension, 알림 복귀는 수동/실기기 시나리오를 먼저 정합니다.
-- Screen Time / Shield 런타임은 `xcodebuild test` 통과만으로 완료 검증처럼 말하지 않습니다. 실제 기기에서만 확인 가능한 항목은 완료 보고에 남깁니다.
-- 문서, 단순 문구, 순수 시각 조정은 자동 테스트를 생략할 수 있지만 확인 기준은 먼저 정합니다.
-- 기획이 모호한 작업은 `competitive-research.md` 확인 여부를 검증 기준에 포함합니다. 최신 리서치를 했다면 재사용 가치가 있는 관찰을 해당 문서에 추가했는지 확인합니다.
-- 자세한 TDD 기준과 실기기 시나리오 템플릿은 `testing.md`를 따릅니다.
+이 문서의 핵심은 아래 **"검증 명령"** 절이다 — 전부 이 맥에서 실제로 실행해 확인한 명령과
+그 함정이다. 작업 종료 기준은 `definition-of-done.md`, 테스트 판단 기준은 `testing.md`.
 
 ## 위험도
 
-- Low: 독립적인 문서, 문구, 공유 상태를 건드리지 않는 단일 view.
-- Medium: `SharedStore`를 읽는 UI, 광고 표시, 알림 문구, 테스트.
-- High: `SharedStore`, `ScreenTimeManager`, extension, entitlements, target membership, `.xcodeproj`, package dependency.
+- **Low**: 독립적인 문서, 문구, 공유 상태를 건드리지 않는 단일 view.
+- **Medium**: `SharedStore`를 읽는 UI, 광고 표시, 알림 문구, 테스트.
+- **High**: `SharedStore`, `ScreenTimeManager`, extension, entitlements, target membership,
+  `.xcodeproj`, package dependency.
 
-High-risk 작업은 직렬로 처리하고 명시적인 검증 메모를 남깁니다.
+High-risk 작업은 **직렬로 처리**하고 명시적인 검증 메모를 남깁니다.
+
+## 검증 선택 (GoldTime 고유 기준)
+
+- 순수 로직·저장/조회·날짜 key·카운터·formatter는 unit/regression test. 실기기에서 발견한
+  버그도 가능한 부분을 순수 로직으로 환원해 테스트로 남깁니다.
+- **Screen Time / Shield / FamilyControls / AdMob 실제 표시는 `xcodebuild test` 통과만으로
+  완료 처리하지 않습니다.** 실기기에서만 확인 가능한 항목은 완료 보고에 체크리스트로 남깁니다.
+- 새 색상은 `AccentColor` 제외하고 RGB/hex literal 대신 Asset Color.
+- 날짜/시간·선택·설정·확인 흐름은 `DatePicker`/`Picker`/`Form`/`confirmationDialog` 같은
+  의미에 맞는 시스템 컴포넌트를 먼저 검토합니다(`ui-design-system.md`).
+- 기획이 모호하면 `competitive-research.md`를 확인하고, 재사용 가치가 있는 관찰은 그 문서에
+  추가합니다.
+- 문서 수정은 `CLAUDE.md`만 편집하고 `scripts/sync-agent-docs.sh`로 `AGENTS.md`를 동기화합니다.
 
 ## 가볍게 하지 말 것
 
 - migration/reset 결정 없이 App Group key를 바꾸지 않습니다.
 - project config 작업이 아닌데 `.xcodeproj`를 기계적으로 수정하지 않습니다.
 - 시뮬레이터 런타임으로 Screen Time 동작이 검증됐다고 보지 않습니다.
-- 자동 테스트로 확인하지 못한 FamilyControls, DeviceActivity callback, ManagedSettings Shield, Shield extension, AdMob reward 동작을 보고에서 누락하지 않습니다.
 - 중앙화할 수 있는 상태 로직을 앱과 extension에 중복 구현하지 않습니다.
-- build, signing, simulator, sandbox 실패를 숨기지 않습니다.
-- 명시 요청 없이 사용자 변경을 되돌리지 않습니다.
-- FamilyControls, DeviceActivity, ManagedSettings 등 Apple 프레임워크 관련 문제가 생기면 추측하지 말고 Apple 공식 문서(developer.apple.com)를 먼저 확인합니다.
-- iOS 26.0+ UI와 SwiftUI 패턴은 HIG와 Apple 공식 문서를 우선하고, 기본 iOS 컴포넌트를 대체하는 커스텀 UI는 이유를 남깁니다.
-- `DatePicker`가 맞는 날짜/시간 입력을 임의 버튼 묶음이나 별도 picker 조합으로 재구현하지 않습니다.
-- RGB/hex literal을 새로 추가하지 않습니다. 필요한 색상은 Asset Color로 추가합니다.
+- FamilyControls, DeviceActivity, ManagedSettings 문제는 추측하지 말고 Apple 공식 문서
+  (developer.apple.com)를 먼저 확인합니다. iOS 26.0+ UI는 HIG를 우선하고, 기본 컴포넌트를
+  대체하는 커스텀 UI는 이유를 남깁니다.
 
 ## 검증 명령
 
@@ -138,14 +115,3 @@ extension은 별도 프로세스라 Xcode 콘솔에 안 잡힌다 → 자정 재
    `ViewModelTests/statsViewModelTodayDeltaCorrectAcrossWeekBoundary()`), 로그
    `mcp__xcode__GetBuildLog`, 목록 `mcp__xcode__GetTestList`.
 3. 연결 오류면 `/mcp`로 재연결. 그래도 실패하면 원인을 기록하고 xcodebuild로 돌아온다.
-
-## 완료 보고
-
-최종 보고에는 다음을 포함합니다.
-
-- 무엇을 바꿨는지.
-- 먼저 정한 검증 방식.
-- 실행한 검증 명령 또는 수동 확인.
-- 실행하지 못한 검증과 이유.
-- 남은 실기기 확인 항목이 있으면 사용자가 바로 확인할 수 있는 체크리스트.
-- 최신 경쟁/유사 앱 리서치를 했다면 `competitive-research.md`에 반영한 내용 또는 반영하지 않은 이유.

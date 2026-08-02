@@ -13,24 +13,9 @@
 
 ## 다음 할 일
 
-- [ ] 🔴 **[버그] 전체 stop 후 쿨다운 휴식 타이머가 되살아나지 않음** (2026-07-29 실기기 실측,
-      별도 브랜치 예정 — `Feat/AbsoluteLock`과 무관한 쿨다운 영역)
-  - **증상**: 휴식(쿨다운) 중에 모든 DeviceActivity가 정지되면 `cooldownTimer`가 재등록되지
-    않아 **휴식이 자동 종료되지 않는다**. 사용자가 GoldTime을 열어야(`rechargeExpiredCooldowns`
-    foreground 자가치유) 비로소 풀린다. 영구 잠금은 아니지만 "30분 지났는데 안 풀림"으로 보인다.
-  - **원인**: `ScreenTimeManager.registerCooldownGroup:424` `if SharedStore.isInCooldown { return }`
-    — 휴식 중엔 타이머를 건드리지 않는 게 의도된 설계지만(편집이 휴식을 리셋하지 않게),
-    **"타이머는 이미 살아 있다"는 전제**가 전체 stop 경로에서 깨진다.
-  - **재현 경로 2개**: ① 휴식 중 스크린타임 권한 철회 → 재승인(실측) ② **설정 → 문제 해결 →
-    "스크린 타임 재연결"**(`reconnectMonitoring:519`가 `center.stopMonitoring()` 후 재등록) —
-    ②가 훨씬 흔하고, 하필 문제를 고치려고 누르는 버튼이다.
-  - **로그 증거**: `■ intervalDidEnd cooldownTimer.7D8E…` → `재충전 스킵(종료 예정 미래 → 휴식
-    보존)`(올바름) → 재승인 후 `▶︎ intervalDidStart dailyHeartbeat`만 있고 cooldownTimer 없음.
-  - **수정안**: `isInCooldown`에서 무조건 리턴하지 말고 `center.activities`에
-    `.cooldownTimer(for:)`가 없을 때만 남은 `cooldownEnd`로 재등록(살아 있으면 손대지 않으므로
-    휴식 리셋 위험 없음). `DeviceActivityCenter.activities`는 현재 코드베이스에서 미사용.
-    회귀 테스트: "휴식 중 전체 stop → 재등록 시 타이머 복구" + 기존 "휴식 중 편집은 타이머 보존".
-
+- [ ] Firebase Analytics: SDK가 보장하는 이벤트 파라미터 타입은 String/Int/Double인데 현재
+      `granted`·`was_locked`·`caused_lock`은 Bool을 전달한다. DebugView·BigQuery에서 실제 저장
+      타입을 확인한 뒤 custom definition 등록 또는 하위 호환 스키마 변경을 결정할 것
 - [ ] 대시보드(goldtime-dashboard): 연장 불가 모드 신규 이벤트 처리 — `strict_lock_commit`(days),
       `strict_revoke_detected`. 연장 불가 기간 중인 그룹은 `group_edit_gate`·광고 노출이 0이 되는 게
       정상(수익 감소가 아니라 기능 동작 — 추이 해석 주석 필요)
@@ -40,9 +25,17 @@
       rule_kind 조인 시 의미 분화 주의). 광고 placement `group_edit_gate` 노출 의미가
       1.2.0에서 '편집 진입'→'변경 적용(완료 게이트)'으로 변경 — 노출 수 감소는 UX 개선이지
       이탈이 아님(추이 해석 주석 필요)
+- [ ] 대시보드(goldtime-dashboard): 그룹 구성 코호트 신규 user property 처리 —
+      `active_rule_profile`/`strict_rule_profile`의 `wdN_dlN_twN_cdN`은 각각 적용 그룹·활성
+      연장 불가 그룹의 top-level 규칙 수(요일별/일일/시간대/쿨다운)다. GA4 보고서에서 쓰려면
+      사용자 범위 custom dimension으로 등록하고, BigQuery에서는 이벤트 시점 `user_properties`로 조인
 - [ ] **ASO 메타데이터 개편(1.2.0 제출에 함께)** — 키워드·서브타이틀·(KR/JP 타이틀) 교체.
       근거·최종안은 아래 "실기기 검증 대기"의 ASO 항목 참조. 키워드/서브타이틀/타이틀은
       **새 버전 제출로만 반영**된다
+- [ ] **에이전트 문서 이중화(AGENTS.md) 유지 여부 결정** — `CLAUDE.md` 9개가 전부 `AGENTS.md`로
+      복제돼 있다(pre-commit 훅이 자동 동기화). Codex/Cursor/Antigravity를 실제로 쓰지 않으면
+      570줄이 순수 사본이고 diff가 항상 2배로 나온다. 안 쓴다면 `AGENTS.md`·`sync-agent-docs.sh`·
+      pre-commit 훅을 함께 걷어내고, 쓴다면 현행 유지(2026-08-02 하네스 점검에서 보류)
 - [ ] 시간대 차단 규칙 편집 UX: 시간대 작성 편의성 개선(입력 흐름 다듬기 — 범위 미정)
 - [ ] Firebase 콘솔: AdMob 연동 링크 (Crashlytics는 코드 완료 — SDK 링크·`FirebaseApp.configure()`
       ·dSYM 업로드 Run Script 모두 붙어 있음, 2026-07-21 빌드 로그로 확인)
@@ -66,7 +59,8 @@
         휴식 차단 ⑤(연장 버튼 미렌더+안내 카드, `연장 거부` 로그 없음 = UI가 먼저 차단),
         권한 철회→복구 안내→재승인 시 D-N 복원(`연장 불가 전역 설정 적용` extension+앱 2회).
         `strict_revoke_detected`는 **GA4 전용**이라 OSLog 미검증 → 세션 3에서 BigQuery로 확인.
-        ⚠️ 이 과정에서 **쿨다운 휴식 타이머 버그** 발견(위 "다음 할 일" 참조)
+        ⚠️ 이 과정에서 **쿨다운 휴식 타이머 버그** 발견 → 수정 완료(`b7f43b9`),
+        실기기 검증만 대기(아래 "쿨다운 휴식 타이머 복구")
   - [x] **세션 3 통과(2026-07-30)** — ⑦-b **extension 단독 해제 확정**: 자정 2초 후
         (`00:00:02`) `DeviceActivityMonitorExtension` 프로세스가 `연장 불가 전역 설정 해제`를
         찍고, Apple ManagedSettings 로그가 삭제 store 컨테이너를

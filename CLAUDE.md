@@ -57,14 +57,14 @@ GoldTime/ShieldActionExtension/CLAUDE.md            ← Shield 액션 쓰기 계
 |---|---|
 | [docs/agent/architecture.md](docs/agent/architecture.md) | 레이어 의존 방향, 새 파일 배치, UseCase/Repository 추가 |
 | [docs/agent/critical-flows.md](docs/agent/critical-flows.md) | Screen Time/Shield/광고/App Group 런타임 흐름 전체 |
-| [docs/agent/testing.md](docs/agent/testing.md) | TDD, regression, 실기기 검증 시나리오 |
-| [docs/agent/working-rules.md](docs/agent/working-rules.md) | 작업 유형, 위험도, 검증 명령(xcodebuild) |
-| [docs/agent/task-harness.md](docs/agent/task-harness.md) | 큰 작업 분해, step 상태, 병렬/직렬 판단 |
+| [docs/agent/testing.md](docs/agent/testing.md) | 실기기 검증 시나리오, regression 기준 |
+| [docs/agent/working-rules.md](docs/agent/working-rules.md) | 위험도, 검증 명령(xcodebuild)·함정, 실기기 OSLog 수집 |
 | [docs/agent/definition-of-done.md](docs/agent/definition-of-done.md) | **작업 종료 규칙** (완료 직전 자가 점검) |
 | [docs/agent/decision-context.md](docs/agent/decision-context.md) | 제품 범위, 하지 않을 일, ADR |
 | [docs/agent/product-context.md](docs/agent/product-context.md) | 문구, 톤앤매너, 화면 감정 |
 | [docs/agent/ui-design-system.md](docs/agent/ui-design-system.md) | iOS UI/HIG, 공용 컴포넌트, Asset Color |
 | [docs/agent/competitive-research.md](docs/agent/competitive-research.md) | 기획 모호성, 경쟁 앱 참고, GoldTime다움 |
+| [docs/agent/analytics.md](docs/agent/analytics.md) | Firebase/GA4 이벤트·코호트·대시보드/BigQuery 해석 |
 | [docs/agent/app-icon-brief.md](docs/agent/app-icon-brief.md) | 앱 아이콘 시안/프롬프트 |
 | [docs/agent/project-map.md](docs/agent/project-map.md) | 타겟/경로/entitlement/App Group 위치 |
 
