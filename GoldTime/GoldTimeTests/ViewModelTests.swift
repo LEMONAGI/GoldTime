@@ -804,6 +804,9 @@ struct ViewModelTests {
         let registered = analyticsRepo.parameters(for: "rule_monitoring_registered")
         #expect(registered?["rule_kind"] as? String == "dailyLimit")
         #expect(registered?["rule_config_bucket"] as? String == "daily_61_120m")
+        // 적용 이벤트보다 먼저 현재 그룹 조합 user property를 심어, 이벤트를 사용자 구성과 조인한다.
+        #expect(analyticsRepo.userProperties["active_rule_profile"] == "wd0_dl1_tw0_cd0")
+        #expect(analyticsRepo.userProperties["strict_rule_profile"] == "wd0_dl0_tw0_cd0")
     }
 
     @Test func confirmApplyDoesNotLogMonitoringRegistrationWhenSyncFails() {
@@ -4105,6 +4108,8 @@ struct AppLifecycleViewModelTests {
         #expect(analyticsRepo.userProperties["uses_daily"] == "true")
         #expect(analyticsRepo.userProperties["uses_cooldown"] == "true")
         #expect(analyticsRepo.userProperties["uses_timewindow"] == "false")
+        #expect(analyticsRepo.userProperties["active_rule_profile"] == "wd0_dl2_tw0_cd1")
+        #expect(analyticsRepo.userProperties["strict_rule_profile"] == "wd0_dl0_tw0_cd0")
 
         SharedStore.clearGroupStateForTesting()
     }
@@ -4181,8 +4186,11 @@ struct AppLifecycleViewModelTests {
 @MainActor
 struct UserCohortPropertiesTests {
 
-    private func properties(_ groups: [SharedStore.ScreenTimeGroup]) -> [String: String?] {
-        Dictionary(uniqueKeysWithValues: UserCohortProperties(groups: groups).entries.map { ($0.name, $0.value) })
+    private func properties(
+        _ groups: [SharedStore.ScreenTimeGroup],
+        now: Date = Date()
+    ) -> [String: String?] {
+        Dictionary(uniqueKeysWithValues: UserCohortProperties(groups: groups, now: now).entries.map { ($0.name, $0.value) })
     }
 
     @Test func emptyGroupsYieldNoneAndFalseFlags() {
@@ -4193,6 +4201,8 @@ struct UserCohortPropertiesTests {
         #expect(result["uses_daily"] == "false")
         #expect(result["uses_timewindow"] == "false")
         #expect(result["uses_cooldown"] == "false")
+        #expect(result["active_rule_profile"] == "wd0_dl0_tw0_cd0")
+        #expect(result["strict_rule_profile"] == "wd0_dl0_tw0_cd0")
     }
 
     @Test func unappliedGroupsAreExcluded() {
@@ -4217,6 +4227,38 @@ struct UserCohortPropertiesTests {
         #expect(result["uses_daily"] == "true")
         #expect(result["uses_cooldown"] == "true")
         #expect(result["uses_timewindow"] == "false")
+    }
+
+    @Test func profilesDescribeRuleMixAndStrictCoveragePerTopLevelGroup() {
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        var weekdayRules = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
+        weekdayRules[1] = SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30)
+        let result = properties([
+            SharedStore.ScreenTimeGroup(
+                name: "weekday", ruleKind: .dailyLimit, weekdayRules: weekdayRules,
+                strictUntil: now.addingTimeInterval(60)
+            ),
+            SharedStore.ScreenTimeGroup(name: "daily", ruleKind: .dailyLimit),
+            SharedStore.ScreenTimeGroup(name: "cooldown", ruleKind: .cooldown, strictUntil: now.addingTimeInterval(60))
+        ], now: now)
+
+        // 세 그룹을 만든 사용자는 "요일별 1 + 일일 1 + 쿨다운 1"로, 연장 불가는 그중
+        // 요일별·쿨다운 그룹에만 적용한 것으로 식별자 없이 관찰된다.
+        #expect(result["active_rule_profile"] == "wd1_dl1_tw0_cd1")
+        #expect(result["strict_rule_profile"] == "wd1_dl0_tw0_cd1")
+    }
+
+    @Test func expiredStrictLocksAreExcludedFromStrictProfile() {
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        let result = properties([
+            SharedStore.ScreenTimeGroup(
+                name: "expired", ruleKind: .timeWindows,
+                strictUntil: now.addingTimeInterval(-1)
+            )
+        ], now: now)
+
+        #expect(result["active_rule_profile"] == "wd0_dl0_tw1_cd0")
+        #expect(result["strict_rule_profile"] == "wd0_dl0_tw0_cd0")
     }
 
     @Test func tiedFrequencyYieldsNonePrimary() {

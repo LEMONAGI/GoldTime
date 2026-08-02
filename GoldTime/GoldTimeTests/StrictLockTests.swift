@@ -687,6 +687,8 @@ struct StrictLockTests {
         #expect(viewModel.strictLockSheetGroupID == nil)
         #expect(viewModel.groups.first?.strictUntil != nil)
         #expect(analytics.events.contains { $0.name == "strict_lock_commit" })
+        #expect(analytics.userProperties["active_rule_profile"] == "wd0_dl1_tw0_cd0")
+        #expect(analytics.userProperties["strict_rule_profile"] == "wd0_dl1_tw0_cd0")
     }
 
     @Test func presentStrictLockSheetIgnoredForDraftGroup() {
@@ -895,7 +897,8 @@ private final class StrictFakeNotificationRepository: NotificationRepository {
 
 private final class StrictFakeAnalyticsRepository: AnalyticsRepository {
     private(set) var events: [AnalyticsEvent] = []
+    private(set) var userProperties: [String: String?] = [:]
     func log(_ event: AnalyticsEvent) { events.append(event) }
-    func setUserProperty(_ value: String?, for name: String) {}
+    func setUserProperty(_ value: String?, for name: String) { userProperties[name] = value }
     func recordError(_ error: Error, context: String) {}
 }

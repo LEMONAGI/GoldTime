@@ -41,4 +41,5 @@
 
 ## 주의사항 (작업 중 발견 시 누적)
 
+- `UserCohortProperties`의 `active_rule_profile`/`strict_rule_profile`은 `wdN_dlN_twN_cdN` 형식으로 **top-level 그룹 수**만 센다. 요일별 그룹 안의 일일/시간대/쿨다운 요일을 별도 그룹으로 세거나, 그룹명·UUID·선택 앱을 넣지 말 것. strict는 `isApplied && isStrictLockActive(at:)`인 그룹만 포함한다. 새 규칙 종류를 추가하면 `RuleGroupProfile`과 이 분석 계약을 함께 갱신한다.
 - **연장 불가 기간 중 편집 차단은 `ManageGroupsUseCase`의 update 3종(`updateRule`/`updateWeekdayRules`/`updateSelection`)과 `deleteGroup`의 guard가 담당한다**(조용히 무시 패턴 — `updateName`은 집행 무관이라 의도적으로 제외). 그룹을 변경하는 새 UseCase 메서드를 추가하면 같은 `isStrictLockActive()` guard를 반드시 넣을 것. `activateStrictLock`은 **범위(`strictLockDayRange` 1...30) 검증**(프리셋 검증이 아니다 — 커스텀 기간이 정상 경로) + applied·유효 규칙만 + **연장만 허용(만료 축소 거부)** + 최초 `strictStartedAt` 유지. 칩 프리셋은 `strictLockDayPresets`(1/3/7)이고 시트 기본 선택은 `strictLockDefaultDays`(1 — **가장 짧은 프리셋이어야** 시트가 "1일 칩 선택 + 휠 접힘"으로 열린다, 2026-07-31 변경). 커스텀 칩을 눌렀을 때 휠이 잡는 시드는 별개 상수 `strictLockCustomSeedDays`(14)이고 이쪽은 반대로 **프리셋에 없어야** 커스텀 칩 선택 상태가 유지된다. `ExtendGroupUseCase`의 strict 판정은 원본 그룹(`shieldRepository.lockedGroups()`) 기준이다 — resolved 투영은 strict 필드가 스트립되므로 판정에 쓰지 말 것.

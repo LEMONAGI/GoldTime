@@ -974,13 +974,13 @@ final class ContentViewModel {
             return
         }
         groups = updated
+        successMessage = nil
+        errorMessage = nil
+        persistGroups()
         let group = groups.first(where: { $0.id == id })
         if let group {
             analyticsRepository.log(.strictLockCommit(days: days, payload: RuleAnalyticsPayload(group: group)))
         }
-        successMessage = nil
-        errorMessage = nil
-        persistGroups()
         strictLockSheetGroupID = nil
         let expiry = group?.strictUntil.map { goldTimeStrictLockedUntilText($0) } ?? ""
         let confirmed = wasActive
@@ -1052,6 +1052,7 @@ final class ContentViewModel {
             manageGroupsUseCase.persist(groups)
             groups = manageGroupsUseCase.currentGroups()
             refreshDashboardState()
+            updateCohortUserProperties()
         }
     }
 
@@ -1081,6 +1082,7 @@ final class ContentViewModel {
             let state = loadDashboardUseCase.refresh(groups: groups)
             isMonitoring = state.isDailyMonitoringEnabled
             applyDashboardState(state)
+            updateCohortUserProperties()
             if logMonitoringSync {
                 let appliedCount = groups.filter { $0.isApplied }.count
                 analyticsRepository.log(.monitoringSynced(appliedGroupCount: appliedCount))
@@ -1093,6 +1095,18 @@ final class ContentViewModel {
             successMessage = nil
             errorMessage = String(localized: "content.autoApplyFailed \(error.localizedDescription)")
             refreshDashboardState()
+            // persistAndSync는 모니터 등록이 실패해도 그룹을 먼저 저장한다. 저장된 규칙 조합은
+            // 분석에 반영하되, monitoring_synced 이벤트는 기존처럼 성공 경로에서만 남긴다.
+            updateCohortUserProperties()
+        }
+    }
+
+    /// 규칙/연장 불가 변경 직후에도 Firebase user property가 다음 이벤트보다 먼저 최신 구성으로
+    /// 갱신되게 한다. Firebase에는 식별자·그룹명 없이 집계된 profile만 보낸다.
+    private func updateCohortUserProperties() {
+        guard isAuthorized else { return }
+        for entry in UserCohortProperties(groups: groups).entries {
+            analyticsRepository.setUserProperty(entry.value, for: entry.name)
         }
     }
 
