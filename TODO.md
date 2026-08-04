@@ -13,6 +13,7 @@
 
 ## 다음 할 일
 
+- [ ] **연장 불가 모드 베타 안내** — 문구 테스트가 끝나면 홈 진입 시 매번 뜨는 임시 동작을 1회 노출로 되돌릴 것
 - [ ] Firebase Analytics: SDK가 보장하는 이벤트 파라미터 타입은 String/Int/Double인데 현재
       `granted`·`was_locked`·`caused_lock`은 Bool을 전달한다. DebugView·BigQuery에서 실제 저장
       타입을 확인한 뒤 custom definition 등록 또는 하위 호환 스키마 변경을 결정할 것

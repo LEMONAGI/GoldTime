@@ -18,11 +18,13 @@ struct ContentView: View {
         case notice(GoldTimeAlertMessage)
         case limitWarning(LimitLockWarning)
         case applyConfirmation(ApplyGroupConfirmation)
+        case strictLockBeta
         var id: String {
             switch self {
             case .notice(let m): return "notice-\(m.id)"
             case .limitWarning(let w): return "warn-\(w.id)"
             case .applyConfirmation(let c): return "apply-\(c.id)"
+            case .strictLockBeta: return "strict-lock-beta"
             }
         }
     }
@@ -33,6 +35,7 @@ struct ContentView: View {
                 if let m = viewModel.alertMessage { return .notice(m) }
                 if let w = viewModel.pendingLimitLockWarning { return .limitWarning(w) }
                 if let c = viewModel.pendingApplyConfirmation { return .applyConfirmation(c) }
+                if isStrictLockBetaAnnouncementPresented { return .strictLockBeta }
                 return nil
             },
             set: { newValue in
@@ -40,6 +43,7 @@ struct ContentView: View {
                     viewModel.alertMessage = nil
                     viewModel.pendingLimitLockWarning = nil
                     viewModel.pendingApplyConfirmation = nil
+                    isStrictLockBetaAnnouncementPresented = false
                 }
             }
         )
@@ -48,6 +52,8 @@ struct ContentView: View {
     private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @AppStorage("weekStartDay", store: UserDefaults(suiteName: SharedStore.suiteName))
     private var weekStartDay: Int = 2
+    @State private var hasCompletedConsentFlow = false
+    @State private var isStrictLockBetaAnnouncementPresented = false
 
     var body: some View {
         if viewModel.isCheckingPermissions {
@@ -56,7 +62,9 @@ struct ContentView: View {
             OnboardingView(startStep: viewModel.onboardingStartStep, onAuthorized: viewModel.refreshAuthorization)
         } else {
             content
-                .withConsentFlow()
+                .withConsentFlow {
+                    hasCompletedConsentFlow = true
+                }
                 .onAppear(perform: viewModel.loadState)
         }
     }
@@ -223,6 +231,15 @@ struct ContentView: View {
                         viewModel.cancelApplyGroup()
                     }
                 )
+            case .strictLockBeta:
+                Alert(
+                    title: Text("home.strictLockBeta.title"),
+                    message: Text("home.strictLockBeta.message"),
+                    primaryButton: .default(Text("home.strictLockBeta.openSettings")) {
+                        viewModel.selectedTab = .settings
+                    },
+                    secondaryButton: .cancel(Text("common.confirm"))
+                )
             }
         }
         .onChange(of: viewModel.isPickerPresented) { _, newValue in
@@ -237,6 +254,12 @@ struct ContentView: View {
         // 설정에서 연장 불가 기능을 켜고 끄면 홈 카드의 연장 불가 행 노출이 즉시 따라가야 한다.
         .onChange(of: settingsViewModel.isStrictLockEnabled) { _, _ in
             viewModel.refreshDashboardState()
+        }
+        .onChange(of: hasCompletedConsentFlow) { _, hasCompleted in
+            if hasCompleted { presentStrictLockBetaAnnouncementIfNeeded() }
+        }
+        .onChange(of: viewModel.selectedTab) { _, selectedTab in
+            if selectedTab == .home { presentStrictLockBetaAnnouncementIfNeeded() }
         }
         .onReceive(refreshTimer) { _ in
             viewModel.refreshDashboardState()
@@ -256,6 +279,20 @@ struct ContentView: View {
             return String(localized: "content.limitWarning.dailyLimit.message \(warning.usedMinutes) \(minutes) \(warning.groupName)")
         case .cooldown(let usage, _):
             return String(localized: "content.limitWarning.cooldown.message \(warning.usedMinutes) \(usage) \(warning.groupName)")
+        }
+    }
+
+    /// UMP/ATT 시스템 팝업이 닫힌 후에만 띄운다. 동시에 프레젠테이션하면 새 기능 안내가 누락될 수 있다.
+    /// 문구 테스트 중이라 확인 상태를 저장하지 않고 홈 탭 진입마다 다시 띄운다.
+    private func presentStrictLockBetaAnnouncementIfNeeded() {
+        guard hasCompletedConsentFlow,
+              viewModel.selectedTab == .home else { return }
+
+        Task { @MainActor in
+            await Task.yield()
+            guard hasCompletedConsentFlow,
+                  viewModel.selectedTab == .home else { return }
+            isStrictLockBetaAnnouncementPresented = true
         }
     }
 }

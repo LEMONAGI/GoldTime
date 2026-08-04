@@ -111,6 +111,10 @@ true**여야 한다(시간대-only 연장 불가 그룹은 하트비트가 없�
   프로세스 콜드 스타트로 오래 걸릴 수 있으므로 온보딩 화면 전환을 막지 말고, `ConsentService`가
   소유한 단일 Task에서 SDK 초기화와 광고 프리로드를 이어간다. 온보딩 직후 `.withConsentFlow()`도
   실행되므로 동의 흐름 자체도 Task로 단일화해 UMP/ATT 중복 요청을 막는다.
+- UMP/ATT 뒤에 앱 자체의 alert·sheet를 이어 띄워야 하면 `ConsentService`를 Presentation에서 직접
+  호출하지 말고 `.withConsentFlow(onCompleted:)`의 completion을 쓴다. 시스템 팝업이 떠 있는 동안
+  별도 프레젠테이션을 요청하면 새 화면이 조용히 누락될 수 있고, completion은 이미 단일화된 동의
+  Task가 끝난 뒤에만 실행된다.
 - **GDPR 동의 철회는 `ConsentService.presentPrivacyOptions()`**(UMP `presentPrivacyOptionsForm`).
   온보딩 1회 동의(`consentFlowTask` 단일화)와 달리 사용자 명시 액션이라 Task 큐를 거치지 않고
   매번 즉시 띄운다. 설정 화면 노출 여부는 `isPrivacyOptionsRequired`(`privacyOptionsRequirementStatus
