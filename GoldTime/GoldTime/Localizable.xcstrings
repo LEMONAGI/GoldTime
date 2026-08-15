@@ -2078,19 +2078,19 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "연장 불가 모드 설정"
+            "value": "연장 불가 기간 설정"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set Up Locked-In Mode"
+            "value": "Set Locked-In Period"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "延長不可モードを設定"
+            "value": "延長不可期間を設定"
           }
         }
       }

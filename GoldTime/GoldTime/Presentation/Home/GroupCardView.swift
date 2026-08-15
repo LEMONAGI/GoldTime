@@ -264,7 +264,7 @@ struct GroupCardView: View {
     }
 
     /// 연장 불가 행(규칙 행 바로 아래). 규칙 행과 같은 시각 언어(제목+부제+trailing)이자 같은 문법 —
-    /// **제목이 적용 전엔 할 일("연장 불가 모드 설정"), 적용 중엔 현재 상태("연장 불가 중")** 로 바뀐다
+    /// **제목이 적용 전엔 할 일("연장 불가 기간 설정"), 적용 중엔 현재 상태("연장 불가 중")** 로 바뀐다
     /// (규칙 행의 "차단 규칙 선택" → "일일 한도"와 동일). 부제는 적용 중이면 만료일, trailing은 자물쇠.
     private var strictRow: some View {
         Button {
@@ -474,7 +474,7 @@ private func makeCardPreview(strictUntil: Date?) -> some View {
 
 // 언어 variant — en/ja 잘림 확인용(다크·큰 글자는 Canvas Variants 버튼). 배지·만료일은
 // String(localized:)라 locale을 안 따르지만 "5일 남음"처럼 짧아 잘림 위험이 없다. 반면 행 제목
-// ("연장 불가 모드 설정")은 LocalizedStringKey라 여기서 en/ja 폭을 확인한다.
+// ("연장 불가 기간 설정")은 LocalizedStringKey라 여기서 en/ja 폭을 확인한다.
 #Preview("카드 연장불가행 — EN") {
     makeCardPreview(strictUntil: nil)
         .environment(\.locale, .init(identifier: "en"))
