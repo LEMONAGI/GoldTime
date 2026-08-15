@@ -52,11 +52,25 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   허용. **만료 표기는 `goldTimeStrictLockedUntilText` 공용** — 저장값 `strictUntil`은 자정 경계라
   그대로 쓰면 "7/14 0시에 풀려요"처럼 하루 밀린 느낌이 든다. 1초를 빼 마지막 잠금 날을 뽑고
   문구는 "%@ 23:59까지 연장 불가"로 통일한다(시각 리터럴은 문구 키 안에). 시작일 등 "날짜 자체"는
-  `goldTimeShortDateText`. **기능 자체가 설정 토글(기본 Off)로 게이트된다**
-  (`SharedStore.isStrictLockEnabled` → `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView`):
-  Off면 카드에 연장 불가 행을 그리지 않고 `presentStrictLockSheet`도 거부한다. **연장 불가 기간 중엔 토글을 끌 수
-  없다**(끄기로 우회 해제하는 구멍) — 잠그기만 하지 말고 왜 못 끄는지 캡션으로 보여줄 것.
-  설정에서 토글을 바꾸면 `ContentView`의 `onChange`가 `refreshDashboardState`로 카드 노출을 즉시 맞춘다.
+  `goldTimeShortDateText`. **기능 게이트는 남아 있지만 베타 기간엔 항상 열려 있다**(2026-08-15 —
+  설정 토글 제거): `ManageGroupsUseCase.isStrictLockEnabled`(= `true`) →
+  `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView`. 정식 출시 때 이 프로퍼티만
+  **구독 entitlement 판정으로 갈아끼우면** 카드 노출·`presentStrictLockSheet`·`activateStrictLock`
+  guard가 그대로 페이월이 된다 — 게이트 체인을 "어차피 true니까"라며 지우지 말 것. 구 토글 저장값
+  (`SharedStore.isStrictLockEnabled`)은 **읽지 않는다**(Off로 저장돼 있던 기존 사용자가 업데이트 후
+  못 쓰게 된다 — 회귀 테스트 `strictLockAvailableEvenWhenLegacyToggleValueIsOff`). 설정에 토글을
+  되살리지 말 것: 유료 전환 전 "써 보고 가치를 느낀 사용자" 모수를 스스로 깎고, 페이월도 설정보다
+  카드 행(쓰려고 손을 뻗는 자리)에 서는 게 맞다.
+  **게이트는 "새로 걸기·연장"만 막는다 — 이미 걸린 기간은 게이트와 무관하다.** 집행부(편집·연장
+  차단, Shield, `denyAppRemoval` 전역 설정, extension 전부)는 게이트를 **한 번도 참조하지 않고**
+  `strictUntil`만 본다. 그래서 게이트를 닫아도 진행 중인 잠금은 안 풀리고, 행 노출을 게이트만으로
+  결정하면 **잠긴 채 만료일만 못 보는** 상태가 된다 → `HomeViewModel.showsStrictRow(for:featureEnabled:)`가
+  `featureEnabled || isStrictLocked`로 판정한다(회귀 테스트
+  `strictRowStaysVisibleWhileLockedEvenIfGateClosed`). 구독 페이월이 붙으면 **구독 만료로 게이트가
+  닫히는 경로**가 실제로 생기는데 이건 사용자 액션이 아니라 시스템 이벤트라 "끄기 금지" 같은 UI
+  방어로는 못 막는다 — 구 설정 토글의 끄기 방어(`setStrictLockEnabled` false 반환)를 되살리는 대신
+  이 계약을 지킬 것. 구독 해지로 잠금이 풀리면 "해지하면 풀린다"는 탈출구를 알려주는 셈이라
+  "권한 끄면 풀린다"를 켜기 화면에 안 적는 규칙과 같은 이유로 금지다.
   **연장 불가 그룹에서는 광고 게이트 다이얼로그를 절대 먼저 띄우지 않는다**(`GroupCardView`의
   `tapEditSelection`·trash 분기): "광고 보고 편집하기"는 연장 불가 모드와 모순되는 안내이고, 다이얼로그가
   닫히는 사이클에 차단 alert를 세팅하게 돼 SwiftUI가 alert 표시를 건너뛴다 — 곧장 ViewModel
@@ -72,9 +86,10 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   `.active` "연장 불가 기간") — 규칙 행("차단 규칙 선택" → "일일 한도"/"30분")과 같은 문법이라
   적용 중 제목은 **라벨이고 값(만료일)은 부제가 맡는다**. 한 키로 합치면 이미 걸렸는지를
   부제로만 판별하게 된다. 어휘는 "모드"가 아니라 **"기간"**으로 통일한다(2026-08-15 변경):
-  카드에서 하는 일은 기간(1/3/7일) 선택이고, "모드"는 설정의 기능 토글
-  (`settings.strictLock.title` "연장 불가 모드") 이름이라 둘이 같으면 이미 켠 기능을 또 켜라는
-  뜻으로 읽힌다. **적용 중 제목에 "-중"을 붙이지 말 것**(구 "연장 불가 중"·"연장 불가 적용 중"):
+  카드에서 하는 일은 기간(1/3/7일) 선택이고 "모드"는 기능 전체의 이름이라, 행 제목이 "모드"면
+  기능을 켜라는 뜻으로 읽힌다(설정 토글이 있던 시절엔 이미 켠 기능을 또 켜라는 말이 됐다).
+  기능 전체를 가리키는 자리(베타 안내·팝오버 본문)에서만 "연장 불가 모드"를 쓴다.
+  **적용 중 제목에 "-중"을 붙이지 말 것**(구 "연장 불가 중"·"연장 불가 적용 중"):
   "-중"은 동작 명사에 붙는 접미사인데 "연장 불가"는 상태라 어색하고("불가능 중"), 진행 중이라는
   신호는 자물쇠 아이콘·만료일 부제·"N일 남음" 배지가 이미 세 번 말한다. "적용"은 그룹
   적용(`isApplied`)과 겹치는 말이라 더 쓰지 않는다. ② 배지는 **"N일 남음"**
@@ -87,12 +102,14 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   2026-07-31 변경)이라 시트가 "1일 칩 선택 + 휠 접힘"으로 열린다. 한 번 걸면 못 푸는 모드라
   처음 화면이 긴 기간을 권하면 안 된다 — 기본값을 프리셋 밖 값으로 되돌리지 말 것. 커스텀 칩을
   누를 때만 `strictLockCustomSeedDays`(14일, 프리셋 밖 값)로 휠이 펼쳐진다(회귀 테스트
-  `strictLockDefaultDaysStartsOnShortestPresetChipAndCommits`). ⑤ 설정 행은 긴 부제를 두지 않고 제목 옆
-  **24×24pt 인포 버튼**에서 제목 없는 2문단 팝오버로 설명한다(`settings.strictLock.info`).
-  ⑥ 설정 행의 발광 테두리(`StrictLockGlowBorder`)는 **토글 상태·연장 불가 진행 여부와 무관하게 항상
-  회전·발광한다**(2026-08-05 결정). 베타 기간 동안 새 기능을 눈에 띄게 두려는 의도적 선택이므로
-  "이미 켠 사용자에겐 끄자" 같은 최적화를 임의로 넣지 말 것 — 켠 **순간**에만 1회 전체 섬광
-  (`activationPulse`)이 더해지는 게 유일한 상태 분기다. Reduce Motion에서는 회전 없이 밝기 변화만 남는다.
+  `strictLockDefaultDaysStartsOnShortestPresetChipAndCommits`). ⑤ 기능 설명은 **카드 연장 불가 행의
+  제목 옆 24×24pt 인포 버튼**에서 제목 없는 2문단 팝오버로 꺼낸다(`group.strictRow.info` — 설정
+  행에서 옮겨 옴, 2026-08-15). 행에 긴 부제를 달지 말고 팝오버로 보낼 것. 이때 **행 전체 탭은
+  `Button`이 아니라 `onTapGesture`로 받는다**: 부모 `Button` 안에 인포 `Button`을 중첩하면 부모가
+  먼저 히트돼 팝오버 대신 시트가 열린다(접근성은 `accessibilityElement(children: .combine)` +
+  `.isButton` trait로 보전). ⑥ 설정 행에 있던 발광 테두리(`StrictLockGlowBorder`)는 행과 함께
+  제거했다(2026-08-15) — 그 연출은 "설정 깊숙이 숨어서 안 보임"을 보정하려던 장치였고, 카드 행은
+  홈 메인이라 필요 없다. 카드로 되살리면 적용 그룹 수만큼 동시에 회전·발광해 시끄러워진다.
 - **확정 순간의 피드백**: `confirmStrictLock` 성공 시 시작/연장 alert(`content.alert.strictStarted.*`
   /`.strictExtended.*`, 확정 **전** `isStrictLockActive`로 분기)을 띄우며 `LockFeedback.play()`
   (Core/Feedback)를 함께 재생한다. 둘 다 **시트가 닫히는 사이클과 겹치면 누락**되므로 실패

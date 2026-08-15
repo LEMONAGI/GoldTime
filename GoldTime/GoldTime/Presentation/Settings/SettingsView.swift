@@ -12,8 +12,6 @@ struct SettingsView: View {
     let onRequestReconnect: () -> Void
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
-    @State private var isStrictLockInfoPresented = false
-    @State private var strictLockActivationPulse = 0
 
     var body: some View {
         ScrollView {
@@ -120,75 +118,9 @@ struct SettingsView: View {
                 weekStartDayRow
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-
-                Divider().padding(.horizontal, 20)
-
-                strictLockRow
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
             }
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 20))
-        }
-    }
-
-    /// 연장 불가 모드 기능 토글(기본 Off). Off면 그룹 카드에 연장 불가 행이 보이지 않는다.
-    /// 연장 불가 기간 중인 그룹이 있으면 끌 수 없다 — 토글을 잠그고 이유를 캡션으로 알린다
-    /// (막기만 하고 이유를 안 보여주면 고장으로 보인다).
-    private var strictLockRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
-                IconTile(systemName: "lock.square.stack", tint: Color.accent)
-                HStack(spacing: 4) {
-                    Text("settings.strictLock.title")
-                        .font(.subheadline.weight(.semibold))
-
-                    Button {
-                        isStrictLockInfoPresented = true
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 16))
-                            .frame(width: 24, height: 24)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(Text("settings.strictLock.info.accessibility"))
-                    .popover(isPresented: $isStrictLockInfoPresented, arrowEdge: .bottom) {
-                        Text("settings.strictLock.info")
-                            .font(.footnote)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(16)
-                            .frame(width: 280, alignment: .leading)
-                            .presentationCompactAdaptation(.popover)
-                    }
-                }
-                Spacer(minLength: 8)
-                Toggle("settings.strictLock.title", isOn: Binding(
-                    get: { viewModel.isStrictLockEnabled },
-                    set: { enabled in
-                        let wasEnabled = viewModel.isStrictLockEnabled
-                        viewModel.setStrictLockEnabled(enabled)
-                        if enabled && !wasEnabled && viewModel.isStrictLockEnabled {
-                            strictLockActivationPulse += 1
-                        }
-                    }
-                ))
-                .labelsHidden()
-                .disabled(viewModel.isStrictLockEnabled && !viewModel.canDisableStrictLock)
-            }
-            if viewModel.isStrictLockEnabled && !viewModel.canDisableStrictLock {
-                Text("settings.strictLock.inUse")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 4)
-        .overlay {
-            StrictLockGlowBorder(activationPulse: strictLockActivationPulse)
-                .padding(.horizontal, -8)
-                .padding(.vertical, -4)
         }
     }
 
@@ -466,88 +398,6 @@ struct SettingsView: View {
     private func openAppSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         openURL(url)
-    }
-}
-
-private struct StrictLockGlowBorder: View {
-    let activationPulse: Int
-    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
-    @State private var flashIntensity: CGFloat = 0
-
-    private let cornerRadius: CGFloat = 14
-    private let revolutionDuration: TimeInterval = 2.8
-
-    var body: some View {
-        TimelineView(.animation(
-            minimumInterval: 1.0 / 30.0,
-            paused: accessibilityReduceMotion
-        )) { context in
-            let angle = accessibilityReduceMotion ? Angle.zero : rotationAngle(at: context.date)
-
-            ZStack {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.accent.opacity(0.18), lineWidth: 1)
-
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(glowGradient(angle: angle), lineWidth: 5)
-                    .blur(radius: 7)
-                    .opacity(0.7)
-
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(glowGradient(angle: angle), lineWidth: 2)
-                    .shadow(color: Color.accent.opacity(0.75), radius: 5)
-
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(
-                        Color.accent.opacity(Double(0.95 * flashIntensity)),
-                        lineWidth: 3 + (3 * flashIntensity)
-                    )
-                    .blur(radius: 1 + (7 * flashIntensity))
-                    .shadow(
-                        color: Color.accent.opacity(Double(0.9 * flashIntensity)),
-                        radius: 14 * flashIntensity
-                    )
-                    .scaleEffect(accessibilityReduceMotion ? 1 : 1 + (0.012 * flashIntensity))
-            }
-        }
-        .task(id: activationPulse) {
-            guard activationPulse > 0 else { return }
-
-            flashIntensity = 0
-            withAnimation(.easeOut(duration: 0.14)) {
-                flashIntensity = 1
-            }
-            try? await Task.sleep(for: .milliseconds(140))
-            guard !Task.isCancelled else { return }
-            try? await Task.sleep(for: .seconds(1))
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeInOut(duration: 1.2)) {
-                flashIntensity = 0
-            }
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-
-    private func rotationAngle(at date: Date) -> Angle {
-        let elapsed = date.timeIntervalSinceReferenceDate
-            .truncatingRemainder(dividingBy: revolutionDuration)
-        return .degrees(elapsed / revolutionDuration * 360)
-    }
-
-    private func glowGradient(angle: Angle) -> AngularGradient {
-        AngularGradient(
-            colors: [
-                Color.accent.opacity(0.06),
-                Color.accent.opacity(0.14),
-                Color.accent,
-                Color.accent.opacity(0.18),
-                Color.accent.opacity(0.06)
-            ],
-            center: .center,
-            startAngle: angle,
-            endAngle: angle + .degrees(360)
-        )
     }
 }
 

@@ -927,11 +927,12 @@ final class ContentViewModel {
         groups.contains { $0.isStrictLockActive() }
     }
 
-    /// 연장 불가 모드 기능 사용 여부(설정 토글, 기본 Off). Off면 카드에 연장 불가 행이 보이지 않는다.
-    /// 설정에서 토글을 바꾼 뒤 홈으로 돌아오면 `refreshDashboardState`가 갱신한다.
+    /// 연장 불가 모드를 쓸 수 있는지(`ManageGroupsUseCase.isStrictLockEnabled` — 베타 기간엔 항상
+    /// true, 정식 출시 때 구독 entitlement 판정이 들어올 자리). 닫히면 카드에 연장 불가 행을
+    /// 그리지 않고 시트 진입도 거부한다. 단 **이미 걸린 기간은 게이트와 무관**하다(아래 참조).
     var isStrictLockFeatureEnabled: Bool = false
 
-    /// 연장 불가 시트 열기. 기능 토글 On + applied + **유효 규칙** 그룹만 — `activateStrictLock`이 같은
+    /// 연장 불가 시트 열기. 게이트 열림 + applied + **유효 규칙** 그룹만 — `activateStrictLock`이 같은
     /// 검증으로 거부하므로, 무효 그룹(예: 적용 후 항목을 전부 해제)에서 진입을 허용하면 최종 확인까지
     /// 눌러도 확정이 조용히 실패해 "켜졌다"고 오인하게 된다. 이미 연장 불가 기간 중인 그룹(연장 진입)은
     /// 편집이 막혀 무효가 될 수 없으므로 검증을 건너뛴다.

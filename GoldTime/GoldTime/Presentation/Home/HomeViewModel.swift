@@ -412,4 +412,17 @@ struct HomeViewModel {
         guard let days = strictRemainingDays(for: group) else { return nil }
         return String(localized: "home.badge.strict \(days)")
     }
+
+    /// 카드에 연장 불가 행을 그릴지. 기능 게이트가 열려 있거나(새로 걸 수 있음), **이미 걸린
+    /// 기간이면**(게이트와 무관) 그린다 — draft 그룹은 어느 쪽이든 제외.
+    ///
+    /// 게이트가 닫혀도 진행 중인 잠금은 풀리지 않는다: 집행부(편집·연장 차단, Shield,
+    /// `denyAppRemoval` 전역 설정)는 게이트를 보지 않고 `strictUntil`만 본다. 그러니 게이트를
+    /// 행 노출의 유일한 조건으로 두면 **잠긴 채 만료일만 못 보는** 상태가 생긴다. 구독 페이월이
+    /// 붙으면 구독 만료로 게이트가 닫히는 경로가 실제로 생기므로(사용자가 막을 수 없는 경로다)
+    /// 이 계약이 곧 필요해진다 — 회귀 테스트 `strictRowStaysVisibleWhileLockedEvenIfGateClosed`.
+    func showsStrictRow(for group: ScreenTimeGroup, featureEnabled: Bool, now: Date = Date()) -> Bool {
+        guard group.isApplied else { return false }
+        return featureEnabled || isStrictLocked(group, now: now)
+    }
 }

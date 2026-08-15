@@ -147,31 +147,25 @@ final class ManageGroupsUseCase {
     /// 상태로 표시된다(프리셋 값이면 칩 선택이 프리셋으로 되돌아간다).
     static let strictLockCustomSeedDays = 14
 
-    /// 연장 불가 모드 기능 사용 여부(설정 토글, 기본 Off). Off면 카드에 연장 불가 행이 숨겨지고 켜기도 막힌다.
-    var isStrictLockEnabled: Bool {
-        groupRepository.isStrictLockEnabled
-    }
-
-    /// 지금 연장 불가 기간이 진행 중인 그룹이 하나라도 있는지(설정 토글을 끌 수 있는지 판정).
-    func hasActiveStrictLock(now: Date = Date()) -> Bool {
-        groupRepository.screenTimeGroups.contains { $0.isApplied && $0.isStrictLockActive(at: now) }
-    }
-
-    /// 연장 불가 모드 기능 토글. **연장 불가 기간 중인 그룹이 있으면 끌 수 없다**(false 반환) — 기능을 끄는 것으로
-    /// 진행 중인 연장 불가 기간을 우회 해제하는 구멍을 막는다. 켜기는 언제나 가능하다.
-    @discardableResult
-    func setStrictLockEnabled(_ enabled: Bool, now: Date = Date()) -> Bool {
-        if !enabled && hasActiveStrictLock(now: now) { return false }
-        groupRepository.isStrictLockEnabled = enabled
-        return true
-    }
+    /// 연장 불가 모드를 쓸 수 있는지. **베타 기간에는 모든 사용자에게 열려 있다**(2026-08-15 —
+    /// 설정 토글 제거). 정식 출시 후 유료 구독으로 전환할 기능이라 그전에 써 보고 가치를 느낀
+    /// 사용자 모수가 필요한데, 설정 깊숙한 기본 Off 토글이 그 모수를 스스로 깎고 있었다.
+    /// 페이월도 설정보다 카드의 연장 불가 행(쓰려고 손을 뻗는 자리)에 서는 게 맞다.
+    ///
+    /// **게이트 자체는 남긴다** — 정식 출시 때 이 프로퍼티만 구독 entitlement 판정으로 갈아끼우면
+    /// `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView` 노출 경로가 그대로 산다.
+    /// 구 토글 저장값(`groupRepository.isStrictLockEnabled`)은 **읽지 않는다**: Off로 저장돼 있던
+    /// 기존 사용자도 업데이트 직후 바로 쓸 수 있어야 한다(회귀 테스트
+    /// `strictLockAvailableEvenWhenLegacyToggleValueIsOff`).
+    var isStrictLockEnabled: Bool { true }
 
     /// 연장 불가 기간을 시작하거나 연장한다(만료가 늘어나는 방향만 — 축소 불가).
     /// applied + 유효 규칙 그룹만. 성공 시 true.
     @discardableResult
     func activateStrictLock(id: UUID, days: Int, now: Date = Date(), in groups: inout [ScreenTimeGroup]) -> Bool {
-        // 기능 토글이 꺼져 있으면 켤 수 없다(UI가 진입을 막지만 집행부에서도 방어).
-        guard groupRepository.isStrictLockEnabled,
+        // 기능 게이트가 닫혀 있으면 켤 수 없다(UI가 진입을 막지만 집행부에서도 방어 —
+        // 구독 페이월이 붙으면 이 guard가 미구독자를 막는 자리가 된다).
+        guard isStrictLockEnabled,
               Self.strictLockDayRange.contains(days),
               let index = groups.firstIndex(where: { $0.id == id }),
               groups[index].isApplied,

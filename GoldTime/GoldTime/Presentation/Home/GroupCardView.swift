@@ -16,12 +16,14 @@ struct GroupCardView: View {
     let onUnlockGroup: (UUID) -> Void
     let onApplyGroup: (UUID) -> Void
     let onPresentStrictLock: (ScreenTimeGroup) -> Void
-    /// 연장 불가 모드 기능 토글(설정, 기본 Off). Off면 연장 불가 행 자체를 그리지 않는다.
+    /// 연장 불가 모드를 쓸 수 있는지(`ManageGroupsUseCase.isStrictLockEnabled` — 베타 기간엔 항상
+    /// 열려 있고, 정식 출시 후 구독 entitlement가 붙는 자리). 닫히면 연장 불가 행을 그리지 않는다.
     let isStrictLockFeatureEnabled: Bool
 
     @State private var isShowingEditConfirm = false
     @State private var isShowingDeleteConfirm = false
     @State private var isShowingDeleteRegularConfirm = false
+    @State private var isShowingStrictInfo = false
 
     private var isLocked: Bool {
         viewModel.lockedGroupIDs.contains(group.id)
@@ -143,6 +145,7 @@ struct GroupCardView: View {
                 } label: {
                     Image(systemName: "trash")
                         .font(.body.weight(.semibold))
+                        .foregroundStyle(.red)
                 }
                 .buttonStyle(.plain)
                 .opacity(isStrictActive ? 0.45 : 1)
@@ -226,7 +229,8 @@ struct GroupCardView: View {
             .buttonStyle(.plain)
             .padding(.bottom, 14)
 
-            if isStrictLockFeatureEnabled && group.isApplied {
+            // 게이트가 닫혀도 이미 걸린 기간이면 행을 계속 보여준다 — 판정 근거는 `showsStrictRow`.
+            if viewModel.showsStrictRow(for: group, featureEnabled: isStrictLockFeatureEnabled) {
                 Divider()
                     .padding(.bottom, 14)
                 strictRow
@@ -253,11 +257,11 @@ struct GroupCardView: View {
                 } message: {
                     Text(restrictedDialogMessage)
                 }
-                .padding(.bottom, 14)
+                
 
             if !group.isApplied {
                 applySection
-                    .padding(.bottom, 14)
+                    .padding(.vertical, 14)
             }
         }
         .cardContainer()
@@ -266,28 +270,58 @@ struct GroupCardView: View {
     /// 연장 불가 행(규칙 행 바로 아래). 규칙 행과 같은 시각 언어(제목+부제+trailing)이자 같은 문법 —
     /// **제목이 적용 전엔 할 일("연장 불가 기간 설정"), 적용 중엔 라벨("연장 불가 기간")** 로 바뀐다
     /// (규칙 행의 "차단 규칙 선택" → "일일 한도"와 동일). 부제는 적용 중이면 만료일, trailing은 자물쇠.
+    ///
+    /// 제목 옆 인포 버튼은 설정 행에서 옮겨 온 것이다(2026-08-15 — 설정 토글 제거). 행 전체가
+    /// 시트를 여는 탭 영역이라 **Button 중첩 대신 `onTapGesture`로 행 탭을 받는다**: 자식 Button
+    /// (인포)이 부모 Button보다 먼저 히트되지 않아 팝오버 대신 시트가 열리는 사고를 피한다.
     private var strictRow: some View {
-        Button {
-            onPresentStrictLock(group)
-        } label: {
-            HStack(alignment: .center, spacing: 0) {
-                VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .center, spacing: 0) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 4) {
                     Text(isStrictActive ? "group.strictRow.title.active" : "group.strictRow.title.inactive")
                         .font(.subheadline.weight(.semibold))
-                    strictRowSubtitle
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    strictInfoButton
                 }
-                Spacer()
-                Image(systemName: isStrictActive ? "lock.fill" : "chevron.right")
-                    .font(.system(size: 18))
+                strictRowSubtitle
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .padding(.leading, 18)
-                    .padding(.vertical, 6)
             }
-            .contentShape(Rectangle())
+            Spacer()
+            Image(systemName: isStrictActive ? "lock.fill" : "chevron.right")
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 18)
+                .padding(.vertical, 6)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { onPresentStrictLock(group) }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+    }
+
+    /// 연장 불가 모드가 무엇인지 알려 주는 24×24pt 인포 버튼(제목 없는 2문단 팝오버).
+    /// 행 자체가 "기간을 정해 잠그는" 되돌릴 수 없는 동작이라, 무엇인지 모른 채 들어가지 않도록
+    /// 같은 줄에서 설명을 꺼낼 수 있어야 한다.
+    private var strictInfoButton: some View {
+        Button {
+            isShowingStrictInfo = true
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 12))
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel(Text("group.strictRow.info.accessibility"))
+        .popover(isPresented: $isShowingStrictInfo, arrowEdge: .bottom) {
+            Text("group.strictRow.info")
+                .font(.footnote)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(16)
+                .frame(width: 280, alignment: .leading)
+                .presentationCompactAdaptation(.popover)
+        }
     }
 
     private var strictRowSubtitle: Text {

@@ -447,12 +447,13 @@ struct StrictLockTests {
         #expect(SharedStore.hasActiveStrictLock())
     }
 
-    // MARK: - 9-b. 기능 토글(설정) — 기본 Off, 연장 불가 기간 중엔 끌 수 없음
+    // MARK: - 9-b. 기능 게이트 — 베타 기간엔 전원 사용 가능(설정 토글 제거, 2026-08-15)
 
-    @Test func activateStrictLockRejectedWhenFeatureDisabled() {
-        // 설정 토글이 꺼져 있으면(프로덕션 기본값) 켜기가 거부된다 — UI가 진입을 막지만 집행부도 방어.
+    @Test func strictLockAvailableEvenWhenLegacyToggleValueIsOff() {
+        // 구 설정 토글이 Off로 저장돼 있던 기존 사용자도 업데이트 직후 바로 쓸 수 있어야 한다 —
+        // 게이트는 App Group 저장값을 읽지 않고 항상 열려 있다(정식 출시 때 구독 판정으로 교체).
         let repo = StrictFakeGroupRepository()
-        repo.isStrictLockEnabled = false
+        repo.isStrictLockEnabled = false            // 구 토글 저장값(Off) — 더 이상 읽지 않는다
         let useCase = ManageGroupsUseCase(
             groupRepository: repo,
             screenTimeRepository: StrictFakeScreenTimeRepository()
@@ -463,39 +464,37 @@ struct StrictLockTests {
             dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
         )]
 
-        #expect(useCase.activateStrictLock(id: id, days: 3, now: date(2026, 7, 12), in: &groups) == false)
-        #expect(groups[0].strictUntil == nil)
+        #expect(useCase.isStrictLockEnabled)
+        #expect(useCase.activateStrictLock(id: id, days: 3, now: date(2026, 7, 12), in: &groups))
+        #expect(groups[0].strictUntil != nil)
     }
 
-    @Test func featureToggleCannotBeDisabledWhileCommitmentRuns() {
-        // 진행 중인 연장 불가 기간이 있으면 기능 토글을 끌 수 없다 — 끄기로 연장 불가 기간을 우회 해제하는 구멍 차단.
-        // 연장 불가 기간이 없으면(또는 만료됐으면) 끌 수 있고, 켜기는 언제나 가능하다.
-        let repo = StrictFakeGroupRepository()
-        let useCase = ManageGroupsUseCase(
-            groupRepository: repo,
-            screenTimeRepository: StrictFakeScreenTimeRepository()
+    @Test func strictRowStaysVisibleWhileLockedEvenIfGateClosed() {
+        // 게이트가 닫혀도(= 구독 만료 등 미래 시나리오) **이미 걸린 기간이면 행이 계속 보여야** 한다.
+        // 집행부는 게이트를 보지 않고 strictUntil만 보므로 잠금은 그대로인데, 행까지 사라지면
+        // 잠긴 채 만료일만 확인할 수 없게 된다. 새로 걸기(게이트 필요)와 분리된 계약이다.
+        let now = date(2026, 7, 12)
+        let locked = SharedStore.ScreenTimeGroup(
+            name: "잠김", selection: validSelection(), dailyLimitMinutes: 30,
+            ruleKind: .dailyLimit, isApplied: true, strictUntil: date(2026, 7, 15)
         )
+        let free = SharedStore.ScreenTimeGroup(
+            name: "안 잠김", selection: validSelection(), dailyLimitMinutes: 30,
+            ruleKind: .dailyLimit, isApplied: true
+        )
+        let draft = SharedStore.ScreenTimeGroup(
+            name: "미적용", selection: validSelection(), dailyLimitMinutes: 30,
+            ruleKind: .dailyLimit, isApplied: false, strictUntil: date(2026, 7, 15)
+        )
+        let viewModel = makeHomeViewModel(groups: [locked, free, draft])
 
-        repo.screenTimeGroups = [SharedStore.ScreenTimeGroup(
-            id: UUID(), name: "게임", selection: validSelection(),
-            ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantFuture
-        )]
-        #expect(useCase.hasActiveStrictLock())
-        #expect(useCase.setStrictLockEnabled(false) == false)
-        #expect(repo.isStrictLockEnabled)              // 끄기 거부 → 켜진 상태 유지
-
-        // 만료된 연장 불가 기간만 남으면 끌 수 있다.
-        repo.screenTimeGroups = [SharedStore.ScreenTimeGroup(
-            id: UUID(), name: "게임", selection: validSelection(),
-            ruleKind: .dailyLimit, isApplied: true, strictUntil: .distantPast
-        )]
-        #expect(!useCase.hasActiveStrictLock())
-        #expect(useCase.setStrictLockEnabled(false) == true)
-        #expect(!repo.isStrictLockEnabled)
-
-        // 켜기는 연장 불가 기간 유무와 무관하게 가능.
-        #expect(useCase.setStrictLockEnabled(true) == true)
-        #expect(repo.isStrictLockEnabled)
+        // 게이트 닫힘: 진행 중인 그룹만 보인다.
+        #expect(viewModel.showsStrictRow(for: locked, featureEnabled: false, now: now))
+        #expect(!viewModel.showsStrictRow(for: free, featureEnabled: false, now: now))
+        // 게이트 열림(현재 베타): 적용된 그룹은 모두 보인다.
+        #expect(viewModel.showsStrictRow(for: free, featureEnabled: true, now: now))
+        // draft는 어느 쪽이든 제외 — 적용 전에는 걸 수 없다.
+        #expect(!viewModel.showsStrictRow(for: draft, featureEnabled: true, now: now))
     }
 
     // MARK: - 10-a. 쿨다운 휴식은 연장 불가 모드 중에도 정상 종료·재충전된다 (집행 규칙 무영향)

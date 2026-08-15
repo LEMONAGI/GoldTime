@@ -52,10 +52,11 @@ enum SharedStore {
         static let isStrictLockEnabled = "isStrictLockEnabled"
     }
 
-    /// 연장 불가 모드(기간 강력 잠금) 기능 사용 여부. **기본값 Off** — 한 번 걸면 어떤 수단으로도
-    /// 못 푸는 기능이라 원하는 사용자만 명시적으로 켠다(설정 → 연장 불가 모드 토글).
-    /// Off면 그룹 카드에 연장 불가 행이 보이지 않고 켜기 진입도 막힌다. **연장 불가 기간 중인 그룹이 있으면
-    /// 끌 수 없다**(끄기로 우회 해제하는 구멍 차단 — `ManageGroupsUseCase.setStrictLockEnabled`).
+    /// 구 "연장 불가 모드" 설정 토글 값. **2026-08-15부터 아무도 읽지 않는다** — 기능이 베타
+    /// 기간 동안 전원에게 열리면서 설정 토글을 제거했고, 게이트는 `ManageGroupsUseCase`
+    /// .`isStrictLockEnabled`(현재 항상 true, 정식 출시 때 구독 entitlement로 교체)가 맡는다.
+    /// **이 저장값을 다시 읽지 말 것**: Off로 저장해 둔 기존 사용자가 업데이트 후 기능을 못 쓴다.
+    /// key·프로퍼티는 App Group 하위 호환(구버전 왕복)과 롤백 여지를 위해 남겨 둔다.
     static var isStrictLockEnabled: Bool {
         get { defaults.bool(forKey: Key.isStrictLockEnabled) }
         set { defaults.set(newValue, forKey: Key.isStrictLockEnabled) }

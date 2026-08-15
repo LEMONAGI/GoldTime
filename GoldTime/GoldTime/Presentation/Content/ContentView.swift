@@ -231,14 +231,13 @@ struct ContentView: View {
                         viewModel.cancelApplyGroup()
                     }
                 )
+            // 기능이 설정 토글 뒤에 있던 동안엔 "설정에서 확인" 버튼으로 보냈지만, 이제 홈 카드에서
+            // 바로 쓸 수 있으므로 안내만 하고 닫는다(2026-08-15).
             case .strictLockBeta:
                 Alert(
                     title: Text("home.strictLockBeta.title"),
                     message: Text("home.strictLockBeta.message"),
-                    primaryButton: .default(Text("home.strictLockBeta.openSettings")) {
-                        viewModel.selectedTab = .settings
-                    },
-                    secondaryButton: .cancel(Text("common.confirm"))
+                    dismissButton: .default(Text("common.confirm"))
                 )
             }
         }
@@ -249,10 +248,6 @@ struct ContentView: View {
             if !newValue { viewModel.refreshDashboardState() }
         }
         .onChange(of: weekStartDay) { _, _ in
-            viewModel.refreshDashboardState()
-        }
-        // 설정에서 연장 불가 기능을 켜고 끄면 홈 카드의 연장 불가 행 노출이 즉시 따라가야 한다.
-        .onChange(of: settingsViewModel.isStrictLockEnabled) { _, _ in
             viewModel.refreshDashboardState()
         }
         .onChange(of: hasCompletedConsentFlow) { _, hasCompleted in
