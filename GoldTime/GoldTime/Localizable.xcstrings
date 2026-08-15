@@ -2055,19 +2055,19 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "연장 불가 중"
+            "value": "연장 불가 기간"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked In"
+            "value": "Locked-In Period"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "延長不可中"
+            "value": "延長不可期間"
           }
         }
       }
