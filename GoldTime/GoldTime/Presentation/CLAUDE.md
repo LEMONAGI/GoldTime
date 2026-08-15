@@ -80,7 +80,12 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   2026-07-31 변경)이라 시트가 "1일 칩 선택 + 휠 접힘"으로 열린다. 한 번 걸면 못 푸는 모드라
   처음 화면이 긴 기간을 권하면 안 된다 — 기본값을 프리셋 밖 값으로 되돌리지 말 것. 커스텀 칩을
   누를 때만 `strictLockCustomSeedDays`(14일, 프리셋 밖 값)로 휠이 펼쳐진다(회귀 테스트
-  `strictLockDefaultDaysStartsOnShortestPresetChipAndCommits`).
+  `strictLockDefaultDaysStartsOnShortestPresetChipAndCommits`). ⑤ 설정 행은 긴 부제를 두지 않고 제목 옆
+  **24×24pt 인포 버튼**에서 제목 없는 2문단 팝오버로 설명한다(`settings.strictLock.info`).
+  ⑥ 설정 행의 발광 테두리(`StrictLockGlowBorder`)는 **토글 상태·연장 불가 진행 여부와 무관하게 항상
+  회전·발광한다**(2026-08-05 결정). 베타 기간 동안 새 기능을 눈에 띄게 두려는 의도적 선택이므로
+  "이미 켠 사용자에겐 끄자" 같은 최적화를 임의로 넣지 말 것 — 켠 **순간**에만 1회 전체 섬광
+  (`activationPulse`)이 더해지는 게 유일한 상태 분기다. Reduce Motion에서는 회전 없이 밝기 변화만 남는다.
 - **확정 순간의 피드백**: `confirmStrictLock` 성공 시 시작/연장 alert(`content.alert.strictStarted.*`
   /`.strictExtended.*`, 확정 **전** `isStrictLockActive`로 분기)을 띄우며 `LockFeedback.play()`
   (Core/Feedback)를 함께 재생한다. 둘 다 **시트가 닫히는 사이클과 겹치면 누락**되므로 실패

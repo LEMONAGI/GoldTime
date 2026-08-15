@@ -95,7 +95,7 @@ GoldTime/ShieldActionExtension/CLAUDE.md            ← Shield 액션 쓰기 계
 
 빌드/테스트는 **`xcodebuild` CLI를 기본**으로 쓴다(Xcode MCP 툴은 CLI가 막히거나 IDE 상태가
 필요할 때만 fallback). 기본형:
-`xcodebuild -project GoldTime/GoldTime.xcodeproj -scheme GoldTime -destination 'platform=iOS Simulator,name=iPhone 17' -quiet build`(테스트는 `build`→`test`).
+`xcodebuild -project GoldTime/GoldTime.xcodeproj -scheme GoldTime -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build`(테스트는 `build`→`test`).
 특정 테스트 식별자는 **괄호 포함**(`-only-testing:'GoldTimeTests/Suite/이름()'`), 0매칭이면
 TEST SUCCEEDED로 뜨는 **거짓 성공 함정**이 있어 xcresult로 개수를 확인한다. 자세히는
 [docs/agent/working-rules.md](docs/agent/working-rules.md)의 "검증 명령".

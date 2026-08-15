@@ -49,7 +49,7 @@ CLI가 막히거나 IDE 상태(RenderPreview, 네비게이터 이슈 등)가 필
 - **빌드**:
   ```bash
   xcodebuild -project GoldTime/GoldTime.xcodeproj -scheme GoldTime \
-    -destination 'platform=iOS Simulator,name=iPhone 17' -quiet build
+    -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build
   ```
   `-quiet`는 성공 시 출력이 거의 없다 — exit 0이면 성공.
 - **전체 테스트**: 위 명령의 `build` → `test`. exit 0 = 전부 통과(실패 시에만 실패 목록 출력).
@@ -67,8 +67,9 @@ CLI가 막히거나 IDE 상태(RenderPreview, 네비게이터 이슈 등)가 필
   (거짓 성공)**. 괄호 누락이 흔한 원인. exit code만 믿지 말고 xcresult에서
   `totalTestCount`를 확인한다.
 - destination의 name-only 지정은 **최신 런타임에 그 이름이 있어야** 잡힌다. 예: "iPhone 16
-  Pro"는 이 맥에 iOS 18.0 런타임에만 있어 실패했다("Unable to find a device") → 최신 런타임에
-  있는 이름(예: iPhone 17)을 쓰고, 모호하면 `-showdestinations`로 확인.
+  Pro"는 이 맥에 iOS 18.0 런타임에만 있어 실패했다("Unable to find a device"). **설치돼 있지 않은
+  이름도 같은 실패**를 낸다 — 2026-08-05 실측 기준 이 맥에는 "iPhone 17"이 없고 17 Pro/17e/Air만
+  있다. 실제 설치 목록은 `xcrun simctl list devices available`(또는 `-showdestinations`)로 확인.
 - 테스트 stdout에는 개별 테스트 라인이 나오지 않는다(Xcode 16+, `-quiet` 무관). `-quiet`면
   xcresult 경로 라인도 생략되니 DerivedData에서 최신 xcresult를 찾는다(위 명령).
 - `xcodebuild test`는 시뮬레이터 앱 데이터를 초기화할 수 있다(TEST_HOST + 공유 App Group).

@@ -7386,25 +7386,48 @@
         }
       }
     },
-    "settings.strictLock.subtitle": {
+    "settings.strictLock.info": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "For when you really mean it this time. No ad or edit lets you slip out."
+            "value": "Use this mode when you want to stick to the usage rules you set for yourself.\n\nAds or 1-minute extensions can't give you more screen time, and you can't change the rules you've set."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "今度こそ本気で断ちたいときに。広告でも編集でも抜け出せません。"
+            "value": "自分で決めた使用ルールをしっかり守りたいときに使ってみてください。\n\n広告や1分延長で使用時間を増やすことはできず、設定したルールも変更できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이번엔 진짜로 끊고 싶을 때. 광고로도 편집으로도 빠져나갈 수 없어요."
+            "value": "스스로 정한 사용 규칙을 확실히 지키고 싶다면 사용해 보세요.\n\n광고나 1분 연장으로 사용 시간을 더 늘릴 수 없고, 설정한 규칙도 바꿀 수 없어요."
+          }
+        }
+      }
+    },
+    "settings.strictLock.info.accessibility": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About Locked-In Mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "延長不可モードの説明"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연장 불가 모드 설명"
           }
         }
       }
