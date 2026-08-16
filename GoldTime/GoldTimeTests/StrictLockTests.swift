@@ -670,7 +670,7 @@ struct StrictLockTests {
     }
 
     @Test func confirmStrictLockSetsExpiryAndClosesSheet() {
-        // 미적용 applied 그룹에 연장 불가 모드 적용 → strictUntil 세팅 + 시트 닫힘 + strict_lock_commit 로깅.
+        // applied 그룹에 연장 불가 모드 적용 → strictUntil 세팅 + 시트 닫힘 + 시작 일수 로깅.
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(), name: "게임", selection: validSelection(),
             dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
@@ -685,9 +685,46 @@ struct StrictLockTests {
 
         #expect(viewModel.strictLockSheetGroupID == nil)
         #expect(viewModel.groups.first?.strictUntil != nil)
-        #expect(analytics.events.contains { $0.name == "strict_lock_commit" })
+        let started = analytics.events.first { $0.name == "strict_lock_started" }
+        #expect(started?.parameters["strict_lock_days"] as? Int == 3)
+        #expect(started?.parameters["rule_mode"] as? String == "uniform_daily")
         #expect(analytics.userProperties["active_rule_profile"] == "wd0_dl1_tw0_cd0")
         #expect(analytics.userProperties["strict_rule_profile"] == "wd0_dl1_tw0_cd0")
+        #expect(analytics.strictLockCommitments[group.id]?.expiresAt == viewModel.groups.first?.strictUntil)
+    }
+
+    @Test func extendingStrictLockUsesSeparateHierarchicalEventAndDays() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true,
+            strictUntil: Date().addingTimeInterval(24 * 60 * 60), strictStartedAt: Date()
+        )
+        let analytics = StrictFakeAnalyticsRepository()
+        let viewModel = makeContentViewModel(groups: [group], analytics: analytics)
+
+        viewModel.presentStrictLockSheet(for: group)
+        viewModel.confirmStrictLock(days: 3)
+
+        let extended = analytics.events.first { $0.name == "strict_lock_extended" }
+        #expect(extended?.parameters["strict_lock_days"] as? Int == 3)
+        #expect(analytics.events.contains { $0.name == "strict_lock_started" } == false)
+        #expect(analytics.strictLockCommitments[group.id]?.expiresAt == viewModel.groups.first?.strictUntil)
+    }
+
+    @Test func screenTimeRevocationRemovesPendingStrictLockCompletion() {
+        let group = strictActiveGroup()
+        let analytics = StrictFakeAnalyticsRepository()
+        analytics.recordStrictLockCommitment(
+            groupID: group.id,
+            startedAt: Date(),
+            expiresAt: group.strictUntil ?? .distantFuture
+        )
+        let viewModel = makeContentViewModel(groups: [group], analytics: analytics)
+
+        viewModel.handleScreenTimeRecoveryAppear()
+
+        #expect(analytics.strictLockCommitments[group.id] == nil)
+        #expect(analytics.events.filter { $0.name == "strict_lock_revoke_detected" }.count == 1)
     }
 
     @Test func presentStrictLockSheetIgnoredForDraftGroup() {
@@ -896,8 +933,23 @@ private final class StrictFakeNotificationRepository: NotificationRepository {
 
 private final class StrictFakeAnalyticsRepository: AnalyticsRepository {
     private(set) var events: [AnalyticsEvent] = []
-    private(set) var userProperties: [String: String?] = [:]
+    private(set) var userProperties: [String: String] = [:]
+    private(set) var strictLockCommitments: [UUID: (startedAt: Date, expiresAt: Date)] = [:]
     func log(_ event: AnalyticsEvent) { events.append(event) }
-    func setUserProperty(_ value: String?, for name: String) { userProperties[name] = value }
+    func setUserProperty(_ value: String?, for name: String) {
+        if let value {
+            userProperties[name] = value
+        } else {
+            userProperties.removeValue(forKey: name)
+        }
+    }
     func recordError(_ error: Error, context: String) {}
+    func recordStrictLockCommitment(groupID: UUID, startedAt: Date, expiresAt: Date) {
+        strictLockCommitments[groupID] = (startedAt, expiresAt)
+    }
+    func discardStrictLockCommitments(groupIDs: [UUID]) {
+        for groupID in groupIDs { strictLockCommitments.removeValue(forKey: groupID) }
+    }
+    func discardAllStrictLockCommitments() { strictLockCommitments.removeAll() }
+    func drainCompletedStrictLockDays(at now: Date) -> [Int] { [] }
 }

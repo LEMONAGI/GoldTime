@@ -33,23 +33,18 @@
 - [ ] **연장 불가 기간 만료 피드백** — 시작은 alert+햅틱인데 끝은 배지가 조용히 사라질 뿐이다.
       만료 후 첫 홈 진입에서 완주 안내를 1회 띄운다(feature-spec §5.8은 "선택 사항"으로 뒀지만,
       구독으로 팔 기능이라 완주 경험이 곧 재적용 동기다)
-- [ ] **분석 이벤트 전면 개편 — 연장 불가 완주 이벤트 포함**. 현재 strict 이벤트는
-      `strict_lock_commit`(days)·`strict_revoke_detected` 둘뿐이라 **완주율·재적용률을 계산할 수 없다**
-      (유료 구독 전환 판단의 핵심 지표). 만료 시점 이벤트를 추가하거나 commit에 직전 기간 완주 여부를
-      싣는 식으로 설계할 것. 이벤트 스키마를 대대적으로 손보는 김에 아래 "Firebase Analytics Bool 파라미터
-      타입" 항목과 대시보드 신규 이벤트 처리도 함께 정리
-
 ## 다음 할 일
 
-- [ ] Firebase Analytics: SDK가 보장하는 이벤트 파라미터 타입은 String/Int/Double인데 현재
-      `granted`·`was_locked`·`caused_lock`은 Bool을 전달한다. DebugView·BigQuery에서 실제 저장
-      타입을 확인한 뒤 custom definition 등록 또는 하위 호환 스키마 변경을 결정할 것
-- [ ] 대시보드(goldtime-dashboard): 연장 불가 모드 신규 이벤트 처리 — `strict_lock_commit`(days),
-      `strict_revoke_detected`. 연장 불가 기간 중인 그룹은 `group_edit_gate`·광고 노출이 0이 되는 게
+- [ ] 대시보드(goldtime-dashboard): 규칙 스냅샷 `rule_uniform_*`/`rule_weekday_snapshot`과
+      연장 불가 이벤트 `strict_lock_started`/`strict_lock_extended`/`strict_lock_completed`
+      (`strict_lock_days`)/`strict_lock_revoke_detected`, 그룹 `group_snapshot`/`group_applied`/`group_deleted`, Shield·연장
+      `shield_lock_started`/`shield_action_*`/`shield_extend_*` 퍼널 처리.
+      연장 불가 기간 중인 그룹은 `group_edit_gate`·광고 노출이 0이 되는 게
       정상(수익 감소가 아니라 기능 동작 — 추이 해석 주석 필요)
 
 - [ ] 대시보드(goldtime-dashboard): 1.2.0 신규 분석 값 처리 — rule_kind "weekday",
-      weekday_restricted_days(days_N), 코호트 uses_weekday (shield_hit은 집행 규칙 유지라
+      weekday_restricted_days(days_N), 코호트 uses_weekday (1.3.0부터 집행 규칙은
+      `shield_lock_started.enforcement_rule`로 분리됨 — 구 `shield_hit.rule_kind`와
       rule_kind 조인 시 의미 분화 주의). 광고 placement `group_edit_gate` 노출 의미가
       1.2.0에서 '편집 진입'→'변경 적용(완료 게이트)'으로 변경 — 노출 수 감소는 UX 개선이지
       이탈이 아님(추이 해석 주석 필요)
@@ -69,6 +64,17 @@
 
 1.2.0 요일별 규칙 검증은 완료(2026-07-21, 판정 기록은
 [docs/verify-1.2.0-runbook.md](docs/verify-1.2.0-runbook.md)).
+
+- [ ] Firebase DebugView/BigQuery에서 실제 Shield 발생 → 그만 쓰기/
+      GoldTime 가기 → 1분·광고 연장을 각각 1회 수행해 `shield_lock_started`,
+      `shield_action_*`, `shield_extend_*`가 새 이름·파라미터로 전송되는지 확인.
+      `shield_lock_started`는 `rule_mode` + `enforcement_rule`, 연장 시트는 Shield
+      복귀 `entry_source=shield` / 홈 카드 `entry_source=home_group`이어야 한다.
+      ShieldAction extension 큐는 앱 재진입 전에는 Firebase로 안 가는 것이 정상
+
+- [ ] 1일 연장 불가 기간을 새 빌드에서 시작한 뒤 정상 만료시키고 첫 앱 활성화에서
+      `strict_lock_completed(strict_lock_days=1)`가 정확히 1회 전송되는지 확인. 앱을 다시
+      활성화해도 중복되지 않아야 하며, 권한 철회한 약정에는 완료 이벤트가 생기지 않아야 한다
 
 - [ ] **연장 불가 모드(기간 강력 잠금)** (`Feat/AbsoluteLock` 구현 완료 2026-07-13 —
       **검증 완료 전 머지·제출 금지**) 런북: [docs/verify-strictlock-runbook.md](docs/verify-strictlock-runbook.md)

@@ -68,8 +68,9 @@ iOS 설정 동작(앱 삭제 금지·자동 날짜)은 육안으로 한다. 수�
    → 연장 버튼 없음(휴식도 못 풂 — 쿨다운 ADR의 의도된 예외).
 7. **연장(기간 늘리기)** ⑥: 그룹 A 연장 불가 행 → 시트에 남은 일수·시작/만료 표시, 프리셋 중
    1일은 비활성(만료가 늘지 않음), 3/7일·직접 입력만 활성 → **연장하지 말고 취소**(A는 내일 만료
-   검증용). 그룹 B에서 7일로 실제 연장 → 배지 D-7, `strict_lock_commit` days=7.
-8. **GA4**(선택): DebugView에서 `strict_lock_commit`(days=1,3,7) 확인.
+   검증용). 그룹 B에서 7일로 실제 연장 → 배지 D-7, `strict_lock_extended` `strict_lock_days=7`.
+8. **GA4**(선택): DebugView에서 최초 설정은 `strict_lock_started`, 연장은
+   `strict_lock_extended`, 각각 `strict_lock_days=1/3/7`인지 확인.
 
 ## 자정 넘김 — D+1 (사람 개입 없음)
 
@@ -89,7 +90,8 @@ iOS 설정 동작(앱 삭제 금지·자동 날짜)은 육안으로 한다. 수�
    - 설정 → 스크린 타임 → GoldTime 권한 OFF → Shield 사라짐 + 앱 제거 가능해짐(Apple 제약
      실측 — 기획상 수용).
    - GoldTime 열기 → 권한 복구 화면에 **연장 불가 모드 안내 1행**("연장 불가 기간이 진행 중이에요 — 권한을 다시 켜면 그대로 이어져요") 표시,
-     `strict_revoke_detected` 1회 — **OSLog에서 찾지 말 것**(2026-07-29 실측): `AnalyticsRepositoryImpl`은
+     `strict_lock_revoke_detected` 1회 — **OSLog에서 찾지 말 것**(2026-07-29 구 이벤트명
+     `strict_revoke_detected` 실측): `AnalyticsRepositoryImpl`은
      GTLog를 전혀 호출하지 않아 분석 이벤트는 **Firebase 전용**이다. 확인은 GA4 DebugView이거나,
      이벤트 발생 다음 날 아침(D+1 08:25~09:00 export 도착 후) BigQuery 조회로 한다.
    - 재승인 → 그룹 B 배지 D-N **그대로**(연장 불가 기간 복원), `연장 불가 전역 설정 적용` 재로깅, 앱 제거
@@ -136,7 +138,7 @@ GTLog는 `Df`(Debug) 레벨이라 오래 보존되지 않는다: 2026-07-30 실�
 
 기기 구성(2026-07-27 저녁 투입): A=애플게임/일일 한도 5분/**1일**, B=애플TV/쿨다운 5분·30분/
 **3일**, C=일기앱/대조군. 이후 7/29에 UX 다듬기 검증용으로 1일 그룹 2개(dailyLimit·weekday)를
-추가로 걸어 **7/30 00:00에 전부 동시 만료**됐다(`strict_lock_commit` BigQuery 이력으로 확인).
+추가로 걸어 **7/30 00:00에 전부 동시 만료**됐다(당시 구 이벤트 `strict_lock_commit` BigQuery 이력으로 확인).
 
 ### 세션 1 — 통과 (2026-07-27 저녁)
 
@@ -154,7 +156,7 @@ GTLog는 `Df`(Debug) 레벨이라 오래 보존되지 않는다: 2026-07-30 실�
 (연장 버튼 미렌더 + 안내 카드, `연장 거부` 로그 **없음** = UI가 먼저 차단). 권한 철회 → 복구
 안내 → 재승인 시 D-N 복원(`연장 불가 전역 설정 적용` extension+앱 2회).
 
-- `strict_revoke_detected`는 **OSLog에 없다** — `AnalyticsRepositoryImpl`이 GTLog를 호출하지
+- 당시 구 이벤트 `strict_revoke_detected`는 **OSLog에 없다** — `AnalyticsRepositoryImpl`이 GTLog를 호출하지
   않아 분석 이벤트는 Firebase 전용. 런북의 OSLog 판정 지시가 틀렸던 것이고 BigQuery로 이관했다.
 - ⚠️ 이 과정에서 **쿨다운 휴식 타이머 버그**를 발견했다(전체 stop 후 타이머 미복구 — TODO.md).
 
@@ -177,10 +179,11 @@ BGTask 경합"이 아님이 확정, ③ 자정 **2초 후** 발화(지연 없음
 육안 3개 통과: 앱 꾹 → "앱 제거" 다시 가능, 설정 → 날짜와 시간 수정 가능, 설정에서 토글이
 정상적으로 꺼지고 카드에서 연장 불가 행 사라짐.
 
-BigQuery: `strict_revoke_detected` **정확히 1회**(7/29 11:06:17 KST → `didLogStrictRevoke`
+BigQuery: 당시 구 이벤트 `strict_revoke_detected` **정확히 1회**(7/29 11:06:17 KST → `didLogStrictRevoke`
 중복 방지 가드 정상). 덧붙여 검증 기기의 7/29 **광고 이벤트 0건**(`ad_started`/
 `ad_reward_earned` 전무)이 "연장 불가 그룹에서 광고 게이트 미노출"의 분석 측 증거가 됐고,
-`shield_hit`(cooldown) 2회 → `walk_away` 3회가 ④·⑤의 행동 증거가 됐다.
+구 이벤트명 `shield_hit`(cooldown) 2회 → `walk_away` 3회가 ④·⑤의 행동
+증거가 됐다(현재는 `shield_lock_started`·`shield_extend_stop_selected`).
 
 **미판정 1건**: 자정 재무장(`자정 리셋 + 재무장 시작`)은 로그 유실로 판정 못 했다. 정황은
 통과 — `00:00:02.391` pending 알림 2개 제거 → 1개 추가가 `handleHeartbeat`의 알림 재예약

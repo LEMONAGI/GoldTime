@@ -40,10 +40,16 @@ struct GoldTimeApp: App {
             .sheet(isPresented: $appLifecycle.showLockOptions, onDismiss: {
                 appLifecycle.pendingGroupID = nil
             }) {
-                LockOptionsView(initialGroupID: appLifecycle.pendingGroupID)
+                LockOptionsView(
+                    initialGroupID: appLifecycle.pendingGroupID,
+                    entrySource: .shield
+                )
             }
             .sheet(isPresented: $contentViewModel.isUnlockSheetPresented) {
-                LockOptionsView(initialGroupID: contentViewModel.unlockSheetGroupID)
+                LockOptionsView(
+                    initialGroupID: contentViewModel.unlockSheetGroupID,
+                    entrySource: .homeGroup
+                )
             }
             .sheet(isPresented: $contentViewModel.isAdGatePresented, onDismiss: {
                 contentViewModel.handleAdGateDismiss()
@@ -69,8 +75,10 @@ struct GoldTimeApp: App {
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
-                    appLifecycle.appDidBecomeActive()
-                    Task { await contentViewModel.requestScreenTimeAuthorizationOnEntry() }
+                    Task {
+                        await appLifecycle.appDidBecomeActive()
+                        await contentViewModel.requestScreenTimeAuthorizationOnEntry()
+                    }
                 }
             }
             .tint(Color.accent)

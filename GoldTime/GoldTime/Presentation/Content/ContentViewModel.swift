@@ -302,7 +302,6 @@ final class ContentViewModel {
             let newGroup = try manageGroupsUseCase.makeNewGroup(currentCount: groups.count)
             groups.append(newGroup)
             persistGroups(shouldSyncProtection: false)
-            analyticsRepository.log(.groupCreated(groupCount: groups.count))
             successMessage = nil
             errorMessage = nil
         } catch {
@@ -311,6 +310,7 @@ final class ContentViewModel {
     }
 
     func deleteGroup(_ id: UUID) {
+        guard let deletingGroup = groups.first(where: { $0.id == id }) else { return }
         var updated = groups
         guard manageGroupsUseCase.deleteGroup(id: id, in: &updated) else {
             // 연장 불가 기간 중이면 Domain이 삭제를 거부한다. 진입 경로(requestDeleteGroup)에서 이미
@@ -324,6 +324,7 @@ final class ContentViewModel {
         successMessage = nil
         errorMessage = nil
         persistGroups()
+        analyticsRepository.log(.groupDeleted(wasApplied: deletingGroup.isApplied))
     }
 
     func updateGroupName(_ id: UUID, name: String) {
@@ -360,8 +361,7 @@ final class ContentViewModel {
     func commitPickerSelection() {
         guard let groupID = pickerGroupID else { return }
         let selection = pickerSelection
-        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(groupID)
-        updateGroup(groupID, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
+        updateGroup(groupID) { groups in
             manageGroupsUseCase.updateSelection(id: groupID, selection: selection, in: &groups)
         }
     }
@@ -475,8 +475,6 @@ final class ContentViewModel {
 
         let used = usedTimeByGroupID[id] ?? 0
         let todayRule = rules[WeekdayRulePolicy.weekdayIndex(for: Date())]
-        logRuleChangeToWeekdayIfNeeded(id: id, todayRule: todayRule, used: used)
-
         // 즉시 잠금 경고는 오늘 투영 규칙 기준(일일/쿨다운이고 새 예산 <= 사용량). 시트가 닫힌 뒤 띄운다.
         // 이미 잠김/휴식/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
         if isGroupCurrentlyOpen(id), used > 0,
@@ -496,7 +494,7 @@ final class ContentViewModel {
         // 자정 근처 안내: 오늘 투영 kind가 daily/cooldown이고 오늘 투영이 실제로 바뀔 때만
         // (다른 요일만 편집한 커밋은 churn 가드가 재등록을 건너뛰어 안내가 거짓 정보가 된다).
         let todayTracked = todayRule.kind == .dailyLimit || todayRule.kind == .cooldown
-        if monitoringRegistrationGroupIDIfApplied(id) != nil && todayTracked && todayChanged
+        if isAppliedGroup(id) && todayTracked && todayChanged
             && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
             stagedRuleEditInfo = nearMidnightApplyNotice
         }
@@ -530,8 +528,7 @@ final class ContentViewModel {
     }
 
     private func applyWeekdayRules(id: UUID, rules: [DayRule]) {
-        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
-        updateGroup(id, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
+        updateGroup(id) { groups in
             manageGroupsUseCase.updateWeekdayRules(id: id, rules: rules, in: &groups)
         }
     }
@@ -540,45 +537,6 @@ final class ContentViewModel {
     /// 편집으로 "즉시 잠금/휴식 진입" 확인 알럿을 띄울지 판단하는 데 쓴다(전환이 실제로 일어날 때만).
     private func isGroupCurrentlyOpen(_ id: UUID) -> Bool {
         !lockedGroupIDs.contains(id) && !overrideGroupIDs.contains(id)
-    }
-
-    /// 그룹의 현재 규칙 표기(`rule_changed` from/to 값). 요일별 모드면 "weekday", 아니면 base 규칙
-    /// rawValue, 규칙 미선택이면 nil. 요일별 ↔ 단일 전환도 관찰 가능하게 한다.
-    private func ruleDescriptor(for group: ScreenTimeGroup?) -> String? {
-        guard let group else { return nil }
-        if group.usesWeekdayRules { return "weekday" }
-        return group.ruleKind?.rawValue
-    }
-
-    /// 모드 전환(규칙 변경)을 관찰용으로 기록한다(`rule_changed`). 같은 규칙 내 값 변경은 제외.
-    /// apply/early-return 이전(전환 직전 상태)에 호출해야 was_locked·used가 정확하다.
-    /// `effectiveLimit`: 일일 한도/쿨다운 예산(분). timeWindows는 측정창과 무관하므로 미사용(0 전달).
-    private func logRuleChangeIfNeeded(id: UUID, to: GroupRuleKind, effectiveLimit: Int) {
-        guard let old = ruleDescriptor(for: groups.first(where: { $0.id == id })), old != to.rawValue else { return }
-        let used = usedTimeByGroupID[id] ?? 0
-        let causedLock = (to == .dailyLimit || to == .cooldown) && used >= effectiveLimit
-        analyticsRepository.log(.ruleChanged(
-            from: old,
-            to: to.rawValue,
-            wasLocked: !isGroupCurrentlyOpen(id),
-            usedBucket: RuleAnalyticsPayload.usedBucket(used),
-            causedLock: causedLock
-        ))
-    }
-
-    /// 요일별 모드로의 전환을 기록한다(`rule_changed`, to = "weekday"). 이미 요일별 모드면 제외.
-    /// causedLock은 오늘 투영 규칙이 즉시 잠김을 유발하는지로 판단한다.
-    private func logRuleChangeToWeekdayIfNeeded(id: UUID, todayRule: DayRule, used: Int) {
-        guard let old = ruleDescriptor(for: groups.first(where: { $0.id == id })), old != "weekday" else { return }
-        let causedLock = (todayRule.kind == .dailyLimit && todayRule.dailyLimitMinutes <= used)
-            || (todayRule.kind == .cooldown && todayRule.cooldownUsageMinutes <= used)
-        analyticsRepository.log(.ruleChanged(
-            from: old,
-            to: "weekday",
-            wasLocked: !isGroupCurrentlyOpen(id),
-            usedBucket: RuleAnalyticsPayload.usedBucket(used),
-            causedLock: causedLock
-        ))
     }
 
     /// 자정 직전(23:45+) 적용·수정 직후 안내 alert. 모니터 등록이 막혀 규칙이 00:00부터
@@ -620,7 +578,6 @@ final class ContentViewModel {
         }
 
         let used = usedTimeByGroupID[id] ?? 0
-        logRuleChangeIfNeeded(id: id, to: .cooldown, effectiveLimit: usage)
         // 이미 사용한 시간보다 작은 예산이면 즉시 휴식에 들어간다(일일 한도 즉시 잠금과 동일 패턴).
         // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
         // 단, 이미 잠김/휴식/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
@@ -658,7 +615,7 @@ final class ContentViewModel {
                 title: String(localized: "content.alert.changeNotice.title"),
                 message: String(localized: "content.alert.changeNotice.message")
             )
-        } else if monitoringRegistrationGroupIDIfApplied(id) != nil && todayChanged
+        } else if isAppliedGroup(id) && todayChanged
             && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
             stagedRuleEditInfo = nearMidnightApplyNotice
         }
@@ -666,8 +623,7 @@ final class ContentViewModel {
     }
 
     private func applyCooldownRule(id: UUID, usage: Int, duration: Int) {
-        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
-        updateGroup(id, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
+        updateGroup(id) { groups in
             manageGroupsUseCase.updateRule(
                 id: id,
                 kind: .cooldown,
@@ -684,8 +640,6 @@ final class ContentViewModel {
         guard let id = ruleEditorGroupID else { return }
         let minutes = limitPickerHours * 60 + limitPickerMinutes
         let used = usedTimeByGroupID[id] ?? 0
-        logRuleChangeIfNeeded(id: id, to: .dailyLimit, effectiveLimit: minutes)
-
         // 이미 사용한 시간보다 작은 한도면 즉시 잠긴다(syncDailyMonitoring의 used >= limit 분기).
         // 바로 적용하지 말고, 시트가 닫힌 뒤 확인 경고를 띄운다.
         // 단, 이미 잠김/override 중이면 새 전환이 아니므로 경고를 생략하고 바로 적용한다.
@@ -711,7 +665,7 @@ final class ContentViewModel {
         } ?? true
 
         applyDailyLimitRule(id: id, minutes: minutes)
-        if monitoringRegistrationGroupIDIfApplied(id) != nil && todayChanged
+        if isAppliedGroup(id) && todayChanged
             && manageGroupsUseCase.isNearMidnightMonitorTooShort() {
             stagedRuleEditInfo = nearMidnightApplyNotice
         }
@@ -728,11 +682,8 @@ final class ContentViewModel {
             return
         }
 
-        logRuleChangeIfNeeded(id: id, to: .timeWindows, effectiveLimit: 0)
-
         // 규칙을 timeWindows로 바꿔도 dailyLimitMinutes는 그대로 보존(되돌릴 때 재사용).
-        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
-        updateGroup(id, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
+        updateGroup(id) { groups in
             manageGroupsUseCase.updateRule(
                 id: id,
                 kind: .timeWindows,
@@ -746,8 +697,7 @@ final class ContentViewModel {
     }
 
     private func applyDailyLimitRule(id: UUID, minutes: Int) {
-        let monitoringRegistrationGroupID = monitoringRegistrationGroupIDIfApplied(id)
-        updateGroup(id, monitoringRegistrationGroupID: monitoringRegistrationGroupID) { groups in
+        updateGroup(id) { groups in
             manageGroupsUseCase.updateRule(
                 id: id,
                 kind: .dailyLimit,
@@ -876,11 +826,12 @@ final class ContentViewModel {
     // confirmation을 인자로 받는다: .alert(item:)이 버튼 액션 전에 바인딩을 nil로 만들기 때문.
     func confirmApplyGroup(_ confirmation: ApplyGroupConfirmation) {
         pendingApplyConfirmation = nil
-        updateGroup(confirmation.groupID, monitoringRegistrationGroupID: confirmation.groupID) { groups in
+        updateGroup(confirmation.groupID) { groups in
             manageGroupsUseCase.markApplied(id: confirmation.groupID, in: &groups)
         }
-        if let group = groups.first(where: { $0.id == confirmation.groupID }) {
-            analyticsRepository.log(.groupApplied(payload: RuleAnalyticsPayload(group: group)))
+        if let group = groups.first(where: { $0.id == confirmation.groupID }),
+           let payload = RuleGroupSnapshotAnalytics(group: group) {
+            analyticsRepository.log(.groupApplied(payload: payload))
             // 자정 직전 적용이면 모니터 등록이 막혀 00:00부터 적용된다. 확인 다이얼로그가
             // 닫히는 사이클과 겹치면 alert가 누락되므로 다음 런루프로 미뤄 띄운다.
             // 요일별 그룹은 오늘 투영 규칙 기준으로 측정창 영향(daily/cooldown)을 판단한다.
@@ -979,8 +930,19 @@ final class ContentViewModel {
         errorMessage = nil
         persistGroups()
         let group = groups.first(where: { $0.id == id })
-        if let group {
-            analyticsRepository.log(.strictLockCommit(days: days, payload: RuleAnalyticsPayload(group: group)))
+        if let group, let payload = RuleGroupSnapshotAnalytics(group: group) {
+            if let startedAt = group.strictStartedAt, let expiresAt = group.strictUntil {
+                analyticsRepository.recordStrictLockCommitment(
+                    groupID: group.id,
+                    startedAt: startedAt,
+                    expiresAt: expiresAt
+                )
+            }
+            analyticsRepository.log(
+                wasActive
+                    ? .strictLockExtended(days: days, payload: payload)
+                    : .strictLockStarted(days: days, payload: payload)
+            )
         }
         strictLockSheetGroupID = nil
         let expiry = group?.strictUntil.map { goldTimeStrictLockedUntilText($0) } ?? ""
@@ -1003,7 +965,10 @@ final class ContentViewModel {
     func handleScreenTimeRecoveryAppear() {
         guard hasActiveStrictCommitment, !didLogStrictRevoke else { return }
         didLogStrictRevoke = true
-        analyticsRepository.log(.strictRevokeDetected)
+        analyticsRepository.discardStrictLockCommitments(
+            groupIDs: groups.filter { $0.isStrictLockActive() }.map(\.id)
+        )
+        analyticsRepository.log(.strictLockRevokeDetected)
     }
 
     /// 연장 불가 모드 편집·삭제 차단 안내 alert. 만료 날짜(%@)는 공용 포매터로 포맷한다.
@@ -1038,17 +1003,9 @@ final class ContentViewModel {
         }
     }
 
-    private func persistGroups(
-        shouldSyncProtection: Bool = true,
-        monitoringRegistrationGroupID: UUID? = nil
-    ) {
+    private func persistGroups(shouldSyncProtection: Bool = true) {
         if shouldSyncProtection {
-            // 사용자가 그룹을 편집해 모니터링을 재적용하는 경로. foreground 진입 경로
-            // (requestScreenTimeAuthorizationOnEntry)와 달리 분석 이벤트를 남긴다.
-            syncProtectionRules(
-                logMonitoringSync: true,
-                monitoringRegistrationGroupID: monitoringRegistrationGroupID
-            )
+            syncProtectionRules()
         } else {
             manageGroupsUseCase.persist(groups)
             groups = manageGroupsUseCase.currentGroups()
@@ -1060,22 +1017,15 @@ final class ContentViewModel {
     private func updateGroup(
         _ id: UUID,
         shouldSyncProtection: Bool = true,
-        monitoringRegistrationGroupID: UUID? = nil,
         update: (inout [ScreenTimeGroup]) -> Void
     ) {
         update(&groups)
         successMessage = nil
         errorMessage = nil
-        persistGroups(
-            shouldSyncProtection: shouldSyncProtection,
-            monitoringRegistrationGroupID: monitoringRegistrationGroupID
-        )
+        persistGroups(shouldSyncProtection: shouldSyncProtection)
     }
 
-    private func syncProtectionRules(
-        logMonitoringSync: Bool = false,
-        monitoringRegistrationGroupID: UUID? = nil
-    ) {
+    private func syncProtectionRules() {
         do {
             try manageGroupsUseCase.persistAndSync(groups)
             groups = manageGroupsUseCase.currentGroups()
@@ -1084,20 +1034,12 @@ final class ContentViewModel {
             isMonitoring = state.isDailyMonitoringEnabled
             applyDashboardState(state)
             updateCohortUserProperties()
-            if logMonitoringSync {
-                let appliedCount = groups.filter { $0.isApplied }.count
-                analyticsRepository.log(.monitoringSynced(appliedGroupCount: appliedCount))
-            }
-            logRuleMonitoringRegisteredIfNeeded(
-                groupID: monitoringRegistrationGroupID,
-                validGroupIDs: state.validGroupIDs
-            )
         } catch {
             successMessage = nil
             errorMessage = String(localized: "content.autoApplyFailed \(error.localizedDescription)")
             refreshDashboardState()
-            // persistAndSync는 모니터 등록이 실패해도 그룹을 먼저 저장한다. 저장된 규칙 조합은
-            // 분석에 반영하되, monitoring_synced 이벤트는 기존처럼 성공 경로에서만 남긴다.
+            // persistAndSync는 모니터 등록이 실패해도 그룹을 먼저 저장하므로,
+            // 저장된 규칙 조합 user property는 최신 상태로 갱신한다.
             updateCohortUserProperties()
         }
     }
@@ -1106,20 +1048,15 @@ final class ContentViewModel {
     /// 갱신되게 한다. Firebase에는 식별자·그룹명 없이 집계된 profile만 보낸다.
     private func updateCohortUserProperties() {
         guard isAuthorized else { return }
+        // 1.3.0에서 group_snapshot과 중복이라 폐기한 사용자 속성의 기존 값을 지운다.
+        analyticsRepository.setUserProperty(nil, for: "active_group_count")
         for entry in UserCohortProperties(groups: groups).entries {
             analyticsRepository.setUserProperty(entry.value, for: entry.name)
         }
     }
 
-    private func monitoringRegistrationGroupIDIfApplied(_ id: UUID) -> UUID? {
-        groups.first(where: { $0.id == id })?.isApplied == true ? id : nil
-    }
-
-    private func logRuleMonitoringRegisteredIfNeeded(groupID: UUID?, validGroupIDs: Set<UUID>) {
-        guard let groupID,
-              validGroupIDs.contains(groupID),
-              let group = groups.first(where: { $0.id == groupID }) else { return }
-        analyticsRepository.log(.ruleMonitoringRegistered(payload: RuleAnalyticsPayload(group: group)))
+    private func isAppliedGroup(_ id: UUID) -> Bool {
+        groups.first(where: { $0.id == id })?.isApplied == true
     }
 
     private func applyDashboardState(_ state: DashboardState) {

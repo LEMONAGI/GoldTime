@@ -14,9 +14,14 @@ struct LockOptionsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = LockOptionsViewModel()
     let initialGroupID: UUID?
+    let entrySource: LockOptionsEntrySource
 
-    init(initialGroupID: UUID? = nil) {
+    init(
+        initialGroupID: UUID? = nil,
+        entrySource: LockOptionsEntrySource = .shield
+    ) {
         self.initialGroupID = initialGroupID
+        self.entrySource = entrySource
     }
 
     var body: some View {
@@ -51,7 +56,7 @@ struct LockOptionsView: View {
         }
         .background(Color(.systemGroupedBackground))
         .onAppear {
-            viewModel.onAppear(initialGroupID: initialGroupID)
+            viewModel.onAppear(initialGroupID: initialGroupID, entrySource: entrySource)
         }
         .fullScreenCover(isPresented: $viewModel.isRewardedAdPresented, onDismiss: {
             viewModel.rewardedAdDismissed()

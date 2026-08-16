@@ -22,8 +22,8 @@ Shield 화면 버튼 액션을 처리하고 앱 복귀 요청을 기록한다.
   패턴을 쓴다 — App Group 키 `pendingAnalyticsEvents` + `SharedStore.PendingAnalyticsEvent`와
   **동일한 Codable 형태(`name`/`parameters: [String:String]`/`timestamp`)**. 형태가 어긋나면
   메인 앱 `drainPendingAnalyticsEvents()`가 디코딩 실패로 큐 전체를 잃는다.
-  `primaryButtonPressed`→`shield_dismissed`(차단 수용), `secondaryButtonPressed`→
-  `shield_open_requested`(연장 입구).
-- **`shield_dismissed`는 구조적 과소집계 편향이 있다.** '그만 쓰기'는 앱을 열지 않으므로 큐가
+  `primaryButtonPressed`→`shield_action_stop_selected`(차단 수용), `secondaryButtonPressed`→
+  `shield_action_extend_selected`(연장 입구).
+- **`shield_action_stop_selected`는 구조적 과소집계 편향이 있다.** '그만 쓰기'는 앱을 열지 않으므로 큐가
   다음 앱 재진입 때까지 드레인되지 않고, 재진입을 영영 안 하면 상한 200건 내에서 유실될 수
   있다. 대시보드 해석 시 로컬 `DailyStatsStore.walkAwayCount`(같은 액션에서 기록)로 교차검증.

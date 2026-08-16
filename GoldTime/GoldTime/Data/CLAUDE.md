@@ -15,4 +15,6 @@ Domain Repository 프로토콜의 구현체. Core 서비스 호출 + Core ↔ Do
 
 ## 주의사항 (작업 중 발견 시 누적)
 
-- (작업 중 발견한 Data 함정을 한 줄씩 누적)
+- `AnalyticsRepositoryImpl`의 연장 불가 완료 pending은 앱 전용 `UserDefaults.standard`에 저장한다.
+  시작·연장 때만 생성해 과거 만료 그룹을 소급 집계하지 않고, 같은 그룹 연장은 최종 만료로
+  덮어쓴다. 완료 drain·권한 철회 discard 뒤 키를 비워 앱 재진입 중복을 막는다.

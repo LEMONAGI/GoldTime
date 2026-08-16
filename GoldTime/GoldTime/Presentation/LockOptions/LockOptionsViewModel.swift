@@ -17,6 +17,11 @@ struct LockOptionsCompletionAlert: Identifiable, Equatable {
     }
 }
 
+enum LockOptionsEntrySource: String {
+    case shield
+    case homeGroup = "home_group"
+}
+
 @MainActor
 @Observable
 final class LockOptionsViewModel {
@@ -38,6 +43,7 @@ final class LockOptionsViewModel {
     private var pendingRetry: (groupID: UUID, source: ExtensionSource)?
     private var retryTask: Task<Void, Never>?
     private var isExtending = false
+    private var didLogOptionsViewed = false
 
     private let extendGroupUseCase: ExtendGroupUseCase
     private let analyticsRepository: any AnalyticsRepository
@@ -155,13 +161,26 @@ final class LockOptionsViewModel {
 
     var maxAppsPerGroup: Int { SharedStore.maxAppsPerGroup }
 
-    func onAppear(initialGroupID: UUID? = nil) {
+    func onAppear(
+        initialGroupID: UUID? = nil,
+        entrySource: LockOptionsEntrySource = .shield
+    ) {
         refreshLockedGroups()
         // 첫 문구("오늘 한도 다 썼어요.")는 한도 초과 전용이라 시간대 차단·쿨다운만 잠긴 경우엔 제외.
         let pool = (isWindowOnlyLock || isCooldownOnlyLock) ? Array(shieldMessages.dropFirst()) : shieldMessages
         headerMessage = pool.randomElement() ?? String(localized: "lock.message.needAd")
         if let id = initialGroupID, lockedGroups.contains(where: { $0.id == id }) {
             selectedGroupID = id
+        }
+        if !didLogOptionsViewed {
+            didLogOptionsViewed = true
+            analyticsRepository.log(.shieldExtendOptionsViewed(
+                entrySource: entrySource.rawValue,
+                lockedGroupCount: lockedGroups.count,
+                strictLockedGroupCount: lockedGroups.filter { $0.isStrictLockActive() }.count,
+                oneMinuteRemaining: oneMinuteRemaining,
+                nearMidnight: isNearMidnightCutoff
+            ))
         }
     }
 
@@ -173,7 +192,7 @@ final class LockOptionsViewModel {
     func tapWalkAway() -> Bool {
         extendGroupUseCase.walkAway(lockedGroups: lockedGroups)
         if !lockedGroups.isEmpty {
-            analyticsRepository.log(.walkAway(lockedCount: lockedGroups.count))
+            analyticsRepository.log(.shieldExtendStopSelected(lockedGroupCount: lockedGroups.count))
         }
         return true
     }
@@ -187,6 +206,7 @@ final class LockOptionsViewModel {
             infoMessage = String(localized: "lock.info.pickGroup")
             return
         }
+        analyticsRepository.log(.shieldExtendMethodSelected(method: sourceAnalyticsValue(.oneMinute)))
         extendGroup(groupID: groupID, source: .oneMinute)
     }
 
@@ -203,6 +223,7 @@ final class LockOptionsViewModel {
             infoMessage = String(localized: "lock.info.pickGroup")
             return
         }
+        analyticsRepository.log(.shieldExtendMethodSelected(method: sourceAnalyticsValue(.adReward)))
         pendingAdRewardGroupID = groupID
         isRewardedAdPresented = true
     }
@@ -254,15 +275,11 @@ final class LockOptionsViewModel {
 
         switch outcome {
         case .success(let result):
-            switch source {
-            case .adReward:
-                analyticsRepository.log(.adUnlock(
-                    seconds: result.durationSeconds,
-                    payload: RuleAnalyticsPayload(group: result.group)
-                ))
-            case .oneMinute:
-                analyticsRepository.log(.oneMinuteUnlock)
-            }
+            analyticsRepository.log(.shieldExtendCompleted(
+                method: sourceAnalyticsValue(source),
+                seconds: result.durationSeconds,
+                payload: ShieldExtendAnalyticsPayload(group: result.group)
+            ))
             pendingRetry = nil
             retryTask?.cancel()
             retryTask = nil
@@ -285,6 +302,10 @@ final class LockOptionsViewModel {
                 message: completionMessage(for: result, source: source)
             )
         case .failure(let failure):
+            analyticsRepository.log(.shieldExtendFailed(
+                method: sourceAnalyticsValue(source),
+                reason: failureAnalyticsValue(failure)
+            ))
             infoMessage = message(for: failure, source: source)
             oneMinuteRemaining = extendGroupUseCase.currentOneMinuteRemaining()
             if failure == .relockTimerRegistrationFailed {
@@ -336,6 +357,22 @@ final class LockOptionsViewModel {
             return String(localized: "lock.error.relockFailed")
         case .strictLockActive:
             return String(localized: "lock.error.strictLockActive")
+        }
+    }
+
+    private func sourceAnalyticsValue(_ source: ExtensionSource) -> String {
+        switch source {
+        case .oneMinute: return "one_minute"
+        case .adReward: return "ad"
+        }
+    }
+
+    private func failureAnalyticsValue(_ failure: ExtensionFailure) -> String {
+        switch failure {
+        case .groupNotFound: return "group_not_found"
+        case .oneMinuteLimitReached: return "one_minute_limit_reached"
+        case .relockTimerRegistrationFailed: return "relock_timer_registration_failed"
+        case .strictLockActive: return "strict_lock_active"
         }
     }
 

@@ -19,15 +19,14 @@ enum OnboardingStep: String {
 final class OnboardingViewModel {
     /// 온보딩 진행 단계 저장 키. 앱을 껐다 켜도 진행하던 단계로 복원하기 위해 사용한다.
     static let savedStepKey = "onboardingCurrentStep"
+    static let hasLoggedEntryKey = "hasLoggedOnboardingEntered"
+    static let hasLoggedCompletionKey = "hasLoggedOnboardingCompleted"
 
     // 단계가 바뀔 때마다 저장한다. init의 첫 할당에는 didSet이 호출되지 않으므로
     // 복원된(또는 시작) 단계는 불필요하게 다시 쓰지 않는다.
     var currentStep: OnboardingStep {
         didSet {
             userDefaults.set(currentStep.rawValue, forKey: Self.savedStepKey)
-            // init의 첫 할당에는 didSet이 호출되지 않으므로(.intro=진입은 first_open으로 대체)
-            // 여기 도착하는 건 사용자가 단계를 넘긴 실제 전환뿐 → 온보딩 드롭오프 퍼널의 단계 조회.
-            analyticsRepository.log(.onboardingStepView(step: currentStep.rawValue))
         }
     }
     var errorMessage: String?
@@ -59,22 +58,26 @@ final class OnboardingViewModel {
         currentStep = .screenTimePermission
     }
 
+    /// SwiftUI View 재생성·중간 단계 복원에서 진입 수가 부풀지 않도록 설치당 1회만 보낸다.
+    func recordEntryIfNeeded() {
+        guard !userDefaults.bool(forKey: Self.hasLoggedEntryKey) else { return }
+        userDefaults.set(true, forKey: Self.hasLoggedEntryKey)
+        analyticsRepository.log(.onboardingEntered)
+    }
+
     func requestScreenTime() async {
         isRequesting = true
         defer { isRequesting = false }
         do {
             try await authorizeUseCase.requestScreenTime()
         } catch {
-            analyticsRepository.log(.authorizationResult(granted: false))
             errorMessage = String(localized: "onboarding.error.screenTime")
             return
         }
         if authorizeUseCase.isAuthorized {
-            analyticsRepository.log(.authorizationResult(granted: true))
             errorMessage = nil
             currentStep = .notificationPermission
         } else {
-            analyticsRepository.log(.authorizationResult(granted: false))
             errorMessage = String(localized: "onboarding.error.screenTime")
         }
     }
@@ -83,8 +86,7 @@ final class OnboardingViewModel {
         isRequesting = true
         defer { isRequesting = false }
         // 알림은 선택 권한이므로 허용/거부 결과와 관계없이 다음 단계로 진행한다.
-        let state = await authorizeUseCase.requestNotification()
-        analyticsRepository.log(.notificationPermissionResult(granted: state == .authorized))
+        _ = await authorizeUseCase.requestNotification()
         errorMessage = nil
         currentStep = .trackingPermission
     }
@@ -102,6 +104,10 @@ final class OnboardingViewModel {
     }
 
     func complete() {
+        if !userDefaults.bool(forKey: Self.hasLoggedCompletionKey) {
+            userDefaults.set(true, forKey: Self.hasLoggedCompletionKey)
+            analyticsRepository.log(.onboardingCompleted)
+        }
         // 온보딩을 끝까지 마쳤으므로 저장된 진행 단계를 정리한다.
         userDefaults.removeObject(forKey: Self.savedStepKey)
         onAuthorized()

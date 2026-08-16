@@ -1309,7 +1309,73 @@ struct GoldTimeTests {
         #expect(payload.parameters["daily_limit_bucket"] == nil)
     }
 
-    @Test func adUnlockAnalyticsIncludesRulePayload() {
+    @Test func ruleGroupSnapshotUsesHierarchicalUniformEventNames() {
+        let daily = SharedStore.ScreenTimeGroup(
+            name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )
+        let cooldown = SharedStore.ScreenTimeGroup(
+            name: "게임", ruleKind: .cooldown, isApplied: true,
+            cooldownUsageMinutes: 20, cooldownDurationMinutes: 90,
+            strictUntil: .distantFuture
+        )
+
+        let dailySnapshot = RuleGroupSnapshotAnalytics(group: daily)!
+        let cooldownSnapshot = RuleGroupSnapshotAnalytics(group: cooldown)!
+
+        #expect(dailySnapshot.eventName == "rule_uniform_daily")
+        #expect(dailySnapshot.parameters["rule_mode"] as? String == "uniform_daily")
+        #expect(dailySnapshot.parameters["uniform_daily_limit_bucket"] as? String == "daily_16_30m")
+        #expect(dailySnapshot.parameters["strict_lock_active"] as? String == "false")
+        #expect(cooldownSnapshot.eventName == "rule_uniform_cooldown")
+        #expect(cooldownSnapshot.parameters["rule_mode"] as? String == "uniform_cooldown")
+        #expect(cooldownSnapshot.parameters["strict_lock_active"] as? String == "true")
+    }
+
+    @Test func ruleGroupSnapshotCountsEveryWeekdayRuleIndependently() {
+        let rules: [SharedStore.DayRule] = [
+            .init(kind: .dailyLimit),
+            .init(kind: .dailyLimit),
+            .init(kind: .timeWindows),
+            .init(kind: .timeWindows),
+            .init(kind: .cooldown),
+            .init(kind: .cooldown),
+            .init(kind: .unrestricted)
+        ]
+        let group = SharedStore.ScreenTimeGroup(
+            name: "혼합", ruleKind: .dailyLimit, isApplied: true, weekdayRules: rules
+        )
+
+        let snapshot = RuleGroupSnapshotAnalytics(group: group)!
+
+        #expect(snapshot.eventName == "rule_weekday_snapshot")
+        #expect(snapshot.parameters["rule_mode"] as? String == "weekday")
+        #expect(snapshot.parameters["weekday_uses_daily"] as? String == "true")
+        #expect(snapshot.parameters["weekday_uses_time_window"] as? String == "true")
+        #expect(snapshot.parameters["weekday_uses_cooldown"] as? String == "true")
+        #expect(snapshot.parameters["weekday_daily_days"] as? Int == 2)
+        #expect(snapshot.parameters["weekday_time_window_days"] as? Int == 2)
+        #expect(snapshot.parameters["weekday_cooldown_days"] as? Int == 2)
+        #expect(snapshot.parameters["weekday_unrestricted_days"] as? Int == 1)
+    }
+
+    @Test func ruleGroupSnapshotExcludesDraftGroups() {
+        let draft = SharedStore.ScreenTimeGroup(
+            name: "초안", ruleKind: .dailyLimit, isApplied: false
+        )
+
+        #expect(RuleGroupSnapshotAnalytics(group: draft) == nil)
+    }
+
+    @Test func groupSnapshotReportsExactAppliedCountUpToGroupLimit() {
+        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 0).parameters["applied_group_count_bucket"] as? String == "0")
+        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 1).parameters["applied_group_count_bucket"] as? String == "1")
+        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 2).parameters["applied_group_count_bucket"] as? String == "2")
+        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 3).parameters["applied_group_count_bucket"] as? String == "3")
+        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 4).parameters["applied_group_count_bucket"] as? String == "4")
+        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 5).parameters["applied_group_count_bucket"] as? String == "5")
+    }
+
+    @Test func shieldExtendCompletedIncludesMethodDurationAndRulePayload() {
         let dailyGroup = SharedStore.ScreenTimeGroup(
             name: "SNS",
             dailyLimitMinutes: 75,
@@ -1329,21 +1395,64 @@ struct GoldTimeTests {
             cooldownDurationMinutes: 90
         )
 
-        let daily = AnalyticsEvent.adUnlock(seconds: 600, payload: RuleAnalyticsPayload(group: dailyGroup)).parameters
-        let timeWindows = AnalyticsEvent.adUnlock(seconds: 300, payload: RuleAnalyticsPayload(group: windowGroup)).parameters
-        let cooldown = AnalyticsEvent.adUnlock(seconds: 120, payload: RuleAnalyticsPayload(group: cooldownGroup)).parameters
+        let daily = AnalyticsEvent.shieldExtendCompleted(
+            method: "ad",
+            seconds: 600,
+            payload: ShieldExtendAnalyticsPayload(group: dailyGroup)
+        ).parameters
+        let timeWindows = AnalyticsEvent.shieldExtendCompleted(
+            method: "one_minute",
+            seconds: 60,
+            payload: ShieldExtendAnalyticsPayload(group: windowGroup)
+        ).parameters
+        let cooldown = AnalyticsEvent.shieldExtendCompleted(
+            method: "ad",
+            seconds: 120,
+            payload: ShieldExtendAnalyticsPayload(group: cooldownGroup)
+        ).parameters
 
-        #expect(daily["seconds"] as? Int == 600)
-        #expect(daily["rule_kind"] as? String == "dailyLimit")
-        #expect(daily["rule_config_bucket"] as? String == "daily_61_120m")
+        #expect(daily["extend_method"] as? String == "ad")
+        #expect(daily["extend_seconds"] as? Int == 600)
+        #expect(daily["rule_mode"] as? String == "uniform_daily")
+        #expect(daily["enforcement_rule"] as? String == "daily")
+        #expect(daily["uniform_daily_limit_bucket"] as? String == "daily_61_120m")
 
-        #expect(timeWindows["seconds"] as? Int == 300)
-        #expect(timeWindows["rule_kind"] as? String == "timeWindows")
-        #expect(timeWindows["rule_config_bucket"] as? String == "windows_1_total_15_60m")
+        #expect(timeWindows["extend_method"] as? String == "one_minute")
+        #expect(timeWindows["extend_seconds"] as? Int == 60)
+        #expect(timeWindows["rule_mode"] as? String == "uniform_time_window")
+        #expect(timeWindows["enforcement_rule"] as? String == "time_window")
+        #expect(timeWindows["uniform_time_window_count_bucket"] as? String == "windows_1")
 
-        #expect(cooldown["seconds"] as? Int == 120)
-        #expect(cooldown["rule_kind"] as? String == "cooldown")
-        #expect(cooldown["rule_config_bucket"] as? String == "usage_16_30m_rest_61_120m")
+        #expect(cooldown["extend_seconds"] as? Int == 120)
+        #expect(cooldown["rule_mode"] as? String == "uniform_cooldown")
+        #expect(cooldown["enforcement_rule"] as? String == "cooldown")
+        #expect(cooldown["uniform_cooldown_usage_bucket"] as? String == "usage_16_30m")
+    }
+
+    @Test func shieldExtendPayloadSeparatesWeekdayModeFromTodayEnforcementRule() {
+        let now = Date()
+        let todayIndex = Calendar.current.component(.weekday, from: now) - 1
+        var rules = (0..<7).map { _ in
+            SharedStore.DayRule(kind: .dailyLimit, dailyLimitMinutes: 30)
+        }
+        rules[todayIndex] = SharedStore.DayRule(
+            kind: .cooldown,
+            cooldownUsageMinutes: 15,
+            cooldownDurationMinutes: 60
+        )
+        let group = SharedStore.ScreenTimeGroup(
+            name: "요일별",
+            ruleKind: .dailyLimit,
+            isApplied: true,
+            weekdayRules: rules
+        )
+
+        let parameters = ShieldExtendAnalyticsPayload(group: group, now: now).parameters
+
+        #expect(parameters["rule_mode"] as? String == "weekday")
+        #expect(parameters["enforcement_rule"] as? String == "cooldown")
+        #expect(parameters["weekday_cooldown_days"] as? Int == 1)
+        #expect(parameters["weekday_daily_days"] as? Int == 6)
     }
 
     @Test func dashboardFunnelEventNamesAndParameters() {
@@ -1361,22 +1470,46 @@ struct GoldTimeTests {
         #expect(AnalyticsEvent.adUnavailable(placement: "unlock").name == "ad_unavailable")
         #expect(AnalyticsEvent.adFallbackUsed(placement: "unlock").name == "ad_fallback_used")
 
-        // Activation 보강
-        #expect(AnalyticsEvent.unlockOptionsShown(lockedCount: 2).name == "unlock_options_shown")
-        #expect(
-            AnalyticsEvent.unlockOptionsShown(lockedCount: 2).parameters["locked_count"] as? Int == 2
+        // Shield 연장 퍼널
+        let options = AnalyticsEvent.shieldExtendOptionsViewed(
+            entrySource: "shield",
+            lockedGroupCount: 2,
+            strictLockedGroupCount: 1,
+            oneMinuteRemaining: 4,
+            nearMidnight: true
         )
-        #expect(AnalyticsEvent.onboardingStepView(step: "intro").name == "onboarding_step_view")
+        #expect(options.name == "shield_extend_options_viewed")
+        #expect(options.parameters["entry_source"] as? String == "shield")
+        #expect(options.parameters["locked_group_count"] as? Int == 2)
+        #expect(options.parameters["strict_locked_group_count"] as? Int == 1)
+        #expect(options.parameters["one_minute_remaining"] as? Int == 4)
+        #expect(options.parameters["near_midnight"] as? String == "true")
         #expect(
-            AnalyticsEvent.onboardingStepView(step: "intro").parameters["step"] as? String == "intro"
+            AnalyticsEvent.shieldExtendMethodSelected(method: "one_minute").name
+                == "shield_extend_method_selected"
         )
         #expect(
-            AnalyticsEvent.notificationPermissionResult(granted: true).name
-                == "notification_permission_result"
+            AnalyticsEvent.shieldExtendFailed(method: "ad", reason: "group_not_found")
+                .parameters["failure_reason"] as? String == "group_not_found"
         )
-        #expect(
-            AnalyticsEvent.notificationPermissionResult(granted: true).parameters["granted"] as? Bool == true
+        #expect(AnalyticsEvent.onboardingEntered.name == "onboarding_entered")
+        #expect(AnalyticsEvent.onboardingEntered.parameters.isEmpty)
+        #expect(AnalyticsEvent.onboardingCompleted.name == "onboarding_completed")
+        #expect(AnalyticsEvent.onboardingCompleted.parameters.isEmpty)
+    }
+
+    @Test func shieldLockStartedQueueIncludesStoredModeAndEnforcementRule() {
+        _ = SharedStore.drainPendingAnalyticsEvents()
+
+        SharedStore.enqueueShieldLockStarted(
+            ruleMode: "weekday",
+            enforcementRule: "cooldown"
         )
+
+        let event = SharedStore.drainPendingAnalyticsEvents().last
+        #expect(event?.name == "shield_lock_started")
+        #expect(event?.parameters["rule_mode"] == "weekday")
+        #expect(event?.parameters["enforcement_rule"] == "cooldown")
     }
 
 }

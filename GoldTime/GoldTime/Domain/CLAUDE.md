@@ -41,5 +41,23 @@
 
 ## 주의사항 (작업 중 발견 시 누적)
 
+- **Shield·연장 분석 계약**: 집행 시작은 `shield_lock_started`, 시스템 Shield
+  버튼은 `shield_action_*`, 앱 연장 시트는 `shield_extend_*`로 계층을 나눈다.
+  성공은 1분·광고를 `shield_extend_completed` 하나로 합치고 `extend_method`로 나눈다.
+  `rule_mode`는 저장 방식, `enforcement_rule`은 오늘 실제 집행 규칙이다. 요일별 그룹에서
+  둘을 합치거나 구 `ad_unlock`·`one_minute_unlock`을 다시 추가하지 말 것.
+- `AuthorizationAnalyticsProperties`는 앱 활성화 시점의 권한 스냅샷이다.
+  `authorized_screen_time`/`authorized_notification`은 Firebase user property 제약에 맞춰
+  문자열 `true`/`false`로 보낸다. 알림의 `authorized`·`provisional`·`ephemeral`은
+  `true`, `denied`·`notDetermined`·`unknown`은 `false`로 묶는다.
+- `RuleGroupSnapshotAnalytics`에서 실제 규칙은 `rule_uniform_daily`/
+  `rule_uniform_time_window`/`rule_uniform_cooldown`, 적용 방식은 `rule_weekday_snapshot`,
+  연장 불가는 `strict_lock_active`로 서로 다른 축에 둔다. 요일별 그룹은 `weekday_uses_*`와
+  `weekday_*_days`로 내부 규칙을 보존하며 days 네 값의 합이 7이어야 한다. 그룹 UUID·이름은
+  보내지 않는다.
+- `group_snapshot.applied_group_count_bucket`은 최대 그룹 수가 5개라 `0`~`5`의 정확한 문자열 값을
+  보낸다. `4+`처럼 합치면 4개와 5개 사용자를 구분할 수 없으므로 다시 버킷화하지 말 것.
 - `UserCohortProperties`의 `active_rule_profile`/`strict_rule_profile`은 `wdN_dlN_twN_cdN` 형식으로 **top-level 그룹 수**만 센다. 요일별 그룹 안의 일일/시간대/쿨다운 요일을 별도 그룹으로 세거나, 그룹명·UUID·선택 앱을 넣지 말 것. strict는 `isApplied && isStrictLockActive(at:)`인 그룹만 포함한다. 새 규칙 종류를 추가하면 `RuleGroupProfile`과 이 분석 계약을 함께 갱신한다.
+- 적용 그룹 수는 앱 활성화 이벤트 `group_snapshot.applied_group_count_bucket`의 정확한 `0`~`5`로만 본다. 구 사용자 속성 `active_group_count`는 같은 상태를 거친 버킷으로 중복해 폐기했으므로 다시 추가하지 말 것.
+- 연장 불가 분석은 `strict_lock_started`/`extended`/`completed`/`revoke_detected`로 나눈다. `revoke_detected`는 권한 철회 순간이 아니라 복구 화면에서 관측한 결과다. 완료의 `strict_lock_days`는 최초 시작일~최종 만료일의 총 기간이며, 시작·연장의 값은 해당 선택에서 추가한 기간이라 의미가 다르다.
 - **연장 불가 기간 중 편집 차단은 `ManageGroupsUseCase`의 update 3종(`updateRule`/`updateWeekdayRules`/`updateSelection`)과 `deleteGroup`의 guard가 담당한다**(조용히 무시 패턴 — `updateName`은 집행 무관이라 의도적으로 제외). 그룹을 변경하는 새 UseCase 메서드를 추가하면 같은 `isStrictLockActive()` guard를 반드시 넣을 것. `activateStrictLock`은 **범위(`strictLockDayRange` 1...30) 검증**(프리셋 검증이 아니다 — 커스텀 기간이 정상 경로) + applied·유효 규칙만 + **연장만 허용(만료 축소 거부)** + 최초 `strictStartedAt` 유지. 칩 프리셋은 `strictLockDayPresets`(1/3/7)이고 시트 기본 선택은 `strictLockDefaultDays`(1 — **가장 짧은 프리셋이어야** 시트가 "1일 칩 선택 + 휠 접힘"으로 열린다, 2026-07-31 변경). 커스텀 칩을 눌렀을 때 휠이 잡는 시드는 별개 상수 `strictLockCustomSeedDays`(14)이고 이쪽은 반대로 **프리셋에 없어야** 커스텀 칩 선택 상태가 유지된다. `ExtendGroupUseCase`의 strict 판정은 원본 그룹(`shieldRepository.lockedGroups()`) 기준이다 — resolved 투영은 strict 필드가 스트립되므로 판정에 쓰지 말 것.

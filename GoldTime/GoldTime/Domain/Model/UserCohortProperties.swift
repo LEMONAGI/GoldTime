@@ -1,10 +1,10 @@
 import Foundation
 
-/// Firebase Analytics user property로 심을 코호트 축. 기존 이벤트(shield_hit, ad_unlock 등)를
+/// Firebase Analytics user property로 심을 코호트 축. 기존 이벤트(shield_lock_started, shield_extend_completed 등)를
 /// 사용자 세그먼트별로 쪼개 보기 위한 데이터다.
 ///
 /// - 개인정보 없이 **버킷/플래그**로만 구성한다(`RuleAnalyticsPayload`와 동일한 익명화 원칙).
-/// - 기준 그룹은 `isApplied == true` 그룹 — 기존 `monitoring_synced`의 appliedGroupCount와
+/// - 기준 그룹은 `isApplied == true` 그룹 — `group_snapshot`의 적용 그룹 수와
 ///   동일 기준이라 대시보드 간 일관성이 유지된다.
 /// - 규칙 조합은 top-level 그룹 단위로 센다. 요일별 그룹 안의 개별 요일 규칙을 별도 그룹으로
 ///   부풀리지 않아, 사용자가 실제로 만든 그룹 조합을 그대로 관찰할 수 있다.
@@ -12,8 +12,6 @@ import Foundation
 struct UserCohortProperties {
     /// 적용된 그룹 중 최빈 규칙(그룹당 1표 — 요일별 그룹은 "weekday"). 동률·없음은 "none".
     let primaryRuleKind: String
-    /// 적용된 그룹 수 버킷.
-    let activeGroupCount: String
     let usesDaily: Bool
     let usesTimeWindow: Bool
     let usesCooldown: Bool
@@ -48,7 +46,6 @@ struct UserCohortProperties {
         usesTimeWindow = kinds.contains(.timeWindows)
         usesCooldown = kinds.contains(.cooldown)
         usesWeekday = applied.contains { $0.usesWeekdayRules }
-        activeGroupCount = Self.activeGroupCountBucket(applied.count)
         // 최빈 규칙은 그룹당 1표 유지 — 요일별 그룹이 요일 수만큼 표를 갖게 하면 분포가 왜곡된다.
         primaryRuleKind = Self.primaryRuleKind(
             of: applied.map { $0.usesWeekdayRules ? "weekday" : ($0.ruleKind?.rawValue ?? "none") }
@@ -63,7 +60,6 @@ struct UserCohortProperties {
     var entries: [(name: String, value: String?)] {
         [
             ("primary_rule_kind", primaryRuleKind),
-            ("active_group_count", activeGroupCount),
             ("uses_daily", String(usesDaily)),
             ("uses_timewindow", String(usesTimeWindow)),
             ("uses_cooldown", String(usesCooldown)),
@@ -98,7 +94,7 @@ private struct RuleGroupProfile {
                 cooldown += 1
             case .none:
                 // 적용된 그룹은 정책상 ruleKind가 있어야 하지만, 손상/미래 데이터는 profile에서
-                // 제외한다. activeGroupCount가 전체 적용 그룹 수를 별도로 보존한다.
+                // 제외한다. 전체 적용 그룹 수는 `group_snapshot`이 별도로 보존한다.
                 continue
             }
         }
@@ -110,15 +106,6 @@ private struct RuleGroupProfile {
 }
 
 private extension UserCohortProperties {
-    static func activeGroupCountBucket(_ count: Int) -> String {
-        switch count {
-        case 0: return "count_0"
-        case 1: return "count_1"
-        case 2...3: return "count_2_3"
-        default: return "count_4_plus"
-        }
-    }
-
     /// 최빈 규칙(그룹당 1표의 규칙 표기 — rawValue 또는 "weekday"). 비어 있거나 동률이면 "none".
     static func primaryRuleKind(of descriptors: [String]) -> String {
         let meaningful = descriptors.filter { $0 != "none" }

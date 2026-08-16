@@ -826,9 +826,15 @@ enum SharedStore {
         pendingAnalyticsEvents = events
     }
 
-    /// Shield 진입. ruleKind = dailyLimit/timeWindows/cooldown.
-    static func enqueueShieldHit(ruleKind: String) {
-        enqueueAnalyticsEvent(name: "shield_hit", parameters: ["rule_kind": ruleKind])
+    /// 새 Shield 차단 시작. ruleMode는 저장 방식, enforcementRule은 오늘 실제 집행 규칙이다.
+    static func enqueueShieldLockStarted(ruleMode: String, enforcementRule: String) {
+        enqueueAnalyticsEvent(
+            name: "shield_lock_started",
+            parameters: [
+                "rule_mode": ruleMode,
+                "enforcement_rule": enforcementRule
+            ]
+        )
     }
 
     /// Screen Time API 실패. context = 발생 지점, message = 오류 요약(100자 제한).

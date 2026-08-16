@@ -474,7 +474,7 @@ enum ScreenTimeManager {
 
     /// 쿨다운 그룹을 즉시 휴식 진입시킨다(편집으로 사용 예산이 현재 사용량 이하로 바뀐 경우 등).
     /// extension의 `handleCooldownUsageTick` 잠금부와 동일하게 휴식 타이머까지 등록한다. 단 편집
-    /// 트리거 잠금이라 분석 shield_hit은 남기지 않는다(사용 중 막힘이 아니라 설정 변경).
+    /// 트리거 잠금이라 분석 shield_lock_started는 남기지 않는다(사용 중 막힘이 아니라 설정 변경).
     /// 휴식 종료가 내일로 넘어가면 당일 23:59:59로 잘라 자정 리셋 정책과 맞춘다.
     private static func enterCooldownRest(_ group: SharedStore.ScreenTimeGroup, now: Date) {
         let until = CooldownMonitor.cooldownEnd(now: now, durationMinutes: group.cooldownDurationMinutes)

@@ -17,18 +17,21 @@ struct OnboardingView: View {
     }
 
     var body: some View {
-        switch viewModel.currentStep {
-        case .intro:
-            introView
-        case .screenTimePermission:
-            screenTimeView
-        case .notificationPermission:
-            notificationView
-        case .trackingPermission:
-            trackingView
-        case .completion:
-            completionView
+        Group {
+            switch viewModel.currentStep {
+            case .intro:
+                introView
+            case .screenTimePermission:
+                screenTimeView
+            case .notificationPermission:
+                notificationView
+            case .trackingPermission:
+                trackingView
+            case .completion:
+                completionView
+            }
         }
+        .onAppear(perform: viewModel.recordEntryIfNeeded)
     }
 
     private var introView: some View {

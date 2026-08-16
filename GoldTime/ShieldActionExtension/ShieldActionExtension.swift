@@ -207,7 +207,7 @@ class ShieldActionExtension: ShieldActionDelegate {
         case .primaryButtonPressed:
             // "그만 쓰기" — 쉴드 닫고 홈으로 (차단 수용 분기)
             DailyStatsStore.recordWalkAway()
-            PendingAnalyticsStore.enqueue("shield_dismissed")
+            PendingAnalyticsStore.enqueue("shield_action_stop_selected")
             OpenRequestStore.clear()
             completionHandler(.close)
         case .secondaryButtonPressed:
@@ -217,7 +217,7 @@ class ShieldActionExtension: ShieldActionDelegate {
                 applicationToken: applicationToken,
                 webDomainToken: webDomainToken
             )
-            PendingAnalyticsStore.enqueue("shield_open_requested")
+            PendingAnalyticsStore.enqueue("shield_action_extend_selected")
             scheduleOpenAppNotification {
                 completionHandler(.defer)
             }
