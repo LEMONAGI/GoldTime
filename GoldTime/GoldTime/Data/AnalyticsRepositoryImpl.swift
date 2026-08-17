@@ -44,10 +44,6 @@ final class AnalyticsRepositoryImpl: AnalyticsRepository {
         strictLockCommitments = strictLockCommitments.filter { !discarded.contains($0.groupID) }
     }
 
-    func discardAllStrictLockCommitments() {
-        userDefaults.removeObject(forKey: Self.strictLockCommitmentsKey)
-    }
-
     func drainCompletedStrictLockDays(at now: Date) -> [Int] {
         let commitments = strictLockCommitments
         let completed = commitments.filter { $0.expiresAt <= now }

@@ -2702,7 +2702,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.tapOneMinute()
 
         #expect(screenTimeRepo.extendCallCount == 1)
@@ -2732,7 +2732,7 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.tapOneMinute()
 
         #expect(
@@ -2770,7 +2770,7 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()
         viewModel.rewardedAdDismissed()
 
@@ -2798,7 +2798,7 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()
         viewModel.rewardedAdDidCancel()
         viewModel.rewardedAdDismissed()
@@ -2822,7 +2822,7 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()
         viewModel.rewardedAdDismissed()
 
@@ -2855,7 +2855,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.tapOneMinute()
 
         #expect(screenTimeRepo.extendCallCount == 1)
@@ -2881,7 +2881,7 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         _ = viewModel.tapWalkAway()
 
         #expect(shieldRepo.recordWalkAwayCallCount == 1)
@@ -2905,7 +2905,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
 
         // 자정 직전: 1분 연장은 막히고(남은 횟수가 있어도), 광고 연장은 계속 가능.
         #expect(viewModel.isNearMidnightCutoff)
@@ -2929,7 +2929,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
 
         #expect(!viewModel.isNearMidnightCutoff)
         #expect(viewModel.nearMidnightNotice == "23:45부터는 연장 시 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
@@ -2951,7 +2951,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         #expect(viewModel.canExtendOneMinute)
 
         screenTimeRepo.nearMidnightCutoff = true
@@ -2981,7 +2981,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()      // 광고 표시
         viewModel.rewardedAdDismissed()   // 광고 완료 → 연장 수행
 
@@ -3004,7 +3004,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()
 
         // 자정 근처에도 광고를 띄우고(rewarded 표시), 광고 완료 전에는 연장하지 않는다.
@@ -3970,9 +3970,16 @@ struct AppLifecycleViewModelTests {
         #expect(analyticsRepo.userProperties["strict_rule_profile"] == "wd0_dl0_tw0_cd0")
         #expect(analyticsRepo.userProperties["authorized_screen_time"] == "true")
         #expect(analyticsRepo.userProperties["authorized_notification"] == "true")
-        #expect(analyticsRepo.parameters(for: "group_snapshot")?["applied_group_count_bucket"] as? String == "3")
+        #expect(analyticsRepo.parameters(for: "group_snapshot")?["applied_group_count"] as? Int == 3)
         #expect(analyticsRepo.events.filter { $0.name == "rule_uniform_daily" }.count == 2)
         #expect(analyticsRepo.events.filter { $0.name == "rule_uniform_cooldown" }.count == 1)
+        let groupSnapshotID = analyticsRepo.parameters(for: "group_snapshot")?["snapshot_id"] as? String
+        let ruleSnapshotIDs = analyticsRepo.events
+            .filter { $0.name.hasPrefix("rule_") }
+            .compactMap { $0.parameters["snapshot_id"] as? String }
+        #expect(groupSnapshotID?.isEmpty == false)
+        #expect(ruleSnapshotIDs.count == 3)
+        #expect(ruleSnapshotIDs.allSatisfy { $0 == groupSnapshotID })
 
         SharedStore.clearGroupStateForTesting()
     }
@@ -4010,7 +4017,7 @@ struct AppLifecycleViewModelTests {
 
         await viewModel.appDidBecomeActive()
 
-        #expect(analyticsRepo.parameters(for: "group_snapshot")?["applied_group_count_bucket"] as? String == "0")
+        #expect(analyticsRepo.parameters(for: "group_snapshot")?["applied_group_count"] as? Int == 0)
     }
 
     @Test func logsCompletedStrictLocksOnceOnAuthorizedActivation() async {
@@ -4029,18 +4036,27 @@ struct AppLifecycleViewModelTests {
 
         let completed = analyticsRepo.events.filter { $0.name == "strict_lock_completed" }
         #expect(completed.count == 2)
-        #expect(completed.compactMap { $0.parameters["strict_lock_days"] as? Int } == [3, 7])
+        // 시작·연장의 strict_lock_days("이번 선택분")와 섞이지 않게 이름이 분리돼 있어야 한다.
+        #expect(completed.compactMap { $0.parameters["strict_lock_total_days"] as? Int } == [3, 7])
+        #expect(completed.allSatisfy { $0.parameters["strict_lock_days"] == nil })
     }
 
-    @Test func unauthorizedActivationDiscardsPendingStrictLockCompletions() async {
+    /// 미승인 활성화는 완료를 **보내지 않되 약정을 버리지도 않는다**. 콜드 스타트의 transient
+    /// `false` 한 번으로 진행 중 약정이 사라지면 그 사용자는 영영 완주로 안 잡혀 완주율의 분자만
+    /// 깎인다(2026-08-17 수정). 실제 철회 폐기는 복구 화면 도달이라는 증거가 있는 경로가 맡는다.
+    @Test func unauthorizedActivationKeepsPendingStrictLockCommitments() async {
         let analyticsRepo = FakeAnalyticsRepository()
         analyticsRepo.recordStrictLockCommitment(
             groupID: UUID(),
             startedAt: .distantPast,
-            expiresAt: .distantFuture
+            expiresAt: .distantPast
         )
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
         let viewModel = AppLifecycleViewModel(
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: false),
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            ),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             shieldRepository: FakeShieldRepository(),
             notificationRepository: FakeNotificationRepository(),
@@ -4049,8 +4065,15 @@ struct AppLifecycleViewModelTests {
 
         await viewModel.appDidBecomeActive()
 
-        #expect(analyticsRepo.strictLockCommitments.isEmpty)
+        #expect(analyticsRepo.strictLockCommitments.count == 1)
         #expect(analyticsRepo.events.contains { $0.name == "strict_lock_completed" } == false)
+
+        // 권한이 제자리를 찾은 다음 활성화에서 완주가 그대로 전송돼야 한다(유실 방지의 핵심).
+        authRepo.isAuthorized = true
+        await viewModel.appDidBecomeActive()
+
+        #expect(analyticsRepo.events.filter { $0.name == "strict_lock_completed" }.count == 1)
+        #expect(analyticsRepo.strictLockCommitments.isEmpty)
     }
 
     @Test func updatesAuthorizationUserPropertiesOnEveryActivation() async {
@@ -4544,13 +4567,25 @@ private final class FakeAnalyticsRepository: AnalyticsRepository {
         for groupID in groupIDs { strictLockCommitments.removeValue(forKey: groupID) }
     }
 
-    func discardAllStrictLockCommitments() {
-        strictLockCommitments.removeAll()
-    }
-
+    /// 실제 `AnalyticsRepositoryImpl`과 같은 규칙으로 만료된 약정을 소비한다 — fake가 약정을 무시하고
+    /// 시드 배열만 비우면 "약정이 유실돼도 테스트는 통과"하는 사각지대가 생긴다.
+    /// `completedStrictLockDays`는 약정을 만들 필요 없이 완료 건수만 보고 싶을 때 쓰는 시드다.
     func drainCompletedStrictLockDays(at now: Date) -> [Int] {
         defer { completedStrictLockDays.removeAll() }
-        return completedStrictLockDays
+        let expired = strictLockCommitments.filter { $0.value.expiresAt <= now }
+        for groupID in expired.keys { strictLockCommitments.removeValue(forKey: groupID) }
+        let calendar = Calendar.current
+        let expiredDays = expired.values.map { commitment in
+            max(
+                1,
+                calendar.dateComponents(
+                    [.day],
+                    from: calendar.startOfDay(for: commitment.startedAt),
+                    to: commitment.expiresAt
+                ).day ?? 1
+            )
+        }
+        return completedStrictLockDays + expiredDays
     }
 
     func parameters(for eventName: String) -> [String: Any]? {

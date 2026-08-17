@@ -10,6 +10,18 @@
 
 > 2026-08-05 출시 전 점검에서 도출. 1.2.0(요일별 규칙)은 제출 완료 — 연장 불가 모드는 **1.3.0**으로 나간다.
 
+- [x] **GA4 콘솔 등록 완료(2026-08-18)** — 1.3.0이 요구하는 커스텀 정의는 전부 등록됐다
+      (측정기준 18개 / 측정항목 11개, 캡처로 전수 확인). 신규 5건 `uniform_daily_limit_bucket`·
+      `uniform_time_window_count_bucket`·`uniform_time_window_total_bucket`·
+      `uniform_cooldown_usage_bucket`·`uniform_cooldown_duration_bucket`은 이벤트 범위 텍스트
+      차원으로 등록, 구 `applied_group_count_bucket` 차원은 아카이브. **콘솔 쪽 남은 일 없음.**
+- [ ] (선택) **1.2.x부터 계속 미등록이던 10건** — `placement`, `selection_count_bucket`, `context`,
+      사용자 속성 7건(`primary_rule_kind`, `uses_*` 4, `active_rule_profile`, `strict_rule_profile`).
+      **이번 개편과 무관한 기존 선택**이라 급하지 않다(대시보드는 BigQuery 직접 조회라 영향 없음).
+      굳이 고르면 `placement`(광고 퍼널을 `shield_unlock`/`group_edit_gate`로 가름)와
+      `strict_rule_profile`(연장 불가 코호트 비교 — 구독 판매 결정 근거)이 값이 크다.
+      ⚠️ 등록은 소급되지 않으니 필요해진 시점보다 **먼저** 넣어야 한다.
+      전체 현황은 `docs/agent/analytics.md` "콘솔 등록 원칙" 표
 - [ ] **릴리스 노트 1.3.0 작성**(ko/en/ja) — `docs/release-notes/1.3.0.md` 신규. 연장 불가 모드가
       이번 버전의 핵심이고 앱이 첫 실행에서 "무료 베타 출시!" 팝업을 띄우므로, 스토어 "이번 버전의
       새로운 기능"에 반드시 같은 내용이 있어야 한다. `1.2.0.md`는 제출 기록으로 그대로 둔다
@@ -35,12 +47,26 @@
       구독으로 팔 기능이라 완주 경험이 곧 재적용 동기다)
 ## 다음 할 일
 
-- [ ] 대시보드(goldtime-dashboard): 규칙 스냅샷 `rule_uniform_*`/`rule_weekday_snapshot`과
-      연장 불가 이벤트 `strict_lock_started`/`strict_lock_extended`/`strict_lock_completed`
-      (`strict_lock_days`)/`strict_lock_revoke_detected`, 그룹 `group_snapshot`/`group_applied`/`group_deleted`, Shield·연장
-      `shield_lock_started`/`shield_action_*`/`shield_extend_*` 퍼널 처리.
-      연장 불가 기간 중인 그룹은 `group_edit_gate`·광고 노출이 0이 되는 게
-      정상(수익 감소가 아니라 기능 동작 — 추이 해석 주석 필요)
+- [x] 대시보드(goldtime-dashboard): **1.3.0 개편 대응 1차 완료(2026-08-17)** — 구·신 이벤트
+      이름을 `EVENT_SETS`로 묶어 전 쿼리를 UNION 처리(`event_name IN UNNEST(...)`). 업데이트가
+      점진 적용이라 두 세대가 몇 주간 공존하므로 **한쪽만 세면 안 된다**. 처리한 것: 홈 KPI
+      (`eventKpi.ts`), 퍼널(`funnel.ts` — 권한 허용은 이벤트→user property로 바뀌어 OR 판정,
+      `group_created`/`rule_monitoring_registered`는 수집 중단이라 0이면 회색+사유 표기),
+      그룹(`groups.ts` — `group_applied`가 더는 규칙 상세를 안 보내서 상세 분포를 스냅샷
+      이벤트의 **사용자별 최신 `snapshot_id` 전체 그룹**에서 재수집하고 과거 적용 행위와 별도 표시,
+      `active_group_count` 속성 → `group_snapshot` 정수로 세대 통합). 검증: `tsc --noEmit`·ESLint
+      통과 + 그룹 API 200 및 현재/과거 응답 분리 확인 + 홈 KPI 값이 변경 전과 동일
+- [ ] 대시보드(goldtime-dashboard): **남은 것 — 새 축을 화면에 올리기**(계약·상수는 이미 있음)
+  - [ ] 연장 불가 화면/섹션: `strict_lock_started`/`extended`/`completed`/`revoke_detected`로
+        **완주율(`completed`/`started`)** 표시. 구독 판매 결정의 핵심 지표다.
+        `strict_lock_total_days`(완료)와 `strict_lock_days`(시작·연장)는 **의미가 달라 합치지 말 것**
+  - [ ] 연장 시트 진입 경로 분해: `shield_extend_options_viewed.entry_source`
+        (`shield` vs `home_group`) — 지금은 합산만 한다
+  - [ ] 연장 실패 사유 분포: `shield_extend_failed.failure_reason`(신규 축, 아직 미사용)
+  - [ ] 코호트 user property `active_rule_profile`/`strict_rule_profile`(`wdN_dlN_twN_cdN`) 화면화.
+        strict 보유/비보유 코호트의 광고 노출 비교가 "연장 불가가 광고 수익을 갉아먹는가"의 답
+  - [ ] 연장 불가 기간 중인 그룹은 `group_edit_gate`·광고 노출이 0이 되는 게
+        정상(수익 감소가 아니라 기능 동작 — 추이 해석 주석 필요)
 
 - [ ] 대시보드(goldtime-dashboard): 1.2.0 신규 분석 값 처리 — rule_kind "weekday",
       weekday_restricted_days(days_N), 코호트 uses_weekday (1.3.0부터 집행 규칙은
@@ -48,10 +74,9 @@
       rule_kind 조인 시 의미 분화 주의). 광고 placement `group_edit_gate` 노출 의미가
       1.2.0에서 '편집 진입'→'변경 적용(완료 게이트)'으로 변경 — 노출 수 감소는 UX 개선이지
       이탈이 아님(추이 해석 주석 필요)
-- [ ] 대시보드(goldtime-dashboard): 그룹 구성 코호트 신규 user property 처리 —
-      `active_rule_profile`/`strict_rule_profile`의 `wdN_dlN_twN_cdN`은 각각 적용 그룹·활성
-      연장 불가 그룹의 top-level 규칙 수(요일별/일일/시간대/쿨다운)다. GA4 보고서에서 쓰려면
-      사용자 범위 custom dimension으로 등록하고, BigQuery에서는 이벤트 시점 `user_properties`로 조인
+- [ ] 대시보드(goldtime-dashboard): 위 코호트 속성을 GA4 **보고서**에서 쓰려면 사용자 범위
+      custom dimension 등록이 필요하다(BigQuery는 등록 없이 조회 가능 —
+      이벤트 시점 `user_properties`로 조인)
 - [ ] **에이전트 문서 이중화(AGENTS.md) 유지 여부 결정** — `CLAUDE.md` 9개가 전부 `AGENTS.md`로
       복제돼 있다(pre-commit 훅이 자동 동기화). Codex/Cursor/Antigravity를 실제로 쓰지 않으면
       570줄이 순수 사본이고 diff가 항상 2배로 나온다. 안 쓴다면 `AGENTS.md`·`sync-agent-docs.sh`·
@@ -73,8 +98,10 @@
       ShieldAction extension 큐는 앱 재진입 전에는 Firebase로 안 가는 것이 정상
 
 - [ ] 1일 연장 불가 기간을 새 빌드에서 시작한 뒤 정상 만료시키고 첫 앱 활성화에서
-      `strict_lock_completed(strict_lock_days=1)`가 정확히 1회 전송되는지 확인. 앱을 다시
-      활성화해도 중복되지 않아야 하며, 권한 철회한 약정에는 완료 이벤트가 생기지 않아야 한다
+      `strict_lock_completed(strict_lock_total_days=1)`가 정확히 1회 전송되는지 확인. 앱을 다시
+      활성화해도 중복되지 않아야 하며, 권한 철회한 약정에는 완료 이벤트가 생기지 않아야 한다.
+      ⚠️ 반대 방향도 반드시 볼 것: **권한이 정상인데 완료가 안 오는** 경우(콜드 스타트에서
+      `AuthorizationCenter`가 transient false로 읽히면 약정이 통째로 폐기되던 버그의 회귀)
 
 - [ ] **연장 불가 모드(기간 강력 잠금)** (`Feat/AbsoluteLock` 구현 완료 2026-07-13 —
       **검증 완료 전 머지·제출 금지**) 런북: [docs/verify-strictlock-runbook.md](docs/verify-strictlock-runbook.md)

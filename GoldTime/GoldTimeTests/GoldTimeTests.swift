@@ -1245,11 +1245,8 @@ struct GoldTimeTests {
 
         let payload = RuleAnalyticsPayload(group: group)
 
-        #expect(payload.ruleKind == "dailyLimit")
-        #expect(payload.ruleConfigBucket == "daily_61_120m")
         #expect(payload.dailyLimitBucket == "daily_61_120m")
-        #expect(payload.parameters["daily_limit_bucket"] as? String == "daily_61_120m")
-        #expect(payload.parameters["selection_count_bucket"] as? String == "selection_0")
+        #expect(payload.selectionCountBucket == "selection_0")
     }
 
     @Test func ruleAnalyticsPayloadBucketsTimeWindows() {
@@ -1264,10 +1261,8 @@ struct GoldTimeTests {
 
         let payload = RuleAnalyticsPayload(group: group)
 
-        #expect(payload.ruleKind == "timeWindows")
         #expect(payload.timeWindowCountBucket == "windows_2")
         #expect(payload.timeWindowTotalBucket == "total_61_180m")
-        #expect(payload.ruleConfigBucket == "windows_2_total_61_180m")
     }
 
     @Test func ruleAnalyticsPayloadBucketsCooldown() {
@@ -1280,14 +1275,13 @@ struct GoldTimeTests {
 
         let payload = RuleAnalyticsPayload(group: group)
 
-        #expect(payload.ruleKind == "cooldown")
         #expect(payload.cooldownUsageBucket == "usage_16_30m")
         #expect(payload.cooldownDurationBucket == "rest_61_120m")
-        #expect(payload.ruleConfigBucket == "usage_16_30m_rest_61_120m")
     }
 
     @Test func ruleAnalyticsPayloadBucketsWeekdayRules() {
-        // 요일별 모드는 base ruleKind(폴백용)가 아니라 "weekday" + 제한 요일 수 버킷으로 관찰한다.
+        // 요일별 모드는 base 규칙(폴백용)의 버킷을 내지 않는다 — 요일별 구성은
+        // `rule_weekday_snapshot`의 weekday_*_days가 따로 관찰한다.
         var rules = (0..<7).map { _ in SharedStore.DayRule(kind: .unrestricted) }
         for index in 1...5 {
             rules[index] = SharedStore.DayRule(kind: .cooldown, cooldownUsageMinutes: 10, cooldownDurationMinutes: 180)
@@ -1301,12 +1295,9 @@ struct GoldTimeTests {
 
         let payload = RuleAnalyticsPayload(group: group)
 
-        #expect(payload.ruleKind == "weekday")
-        #expect(payload.ruleConfigBucket == "days_5")
-        #expect(payload.weekdayRestrictedDaysBucket == "days_5")
-        #expect(payload.parameters["weekday_restricted_days"] as? String == "days_5")
         #expect(payload.dailyLimitBucket == nil)   // base 폴백 버킷은 미전송
-        #expect(payload.parameters["daily_limit_bucket"] == nil)
+        #expect(payload.timeWindowCountBucket == nil)
+        #expect(payload.cooldownUsageBucket == nil)
     }
 
     @Test func ruleGroupSnapshotUsesHierarchicalUniformEventNames() {
@@ -1366,13 +1357,30 @@ struct GoldTimeTests {
         #expect(RuleGroupSnapshotAnalytics(group: draft) == nil)
     }
 
+    /// 버킷이 아니라 정수 그대로 보낸다(GA4 custom metric). 상한은 정책 그룹 수로 clamp.
     @Test func groupSnapshotReportsExactAppliedCountUpToGroupLimit() {
-        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 0).parameters["applied_group_count_bucket"] as? String == "0")
-        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 1).parameters["applied_group_count_bucket"] as? String == "1")
-        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 2).parameters["applied_group_count_bucket"] as? String == "2")
-        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 3).parameters["applied_group_count_bucket"] as? String == "3")
-        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 4).parameters["applied_group_count_bucket"] as? String == "4")
-        #expect(AnalyticsEvent.groupSnapshot(appliedGroupCount: 5).parameters["applied_group_count_bucket"] as? String == "5")
+        let snapshotID = "snapshot-test"
+        for count in 0...ScreenTimeGroupPolicy.maxGroupCount {
+            #expect(
+                AnalyticsEvent.groupSnapshot(appliedGroupCount: count, snapshotID: snapshotID)
+                    .parameters["applied_group_count"] as? Int == count
+            )
+        }
+        #expect(
+            AnalyticsEvent.groupSnapshot(appliedGroupCount: -1, snapshotID: snapshotID)
+                .parameters["applied_group_count"] as? Int == 0
+        )
+        #expect(
+            AnalyticsEvent.groupSnapshot(
+                appliedGroupCount: ScreenTimeGroupPolicy.maxGroupCount + 3,
+                snapshotID: snapshotID
+            )
+                .parameters["applied_group_count"] as? Int == ScreenTimeGroupPolicy.maxGroupCount
+        )
+        #expect(
+            AnalyticsEvent.groupSnapshot(appliedGroupCount: 1, snapshotID: snapshotID)
+                .parameters["snapshot_id"] as? String == snapshotID
+        )
     }
 
     @Test func shieldExtendCompletedIncludesMethodDurationAndRulePayload() {

@@ -56,18 +56,29 @@ final class AppLifecycleViewModel {
         drainPendingAnalyticsEvents()
         updateStrictLockCompletions()
         updateCohortUserProperties()
-        logGroupSnapshot()
-        logRuleGroupSnapshots()
+        logGroupSnapshots()
         await updateAuthorizationUserProperties()
         notificationRepository.clearDeliveredNotifications()
         MonitoringBackgroundTask.scheduleNext()
     }
 
     /// 권한이 있는 사용자는 적용 그룹이 0개여도 기록해 그룹 수 분포의 분모에서 빠지지 않게 한다.
-    private func logGroupSnapshot() {
+    /// 한 활성화에서 발생하는 그룹 수와 규칙 이벤트를 같은 익명 `snapshot_id`로 묶는다.
+    /// 그룹 UUID는 보내지 않으며, 이 ID는 BigQuery가 사용자의 최신 활성화에 속한 여러 그룹을
+    /// 빠짐없이 선택하기 위한 일회성 배치 식별자다.
+    private func logGroupSnapshots() {
         guard authorizeUseCase.isAuthorized else { return }
-        let appliedGroupCount = GroupRepositoryImpl().screenTimeGroups.filter(\.isApplied).count
-        analyticsRepository.log(.groupSnapshot(appliedGroupCount: appliedGroupCount))
+        let groups = GroupRepositoryImpl().screenTimeGroups
+        let snapshotID = UUID().uuidString
+        let appliedGroupCount = groups.filter(\.isApplied).count
+        analyticsRepository.log(
+            .groupSnapshot(appliedGroupCount: appliedGroupCount, snapshotID: snapshotID)
+        )
+
+        for group in groups {
+            guard let payload = RuleGroupSnapshotAnalytics(group: group) else { continue }
+            analyticsRepository.log(.ruleGroupSnapshot(payload: payload, snapshotID: snapshotID))
+        }
     }
 
     /// extension이 SharedStore에 쌓아둔 분석 이벤트(shield_lock_started, screen_time_error 등)를
@@ -79,14 +90,18 @@ final class AppLifecycleViewModel {
     }
 
     /// 새 코드에서 시작한 약정만 pending 상태로 보관한다. 권한이 유지된 채 만료 시각에 도달한
-    /// 약정은 첫 앱 활성화에서 한 번만 완료로 기록하고, 권한이 없으면 완주로 오인하지 않도록 버린다.
+    /// 약정은 첫 앱 활성화에서 한 번만 완료로 기록한다.
+    ///
+    /// **미승인일 때 약정을 폐기하지 않는다(2026-08-17 수정)**: `refresh()` 직후의 `isAuthorized`는
+    /// 콜드 스타트에서 transient `false`로 읽힐 수 있고(복구 UI를 "재확인까지 실패해야 띄운다"로
+    /// 만든 것과 같은 이유 — Presentation/CLAUDE.md), 폐기는 되돌릴 수 없다. 한 번만 잘못 읽혀도
+    /// 진행 중인 약정까지 사라져 그 사용자는 영영 `strict_lock_completed`를 보내지 않고,
+    /// 완주율의 **분자만 조용히 깎인다**. 여기서는 전송만 건너뛰고, 실제 철회 폐기는 증거가 있는
+    /// 경로(`ContentViewModel.handleScreenTimeRecoveryAppear` — 복구 화면 도달)가 담당한다.
     private func updateStrictLockCompletions() {
-        guard authorizeUseCase.isAuthorized else {
-            analyticsRepository.discardAllStrictLockCommitments()
-            return
-        }
-        for days in analyticsRepository.drainCompletedStrictLockDays(at: Date()) {
-            analyticsRepository.log(.strictLockCompleted(days: days))
+        guard authorizeUseCase.isAuthorized else { return }
+        for totalDays in analyticsRepository.drainCompletedStrictLockDays(at: Date()) {
+            analyticsRepository.log(.strictLockCompleted(totalDays: totalDays))
         }
     }
 
@@ -100,17 +115,6 @@ final class AppLifecycleViewModel {
         let properties = UserCohortProperties(groups: groups)
         for entry in properties.entries {
             analyticsRepository.setUserProperty(entry.value, for: entry.name)
-        }
-    }
-
-    /// 적용 그룹마다 현재 설정을 한 이벤트로 기록한다. 같은 사용자가 앱을 자주 열어도 GA4에서는
-    /// 이벤트 수가 아닌 총 사용자 수로 규칙 채택률을 비교하고, BigQuery에서는 최신 스냅샷을 쓴다.
-    private func logRuleGroupSnapshots() {
-        guard authorizeUseCase.isAuthorized else { return }
-        let groups = GroupRepositoryImpl().screenTimeGroups
-        for group in groups {
-            guard let payload = RuleGroupSnapshotAnalytics(group: group) else { continue }
-            analyticsRepository.log(.ruleGroupSnapshot(payload: payload))
         }
     }
 

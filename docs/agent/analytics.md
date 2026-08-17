@@ -41,13 +41,13 @@ Skip when: 화면 문구만 바꾸고 분석 계약을 바꾸지 않을 때.
 
 | 이벤트 | 발생 조건 | 파라미터 | 분석 질문 | 해석 주의 |
 | --- | --- | --- | --- | --- |
-| `group_snapshot` | Screen Time 권한이 있는 매 앱 활성화 | `applied_group_count_bucket`: `0`, `1`, `2`, `3`, `4`, `5` | 활성 사용자가 실제로 몇 개의 그룹을 적용해 쓰는가? | 0개도 반드시 보낸다. 최대 그룹 수가 5개라 정확한 개수를 보낸다. 앱을 자주 열면 이벤트 수가 늘므로 총 사용자 수를 본다. |
+| `group_snapshot` | Screen Time 권한이 있는 매 앱 활성화 | `applied_group_count`: 정수 `0`…`5`<br>`snapshot_id`: 해당 활성화의 일회성 배치 ID | 활성 사용자가 실제로 몇 개의 그룹을 적용해 쓰는가? | 0개도 반드시 보낸다. 최대 그룹 수가 5개라 버킷 없이 정수를 보내며 GA4 custom metric으로 등록해 평균 그룹 수를 바로 본다. 같은 활성화의 모든 규칙 스냅샷이 동일한 `snapshot_id`를 공유한다. 앱을 자주 열면 이벤트 수가 늘므로 총 사용자 수를 본다. |
 | `group_applied` | 유효한 draft 그룹을 적용 상태로 저장한 뒤 | `rule_mode`: `uniform_daily`, `uniform_time_window`, `uniform_cooldown`, `weekday`<br>`selection_count_bucket` | 어떤 규칙 모드·선택 규모의 그룹이 새로 적용되는가? | 모니터 등록 성공을 뜻하지는 않는다. 실패는 `screen_time_error`로 별도 관찰한다. |
 | `group_deleted` | 그룹 삭제가 저장된 뒤 | `was_applied`: 문자열 `true` / `false` | 실제 사용 중인 그룹과 draft 중 무엇이 삭제되는가? | 연장 불가 기간 중 차단된 삭제 시도는 기록하지 않는다. |
-| `rule_uniform_daily` | 앱 활성화 시 적용된 균일 일일 한도 그룹마다 | `rule_mode=uniform_daily`<br>`uniform_daily_limit_bucket`<br>`selection_count_bucket`<br>`strict_lock_active` | 활성 사용자 중 일일 한도 그룹을 쓰는 사람은 얼마나 되는가? | 앱을 자주 여는 사용자가 이벤트 수를 늘리므로 이벤트 수가 아닌 총 사용자 수로 채택률을 본다. |
-| `rule_uniform_time_window` | 앱 활성화 시 적용된 균일 시간대 그룹마다 | `rule_mode=uniform_time_window`<br>`uniform_time_window_count_bucket`<br>`uniform_time_window_total_bucket`<br>`selection_count_bucket`<br>`strict_lock_active` | 활성 사용자 중 시간대 그룹을 쓰는 사람은 얼마나 되는가? | 같은 사용자가 여러 시간대 그룹을 가져도 총 사용자 수는 한 명이다. 그룹 수 분석은 BigQuery 최신 스냅샷을 쓴다. |
-| `rule_uniform_cooldown` | 앱 활성화 시 적용된 균일 쿨다운 그룹마다 | `rule_mode=uniform_cooldown`<br>`uniform_cooldown_usage_bucket`<br>`uniform_cooldown_duration_bucket`<br>`selection_count_bucket`<br>`strict_lock_active` | 활성 사용자 중 쿨다운 그룹을 쓰는 사람은 얼마나 되는가? | `strict_lock_active`는 쿨다운과 배타적인 규칙 종류가 아니라 이 그룹의 독립 상태다. |
-| `rule_weekday_snapshot` | 앱 활성화 시 적용된 요일별 그룹마다 | `rule_mode=weekday`<br>`weekday_uses_daily`<br>`weekday_uses_time_window`<br>`weekday_uses_cooldown`<br>`weekday_daily_days`<br>`weekday_time_window_days`<br>`weekday_cooldown_days`<br>`weekday_unrestricted_days`<br>`selection_count_bucket`<br>`strict_lock_active` | 요일별 그룹 내부에서 실제 규칙을 며칠씩 조합하는가? | 사용 여부 세 값은 해당 days가 1 이상이면 `true`다. 네 요일 수의 합은 정상 데이터에서 7이다. `weekday`를 daily/time-window/cooldown과 동급 규칙으로 합산하지 않는다. |
+| `rule_uniform_daily` | 앱 활성화 시 적용된 균일 일일 한도 그룹마다 | `snapshot_id`<br>`rule_mode=uniform_daily`<br>`uniform_daily_limit_bucket`<br>`selection_count_bucket`<br>`strict_lock_active` | 활성 사용자 중 일일 한도 그룹을 쓰는 사람은 얼마나 되는가? | 앱을 자주 여는 사용자가 이벤트 수를 늘리므로 이벤트 수가 아닌 총 사용자 수로 채택률을 본다. BigQuery 현재 상태 분포는 사용자별 최신 `snapshot_id` 전체를 고른다. |
+| `rule_uniform_time_window` | 앱 활성화 시 적용된 균일 시간대 그룹마다 | `snapshot_id`<br>`rule_mode=uniform_time_window`<br>`uniform_time_window_count_bucket`<br>`uniform_time_window_total_bucket`<br>`selection_count_bucket`<br>`strict_lock_active` | 활성 사용자 중 시간대 그룹을 쓰는 사람은 얼마나 되는가? | 같은 사용자가 여러 시간대 그룹을 가져도 총 사용자 수는 한 명이다. 그룹 수 분석은 BigQuery 최신 스냅샷을 쓴다. |
+| `rule_uniform_cooldown` | 앱 활성화 시 적용된 균일 쿨다운 그룹마다 | `snapshot_id`<br>`rule_mode=uniform_cooldown`<br>`uniform_cooldown_usage_bucket`<br>`uniform_cooldown_duration_bucket`<br>`selection_count_bucket`<br>`strict_lock_active` | 활성 사용자 중 쿨다운 그룹을 쓰는 사람은 얼마나 되는가? | `strict_lock_active`는 쿨다운과 배타적인 규칙 종류가 아니라 이 그룹의 독립 상태다. |
+| `rule_weekday_snapshot` | 앱 활성화 시 적용된 요일별 그룹마다 | `snapshot_id`<br>`rule_mode=weekday`<br>`weekday_uses_daily`<br>`weekday_uses_time_window`<br>`weekday_uses_cooldown`<br>`weekday_daily_days`<br>`weekday_time_window_days`<br>`weekday_cooldown_days`<br>`weekday_unrestricted_days`<br>`selection_count_bucket`<br>`strict_lock_active` | 요일별 그룹 내부에서 실제 규칙을 며칠씩 조합하는가? | 사용 여부 세 값은 해당 days가 1 이상이면 `true`다. 네 요일 수의 합은 정상 데이터에서 7이다. `weekday`를 daily/time-window/cooldown과 동급 규칙으로 합산하지 않는다. |
 
 ### Shield와 해제 선택
 
@@ -80,7 +80,7 @@ Skip when: 화면 문구만 바꾸고 분석 계약을 바꾸지 않을 때.
 | --- | --- | --- | --- | --- |
 | `strict_lock_started` | 연장 불가 기간의 최초 시작이 저장·동기화된 뒤 | `strict_lock_days`: 선택한 기간(1…30)<br>해당 그룹의 `rule_mode`·규칙별 snapshot 파라미터 | 어떤 그룹 구성에서 며칠짜리 연장 불가를 시작하는가? | 실제 완주를 뜻하지 않는다. |
 | `strict_lock_extended` | 이미 활성인 연장 불가 기간의 연장이 저장·동기화된 뒤 | `strict_lock_days`: 이번에 선택한 기간(1…30)<br>해당 그룹의 `rule_mode`·규칙별 snapshot 파라미터 | 어떤 사용자가 기간을 다시 연장하는가? | 최초 시작과 분리했으며, 최종 남은 일수가 아니라 이번 선택 일수다. |
-| `strict_lock_completed` | 시작·연장 때 기록한 만료 시각을 권한 유지 상태로 지난 뒤 첫 앱 활성화 | `strict_lock_days`: 최초 시작일에서 최종 만료일까지의 총 일수 | 연장 불가 기간을 정상적으로 끝까지 유지한 비중은 얼마인가? | 1.3.0부터 시작한 약정만 대상이며 그룹별 1회다. 앱이 다시 열려야 전송되고, 권한 철회가 감지되거나 미승인 상태로 활성화되면 완주로 세지 않는다. |
+| `strict_lock_completed` | 시작·연장 때 기록한 만료 시각을 권한 유지 상태로 지난 뒤 첫 앱 활성화 | `strict_lock_total_days`: 최초 시작일에서 최종 만료일까지의 총 일수 | 연장 불가 기간을 정상적으로 끝까지 유지한 비중은 얼마인가? | 1.3.0부터 시작한 약정만 대상이며 그룹별 1회다. 앱이 다시 열려야 전송되고, 복구 화면에서 권한 철회가 감지된 약정은 완주로 세지 않는다. 미승인 상태의 활성화는 전송을 **미룰 뿐 약정을 버리지 않으므로**, 권한이 정상으로 읽힌 다음 활성화에서 전송된다(그만큼 GA4 시각이 실제 만료보다 늦을 수 있다). 총 기간이라 시작·연장의 `strict_lock_days`(이번 선택분)와 **이름을 분리했다** — 두 값을 한 지표로 평균 내지 않는다. |
 | `strict_lock_revoke_detected` | Screen Time 복구 화면에서 활성 연장 불가 기간과 권한 철회 상태를 감지 | 없음 | 연장 불가 기간 중 권한 철회가 복구 화면에서 얼마나 관측되는가? | 권한 철회 순간의 직접 콜백이 아니라, 사용자가 복구 화면에 도달했을 때의 관측값이다. 1.2.0 이름은 `strict_revoke_detected`다. |
 | `screen_time_error` | extension·백그라운드·ScreenTimeManager의 등록/복구 실패를 다음 앱 활성화에 전송 | `context`<br>`message`: 오류 요약 앞 100자 | 어느 등록·복구 경로가 불안정한가? | 큐의 200건 상한과 지연 전송 영향을 받는다. 오류 메시지 원문으로 사용자·그룹을 식별하는 분석을 만들지 않는다. |
 
@@ -110,6 +110,7 @@ Skip when: 화면 문구만 바꾸고 분석 계약을 바꾸지 않을 때.
 | `uniform_cooldown_usage_bucket`, `uniform_cooldown_duration_bucket` | `usage_*`, `rest_*` | 균일 쿨다운에서만 보낸다. |
 | `weekday_uses_*`, `weekday_*_days` | 사용 여부와 `0`…`7` | 요일별 그룹 내부의 규칙·제한 없음 구성. |
 | `strict_lock_active` | 문자열 `true`/`false` | 규칙과 독립적인 해당 그룹의 연장 불가 상태. |
+| `snapshot_id` | 활성화마다 새 UUID 문자열 | `group_snapshot`과 같은 활성화의 `rule_*` 이벤트를 묶는 익명 배치 ID. 사용자·그룹 식별자가 아니며 BigQuery 조인 전용이라 GA4 custom dimension으로 등록하지 않는다. |
 
 ### 사용자 속성
 
@@ -134,13 +135,13 @@ Skip when: 화면 문구만 바꾸고 분석 계약을 바꾸지 않을 때.
 | --- | --- | --- | --- |
 | 온보딩을 시작·완료하는가? | `onboarding_entered` / 자동 `first_open`, `onboarding_completed` / `onboarding_entered` | 앱 버전, 날짜 | `onboarding_completed`는 두 권한의 현재 허용을 뜻하지 않으므로 권한 속성을 별도로 본다. |
 | 활성 사용자가 권한을 유지하는가? | `authorized_screen_time = true` 사용자 / 활성 사용자, `authorized_notification = true` 사용자 / 활성 사용자 | 앱 버전, 날짜 | 속성은 마지막 앱 활성화 스냅샷이므로 앱을 다시 열지 않은 사용자의 OS 설정 변경을 실시간으로 알 수는 없다. |
-| 활성 사용자는 몇 개의 그룹을 쓰는가? | `group_snapshot` 총 사용자 수 | `applied_group_count_bucket`, 권한 속성 | 이벤트 수를 그룹 수로 해석하지 않는다. |
+| 활성 사용자는 몇 개의 그룹을 쓰는가? | `group_snapshot` 총 사용자 수 | `applied_group_count`, 권한 속성 | 이벤트 수를 그룹 수로 해석하지 않는다. |
 | 그룹을 새로 적용하거나 포기하는가? | `group_applied`, `group_deleted` 사용자/건수 | `rule_mode`, `was_applied` | 두 이벤트는 동일 그룹을 연결할 ID를 보내지 않으므로 그룹별 수명 분석은 할 수 없다. |
 | 한도 도달 뒤 사용자는 무엇을 선택하는가? | `shield_extend_stop_selected`, `shield_extend_method_selected`, `shield_extend_completed` / `shield_extend_options_viewed` | `extend_method`, `locked_group_count`, `strict_locked_group_count` | 멈추기는 탭이지 실제 앱 종료·장기 중단의 증거가 아니다. |
 | 광고 경험은 어디에서 끊기는가? | `ad_reward_earned` 또는 `ad_closed_no_reward` / `ad_started`; `ad_fallback_used` / `ad_unavailable` | `placement` | `group_edit_gate`는 Shield 해제가 아니다. Shield의 실제 연장 성공은 `shield_extend_completed`를 따로 본다. |
 | 어떤 규칙이 마찰과 연장을 만드는가? | `shield_lock_started`, `shield_extend_completed` | `rule_mode`, `enforcement_rule`, 규칙 snapshot 버킷 | `weekday`는 설정 방식, `daily`/`time_window`/`cooldown`은 그날 실제 집행 규칙이므로 같은 축으로 합치지 않는다. |
 | 어떤 규칙을 현재 사용하는가? | `rule_uniform_*`, `rule_weekday_snapshot` 이벤트의 총 사용자 수 | `rule_mode`, `weekday_*_days`, `strict_lock_active` | 앱 활성화마다 그룹별로 보내므로 이벤트 수를 그룹 채택률로 쓰지 않는다. |
-| 연장 불가 모드는 행동을 어떻게 바꾸는가? | `strict_lock_completed` / `strict_lock_started`, strict 프로필 보유/비보유 코호트의 Shield·해제 선택 비교 | `strict_rule_profile`, `strict_lock_days`, `strict_lock_extended`, `strict_lock_revoke_detected` | 완료는 1.3.0부터 앱이 추적한 약정만 포함하고, 활성 연장 불가 그룹의 광고·1분 이벤트 0은 의도된 차단일 수 있다. |
+| 연장 불가 모드는 행동을 어떻게 바꾸는가? | `strict_lock_completed` / `strict_lock_started`, strict 프로필 보유/비보유 코호트의 Shield·해제 선택 비교 | `strict_rule_profile`, `strict_lock_days`(시작·연장), `strict_lock_total_days`(완료), `strict_lock_extended`, `strict_lock_revoke_detected` | 완료는 1.3.0부터 앱이 추적한 약정만 포함하고, 활성 연장 불가 그룹의 광고·1분 이벤트 0은 의도된 차단일 수 있다. |
 | Screen Time 경로가 안정적인가? | `screen_time_error` 사용자/건수 / Screen Time 권한 활성 사용자 | `context`, 앱 버전, 날짜 | 큐 지연·상한 때문에 실시간 오류율·정확한 발생 시각으로 해석하지 않는다. |
 
 ## 추이 해석 규칙
@@ -157,19 +158,54 @@ Skip when: 화면 문구만 바꾸고 분석 계약을 바꾸지 않을 때.
 
 저장소만으로 GA4 Console의 Custom definitions 등록 여부는 확인할 수 없다. 새 대시보드를 만들기 전에 **Admin → Custom definitions**에서 아래를 확인·등록하고 이 문서의 “콘솔 상태”를 실제 상태로 갱신한다. 이벤트 파라미터는 이벤트 범위 custom dimension/metric, 사용자 속성은 사용자 범위 custom dimension으로 등록한다. 공식 [GA4 custom dimensions 안내](https://support.google.com/analytics/answer/14240153?hl=en)을 따른다.
 
-| 등록 대상 | 권장 범위·형식 | 현재 콘솔 상태 |
+**2026-08-18 콘솔 전수 확인** — 등록 현황 전부(측정기준 **18개**, 측정항목 **11개**).
+**1.3.0이 요구하는 등록은 전부 완료됐다.** 아래 분류에서 "이번 개편이 새로 만든 것"과
+"1.2.x부터 계속 미등록이던 것"을 **반드시 구분**한다 — 이 문서의 권장 목록만 보고 전부 미등록으로
+세면 이번 변경의 할 일이 3배로 부풀어 보인다(실제로 그렇게 잘못 센 사고가 있었다). 미등록 여부는
+**코드의 실제 전송 파라미터와 대조**해서 판단할 것.
+
+| 등록 대상 | 범위·형식 | 상태 |
 | --- | --- | --- |
-| `selection_count_bucket`, `placement`, `context`, `rule_mode`, `enforcement_rule`, `entry_source`, `extend_method`, `failure_reason`, `near_midnight`, `strict_lock_active`, `weekday_uses_daily`, `weekday_uses_time_window`, `weekday_uses_cooldown`, `uniform_daily_limit_bucket`, `uniform_time_window_count_bucket`, `uniform_time_window_total_bucket`, `uniform_cooldown_usage_bucket`, `uniform_cooldown_duration_bucket`, `applied_group_count_bucket`, `was_applied` | 이벤트 범위 · 텍스트 차원 | `entry_source`만 신규 등록 필요; 나머지는 저장소에서 확인 불가 |
-| `locked_group_count`, `strict_locked_group_count`, `one_minute_remaining`, `extend_seconds`, `strict_lock_days`, `weekday_daily_days`, `weekday_time_window_days`, `weekday_cooldown_days`, `weekday_unrestricted_days` | 이벤트 범위 · 정수 custom metric | 저장소에서 확인 불가 |
-| 이 문서의 사용자 속성 9개 | 사용자 범위 · 텍스트 차원 | 저장소에서 확인 불가 |
+| `rule_mode`, `enforcement_rule`, `entry_source`, `extend_method`, `failure_reason`, `near_midnight`, `strict_lock_active`, `was_applied`, `weekday_uses_daily`, `weekday_uses_time_window`, `weekday_uses_cooldown` | 이벤트 · 텍스트 차원 | ✅ 등록 |
+| `uniform_daily_limit_bucket`, `uniform_time_window_count_bucket`, `uniform_time_window_total_bucket`, `uniform_cooldown_usage_bucket`, `uniform_cooldown_duration_bucket` | 이벤트 · 텍스트 차원 | ✅ 등록(2026-08-18 — 1.3.0이 새로 요구한 5개) |
+| `applied_group_count`, `locked_group_count`, `strict_locked_group_count`, `one_minute_remaining`, `extend_seconds`, `strict_lock_days`, `strict_lock_total_days`, `weekday_daily_days`, `weekday_time_window_days`, `weekday_cooldown_days`, `weekday_unrestricted_days` | 이벤트 · 정수 metric | ✅ 등록(`extend_seconds`만 단위 `초`, 나머지 `일반`) |
+| `authorized_screen_time`, `authorized_notification` | 사용자 · 텍스트 차원 | ✅ 등록 |
+| `placement`, `selection_count_bucket`, `context` | 이벤트 · 텍스트 차원 | ⬜ 1.2.x부터 미등록 — **이번 개편과 무관**한 기존 선택 |
+| `primary_rule_kind`, `uses_daily`, `uses_timewindow`, `uses_cooldown`, `uses_weekday`, `active_rule_profile`, `strict_rule_profile` | 사용자 · 텍스트 차원 | ⬜ 1.2.x부터 미등록 — **이번 개편과 무관** |
+| `snapshot_id` | — | ⛔ **등록 금지** — BigQuery 배치 복원 전용 ID다 |
+| `screen_time_error.message` | — | ⛔ **등록 금지** — 오류 원문 100자라 카디널리티가 폭발한다. 원인 분류는 `context`로만 본다 |
+
+구 `applied_group_count_bucket`(표시 이름 `적용 그룹 수`) 차원은 2026-08-18 아카이브 완료 —
+출시된 적 없는 이름이라 과거 데이터가 0건이었다.
+
+한도는 넉넉하다(표준 속성: 이벤트 범위 차원 50 · 사용자 범위 차원 25 · custom metric 50).
+미등록분은 **대시보드에 영향이 없다** — goldtime-dashboard는 BigQuery를 직접 조회하므로 등록 여부와
+무관하다. 영향은 GA4 UI(탐색 분석·보고서)에서 그 축을 고를 수 없다는 것 하나뿐이다. 다만 **등록은
+소급되지 않으므로**, GA4 UI에서 볼 생각이 있으면 그 데이터가 흐르기 **전에** 등록해야 한다.
+
+`uniform_*` 5개가 "새로 만든 것"인 이유: 이들이 대체한 구 버킷(`daily_limit_bucket` 등)도 미등록이라
+현상 유지로 보이지만, **붙는 자리가 바뀌었다**. 구 버킷은 `group_applied`(적용하는 순간의 행위)에
+실렸고 신 버킷은 스냅샷 이벤트(현재 설정 상태)에 실린다 — "지금 사람들이 하루 몇 분으로 맞춰
+쓰는가"를 GA4 UI에서 보려면 이 5개가 필요하다.
 
 같은 파라미터를 이벤트별로 중복 등록하지 않는다. GA4 등록은 과거 수집 데이터의 완전한 소급 해결책이 아니며 보고서 반영에는 시간이 걸릴 수 있다. 앱 이벤트의 정수 파라미터는 이벤트 범위 차원보다 custom metric으로 다루는 것이 안전하다.
 
-2026-08-16 콘솔 캡처로 Shield·연장 신규 텍스트 차원 4개
-(`enforcement_rule`, `extend_method`, `failure_reason`, `near_midnight`)와 정수 커스텀
+2026-08-16 콘솔 캡처로 Shield·연장 신규 텍스트 차원 5개
+(`enforcement_rule`, `entry_source`, `extend_method`, `failure_reason`, `near_midnight`)와 정수 커스텀
 메트릭 4개(`locked_group_count`, `strict_locked_group_count`, `one_minute_remaining`,
 `extend_seconds`)의 이벤트 범위 등록을 확인했다. `extend_seconds`의 측정 단위는 `초`,
 나머지 세 메트릭은 `일반`이다.
+
+2026-08-17 콘솔 캡처로 `applied_group_count`(표시 이름 `현재 적용 그룹 수`)와
+`strict_lock_total_days`(표시 이름 `연장 불가 총 유지 일수`)가 이벤트 범위 custom metric,
+측정 단위 `일반`으로 등록된 것을 확인했다.
+
+**아카이브 대상 — 구 custom dimension `applied_group_count_bucket`**(표시 이름 `적용 그룹 수`,
+이벤트 범위 텍스트). 이 이름은 **출시된 적이 없다**: `group_snapshot` 자체가 1.3.0 신규
+이벤트이고, 출시 전에 파라미터를 `applied_group_count`(정수)로 바꿨다. 따라서 뒤에 쌓인 과거
+데이터가 **0건**이며 아카이브해도 잃을 것이 없고, 앞으로도 영구히 데이터가 들어오지 않는다.
+남겨두면 보고서 선택기에 `적용 그룹 수`(죽은 차원)와 `현재 적용 그룹 수`(살아 있는 metric)가
+나란히 떠서 혼동을 만든다. "과거 데이터용으로 보존"이라고 적지 말 것 — 보존할 과거가 없다.
 
 ### BigQuery에서 보는 법
 

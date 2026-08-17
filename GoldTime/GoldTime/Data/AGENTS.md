@@ -18,3 +18,9 @@ Domain Repository 프로토콜의 구현체. Core 서비스 호출 + Core ↔ Do
 - `AnalyticsRepositoryImpl`의 연장 불가 완료 pending은 앱 전용 `UserDefaults.standard`에 저장한다.
   시작·연장 때만 생성해 과거 만료 그룹을 소급 집계하지 않고, 같은 그룹 연장은 최종 만료로
   덮어쓴다. 완료 drain·권한 철회 discard 뒤 키를 비워 앱 재진입 중복을 막는다.
+  **"전부 지우기" API를 다시 만들지 말 것**(2026-08-17 제거): 앱 활성화에서 `isAuthorized == false`면
+  일괄 폐기하던 구현이 있었는데, 이 값은 콜드 스타트에서 transient `false`로 읽힐 수 있어
+  (복구 UI가 재확인을 요구하는 것과 같은 이유) **한 번 잘못 읽히면 진행 중 약정까지 영구 소실** →
+  그 사용자는 영영 `strict_lock_completed`를 안 보내고 완주율 분자만 조용히 깎인다. 폐기는
+  철회 증거가 있는 경로(`handleScreenTimeRecoveryAppear`)에서 `discardStrictLockCommitments(groupIDs:)`로
+  그룹을 특정해서만 한다. 미승인 활성화는 **전송만 건너뛴다**.

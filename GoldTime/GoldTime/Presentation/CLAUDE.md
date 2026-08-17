@@ -59,16 +59,27 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
 - **그룹 규칙 스냅샷 계약**: 앱 활성화마다 적용 그룹 하나당 `rule_uniform_*` 또는
   `rule_weekday_snapshot` 하나를 보낸다. `weekday`는 실제 규칙 종류가 아니라 적용 방식이고,
   `strict_lock_active`는 규칙과 독립된 상태다. 반복 전송 때문에 GA4 채택률은 이벤트 수가 아닌
-  총 사용자 수로 비교한다.
+  총 사용자 수로 비교한다. `group_snapshot`과 규칙 이벤트들은 활성화마다 새로 만든 동일한
+  `snapshot_id`를 공유해야 한다. 각각 UUID를 만들면 대시보드가 최신 배치의 여러 그룹을 복원하지 못한다.
 - **그룹 수/행동 분석 계약**: Screen Time 권한이 있는 매 앱 활성화에 `group_snapshot`을
   한 번 보내며 적용 그룹 0개도 누락하지 않는다. 사용자 행동은 적용 저장 후
   `group_applied`, 삭제 저장 후 `group_deleted`만 남기고 draft 생성·규칙 변경·내부 sync는 수집하지 않는다.
   구 사용자 속성 `active_group_count`는 중복이라 폐기했으며, 업그레이드 사용자의 stale 값을
   없애기 위해 코호트 갱신 시 nil로 지운다.
+- **`LockOptionsView`/`LockOptionsViewModel.onAppear`의 `entrySource`에 기본값을 두지 말 것.**
+  `shield_extend_options_viewed.entry_source`는 Shield 액션 퍼널의 **분모**라, 새 진입점이
+  인자를 깜빡 생략하면 홈에서 연 시트가 조용히 `shield`로 집계돼 퍼널이 틀어진다. 컴파일 에러로
+  매번 결정을 강제한다(기본값 `.shield`가 있던 시절의 회귀 방지).
 - **연장 불가 완료 분석 계약**: 시작·연장 성공 때 최초 시작·최종 만료를 분석 저장소에 갱신하고,
   `AppLifecycleViewModel`은 권한이 유지된 첫 만료 후 활성화에서 `strict_lock_completed`를 한 번
-  보낸다. Screen Time 미승인 활성화나 복구 화면의 철회 감지는 pending 약정을 폐기해 완료로
-  오인하지 않는다. 과거 만료 그룹을 훑어 소급 생성하면 안 된다.
+  보낸다. 과거 만료 그룹을 훑어 소급 생성하면 안 된다.
+  **미승인 활성화는 전송만 건너뛰고 약정을 폐기하지 않는다**(2026-08-17 수정 — 폐기하던 구현이
+  버그였다): `refresh()` 직후의 `isAuthorized`는 콜드 스타트에서 transient `false`로 읽힐 수 있고
+  (복구 UI가 재확인을 요구하는 것과 같은 이유), 폐기는 되돌릴 수 없어 한 번만 잘못 읽혀도 진행 중
+  약정까지 사라진다 → 그 사용자는 영영 완료를 안 보내고 완주율의 **분자만 조용히 깎인다**.
+  폐기는 철회 증거가 있는 경로(`ContentViewModel.handleScreenTimeRecoveryAppear` — 복구 화면 도달)에서
+  `discardStrictLockCommitments(groupIDs:)`로 그룹을 특정해서만 한다. "전부 지우기" API를 되살리지 말 것
+  (회귀 테스트 `unauthorizedActivationKeepsPendingStrictLockCommitments`).
 
 - **연장 불가 모드(기간 강력 잠금) UX 계약**: 진입 차단은 ContentViewModel 3곳
   (`presentRuleEditor`/`requestPickerPresentation`/`requestDeleteGroup`) + `deleteGroup`의

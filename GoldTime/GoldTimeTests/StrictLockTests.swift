@@ -831,7 +831,7 @@ struct StrictLockTests {
             analyticsRepository: StrictFakeAnalyticsRepository()
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
 
         #expect(viewModel.isSelectedGroupStrictLocked)
         #expect(!viewModel.canExtendOneMinute)
@@ -950,6 +950,5 @@ private final class StrictFakeAnalyticsRepository: AnalyticsRepository {
     func discardStrictLockCommitments(groupIDs: [UUID]) {
         for groupID in groupIDs { strictLockCommitments.removeValue(forKey: groupID) }
     }
-    func discardAllStrictLockCommitments() { strictLockCommitments.removeAll() }
     func drainCompletedStrictLockDays(at now: Date) -> [Int] { [] }
 }

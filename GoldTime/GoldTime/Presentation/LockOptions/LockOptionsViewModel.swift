@@ -161,9 +161,10 @@ final class LockOptionsViewModel {
 
     var maxAppsPerGroup: Int { SharedStore.maxAppsPerGroup }
 
+    /// `entrySource`는 기본값 없이 받는다(`LockOptionsView.init` 주석 참조 — 분모 오염 방지).
     func onAppear(
         initialGroupID: UUID? = nil,
-        entrySource: LockOptionsEntrySource = .shield
+        entrySource: LockOptionsEntrySource
     ) {
         refreshLockedGroups()
         // 첫 문구("오늘 한도 다 썼어요.")는 한도 초과 전용이라 시간대 차단·쿨다운만 잠긴 경우엔 제외.

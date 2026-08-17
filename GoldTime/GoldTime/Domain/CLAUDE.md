@@ -55,9 +55,20 @@
   연장 불가는 `strict_lock_active`로 서로 다른 축에 둔다. 요일별 그룹은 `weekday_uses_*`와
   `weekday_*_days`로 내부 규칙을 보존하며 days 네 값의 합이 7이어야 한다. 그룹 UUID·이름은
   보내지 않는다.
-- `group_snapshot.applied_group_count_bucket`은 최대 그룹 수가 5개라 `0`~`5`의 정확한 문자열 값을
-  보낸다. `4+`처럼 합치면 4개와 5개 사용자를 구분할 수 없으므로 다시 버킷화하지 말 것.
+- **`RuleAnalyticsPayload`는 버킷 계산기이고 이벤트를 만들지 않는다.** `parameters` 계산 속성과
+  `ruleKind`·`ruleConfigBucket`·`weekdayRestrictedDaysBucket`은 1.3.0에서 **제거했다** — 구 계약
+  (`group_applied`에 규칙 상세를 실던 방식)의 잔재로 프로덕션 호출부가 0이었는데, 코드에 남은 구
+  파라미터 이름(`rule_kind`/`rule_config_bucket`/`daily_limit_bucket`/`weekday_restricted_days`)이
+  "아직 전송된다"는 오해를 만들었다(실제로 콘솔 등록 대상을 잘못 세는 사고가 났다). 규칙 상세는
+  `RuleGroupSnapshotAnalytics`가 `uniform_*`·`weekday_*_days` 이름으로 스냅샷 이벤트에만 싣는다.
+  여기에 이벤트 파라미터 조립을 되살리지 말 것.
+- `group_snapshot.applied_group_count`는 최대 그룹 수가 5개라 **버킷 없이 정수 `0`~`5`**를 보낸다
+  (GA4 정수 custom metric — 평균 그룹 수를 바로 본다). `4+`처럼 합치면 4개와 5개 사용자를 구분할 수
+  없으므로 다시 버킷화하지 말 것. 이름 끝의 `_bucket`도 되살리지 말 것(값이 버킷이 아니다).
+- `group_snapshot`과 같은 활성화에서 발생한 모든 `rule_*` 스냅샷은 일회성 `snapshot_id`를
+  공유한다. 그룹 ID가 아니라 활성화 배치 ID이며, BigQuery가 사용자별 최신 활성화의 여러 그룹을
+  전부 복원하는 용도다. 그룹 UUID·이름을 대신 넣거나 GA4 custom dimension으로 등록하지 말 것.
 - `UserCohortProperties`의 `active_rule_profile`/`strict_rule_profile`은 `wdN_dlN_twN_cdN` 형식으로 **top-level 그룹 수**만 센다. 요일별 그룹 안의 일일/시간대/쿨다운 요일을 별도 그룹으로 세거나, 그룹명·UUID·선택 앱을 넣지 말 것. strict는 `isApplied && isStrictLockActive(at:)`인 그룹만 포함한다. 새 규칙 종류를 추가하면 `RuleGroupProfile`과 이 분석 계약을 함께 갱신한다.
-- 적용 그룹 수는 앱 활성화 이벤트 `group_snapshot.applied_group_count_bucket`의 정확한 `0`~`5`로만 본다. 구 사용자 속성 `active_group_count`는 같은 상태를 거친 버킷으로 중복해 폐기했으므로 다시 추가하지 말 것.
-- 연장 불가 분석은 `strict_lock_started`/`extended`/`completed`/`revoke_detected`로 나눈다. `revoke_detected`는 권한 철회 순간이 아니라 복구 화면에서 관측한 결과다. 완료의 `strict_lock_days`는 최초 시작일~최종 만료일의 총 기간이며, 시작·연장의 값은 해당 선택에서 추가한 기간이라 의미가 다르다.
+- 적용 그룹 수는 앱 활성화 이벤트 `group_snapshot.applied_group_count`의 정확한 `0`~`5`로만 본다. 구 사용자 속성 `active_group_count`는 같은 상태를 거친 버킷으로 중복해 폐기했으므로 다시 추가하지 말 것.
+- 연장 불가 분석은 `strict_lock_started`/`extended`/`completed`/`revoke_detected`로 나눈다. `revoke_detected`는 권한 철회 순간이 아니라 복구 화면에서 관측한 결과다. 완료는 파라미터 이름부터 다르다 — `strict_lock_total_days`(최초 시작일~최종 만료일의 총 기간)이고, 시작·연장은 `strict_lock_days`(그 선택에서 추가한 기간)다. **두 이름을 다시 합치지 말 것**: 한 이름이면 GA4에서 이벤트를 섞어 볼 때 평균이 무의미해진다.
 - **연장 불가 기간 중 편집 차단은 `ManageGroupsUseCase`의 update 3종(`updateRule`/`updateWeekdayRules`/`updateSelection`)과 `deleteGroup`의 guard가 담당한다**(조용히 무시 패턴 — `updateName`은 집행 무관이라 의도적으로 제외). 그룹을 변경하는 새 UseCase 메서드를 추가하면 같은 `isStrictLockActive()` guard를 반드시 넣을 것. `activateStrictLock`은 **범위(`strictLockDayRange` 1...30) 검증**(프리셋 검증이 아니다 — 커스텀 기간이 정상 경로) + applied·유효 규칙만 + **연장만 허용(만료 축소 거부)** + 최초 `strictStartedAt` 유지. 칩 프리셋은 `strictLockDayPresets`(1/3/7)이고 시트 기본 선택은 `strictLockDefaultDays`(1 — **가장 짧은 프리셋이어야** 시트가 "1일 칩 선택 + 휠 접힘"으로 열린다, 2026-07-31 변경). 커스텀 칩을 눌렀을 때 휠이 잡는 시드는 별개 상수 `strictLockCustomSeedDays`(14)이고 이쪽은 반대로 **프리셋에 없어야** 커스텀 칩 선택 상태가 유지된다. `ExtendGroupUseCase`의 strict 판정은 원본 그룹(`shieldRepository.lockedGroups()`) 기준이다 — resolved 투영은 strict 필드가 스트립되므로 판정에 쓰지 말 것.

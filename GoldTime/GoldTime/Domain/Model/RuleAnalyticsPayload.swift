@@ -67,30 +67,30 @@ struct RuleGroupSnapshotAnalytics {
     }
 }
 
+/// 규칙 설정값을 익명 버킷으로 환산하는 계산기. **이벤트를 직접 만들지 않는다** —
+/// 버킷 문자열만 계산해 `RuleGroupSnapshotAnalytics`(스냅샷 이벤트)와
+/// `ShieldExtendAnalyticsPayload`에 공급한다.
+///
+/// 1.3.0에서 `parameters` 계산 속성과 `ruleKind`·`ruleConfigBucket`·`weekdayRestrictedDaysBucket`을
+/// 제거했다: 구 계약(`group_applied`에 규칙 상세를 실어 보내던 방식)의 잔재로 **프로덕션 호출부가
+/// 하나도 없는 죽은 코드**였고, 코드에 남은 구 파라미터 이름(`rule_kind`/`rule_config_bucket`/
+/// `daily_limit_bucket`/`weekday_restricted_days`)이 "아직 전송된다"는 오해를 만들었다.
+/// 규칙 상세는 이제 `uniform_*`·`weekday_*_days` 이름으로 스냅샷 이벤트에만 실린다.
+/// 이벤트 파라미터를 여기서 다시 조립하지 말 것.
 struct RuleAnalyticsPayload {
-    let ruleKind: String
-    let ruleConfigBucket: String
     let selectionCountBucket: String
     let dailyLimitBucket: String?
     let timeWindowCountBucket: String?
     let timeWindowTotalBucket: String?
     let cooldownUsageBucket: String?
     let cooldownDurationBucket: String?
-    /// 요일별 모드의 제한 요일 수(1~7) 버킷. 요일별 세부 파라미터는 요일 수가 곧 구성 복잡도라
-    /// 이 버킷 하나로만 관찰한다(익명화 원칙 — 원값·요일 조합 비전송).
-    let weekdayRestrictedDaysBucket: String?
 
     init(group: ScreenTimeGroup) {
         selectionCountBucket = Self.selectionCountBucket(group.selectionCount)
 
-        // 요일별 모드는 base ruleKind(폴백용)가 아니라 "weekday"로 관찰한다.
-        if let rules = group.weekdayRules {
-            ruleKind = "weekday"
-            let bucket = Self.weekdayRestrictedDaysBucket(
-                rules.filter { $0.kind != .unrestricted }.count
-            )
-            ruleConfigBucket = bucket
-            weekdayRestrictedDaysBucket = bucket
+        // 요일별 모드는 base 규칙(폴백용)의 버킷을 내지 않는다 — 요일별 구성은
+        // `RuleGroupSnapshotAnalytics`가 `weekday_*_days`로 따로 관찰한다.
+        if group.weekdayRules != nil {
             dailyLimitBucket = nil
             timeWindowCountBucket = nil
             timeWindowTotalBucket = nil
@@ -99,38 +99,28 @@ struct RuleAnalyticsPayload {
             return
         }
 
-        ruleKind = group.ruleKind?.rawValue ?? "unknown"
-        weekdayRestrictedDaysBucket = nil
-
         switch group.ruleKind {
         case .dailyLimit:
-            let bucket = Self.dailyLimitBucket(group.dailyLimitMinutes)
-            ruleConfigBucket = bucket
-            dailyLimitBucket = bucket
+            dailyLimitBucket = Self.dailyLimitBucket(group.dailyLimitMinutes)
             timeWindowCountBucket = nil
             timeWindowTotalBucket = nil
             cooldownUsageBucket = nil
             cooldownDurationBucket = nil
         case .timeWindows:
-            let countBucket = Self.timeWindowCountBucket(group.timeWindows.count)
-            let totalBucket = Self.timeWindowTotalBucket(group.timeWindows.reduce(0) { $0 + $1.durationMinutes })
-            ruleConfigBucket = "\(countBucket)_\(totalBucket)"
             dailyLimitBucket = nil
-            timeWindowCountBucket = countBucket
-            timeWindowTotalBucket = totalBucket
+            timeWindowCountBucket = Self.timeWindowCountBucket(group.timeWindows.count)
+            timeWindowTotalBucket = Self.timeWindowTotalBucket(
+                group.timeWindows.reduce(0) { $0 + $1.durationMinutes }
+            )
             cooldownUsageBucket = nil
             cooldownDurationBucket = nil
         case .cooldown:
-            let usageBucket = Self.cooldownUsageBucket(group.cooldownUsageMinutes)
-            let durationBucket = Self.cooldownDurationBucket(group.cooldownDurationMinutes)
-            ruleConfigBucket = "\(usageBucket)_\(durationBucket)"
             dailyLimitBucket = nil
             timeWindowCountBucket = nil
             timeWindowTotalBucket = nil
-            cooldownUsageBucket = usageBucket
-            cooldownDurationBucket = durationBucket
+            cooldownUsageBucket = Self.cooldownUsageBucket(group.cooldownUsageMinutes)
+            cooldownDurationBucket = Self.cooldownDurationBucket(group.cooldownDurationMinutes)
         case .none:
-            ruleConfigBucket = "unknown"
             dailyLimitBucket = nil
             timeWindowCountBucket = nil
             timeWindowTotalBucket = nil
@@ -138,36 +128,6 @@ struct RuleAnalyticsPayload {
             cooldownDurationBucket = nil
         }
     }
-
-    var parameters: [String: Any] {
-        var result: [String: Any] = [
-            "rule_kind": ruleKind,
-            "rule_config_bucket": ruleConfigBucket,
-            "selection_count_bucket": selectionCountBucket
-        ]
-
-        if let dailyLimitBucket {
-            result["daily_limit_bucket"] = dailyLimitBucket
-        }
-        if let timeWindowCountBucket {
-            result["time_window_count_bucket"] = timeWindowCountBucket
-        }
-        if let timeWindowTotalBucket {
-            result["time_window_total_bucket"] = timeWindowTotalBucket
-        }
-        if let cooldownUsageBucket {
-            result["cooldown_usage_bucket"] = cooldownUsageBucket
-        }
-        if let cooldownDurationBucket {
-            result["cooldown_duration_bucket"] = cooldownDurationBucket
-        }
-        if let weekdayRestrictedDaysBucket {
-            result["weekday_restricted_days"] = weekdayRestrictedDaysBucket
-        }
-
-        return result
-    }
-
 }
 
 /// Shield 연장 성공 시 설정 방식과 오늘 실제 집행 규칙을 함께 보존한다.
@@ -267,8 +227,4 @@ private extension RuleAnalyticsPayload {
         }
     }
 
-    /// 제한 요일 수(전부 제한 없음은 정책이 거부하므로 실사용 1~7). 방어적으로 0~7로 clamp.
-    static func weekdayRestrictedDaysBucket(_ count: Int) -> String {
-        "days_\(min(max(count, 0), 7))"
-    }
 }
