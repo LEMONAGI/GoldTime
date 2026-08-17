@@ -56,6 +56,13 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   refresh하고 알림 상태를 await한 뒤 `authorized_screen_time`/
   `authorized_notification`을 매 활성화마다 갱신한다. 미승인자도 갱신 guard 밖에
   두어 `false`로 덮어써야 한다. 이벤트로 바꾸거나 그룹 코호트의 권한 guard 안에 넣지 말 것.
+  **`appDidBecomeActive()`의 호출 순서는 "user property 갱신 → 이벤트 전송"이 계약이다**
+  (2026-08-18 수정). Firebase property는 **설정 이후에 전송된 이벤트에만** 붙으므로, 권한 갱신을
+  `logGroupSnapshots()`/`drainPendingAnalyticsEvents()` 뒤로 미루면 이번 활성화의 이벤트가
+  직전 세션 값을 달고 나가고 **신규 설치의 첫 활성화에는 권한 속성이 아예 없다** — 권한별
+  그룹 구성 분석에서 첫 세션이 통째로 빠진다. `await`라고 뒤로 밀지 말 것. 반대로 UI 경로
+  (`syncProtectionRulesIfAuthorized`·`refreshLockOptionsPresentation`)는 **await보다 앞**에 둔다
+  (Shield 복귀 시트가 알림 권한 조회를 기다리게 되면 안 된다).
 - **그룹 규칙 스냅샷 계약**: 앱 활성화마다 적용 그룹 하나당 `rule_uniform_*` 또는
   `rule_weekday_snapshot` 하나를 보낸다. `weekday`는 실제 규칙 종류가 아니라 적용 방식이고,
   `strict_lock_active`는 규칙과 독립된 상태다. 반복 전송 때문에 GA4 채택률은 이벤트 수가 아닌

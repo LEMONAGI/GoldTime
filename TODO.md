@@ -10,18 +10,23 @@
 
 > 2026-08-05 출시 전 점검에서 도출. 1.2.0(요일별 규칙)은 제출 완료 — 연장 불가 모드는 **1.3.0**으로 나간다.
 
-- [x] **GA4 콘솔 등록 완료(2026-08-18)** — 1.3.0이 요구하는 커스텀 정의는 전부 등록됐다
-      (측정기준 18개 / 측정항목 11개, 캡처로 전수 확인). 신규 5건 `uniform_daily_limit_bucket`·
-      `uniform_time_window_count_bucket`·`uniform_time_window_total_bucket`·
-      `uniform_cooldown_usage_bucket`·`uniform_cooldown_duration_bucket`은 이벤트 범위 텍스트
-      차원으로 등록, 구 `applied_group_count_bucket` 차원은 아카이브. **콘솔 쪽 남은 일 없음.**
-- [ ] (선택) **1.2.x부터 계속 미등록이던 10건** — `placement`, `selection_count_bucket`, `context`,
-      사용자 속성 7건(`primary_rule_kind`, `uses_*` 4, `active_rule_profile`, `strict_rule_profile`).
-      **이번 개편과 무관한 기존 선택**이라 급하지 않다(대시보드는 BigQuery 직접 조회라 영향 없음).
-      굳이 고르면 `placement`(광고 퍼널을 `shield_unlock`/`group_edit_gate`로 가름)와
-      `strict_rule_profile`(연장 불가 코호트 비교 — 구독 판매 결정 근거)이 값이 크다.
-      ⚠️ 등록은 소급되지 않으니 필요해진 시점보다 **먼저** 넣어야 한다.
-      전체 현황은 `docs/agent/analytics.md` "콘솔 등록 원칙" 표
+- [x] **GA4 콘솔 등록 완료(2026-08-18) — 콘솔 쪽 할 일 0건.** 1.3.0이 요구하는 커스텀 정의는
+      전부 등록됐다(측정기준 18개 / 측정항목 11개, 캡처로 전수 확인). 신규 5건
+      `uniform_daily_limit_bucket`·`uniform_time_window_count_bucket`·
+      `uniform_time_window_total_bucket`·`uniform_cooldown_usage_bucket`·
+      `uniform_cooldown_duration_bucket`은 이벤트 범위 텍스트 차원으로 등록, 구
+      `applied_group_count_bucket` 차원은 아카이브.
+      **이 항목 아래에 콘솔 등록 할 일을 새로 만들지 말 것** — 미등록으로 남은 10건은
+      "할 일"이 아니라 아래 참고 블록의 선택지다.
+
+> **[참고 — 할 일 아님] 미등록 10건은 등록하지 않아도 된다.**
+> `placement`, `selection_count_bucket`, `context`, 사용자 속성 7건(`primary_rule_kind`,
+> `uses_*` 4, `active_rule_profile`, `strict_rule_profile`)은 **1.2.x부터 계속 미등록**이었고
+> 이번 개편과 무관하다. 없어도 앱·대시보드 모두 정상이다(대시보드는 BigQuery 직접 조회라
+> 콘솔 등록과 무관). 영향은 GA4 **웹 UI에서 그 축으로 쪼개 볼 수 없다**는 것 하나뿐이라
+> 출시를 막지 않는다. 나중에 GA4 UI에서 보고 싶어지면 그때 등록하되, 등록은 소급되지
+> 않으므로 **보고 싶어진 시점보다 먼저** 넣어야 한다는 것만 기억한다.
+> 전체 현황은 `docs/agent/analytics.md` "콘솔 등록 원칙" 표.
 - [ ] **릴리스 노트 1.3.0 작성**(ko/en/ja) — `docs/release-notes/1.3.0.md` 신규. 연장 불가 모드가
       이번 버전의 핵심이고 앱이 첫 실행에서 "무료 베타 출시!" 팝업을 띄우므로, 스토어 "이번 버전의
       새로운 기능"에 반드시 같은 내용이 있어야 한다. `1.2.0.md`는 제출 기록으로 그대로 둔다
@@ -46,6 +51,13 @@
       만료 후 첫 홈 진입에서 완주 안내를 1회 띄운다(feature-spec §5.8은 "선택 사항"으로 뒀지만,
       구독으로 팔 기능이라 완주 경험이 곧 재적용 동기다)
 ## 다음 할 일
+
+- [ ] **`active_group_count` 지우는 임시 코드 삭제** — 1.3.0에서 폐기한 구 사용자 속성의 남은 값을
+      없애려고 `setUserProperty(nil, for: "active_group_count")`를 **두 곳**
+      (`AppLifecycleViewModel.updateCohortUserProperties`, `ContentViewModel.updateCohortUserProperties`)
+      에 넣어뒀다. 1.2.x 사용자가 앱을 한 번 열면 값이 사라지니, 1.2.x를 쓰는 사용자가 없어지면
+      이 코드는 아무 일도 안 하면서 돌기만 한다. 그때 두 줄을 함께 지운다(한쪽만 지우면 다른 쪽이
+      계속 돈다). 시점은 버전 분포(App Store Connect·GA4 `app_version`)를 보고 정한다
 
 - [x] 대시보드(goldtime-dashboard): **1.3.0 개편 대응 1차 완료(2026-08-17)** — 구·신 이벤트
       이름을 `EVENT_SETS`로 묶어 전 쿼리를 UNION 처리(`event_name IN UNNEST(...)`). 업데이트가
@@ -96,6 +108,11 @@
       `shield_lock_started`는 `rule_mode` + `enforcement_rule`, 연장 시트는 Shield
       복귀 `entry_source=shield` / 홈 카드 `entry_source=home_group`이어야 한다.
       ShieldAction extension 큐는 앱 재진입 전에는 Firebase로 안 가는 것이 정상
+
+- [ ] **클린 재설치 첫 활성화의 이벤트에 권한 속성이 붙는지**(2026-08-18 순서 수정 검증).
+      BigQuery에서 그 설치의 **가장 이른** `group_snapshot`을 꺼내 `user_properties`에
+      `authorized_screen_time`이 들어 있는지 본다. 비어 있으면 `appDidBecomeActive()`에서
+      권한 갱신이 이벤트 전송 뒤로 다시 밀린 것(Presentation/CLAUDE.md "권한 분석 계약")
 
 - [ ] 1일 연장 불가 기간을 새 빌드에서 시작한 뒤 정상 만료시키고 첫 앱 활성화에서
       `strict_lock_completed(strict_lock_total_days=1)`가 정확히 1회 전송되는지 확인. 앱을 다시

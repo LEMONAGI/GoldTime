@@ -49,15 +49,20 @@ final class AppLifecycleViewModel {
         refreshLockOptionsPresentation()
     }
 
+    /// 순서 규칙: **user property 갱신이 이벤트 전송보다 먼저**다. Firebase는 property를
+    /// "설정한 이후에 전송된 이벤트"에만 붙이므로, 순서가 뒤집히면 이번 활성화의 이벤트들이
+    /// 직전 세션의 권한 값을 달고 나가고 **신규 설치의 첫 활성화에는 권한 속성이 아예 없다**
+    /// (`group_snapshot`/`rule_*`을 권한별로 쪼개는 분석에서 첫 세션이 통째로 빠진다).
+    /// UI 경로(sync·시트 표시)는 await보다 앞에 둬 Shield 복귀 시트가 늦게 뜨지 않게 한다.
     func appDidBecomeActive() async {
         authorizeUseCase.refresh()
         syncProtectionRulesIfAuthorized()
         refreshLockOptionsPresentation()
+        await updateAuthorizationUserProperties()
+        updateCohortUserProperties()
         drainPendingAnalyticsEvents()
         updateStrictLockCompletions()
-        updateCohortUserProperties()
         logGroupSnapshots()
-        await updateAuthorizationUserProperties()
         notificationRepository.clearDeliveredNotifications()
         MonitoringBackgroundTask.scheduleNext()
     }
@@ -108,7 +113,11 @@ final class AppLifecycleViewModel {
     /// 적용된 그룹의 규칙 형태를 user property로 심어 코호트 분석 축을 만든다.
     /// 미승인 유저에는 stale property를 남기지 않도록 권한이 있을 때만 갱신한다.
     private func updateCohortUserProperties() {
-        // 1.3.0에서 group_snapshot과 중복이라 폐기한 사용자 속성의 기존 값을 지운다.
+        // [삭제 예정 — TODO.md] 1.3.0에서 group_snapshot과 중복이라 폐기한 사용자 속성의 기존 값을
+        // 지운다. 1.2.x에서 올라온 사용자가 앱을 **한 번** 열면 서버 값이 사라지므로, 1.2.x를 쓰는
+        // 사용자가 없어지면 이 줄은 아무 일도 안 하면서 매 활성화마다 돌기만 한다. 그때 지운다
+        // (특정 버전에 예약하지 말고 버전 분포를 보고 판단).
+        // 같은 줄이 `ContentViewModel.updateCohortUserProperties`에도 있다 — 지울 때 함께 지운다.
         analyticsRepository.setUserProperty(nil, for: "active_group_count")
         guard authorizeUseCase.isAuthorized else { return }
         let groups = GroupRepositoryImpl().screenTimeGroups

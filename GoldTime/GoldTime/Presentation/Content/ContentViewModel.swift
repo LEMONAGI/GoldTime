@@ -930,6 +930,11 @@ final class ContentViewModel {
         errorMessage = nil
         persistGroups()
         let group = groups.first(where: { $0.id == id })
+        // 약정 기록(완주율 **분자**)과 시작 이벤트(**분모**)를 **같은 payload 조건에 묶어둔다** —
+        // 분리하지 말 것. payload가 nil이면(applied 아님·ruleKind 없음 = `activateStrictLock`이
+        // 이미 막아 도달 불가) 시작 이벤트가 안 나가는데, 약정만 따로 기록하면 나중에
+        // `strict_lock_completed`가 짝 없이 전송돼 **완주율이 분자>분모로 깨진다**.
+        // 둘 다 건너뛰면 그 잠금이 분석에서 통째로 빠질 뿐 비율은 성립한다.
         if let group, let payload = RuleGroupSnapshotAnalytics(group: group) {
             if let startedAt = group.strictStartedAt, let expiresAt = group.strictUntil {
                 analyticsRepository.recordStrictLockCommitment(
@@ -1048,7 +1053,9 @@ final class ContentViewModel {
     /// 갱신되게 한다. Firebase에는 식별자·그룹명 없이 집계된 profile만 보낸다.
     private func updateCohortUserProperties() {
         guard isAuthorized else { return }
-        // 1.3.0에서 group_snapshot과 중복이라 폐기한 사용자 속성의 기존 값을 지운다.
+        // [삭제 예정 — TODO.md] 1.3.0에서 group_snapshot과 중복이라 폐기한 사용자 속성의 기존 값을
+        // 지운다. 같은 줄이 `AppLifecycleViewModel.updateCohortUserProperties`에도 있다
+        // (그쪽은 권한 guard 밖) — 지울 때 함께 지운다.
         analyticsRepository.setUserProperty(nil, for: "active_group_count")
         for entry in UserCohortProperties(groups: groups).entries {
             analyticsRepository.setUserProperty(entry.value, for: entry.name)
