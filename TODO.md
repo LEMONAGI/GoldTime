@@ -6,27 +6,13 @@
 
 ## 하는 중
 
+- [ ] **1.3.0 이벤트 개편 완료 검증** — 실기기에서 Shield 이벤트·클린 재설치 첫 권한 속성·
+      `strict_lock_completed` 1회 전송을 DebugView/BigQuery로 확인하고, 남은 대시보드 후속 범위를 정리
+
 ## 1.3.0 출시 준비 (연장 불가 모드 무료 베타)
 
 > 2026-08-05 출시 전 점검에서 도출. 1.2.0(요일별 규칙)은 제출 완료 — 연장 불가 모드는 **1.3.0**으로 나간다.
 
-- [x] **GA4 콘솔 등록 완료(2026-08-18) — 콘솔 쪽 할 일 0건.** 1.3.0이 요구하는 커스텀 정의는
-      전부 등록됐다(측정기준 18개 / 측정항목 11개, 캡처로 전수 확인). 신규 5건
-      `uniform_daily_limit_bucket`·`uniform_time_window_count_bucket`·
-      `uniform_time_window_total_bucket`·`uniform_cooldown_usage_bucket`·
-      `uniform_cooldown_duration_bucket`은 이벤트 범위 텍스트 차원으로 등록, 구
-      `applied_group_count_bucket` 차원은 아카이브.
-      **이 항목 아래에 콘솔 등록 할 일을 새로 만들지 말 것** — 미등록으로 남은 10건은
-      "할 일"이 아니라 아래 참고 블록의 선택지다.
-
-> **[참고 — 할 일 아님] 미등록 10건은 등록하지 않아도 된다.**
-> `placement`, `selection_count_bucket`, `context`, 사용자 속성 7건(`primary_rule_kind`,
-> `uses_*` 4, `active_rule_profile`, `strict_rule_profile`)은 **1.2.x부터 계속 미등록**이었고
-> 이번 개편과 무관하다. 없어도 앱·대시보드 모두 정상이다(대시보드는 BigQuery 직접 조회라
-> 콘솔 등록과 무관). 영향은 GA4 **웹 UI에서 그 축으로 쪼개 볼 수 없다**는 것 하나뿐이라
-> 출시를 막지 않는다. 나중에 GA4 UI에서 보고 싶어지면 그때 등록하되, 등록은 소급되지
-> 않으므로 **보고 싶어진 시점보다 먼저** 넣어야 한다는 것만 기억한다.
-> 전체 현황은 `docs/agent/analytics.md` "콘솔 등록 원칙" 표.
 - [ ] **릴리스 노트 1.3.0 작성**(ko/en/ja) — `docs/release-notes/1.3.0.md` 신규. 연장 불가 모드가
       이번 버전의 핵심이고 앱이 첫 실행에서 "무료 베타 출시!" 팝업을 띄우므로, 스토어 "이번 버전의
       새로운 기능"에 반드시 같은 내용이 있어야 한다. `1.2.0.md`는 제출 기록으로 그대로 둔다
@@ -50,6 +36,7 @@
 - [ ] **연장 불가 기간 만료 피드백** — 시작은 alert+햅틱인데 끝은 배지가 조용히 사라질 뿐이다.
       만료 후 첫 홈 진입에서 완주 안내를 1회 띄운다(feature-spec §5.8은 "선택 사항"으로 뒀지만,
       구독으로 팔 기능이라 완주 경험이 곧 재적용 동기다)
+
 ## 다음 할 일
 
 - [ ] **`active_group_count` 지우는 임시 코드 삭제** — 1.3.0에서 폐기한 구 사용자 속성의 남은 값을
@@ -59,15 +46,6 @@
       이 코드는 아무 일도 안 하면서 돌기만 한다. 그때 두 줄을 함께 지운다(한쪽만 지우면 다른 쪽이
       계속 돈다). 시점은 버전 분포(App Store Connect·GA4 `app_version`)를 보고 정한다
 
-- [x] 대시보드(goldtime-dashboard): **1.3.0 개편 대응 1차 완료(2026-08-17)** — 구·신 이벤트
-      이름을 `EVENT_SETS`로 묶어 전 쿼리를 UNION 처리(`event_name IN UNNEST(...)`). 업데이트가
-      점진 적용이라 두 세대가 몇 주간 공존하므로 **한쪽만 세면 안 된다**. 처리한 것: 홈 KPI
-      (`eventKpi.ts`), 퍼널(`funnel.ts` — 권한 허용은 이벤트→user property로 바뀌어 OR 판정,
-      `group_created`/`rule_monitoring_registered`는 수집 중단이라 0이면 회색+사유 표기),
-      그룹(`groups.ts` — `group_applied`가 더는 규칙 상세를 안 보내서 상세 분포를 스냅샷
-      이벤트의 **사용자별 최신 `snapshot_id` 전체 그룹**에서 재수집하고 과거 적용 행위와 별도 표시,
-      `active_group_count` 속성 → `group_snapshot` 정수로 세대 통합). 검증: `tsc --noEmit`·ESLint
-      통과 + 그룹 API 200 및 현재/과거 응답 분리 확인 + 홈 KPI 값이 변경 전과 동일
 - [ ] 대시보드(goldtime-dashboard): **남은 것 — 새 축을 화면에 올리기**(계약·상수는 이미 있음)
   - [ ] 연장 불가 화면/섹션: `strict_lock_started`/`extended`/`completed`/`revoke_detected`로
         **완주율(`completed`/`started`)** 표시. 구독 판매 결정의 핵심 지표다.
@@ -99,16 +77,12 @@
 
 ## 실기기 검증 대기
 
-1.2.0 요일별 규칙 검증은 완료(2026-07-21, 판정 기록은
-[docs/verify-1.2.0-runbook.md](docs/verify-1.2.0-runbook.md)).
-
 - [ ] Firebase DebugView/BigQuery에서 실제 Shield 발생 → 그만 쓰기/
       GoldTime 가기 → 1분·광고 연장을 각각 1회 수행해 `shield_lock_started`,
       `shield_action_*`, `shield_extend_*`가 새 이름·파라미터로 전송되는지 확인.
       `shield_lock_started`는 `rule_mode` + `enforcement_rule`, 연장 시트는 Shield
       복귀 `entry_source=shield` / 홈 카드 `entry_source=home_group`이어야 한다.
       ShieldAction extension 큐는 앱 재진입 전에는 Firebase로 안 가는 것이 정상
-
 - [ ] **클린 재설치 첫 활성화의 이벤트에 권한 속성이 붙는지**(2026-08-18 순서 수정 검증).
       BigQuery에서 그 설치의 **가장 이른** `group_snapshot`을 꺼내 `user_properties`에
       `authorized_screen_time`이 들어 있는지 본다. 비어 있으면 `appDidBecomeActive()`에서
@@ -122,52 +96,14 @@
 
 - [ ] **연장 불가 모드(기간 강력 잠금)** (`Feat/AbsoluteLock` 구현 완료 2026-07-13 —
       **검증 완료 전 머지·제출 금지**) 런북: [docs/verify-strictlock-runbook.md](docs/verify-strictlock-runbook.md)
-  - 기기 구성(2026-07-27 저녁 투입): A=애플게임/일일한도 5분/**1일**(7/28 00:00 만료),
-    B=애플TV/쿨다운 5분·30분/**3일**(**7/30 00:00** 만료 — 오늘 포함 3일이라 UI는 "7/29 23:59까지"),
-    C=일기앱/대조군(연장 불가 없음)
-  - [x] **세션 1 통과(2026-07-27)**: 토글 옵트인 게이트(Off면 행 없음→On 즉시 노출), 적용 흐름
-        +개명 문구·고지 순서(연장이 첫 줄)·확인 본문(날짜/일수 위치 지정자), 전역 설정 실동작
-        (앱 제거 불가·날짜 회색), 3일 적용, 편집/항목/삭제 차단 alert+**광고 다이얼로그 미노출**,
-        이름 수정만 허용, C 대조(광고 게이트 정상). 로그 판정은 세션 2에서 일괄 수집
-  - [x] **세션 2 통과(2026-07-29)**: A 만료 lazy 복귀(배지 사라짐·편집 가능), **전역 설정 유지**
-        (B 활성 — 해제 로그 없음이 정상), 토글 **비활성**+캡션(alert 아님), 연장 차단 ④+쿨다운
-        휴식 차단 ⑤(연장 버튼 미렌더+안내 카드, `연장 거부` 로그 없음 = UI가 먼저 차단),
-        권한 철회→복구 안내→재승인 시 D-N 복원(`연장 불가 전역 설정 적용` extension+앱 2회).
-        `strict_revoke_detected`는 **GA4 전용**이라 OSLog 미검증 → 세션 3에서 BigQuery로 확인.
-        ⚠️ 이 과정에서 **쿨다운 휴식 타이머 버그** 발견 → 수정 완료(`b7f43b9`),
-        실기기 검증만 대기(아래 "쿨다운 휴식 타이머 복구")
-  - [x] **세션 3 통과(2026-07-30)** — ⑦-b **extension 단독 해제 확정**: 자정 2초 후
-        (`00:00:02`) `DeviceActivityMonitorExtension` 프로세스가 `연장 불가 전역 설정 해제`를
-        찍고, Apple ManagedSettings 로그가 삭제 store 컨테이너를
-        `com.nagi.GoldTime.DeviceActivityMonitorExtension`로 확인(이중 증거) +
-        `Shield 해제(잠긴 그룹 없음) lockedGroups=0` 동반. **메인 앱 프로세스 로그 0줄** —
-        앱 열기 전 수집 순서를 지켜 "경합이 아니라 extension 단독"이 확정됐다.
-        육안 3개(앱 제거 다시 가능·날짜와 시간 수정 가능·토글 정상 꺼짐+카드 행 사라짐) 통과.
-        BigQuery `strict_revoke_detected` **정확히 1회**(7/29 11:06:17 KST →
-        `didLogStrictRevoke` 중복 방지 가드 정상), 덧붙여 검증 기기의 7/29 **광고 이벤트 0건**
-        = 연장 불가 그룹에서 광고 게이트 미노출의 분석 측 증거.
-    - ⚠️ **자정 재무장은 판정 불가로 남았다** — 오후 13:21 수집이라 GTLog가 2줄만 남았다
-      (같은 시각 Apple 프레임워크 로그는 75줄인데 `▶︎ intervalDidStart`조차 유실 = OSLog
-      Debug 보존 한계). 정황은 통과: `00:00:02.391` pending 알림 2개 제거→1개 추가가
-      `handleHeartbeat`의 알림 재예약(extension 101·104행) 자리이고 이어진 `clearSystemShield`
-      → ManagedSettings 삭제 순서가 코드와 일치. **교훈: 자정 판정용 로그는 자정 직후
-      `00:05~00:15`에 `--last 30m`으로 수집**(00:00 정각은 하트비트 지연 실측 00:02:50 때문에
-      이르다. 차선은 아침 일찍, 오후는 GTLog 판정 포기) — working-rules "실기기 OSLog 수집" 반영
+  - [ ] **자정 재무장 실기기 재검증** — 자정 직후 `00:05~00:15`에 `--last 30m`으로 로그 수집.
+        00:00 정각은 하트비트 지연 실측 00:02:50 때문에 이르고, 오후에는 GTLog가 유실돼 판정 불가
   - [ ] 시뮬 육안(런북 하단 체크리스트): 시트 2단계·연장 칩 활성/비활성·배지·차단 alert·
         LockOptions 안내 카드·**카드 연장 불가 행의 24pt 인포 버튼**(제목 없는 2문단 팝오버,
         2026-08-15 설정 행에서 이동)·다크 모드·큰 글자·en/ja
         - ⚠️ 발광 테두리(`StrictLockGlowBorder`)는 설정 행과 함께 **제거**됐다(2026-08-15) —
           이전 체크리스트의 회전·섬광 항목은 더 이상 확인 대상이 아니다
-  - [ ] **UX 다듬기 8건 재검증(2026-07-29 변경 — 시뮬로 완료 처리 금지인 항목은 소리·햅틱뿐)**
-    - [x] 확정 → 홈 복귀 시 **시작 알럿 + 햅틱** 통과(2026-07-29) — **소리는 최종적으로 뺐다**
-          (2026-07-31): 시스템 사운드 1306·1160·1160+1407 시퀀스와 번들 음원 7종(Freesound CC0)을
-          실기기 청취로 전부 기각하고 **묵직한 두 박 햅틱**(`.heavy` ×2, 150ms 간격)으로 확정.
-          연장=소리+success 햅틱 / 잠금=햅틱만 이라는 대비가 오히려 선명하다. 기각 이력은
-          `LockFeedback.swift` 상단 주석 — "잠금음이 없다"를 버그로 보고 채우지 말 것
-    - [x] 이미 연장 불가 중인 그룹 기간 연장 시 "기간을 늘렸어요" 알럿(시작 알럿이 아님) —
-          통과(2026-07-31)
-    - [x] 시트를 열면 **"1일" 프리셋 칩이 선택되고 휠이 접혀 있는지**(2026-07-31 기본값 변경),
-          커스텀 칩을 누르면 그때 "14일"로 펼쳐지는지 — 통과(2026-07-31)
+  - [ ] **UX 다듬기 남은 재검증**
     - [ ] 카드 배지가 `🔒 N일 남음`이고 자물쇠 오른쪽 여백이 정상, 상태 배지와 높이가 맞는지
     - [ ] 연장 불가 행 제목이 적용 전 "연장 불가 기간 설정" → 적용 중 "연장 불가 기간"
           (2026-08-15 문구 변경), en/ja(`Set Locked-In Period`·`Locked-In Period` /
