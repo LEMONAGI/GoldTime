@@ -337,12 +337,12 @@ struct GroupCardView: View {
             Image(systemName: "lock.fill")
             Text(text)
         }
-        .font(.caption2.weight(.bold))
+        .font(.caption.weight(.bold))
         .foregroundStyle(Color.accent)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(Color.accent.opacity(0.15))
-        .clipShape(Capsule())
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     @ViewBuilder
