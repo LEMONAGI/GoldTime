@@ -6,6 +6,9 @@
 
 ## 하는 중
 
+- [ ] **1.3.0 이벤트 개편 완료 검증** — 실기기에서 Shield 이벤트·클린 재설치 첫 권한 속성·
+      `strict_lock_completed` 1회 전송을 DebugView/BigQuery로 확인하고, 남은 대시보드 후속 범위를 정리
+
 ## 1.3.0 출시 준비 (연장 불가 모드 무료 베타)
 
 > 2026-08-05 출시 전 점검에서 도출. 1.2.0(요일별 규칙)은 제출 완료 — 연장 불가 모드는 **1.3.0**으로 나간다.
@@ -33,30 +36,37 @@
 - [ ] **연장 불가 기간 만료 피드백** — 시작은 alert+햅틱인데 끝은 배지가 조용히 사라질 뿐이다.
       만료 후 첫 홈 진입에서 완주 안내를 1회 띄운다(feature-spec §5.8은 "선택 사항"으로 뒀지만,
       구독으로 팔 기능이라 완주 경험이 곧 재적용 동기다)
-- [ ] **분석 이벤트 전면 개편 — 연장 불가 완주 이벤트 포함**. 현재 strict 이벤트는
-      `strict_lock_commit`(days)·`strict_revoke_detected` 둘뿐이라 **완주율·재적용률을 계산할 수 없다**
-      (유료 구독 전환 판단의 핵심 지표). 만료 시점 이벤트를 추가하거나 commit에 직전 기간 완주 여부를
-      싣는 식으로 설계할 것. 이벤트 스키마를 대대적으로 손보는 김에 아래 "Firebase Analytics Bool 파라미터
-      타입" 항목과 대시보드 신규 이벤트 처리도 함께 정리
 
 ## 다음 할 일
 
-- [ ] Firebase Analytics: SDK가 보장하는 이벤트 파라미터 타입은 String/Int/Double인데 현재
-      `granted`·`was_locked`·`caused_lock`은 Bool을 전달한다. DebugView·BigQuery에서 실제 저장
-      타입을 확인한 뒤 custom definition 등록 또는 하위 호환 스키마 변경을 결정할 것
-- [ ] 대시보드(goldtime-dashboard): 연장 불가 모드 신규 이벤트 처리 — `strict_lock_commit`(days),
-      `strict_revoke_detected`. 연장 불가 기간 중인 그룹은 `group_edit_gate`·광고 노출이 0이 되는 게
-      정상(수익 감소가 아니라 기능 동작 — 추이 해석 주석 필요)
+- [ ] **`active_group_count` 지우는 임시 코드 삭제** — 1.3.0에서 폐기한 구 사용자 속성의 남은 값을
+      없애려고 `setUserProperty(nil, for: "active_group_count")`를 **두 곳**
+      (`AppLifecycleViewModel.updateCohortUserProperties`, `ContentViewModel.updateCohortUserProperties`)
+      에 넣어뒀다. 1.2.x 사용자가 앱을 한 번 열면 값이 사라지니, 1.2.x를 쓰는 사용자가 없어지면
+      이 코드는 아무 일도 안 하면서 돌기만 한다. 그때 두 줄을 함께 지운다(한쪽만 지우면 다른 쪽이
+      계속 돈다). 시점은 버전 분포(App Store Connect·GA4 `app_version`)를 보고 정한다
+
+- [ ] 대시보드(goldtime-dashboard): **남은 것 — 새 축을 화면에 올리기**(계약·상수는 이미 있음)
+  - [ ] 연장 불가 화면/섹션: `strict_lock_started`/`extended`/`completed`/`revoke_detected`로
+        **완주율(`completed`/`started`)** 표시. 구독 판매 결정의 핵심 지표다.
+        `strict_lock_total_days`(완료)와 `strict_lock_days`(시작·연장)는 **의미가 달라 합치지 말 것**
+  - [ ] 연장 시트 진입 경로 분해: `shield_extend_options_viewed.entry_source`
+        (`shield` vs `home_group`) — 지금은 합산만 한다
+  - [ ] 연장 실패 사유 분포: `shield_extend_failed.failure_reason`(신규 축, 아직 미사용)
+  - [ ] 코호트 user property `active_rule_profile`/`strict_rule_profile`(`wdN_dlN_twN_cdN`) 화면화.
+        strict 보유/비보유 코호트의 광고 노출 비교가 "연장 불가가 광고 수익을 갉아먹는가"의 답
+  - [ ] 연장 불가 기간 중인 그룹은 `group_edit_gate`·광고 노출이 0이 되는 게
+        정상(수익 감소가 아니라 기능 동작 — 추이 해석 주석 필요)
 
 - [ ] 대시보드(goldtime-dashboard): 1.2.0 신규 분석 값 처리 — rule_kind "weekday",
-      weekday_restricted_days(days_N), 코호트 uses_weekday (shield_hit은 집행 규칙 유지라
+      weekday_restricted_days(days_N), 코호트 uses_weekday (1.3.0부터 집행 규칙은
+      `shield_lock_started.enforcement_rule`로 분리됨 — 구 `shield_hit.rule_kind`와
       rule_kind 조인 시 의미 분화 주의). 광고 placement `group_edit_gate` 노출 의미가
       1.2.0에서 '편집 진입'→'변경 적용(완료 게이트)'으로 변경 — 노출 수 감소는 UX 개선이지
       이탈이 아님(추이 해석 주석 필요)
-- [ ] 대시보드(goldtime-dashboard): 그룹 구성 코호트 신규 user property 처리 —
-      `active_rule_profile`/`strict_rule_profile`의 `wdN_dlN_twN_cdN`은 각각 적용 그룹·활성
-      연장 불가 그룹의 top-level 규칙 수(요일별/일일/시간대/쿨다운)다. GA4 보고서에서 쓰려면
-      사용자 범위 custom dimension으로 등록하고, BigQuery에서는 이벤트 시점 `user_properties`로 조인
+- [ ] 대시보드(goldtime-dashboard): 위 코호트 속성을 GA4 **보고서**에서 쓰려면 사용자 범위
+      custom dimension 등록이 필요하다(BigQuery는 등록 없이 조회 가능 —
+      이벤트 시점 `user_properties`로 조인)
 - [ ] **에이전트 문서 이중화(AGENTS.md) 유지 여부 결정** — `CLAUDE.md` 9개가 전부 `AGENTS.md`로
       복제돼 있다(pre-commit 훅이 자동 동기화). Codex/Cursor/Antigravity를 실제로 쓰지 않으면
       570줄이 순수 사본이고 diff가 항상 2배로 나온다. 안 쓴다면 `AGENTS.md`·`sync-agent-docs.sh`·
@@ -67,57 +77,33 @@
 
 ## 실기기 검증 대기
 
-1.2.0 요일별 규칙 검증은 완료(2026-07-21, 판정 기록은
-[docs/verify-1.2.0-runbook.md](docs/verify-1.2.0-runbook.md)).
+- [ ] Firebase DebugView/BigQuery에서 실제 Shield 발생 → 그만 쓰기/
+      GoldTime 가기 → 1분·광고 연장을 각각 1회 수행해 `shield_lock_started`,
+      `shield_action_*`, `shield_extend_*`가 새 이름·파라미터로 전송되는지 확인.
+      `shield_lock_started`는 `rule_mode` + `enforcement_rule`, 연장 시트는 Shield
+      복귀 `entry_source=shield` / 홈 카드 `entry_source=home_group`이어야 한다.
+      ShieldAction extension 큐는 앱 재진입 전에는 Firebase로 안 가는 것이 정상
+- [ ] **클린 재설치 첫 활성화의 이벤트에 권한 속성이 붙는지**(2026-08-18 순서 수정 검증).
+      BigQuery에서 그 설치의 **가장 이른** `group_snapshot`을 꺼내 `user_properties`에
+      `authorized_screen_time`이 들어 있는지 본다. 비어 있으면 `appDidBecomeActive()`에서
+      권한 갱신이 이벤트 전송 뒤로 다시 밀린 것(Presentation/CLAUDE.md "권한 분석 계약")
+
+- [ ] 1일 연장 불가 기간을 새 빌드에서 시작한 뒤 정상 만료시키고 첫 앱 활성화에서
+      `strict_lock_completed(strict_lock_total_days=1)`가 정확히 1회 전송되는지 확인. 앱을 다시
+      활성화해도 중복되지 않아야 하며, 권한 철회한 약정에는 완료 이벤트가 생기지 않아야 한다.
+      ⚠️ 반대 방향도 반드시 볼 것: **권한이 정상인데 완료가 안 오는** 경우(콜드 스타트에서
+      `AuthorizationCenter`가 transient false로 읽히면 약정이 통째로 폐기되던 버그의 회귀)
 
 - [ ] **연장 불가 모드(기간 강력 잠금)** (`Feat/AbsoluteLock` 구현 완료 2026-07-13 —
       **검증 완료 전 머지·제출 금지**) 런북: [docs/verify-strictlock-runbook.md](docs/verify-strictlock-runbook.md)
-  - 기기 구성(2026-07-27 저녁 투입): A=애플게임/일일한도 5분/**1일**(7/28 00:00 만료),
-    B=애플TV/쿨다운 5분·30분/**3일**(**7/30 00:00** 만료 — 오늘 포함 3일이라 UI는 "7/29 23:59까지"),
-    C=일기앱/대조군(연장 불가 없음)
-  - [x] **세션 1 통과(2026-07-27)**: 토글 옵트인 게이트(Off면 행 없음→On 즉시 노출), 적용 흐름
-        +개명 문구·고지 순서(연장이 첫 줄)·확인 본문(날짜/일수 위치 지정자), 전역 설정 실동작
-        (앱 제거 불가·날짜 회색), 3일 적용, 편집/항목/삭제 차단 alert+**광고 다이얼로그 미노출**,
-        이름 수정만 허용, C 대조(광고 게이트 정상). 로그 판정은 세션 2에서 일괄 수집
-  - [x] **세션 2 통과(2026-07-29)**: A 만료 lazy 복귀(배지 사라짐·편집 가능), **전역 설정 유지**
-        (B 활성 — 해제 로그 없음이 정상), 토글 **비활성**+캡션(alert 아님), 연장 차단 ④+쿨다운
-        휴식 차단 ⑤(연장 버튼 미렌더+안내 카드, `연장 거부` 로그 없음 = UI가 먼저 차단),
-        권한 철회→복구 안내→재승인 시 D-N 복원(`연장 불가 전역 설정 적용` extension+앱 2회).
-        `strict_revoke_detected`는 **GA4 전용**이라 OSLog 미검증 → 세션 3에서 BigQuery로 확인.
-        ⚠️ 이 과정에서 **쿨다운 휴식 타이머 버그** 발견 → 수정 완료(`b7f43b9`),
-        실기기 검증만 대기(아래 "쿨다운 휴식 타이머 복구")
-  - [x] **세션 3 통과(2026-07-30)** — ⑦-b **extension 단독 해제 확정**: 자정 2초 후
-        (`00:00:02`) `DeviceActivityMonitorExtension` 프로세스가 `연장 불가 전역 설정 해제`를
-        찍고, Apple ManagedSettings 로그가 삭제 store 컨테이너를
-        `com.nagi.GoldTime.DeviceActivityMonitorExtension`로 확인(이중 증거) +
-        `Shield 해제(잠긴 그룹 없음) lockedGroups=0` 동반. **메인 앱 프로세스 로그 0줄** —
-        앱 열기 전 수집 순서를 지켜 "경합이 아니라 extension 단독"이 확정됐다.
-        육안 3개(앱 제거 다시 가능·날짜와 시간 수정 가능·토글 정상 꺼짐+카드 행 사라짐) 통과.
-        BigQuery `strict_revoke_detected` **정확히 1회**(7/29 11:06:17 KST →
-        `didLogStrictRevoke` 중복 방지 가드 정상), 덧붙여 검증 기기의 7/29 **광고 이벤트 0건**
-        = 연장 불가 그룹에서 광고 게이트 미노출의 분석 측 증거.
-    - ⚠️ **자정 재무장은 판정 불가로 남았다** — 오후 13:21 수집이라 GTLog가 2줄만 남았다
-      (같은 시각 Apple 프레임워크 로그는 75줄인데 `▶︎ intervalDidStart`조차 유실 = OSLog
-      Debug 보존 한계). 정황은 통과: `00:00:02.391` pending 알림 2개 제거→1개 추가가
-      `handleHeartbeat`의 알림 재예약(extension 101·104행) 자리이고 이어진 `clearSystemShield`
-      → ManagedSettings 삭제 순서가 코드와 일치. **교훈: 자정 판정용 로그는 자정 직후
-      `00:05~00:15`에 `--last 30m`으로 수집**(00:00 정각은 하트비트 지연 실측 00:02:50 때문에
-      이르다. 차선은 아침 일찍, 오후는 GTLog 판정 포기) — working-rules "실기기 OSLog 수집" 반영
+  - [ ] **자정 재무장 실기기 재검증** — 자정 직후 `00:05~00:15`에 `--last 30m`으로 로그 수집.
+        00:00 정각은 하트비트 지연 실측 00:02:50 때문에 이르고, 오후에는 GTLog가 유실돼 판정 불가
   - [ ] 시뮬 육안(런북 하단 체크리스트): 시트 2단계·연장 칩 활성/비활성·배지·차단 alert·
         LockOptions 안내 카드·**카드 연장 불가 행의 24pt 인포 버튼**(제목 없는 2문단 팝오버,
         2026-08-15 설정 행에서 이동)·다크 모드·큰 글자·en/ja
         - ⚠️ 발광 테두리(`StrictLockGlowBorder`)는 설정 행과 함께 **제거**됐다(2026-08-15) —
           이전 체크리스트의 회전·섬광 항목은 더 이상 확인 대상이 아니다
-  - [ ] **UX 다듬기 8건 재검증(2026-07-29 변경 — 시뮬로 완료 처리 금지인 항목은 소리·햅틱뿐)**
-    - [x] 확정 → 홈 복귀 시 **시작 알럿 + 햅틱** 통과(2026-07-29) — **소리는 최종적으로 뺐다**
-          (2026-07-31): 시스템 사운드 1306·1160·1160+1407 시퀀스와 번들 음원 7종(Freesound CC0)을
-          실기기 청취로 전부 기각하고 **묵직한 두 박 햅틱**(`.heavy` ×2, 150ms 간격)으로 확정.
-          연장=소리+success 햅틱 / 잠금=햅틱만 이라는 대비가 오히려 선명하다. 기각 이력은
-          `LockFeedback.swift` 상단 주석 — "잠금음이 없다"를 버그로 보고 채우지 말 것
-    - [x] 이미 연장 불가 중인 그룹 기간 연장 시 "기간을 늘렸어요" 알럿(시작 알럿이 아님) —
-          통과(2026-07-31)
-    - [x] 시트를 열면 **"1일" 프리셋 칩이 선택되고 휠이 접혀 있는지**(2026-07-31 기본값 변경),
-          커스텀 칩을 누르면 그때 "14일"로 펼쳐지는지 — 통과(2026-07-31)
+  - [ ] **UX 다듬기 남은 재검증**
     - [ ] 카드 배지가 `🔒 N일 남음`이고 자물쇠 오른쪽 여백이 정상, 상태 배지와 높이가 맞는지
     - [ ] 연장 불가 행 제목이 적용 전 "연장 불가 기간 설정" → 적용 중 "연장 불가 기간"
           (2026-08-15 문구 변경), en/ja(`Set Locked-In Period`·`Locked-In Period` /

@@ -14,9 +14,16 @@ struct LockOptionsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = LockOptionsViewModel()
     let initialGroupID: UUID?
+    let entrySource: LockOptionsEntrySource
 
-    init(initialGroupID: UUID? = nil) {
+    /// `entrySource`에 기본값을 두지 않는다 — 새 진입점이 깜빡 생략하면 조용히 `shield`로 집계돼
+    /// Shield 액션 퍼널의 분모를 오염시킨다. 컴파일러가 매번 결정을 강제하게 한다.
+    init(
+        initialGroupID: UUID? = nil,
+        entrySource: LockOptionsEntrySource
+    ) {
         self.initialGroupID = initialGroupID
+        self.entrySource = entrySource
     }
 
     var body: some View {
@@ -51,7 +58,7 @@ struct LockOptionsView: View {
         }
         .background(Color(.systemGroupedBackground))
         .onAppear {
-            viewModel.onAppear(initialGroupID: initialGroupID)
+            viewModel.onAppear(initialGroupID: initialGroupID, entrySource: entrySource)
         }
         .fullScreenCover(isPresented: $viewModel.isRewardedAdPresented, onDismiss: {
             viewModel.rewardedAdDismissed()

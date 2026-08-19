@@ -627,7 +627,7 @@ draft 그룹은 게이트 없이 자유롭게 편집·삭제할 수 있습니다
 - Screen Time 권한 철회 시 Shield·denyAppRemoval이 모두 풀린다(Apple 제약 — 어떤 앱도
   API로 못 막는다). 스크린타임 암호 안내 방식은 검토 후 제외했다(2026-07-12 사용자 결정).
 - **켜기 화면에서는 이 구멍을 안내하지 않는다**(위 참조). 대응은 사후에만: 미승인 + 연장 불가 기간 활성
-  감지 시 복구 화면에 연장 불가 기간 상태 강조·재승인 유도(`recovery.strictNotice`), `strict_revoke_detected`
+  감지 시 복구 화면에 연장 불가 기간 상태 강조·재승인 유도(`recovery.strictNotice`), `strict_lock_revoke_detected`
   분석 이벤트 기록.
 - 연장 불가 기간은 SharedStore에 보존되어 재승인 시 그대로 복원된다(철회로 연장 불가 기간이 리셋되지 않는다).
 

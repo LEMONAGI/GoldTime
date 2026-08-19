@@ -58,7 +58,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
                     "시간대 진입 → 잠금 \(self.groupLabel(windowGroupID), privacy: .public) newlyLocked=\(result.newlyLocked.count, privacy: .public)"
                 )
                 SharedStore.recordShieldHit()
-                SharedStore.enqueueShieldHit(ruleKind: "timeWindows")
+                SharedStore.enqueueShieldLockStarted(
+                    ruleMode: analyticsRuleMode(for: windowGroupID),
+                    enforcementRule: "time_window"
+                )
             } else {
                 GTLog.timeWindow.notice(
                     "시간대 진입했으나 잠금 변화 없음 \(self.groupLabel(windowGroupID), privacy: .public)"
@@ -76,6 +79,18 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         guard let id else { return "?" }
         let name = SharedStore.group(id: id)?.name ?? "?"
         return "\(name)#\(id.uuidString.prefix(4))"
+    }
+
+    /// 저장된 원본 그룹의 설정 방식. `resolved` 투영본만 보면 요일별 모드를 잃는다.
+    private func analyticsRuleMode(for groupID: UUID) -> String {
+        guard let group = SharedStore.group(id: groupID) else { return "unknown" }
+        if group.usesWeekdayRules { return "weekday" }
+        switch group.ruleKind {
+        case .dailyLimit: return "uniform_daily"
+        case .timeWindows: return "uniform_time_window"
+        case .cooldown: return "uniform_cooldown"
+        case .none: return "unknown"
+        }
     }
 
     /// 자정 하트비트(`dailyHeartbeat`, repeats:true) 발화. 날짜가 실제로 바뀐 경우(didReset)에만
@@ -365,7 +380,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
 
         if willLock {
             SharedStore.recordShieldHit()
-            SharedStore.enqueueShieldHit(ruleKind: "dailyLimit")
+            SharedStore.enqueueShieldLockStarted(
+                ruleMode: analyticsRuleMode(for: groupID),
+                enforcementRule: "daily"
+            )
             SharedStore.markGroupShielded(groupID)
             applyShieldFromGroups()
         }
@@ -472,7 +490,10 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         )
         SharedStore.startCooldown(until: until, for: groupID)
         SharedStore.recordShieldHit()
-        SharedStore.enqueueShieldHit(ruleKind: "cooldown")
+        SharedStore.enqueueShieldLockStarted(
+            ruleMode: analyticsRuleMode(for: groupID),
+            enforcementRule: "cooldown"
+        )
         do {
             try CooldownMonitor.startCooldownTimer(
                 center: DeviceActivityCenter(),

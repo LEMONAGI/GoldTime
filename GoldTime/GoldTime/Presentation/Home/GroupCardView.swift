@@ -145,7 +145,6 @@ struct GroupCardView: View {
                 } label: {
                     Image(systemName: "trash")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.red)
                 }
                 .buttonStyle(.plain)
                 .opacity(isStrictActive ? 0.45 : 1)
@@ -277,7 +276,7 @@ struct GroupCardView: View {
     private var strictRow: some View {
         HStack(alignment: .center, spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
+                HStack(spacing: 0) {
                     Text(isStrictActive ? "group.strictRow.title.active" : "group.strictRow.title.inactive")
                         .font(.subheadline.weight(.semibold))
                     strictInfoButton
@@ -308,7 +307,7 @@ struct GroupCardView: View {
         } label: {
             Image(systemName: "info.circle")
                 .font(.system(size: 12))
-                .frame(width: 20, height: 20)
+                .frame(width: 24, height: 24)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

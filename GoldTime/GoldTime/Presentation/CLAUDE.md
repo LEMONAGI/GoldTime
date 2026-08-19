@@ -41,6 +41,53 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
 
 ## 주의사항 (작업 중 발견 시 누적)
 
+- **Shield 연장 시트 분석 계약**: `LockOptionsViewModel.onAppear`는 실제 시트 표시 후
+  `shield_extend_options_viewed`를 ViewModel 생명주기당 1회 보낸다. `entry_source`는 Shield
+  복귀 sheet에서 `shield`, 홈 그룹 카드 sheet에서 `home_group`으로 진입점이 결정한다. 방식 탭은
+  `shield_extend_method_selected`, Screen Time 집행 성공·실패는
+  `shield_extend_completed`/`shield_extend_failed`로 분리한다. 광고 취소는 선택만 남고
+  성공은 남지 않아야 한다. 자동 재시도는 새 사용자 선택이 아니므로
+  `method_selected`를 중복 로깅하지 말 것.
+- **온보딩 분석 계약**: 앱 정의 이벤트는 `onboarding_entered`/
+  `onboarding_completed` 두 개만 보낸다. 단계 전환·Screen Time/알림 권한 결과를 다시
+  추가하지 말 것. 둘 다 SwiftUI 재생성·중간 단계 복원에서 부풀지 않게 UserDefaults
+  플래그로 설치당 1회만 기록한다. 신규 설치 분모는 Firebase 자동 수집 `first_open`.
+- **권한 분석 계약**: `AppLifecycleViewModel.appDidBecomeActive()`는 Screen Time 상태를
+  refresh하고 알림 상태를 await한 뒤 `authorized_screen_time`/
+  `authorized_notification`을 매 활성화마다 갱신한다. 미승인자도 갱신 guard 밖에
+  두어 `false`로 덮어써야 한다. 이벤트로 바꾸거나 그룹 코호트의 권한 guard 안에 넣지 말 것.
+  **`appDidBecomeActive()`의 호출 순서는 "user property 갱신 → 이벤트 전송"이 계약이다**
+  (2026-08-18 수정). Firebase property는 **설정 이후에 전송된 이벤트에만** 붙으므로, 권한 갱신을
+  `logGroupSnapshots()`/`drainPendingAnalyticsEvents()` 뒤로 미루면 이번 활성화의 이벤트가
+  직전 세션 값을 달고 나가고 **신규 설치의 첫 활성화에는 권한 속성이 아예 없다** — 권한별
+  그룹 구성 분석에서 첫 세션이 통째로 빠진다. `await`라고 뒤로 밀지 말 것. 반대로 UI 경로
+  (`syncProtectionRulesIfAuthorized`·`refreshLockOptionsPresentation`)는 **await보다 앞**에 둔다
+  (Shield 복귀 시트가 알림 권한 조회를 기다리게 되면 안 된다).
+- **그룹 규칙 스냅샷 계약**: 앱 활성화마다 적용 그룹 하나당 `rule_uniform_*` 또는
+  `rule_weekday_snapshot` 하나를 보낸다. `weekday`는 실제 규칙 종류가 아니라 적용 방식이고,
+  `strict_lock_active`는 규칙과 독립된 상태다. 반복 전송 때문에 GA4 채택률은 이벤트 수가 아닌
+  총 사용자 수로 비교한다. `group_snapshot`과 규칙 이벤트들은 활성화마다 새로 만든 동일한
+  `snapshot_id`를 공유해야 한다. 각각 UUID를 만들면 대시보드가 최신 배치의 여러 그룹을 복원하지 못한다.
+- **그룹 수/행동 분석 계약**: Screen Time 권한이 있는 매 앱 활성화에 `group_snapshot`을
+  한 번 보내며 적용 그룹 0개도 누락하지 않는다. 사용자 행동은 적용 저장 후
+  `group_applied`, 삭제 저장 후 `group_deleted`만 남기고 draft 생성·규칙 변경·내부 sync는 수집하지 않는다.
+  구 사용자 속성 `active_group_count`는 중복이라 폐기했으며, 업그레이드 사용자의 stale 값을
+  없애기 위해 코호트 갱신 시 nil로 지운다.
+- **`LockOptionsView`/`LockOptionsViewModel.onAppear`의 `entrySource`에 기본값을 두지 말 것.**
+  `shield_extend_options_viewed.entry_source`는 Shield 액션 퍼널의 **분모**라, 새 진입점이
+  인자를 깜빡 생략하면 홈에서 연 시트가 조용히 `shield`로 집계돼 퍼널이 틀어진다. 컴파일 에러로
+  매번 결정을 강제한다(기본값 `.shield`가 있던 시절의 회귀 방지).
+- **연장 불가 완료 분석 계약**: 시작·연장 성공 때 최초 시작·최종 만료를 분석 저장소에 갱신하고,
+  `AppLifecycleViewModel`은 권한이 유지된 첫 만료 후 활성화에서 `strict_lock_completed`를 한 번
+  보낸다. 과거 만료 그룹을 훑어 소급 생성하면 안 된다.
+  **미승인 활성화는 전송만 건너뛰고 약정을 폐기하지 않는다**(2026-08-17 수정 — 폐기하던 구현이
+  버그였다): `refresh()` 직후의 `isAuthorized`는 콜드 스타트에서 transient `false`로 읽힐 수 있고
+  (복구 UI가 재확인을 요구하는 것과 같은 이유), 폐기는 되돌릴 수 없어 한 번만 잘못 읽혀도 진행 중
+  약정까지 사라진다 → 그 사용자는 영영 완료를 안 보내고 완주율의 **분자만 조용히 깎인다**.
+  폐기는 철회 증거가 있는 경로(`ContentViewModel.handleScreenTimeRecoveryAppear` — 복구 화면 도달)에서
+  `discardStrictLockCommitments(groupIDs:)`로 그룹을 특정해서만 한다. "전부 지우기" API를 되살리지 말 것
+  (회귀 테스트 `unauthorizedActivationKeepsPendingStrictLockCommitments`).
+
 - **연장 불가 모드(기간 강력 잠금) UX 계약**: 진입 차단은 ContentViewModel 3곳
   (`presentRuleEditor`/`requestPickerPresentation`/`requestDeleteGroup`) + `deleteGroup`의
   Domain(`ManageGroupsUseCase.deleteGroup`) 경유가 세트다 — 새 편집/삭제 진입점을 만들면 같은

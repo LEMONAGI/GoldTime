@@ -20,6 +20,9 @@ DeviceActivity interval·threshold 콜백에서 Shield 적용·해제와 일일 
 
 ## 주의사항 (작업 중 발견 시 누적)
 
+- `shield_lock_started`는 원본 그룹의 `rule_mode`와 오늘 투영된
+  `enforcement_rule`을 함께 적재한다. `resolvedGroup`만으로 mode를 구하면 요일별 원본이
+  `uniform_*`로 잘못 집계되므로 `SharedStore.group(id:)`의 `usesWeekdayRules`를 먼저 본다.
 - 쿨다운 사용 tick(`cdtick.*`, activity `cooldownUsage.*`)은 `cooldownBaselineByGroupID + tick minute`으로 `raiseUsedTime`해 진행바를 갱신하고, 복원된 사용량이 `cooldownUsageMinutes` 이상일 때만 잠금+휴식 타이머(`cooldownTimer.*`)를 건다. 휴식 종료는 `CooldownMonitor.cooldownEnd`로 오늘 23:59:59를 넘기지 않는다. `cooldownUsage` activity의 `intervalDidEnd`는 daily처럼 무시(23:59:59 자연 종료, 자정 리셋이 재등록).
 - `cooldownTimer` `intervalDidEnd`(휴식 종료)는 재충전 전에 **두 가드**로 막는다: (1) `cooldownEnd != nil`(자정 등으로 이미 풀림), (2) `CooldownMonitor.shouldRechargeOnTimerEnd`(종료 예정 시각이 미래면 실제 종료 아님 → 설정 변경 재동기화 등으로 타이머가 일찍 멈춘 경우 휴식 보존). **두 조건을 단일 가드로 합치지 말 것** — `isInCooldown`은 `cooldownEnd == nil`도 false라 합치면 nil(이미 재충전됨)일 때 재충전이 잘못 통과해 이중 재충전된다. 재충전 시 직전 generation의 `cooldownUsage`를 stop한 뒤 새 generation으로 재등록. **재충전 등록이 throw하면 `enqueueScreenTimeError`로 기록 + `SharedStore.clearRegistration(for:)`으로 churn 가드를 무효화**한다 — 안 비우면 `lastRegisteredGroupsByID`에 `last==group`이 남아 메인 앱 `syncDailyMonitoring`의 `guard last != group`이 다음 foreground sync 재등록을 영구 스킵(자동 복구는 다음 자정 하트비트뿐, ~최대 24h 사용량 미추적·재잠금 공백). foreground 자가치유(`ScreenTimeManager.rechargeExpiredCooldowns`)·하트비트("성공 시에만 기록") 경로와 동일 계약.
 - 재충전 등록은 `CooldownMonitor`(메인 앱과 공유)를 호출한다. extension에서 직접 DeviceActivity 이름을 문자열로 만들지 말고 이 헬퍼를 쓸 것.

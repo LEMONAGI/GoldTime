@@ -768,7 +768,7 @@ struct ViewModelTests {
         #expect(screenTimeRepo.syncCallCount == 1)
     }
 
-    @Test func confirmApplyLogsRuleAnalyticsAfterSuccessfulRegistration() {
+    @Test func confirmApplyLogsMinimalGroupAnalytics() {
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(),
             name: "SNS",
@@ -798,18 +798,15 @@ struct ViewModelTests {
         viewModel.confirmApplyGroup(confirmation)
 
         let applied = analyticsRepo.parameters(for: "group_applied")
-        #expect(applied?["rule_kind"] as? String == "dailyLimit")
-        #expect(applied?["rule_config_bucket"] as? String == "daily_61_120m")
-
-        let registered = analyticsRepo.parameters(for: "rule_monitoring_registered")
-        #expect(registered?["rule_kind"] as? String == "dailyLimit")
-        #expect(registered?["rule_config_bucket"] as? String == "daily_61_120m")
+        #expect(applied?["rule_mode"] as? String == "uniform_daily")
+        #expect(applied?["selection_count_bucket"] as? String == "selection_0")
+        #expect(applied?.count == 2)
         // 적용 이벤트보다 먼저 현재 그룹 조합 user property를 심어, 이벤트를 사용자 구성과 조인한다.
         #expect(analyticsRepo.userProperties["active_rule_profile"] == "wd0_dl1_tw0_cd0")
         #expect(analyticsRepo.userProperties["strict_rule_profile"] == "wd0_dl0_tw0_cd0")
     }
 
-    @Test func confirmApplyDoesNotLogMonitoringRegistrationWhenSyncFails() {
+    @Test func confirmApplyStillLogsSavedAppliedStateWhenSyncFails() {
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(),
             name: "SNS",
@@ -838,7 +835,6 @@ struct ViewModelTests {
         viewModel.confirmApplyGroup(ApplyGroupConfirmation(groupID: group.id, groupName: group.name))
 
         #expect(analyticsRepo.parameters(for: "group_applied") != nil)
-        #expect(analyticsRepo.parameters(for: "rule_monitoring_registered") == nil)
     }
 
     private func makeApplyViewModel(with group: SharedStore.ScreenTimeGroup) -> ContentViewModel {
@@ -878,6 +874,31 @@ struct ViewModelTests {
         #expect(groupRepo.screenTimeGroups.count == 1)
         #expect(screenTimeRepo.syncCallCount == 0)
         #expect(viewModel.errorMessage == nil)
+    }
+
+    @Test func deletingGroupLogsWhetherItWasApplied() {
+        let group = SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "SNS", ruleKind: .dailyLimit, isApplied: true
+        )
+        let groupRepo = FakeGroupRepository()
+        groupRepo.screenTimeGroups = [group]
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = ContentViewModel(
+            manageGroupsUseCase: ManageGroupsUseCase(
+                groupRepository: groupRepo,
+                screenTimeRepository: FakeScreenTimeRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            loadDashboardUseCase: makeLoadDashboardUseCase(),
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            analyticsRepository: analyticsRepo,
+            userDefaults: makeUserDefaults()
+        )
+        viewModel.groups = [group]
+
+        viewModel.deleteGroup(group.id)
+
+        #expect(analyticsRepo.parameters(for: "group_deleted")?["was_applied"] as? String == "true")
     }
 
     @Test func contentViewModelBlocksSixthGroup() {
@@ -952,207 +973,6 @@ struct ViewModelTests {
         #expect(viewModel.groups.first?.ruleKind == .dailyLimit)
         #expect(groupRepo.screenTimeGroups.first?.dailyLimitMinutes == 75)
         #expect(screenTimeRepo.syncCallCount == 1)
-    }
-
-    @Test func appliedRuleEditLogsMonitoringRegistration() {
-        let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS", dailyLimitMinutes: 30)
-        let groupRepo = FakeGroupRepository()
-        groupRepo.screenTimeGroups = [group]
-        let screenTimeRepo = FakeScreenTimeRepository()
-        screenTimeRepo.validGroupsOverride = [group]
-        let analyticsRepo = FakeAnalyticsRepository()
-        let viewModel = ContentViewModel(
-            manageGroupsUseCase: ManageGroupsUseCase(
-                groupRepository: groupRepo,
-                screenTimeRepository: screenTimeRepo
-            ),
-            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
-            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
-            analyticsRepository: analyticsRepo,
-            userDefaults: makeUserDefaults()
-        )
-        viewModel.groups = [group]
-
-        viewModel.presentRuleEditor(for: group)
-        viewModel.ruleEditorSelectedKind = .dailyLimit
-        viewModel.limitPickerHours = 1
-        viewModel.limitPickerMinutes = 15
-        viewModel.performRuleCommit()
-
-        let registered = analyticsRepo.parameters(for: "rule_monitoring_registered")
-        #expect(registered?["rule_kind"] as? String == "dailyLimit")
-        #expect(registered?["rule_config_bucket"] as? String == "daily_61_120m")
-    }
-
-    // MARK: - rule_changed (모드 전환 관찰)
-
-    @Test func switchingRuleModeLogsRuleChanged() {
-        let group = SharedStore.ScreenTimeGroup(
-            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
-        )
-        let groupRepo = FakeGroupRepository()
-        groupRepo.screenTimeGroups = [group]
-        let screenTimeRepo = FakeScreenTimeRepository()
-        let analyticsRepo = FakeAnalyticsRepository()
-        let viewModel = ContentViewModel(
-            manageGroupsUseCase: ManageGroupsUseCase(
-                groupRepository: groupRepo, screenTimeRepository: screenTimeRepo
-            ),
-            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
-            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
-            analyticsRepository: analyticsRepo,
-            userDefaults: makeUserDefaults()
-        )
-        viewModel.groups = [group]
-
-        viewModel.presentRuleEditor(for: group)
-        viewModel.ruleEditorSelectedKind = .cooldown
-        viewModel.ruleEditorCooldownUsageMinutes = 15
-        viewModel.ruleEditorCooldownDurationMinutes = 60
-        viewModel.performRuleCommit()
-
-        let changed = analyticsRepo.parameters(for: "rule_changed")
-        #expect(changed?["from_rule"] as? String == "dailyLimit")
-        #expect(changed?["to_rule"] as? String == "cooldown")
-        #expect(changed?["was_locked"] as? Bool == false)
-        #expect(changed?["caused_lock"] as? Bool == false)
-    }
-
-    @Test func sameRuleModeValueChangeDoesNotLogRuleChanged() {
-        let group = SharedStore.ScreenTimeGroup(
-            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
-        )
-        let groupRepo = FakeGroupRepository()
-        groupRepo.screenTimeGroups = [group]
-        let screenTimeRepo = FakeScreenTimeRepository()
-        let analyticsRepo = FakeAnalyticsRepository()
-        let viewModel = ContentViewModel(
-            manageGroupsUseCase: ManageGroupsUseCase(
-                groupRepository: groupRepo, screenTimeRepository: screenTimeRepo
-            ),
-            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
-            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
-            analyticsRepository: analyticsRepo,
-            userDefaults: makeUserDefaults()
-        )
-        viewModel.groups = [group]
-
-        viewModel.presentRuleEditor(for: group)
-        viewModel.ruleEditorSelectedKind = .dailyLimit
-        viewModel.limitPickerHours = 1
-        viewModel.limitPickerMinutes = 15
-        viewModel.performRuleCommit()
-
-        #expect(analyticsRepo.parameters(for: "rule_changed") == nil)
-    }
-
-    @Test func switchingRuleModeWhileLockedLogsWasLocked() {
-        let group = SharedStore.ScreenTimeGroup(
-            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
-        )
-        let groupRepo = FakeGroupRepository()
-        groupRepo.screenTimeGroups = [group]
-        let screenTimeRepo = FakeScreenTimeRepository()
-        let analyticsRepo = FakeAnalyticsRepository()
-        let viewModel = ContentViewModel(
-            manageGroupsUseCase: ManageGroupsUseCase(
-                groupRepository: groupRepo, screenTimeRepository: screenTimeRepo
-            ),
-            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
-            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
-            analyticsRepository: analyticsRepo,
-            userDefaults: makeUserDefaults()
-        )
-        viewModel.groups = [group]
-        viewModel.lockedGroupIDs = [group.id]
-
-        viewModel.presentRuleEditor(for: group)
-        viewModel.ruleEditorSelectedKind = .cooldown
-        viewModel.ruleEditorCooldownUsageMinutes = 15
-        viewModel.ruleEditorCooldownDurationMinutes = 60
-        viewModel.performRuleCommit()
-
-        #expect(analyticsRepo.parameters(for: "rule_changed")?["was_locked"] as? Bool == true)
-    }
-
-    @Test func switchingToSmallerBudgetLogsCausedLock() {
-        let group = SharedStore.ScreenTimeGroup(
-            id: UUID(), name: "SNS", dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
-        )
-        let groupRepo = FakeGroupRepository()
-        groupRepo.screenTimeGroups = [group]
-        let screenTimeRepo = FakeScreenTimeRepository()
-        let analyticsRepo = FakeAnalyticsRepository()
-        let viewModel = ContentViewModel(
-            manageGroupsUseCase: ManageGroupsUseCase(
-                groupRepository: groupRepo, screenTimeRepository: screenTimeRepo
-            ),
-            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
-            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
-            analyticsRepository: analyticsRepo,
-            userDefaults: makeUserDefaults()
-        )
-        viewModel.groups = [group]
-        viewModel.usedTimeByGroupID = [group.id: 20]
-
-        viewModel.presentRuleEditor(for: group)
-        viewModel.ruleEditorSelectedKind = .cooldown
-        viewModel.ruleEditorCooldownUsageMinutes = 5
-        viewModel.ruleEditorCooldownDurationMinutes = 60
-        viewModel.performRuleCommit()
-
-        let changed = analyticsRepo.parameters(for: "rule_changed")
-        #expect(changed?["caused_lock"] as? Bool == true)
-        #expect(changed?["used_bucket"] as? String == "used_16_30m")
-    }
-
-    @Test func usedBucketBuckets() {
-        #expect(RuleAnalyticsPayload.usedBucket(0) == "used_0m")
-        #expect(RuleAnalyticsPayload.usedBucket(15) == "used_1_15m")
-        #expect(RuleAnalyticsPayload.usedBucket(16) == "used_16_30m")
-        #expect(RuleAnalyticsPayload.usedBucket(60) == "used_31_60m")
-        #expect(RuleAnalyticsPayload.usedBucket(120) == "used_61_120m")
-        #expect(RuleAnalyticsPayload.usedBucket(121) == "used_121m_plus")
-    }
-
-    @Test func draftRuleEditDoesNotLogMonitoringRegistration() {
-        let group = SharedStore.ScreenTimeGroup(
-            id: UUID(),
-            name: "SNS",
-            dailyLimitMinutes: 30,
-            ruleKind: .dailyLimit,
-            isApplied: false
-        )
-        let groupRepo = FakeGroupRepository()
-        groupRepo.screenTimeGroups = [group]
-        let screenTimeRepo = FakeScreenTimeRepository()
-        screenTimeRepo.validGroupsOverride = [group]
-        let analyticsRepo = FakeAnalyticsRepository()
-        let viewModel = ContentViewModel(
-            manageGroupsUseCase: ManageGroupsUseCase(
-                groupRepository: groupRepo,
-                screenTimeRepository: screenTimeRepo
-            ),
-            syncProtectionUseCase: makeSyncProtectionUseCase(screenTimeRepo: screenTimeRepo),
-            loadDashboardUseCase: makeLoadDashboardUseCase(screenTimeRepo: screenTimeRepo),
-            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
-            analyticsRepository: analyticsRepo,
-            userDefaults: makeUserDefaults()
-        )
-        viewModel.groups = [group]
-
-        viewModel.presentRuleEditor(for: group)
-        viewModel.ruleEditorSelectedKind = .dailyLimit
-        viewModel.limitPickerHours = 1
-        viewModel.limitPickerMinutes = 15
-        viewModel.performRuleCommit()
-
-        #expect(analyticsRepo.parameters(for: "rule_monitoring_registered") == nil)
     }
 
     @Test func dailyLimitRuleWarnsAndDefersWhenNewLimitBelowUsedTime() {
@@ -2831,6 +2651,38 @@ struct ViewModelTests {
 
     // MARK: - LockOptionsViewModel
 
+    @Test func lockOptionsViewModelLogsOptionsSnapshotOnce() {
+        var strictGroup = SharedStore.ScreenTimeGroup(id: UUID(), name: "SNS")
+        strictGroup.strictUntil = Date().addingTimeInterval(86_400)
+        let shieldRepo = FakeShieldRepository()
+        shieldRepo.lockedGroupsValue = [
+            strictGroup,
+            SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
+        ]
+        shieldRepo.oneMinuteRemainingValue = 3
+        let screenTimeRepo = FakeScreenTimeRepository()
+        screenTimeRepo.nearMidnightCutoff = true
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = LockOptionsViewModel(
+            extendGroupUseCase: ExtendGroupUseCase(
+                shieldRepository: shieldRepo,
+                screenTimeRepository: screenTimeRepo
+            ),
+            analyticsRepository: analyticsRepo
+        )
+
+        viewModel.onAppear(entrySource: .homeGroup)
+        viewModel.onAppear(entrySource: .homeGroup)
+
+        let events = analyticsRepo.events.filter { $0.name == "shield_extend_options_viewed" }
+        #expect(events.count == 1)
+        #expect(events.first?.parameters["entry_source"] as? String == "home_group")
+        #expect(events.first?.parameters["locked_group_count"] as? Int == 2)
+        #expect(events.first?.parameters["strict_locked_group_count"] as? Int == 1)
+        #expect(events.first?.parameters["one_minute_remaining"] as? Int == 3)
+        #expect(events.first?.parameters["near_midnight"] as? String == "true")
+    }
+
     @Test func lockOptionsViewModelExtendsSelectedGroupWithOneMinute() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
         let shieldRepo = FakeShieldRepository()
@@ -2850,7 +2702,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.tapOneMinute()
 
         #expect(screenTimeRepo.extendCallCount == 1)
@@ -2859,7 +2711,7 @@ struct ViewModelTests {
         #expect(viewModel.lockedGroups.isEmpty)
     }
 
-    @Test func lockOptionsViewModelDoesNotLogAdUnlockForOneMinuteExtension() {
+    @Test func lockOptionsViewModelLogsOneMinuteSelectionAndCompletion() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
         let shieldRepo = FakeShieldRepository()
         shieldRepo.lockedGroupsValue = [group]
@@ -2880,14 +2732,19 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.tapOneMinute()
 
-        #expect(analyticsRepo.parameters(for: "one_minute_unlock") != nil)
-        #expect(analyticsRepo.parameters(for: "ad_unlock") == nil)
+        #expect(
+            analyticsRepo.parameters(for: "shield_extend_method_selected")?["extend_method"] as? String
+                == "one_minute"
+        )
+        let completed = analyticsRepo.parameters(for: "shield_extend_completed")
+        #expect(completed?["extend_method"] as? String == "one_minute")
+        #expect(completed?["extend_seconds"] as? Int == 60)
     }
 
-    @Test func lockOptionsViewModelLogsAdUnlockWithRulePayload() {
+    @Test func lockOptionsViewModelLogsAdSelectionAndCompletionWithRulePayload() {
         let group = SharedStore.ScreenTimeGroup(
             id: UUID(),
             name: "게임",
@@ -2913,17 +2770,22 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()
         viewModel.rewardedAdDismissed()
 
-        let event = analyticsRepo.parameters(for: "ad_unlock")
-        #expect(event?["seconds"] as? Int == 10 * 60)
-        #expect(event?["rule_kind"] as? String == "cooldown")
-        #expect(event?["rule_config_bucket"] as? String == "usage_16_30m_rest_61_120m")
+        #expect(
+            analyticsRepo.parameters(for: "shield_extend_method_selected")?["extend_method"] as? String
+                == "ad"
+        )
+        let event = analyticsRepo.parameters(for: "shield_extend_completed")
+        #expect(event?["extend_seconds"] as? Int == 10 * 60)
+        #expect(event?["rule_mode"] as? String == "uniform_cooldown")
+        #expect(event?["enforcement_rule"] as? String == "cooldown")
+        #expect(event?["uniform_cooldown_usage_bucket"] as? String == "usage_16_30m")
     }
 
-    @Test func lockOptionsViewModelDoesNotLogAdUnlockWhenAdCancelled() {
+    @Test func lockOptionsViewModelLogsAdSelectionButNoCompletionWhenAdCancelled() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
         let shieldRepo = FakeShieldRepository()
         shieldRepo.lockedGroupsValue = [group]
@@ -2936,15 +2798,16 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()
         viewModel.rewardedAdDidCancel()
         viewModel.rewardedAdDismissed()
 
-        #expect(analyticsRepo.parameters(for: "ad_unlock") == nil)
+        #expect(analyticsRepo.parameters(for: "shield_extend_method_selected") != nil)
+        #expect(analyticsRepo.parameters(for: "shield_extend_completed") == nil)
     }
 
-    @Test func lockOptionsViewModelDoesNotLogAdUnlockWhenAdExtensionFails() {
+    @Test func lockOptionsViewModelLogsAdExtensionFailureWithoutCompletion() {
         let group = SharedStore.ScreenTimeGroup(id: UUID(), name: "게임")
         let shieldRepo = FakeShieldRepository()
         shieldRepo.lockedGroupsValue = [group]
@@ -2959,12 +2822,15 @@ struct ViewModelTests {
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()
         viewModel.rewardedAdDismissed()
 
         #expect(screenTimeRepo.extendCallCount == 1)
-        #expect(analyticsRepo.parameters(for: "ad_unlock") == nil)
+        #expect(analyticsRepo.parameters(for: "shield_extend_completed") == nil)
+        let failure = analyticsRepo.parameters(for: "shield_extend_failed")
+        #expect(failure?["extend_method"] as? String == "ad")
+        #expect(failure?["failure_reason"] as? String == "group_not_found")
     }
 
     @Test func lockOptionsViewModelCanRetryRelockRegistrationFailure() {
@@ -2989,7 +2855,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.tapOneMinute()
 
         #expect(screenTimeRepo.extendCallCount == 1)
@@ -3003,20 +2869,26 @@ struct ViewModelTests {
         #expect(viewModel.completionAlert?.title == "연장 완료")
     }
 
-    @Test func lockOptionsViewModelRecordsWalkAwayOnlyWhenLockedGroupExists() {
+    @Test func lockOptionsViewModelRecordsAndLogsStopOnlyWhenLockedGroupExists() {
         let shieldRepo = FakeShieldRepository()
         shieldRepo.lockedGroupsValue = [SharedStore.ScreenTimeGroup(name: "SNS")]
+        let analyticsRepo = FakeAnalyticsRepository()
         let viewModel = LockOptionsViewModel(
             extendGroupUseCase: ExtendGroupUseCase(
                 shieldRepository: shieldRepo,
                 screenTimeRepository: FakeScreenTimeRepository()
-            )
+            ),
+            analyticsRepository: analyticsRepo
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         _ = viewModel.tapWalkAway()
 
         #expect(shieldRepo.recordWalkAwayCallCount == 1)
+        #expect(
+            analyticsRepo.parameters(for: "shield_extend_stop_selected")?["locked_group_count"] as? Int
+                == 1
+        )
     }
 
     @Test func lockOptionsViewModelDisablesOneMinuteNearMidnight() {
@@ -3033,7 +2905,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
 
         // 자정 직전: 1분 연장은 막히고(남은 횟수가 있어도), 광고 연장은 계속 가능.
         #expect(viewModel.isNearMidnightCutoff)
@@ -3057,7 +2929,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
 
         #expect(!viewModel.isNearMidnightCutoff)
         #expect(viewModel.nearMidnightNotice == "23:45부터는 연장 시 사용량 추적이 불가능해 23:59까지 잠금이 해제되며, 00:00부터 규칙이 다시 적용됩니다.")
@@ -3079,7 +2951,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         #expect(viewModel.canExtendOneMinute)
 
         screenTimeRepo.nearMidnightCutoff = true
@@ -3109,7 +2981,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()      // 광고 표시
         viewModel.rewardedAdDismissed()   // 광고 완료 → 연장 수행
 
@@ -3132,7 +3004,7 @@ struct ViewModelTests {
             )
         )
 
-        viewModel.onAppear()
+        viewModel.onAppear(entrySource: .shield)
         viewModel.startAdFlow()
 
         // 자정 근처에도 광고를 띄우고(rewarded 표시), 광고 완료 전에는 연장하지 않는다.
@@ -3485,10 +3357,11 @@ struct ViewModelTests {
         #expect(analyticsRepo.parameters(for: "ad_fallback_used")?["placement"] as? String == "shield_unlock")
     }
 
-    @Test func onboardingViewModelLogsNotificationPermissionResultAndStep() async {
+    @Test func onboardingViewModelLogsOnlyEntryAndCompletionOnce() async {
         let notifRepo = FakeNotificationRepository()
         notifRepo.requestAuthorizationResult = .authorized
         let analyticsRepo = FakeAnalyticsRepository()
+        let defaults = UserDefaults(suiteName: "onboarding.analytics.\(UUID().uuidString)")!
         let viewModel = OnboardingViewModel(
             authorizeUseCase: AuthorizeUseCase(
                 authRepository: FakeAuthorizationRepository(isAuthorized: true),
@@ -3496,37 +3369,19 @@ struct ViewModelTests {
             ),
             analyticsRepository: analyticsRepo,
             startStep: .notificationPermission,
+            userDefaults: defaults,
             onAuthorized: {}
         )
 
+        viewModel.recordEntryIfNeeded()
+        viewModel.recordEntryIfNeeded()
         await viewModel.requestNotification()
+        viewModel.complete()
+        viewModel.complete()
 
-        #expect(
-            analyticsRepo.parameters(for: "notification_permission_result")?["granted"] as? Bool == true
-        )
-        #expect(
-            analyticsRepo.parameters(for: "onboarding_step_view")?["step"] as? String == "trackingPermission"
-        )
-    }
-
-    @Test func onboardingViewModelLogsStepViewOnAdvance() {
-        let analyticsRepo = FakeAnalyticsRepository()
-        let viewModel = OnboardingViewModel(
-            authorizeUseCase: AuthorizeUseCase(
-                authRepository: FakeAuthorizationRepository(isAuthorized: false),
-                notificationRepository: FakeNotificationRepository()
-            ),
-            analyticsRepository: analyticsRepo,
-            startStep: .intro,
-            onAuthorized: {}
-        )
-
-        viewModel.advance()
-
-        #expect(analyticsRepo.events.map(\.name) == ["onboarding_step_view"])
-        #expect(
-            analyticsRepo.parameters(for: "onboarding_step_view")?["step"] as? String == "screenTimePermission"
-        )
+        #expect(analyticsRepo.events.map(\.name) == ["onboarding_entered", "onboarding_completed"])
+        #expect(defaults.bool(forKey: OnboardingViewModel.hasLoggedEntryKey))
+        #expect(defaults.bool(forKey: OnboardingViewModel.hasLoggedCompletionKey))
     }
 
     // MARK: - 요일별 규칙 편집 (ContentViewModel)
@@ -4087,48 +3942,170 @@ struct AppLifecycleViewModelTests {
         #expect(viewModel.showLockOptions == true)
     }
 
-    @Test func setsCohortUserPropertiesOnActivationWhenAuthorized() {
+    @Test func setsCohortUserPropertiesOnActivationWhenAuthorized() async {
         SharedStore.screenTimeGroups = [
             SharedStore.ScreenTimeGroup(name: "SNS", ruleKind: .dailyLimit),
             SharedStore.ScreenTimeGroup(name: "게임", ruleKind: .dailyLimit),
             SharedStore.ScreenTimeGroup(name: "유튜브", ruleKind: .cooldown)
         ]
         let analyticsRepo = FakeAnalyticsRepository()
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .authorized
         let viewModel = AppLifecycleViewModel(
             authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             shieldRepository: FakeShieldRepository(),
+            notificationRepository: notifRepo,
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.appDidBecomeActive()
+        await viewModel.appDidBecomeActive()
 
         #expect(analyticsRepo.userProperties["primary_rule_kind"] == "dailyLimit")
-        #expect(analyticsRepo.userProperties["active_group_count"] == "count_2_3")
+        #expect(analyticsRepo.userProperties["active_group_count"] == nil)
         #expect(analyticsRepo.userProperties["uses_daily"] == "true")
         #expect(analyticsRepo.userProperties["uses_cooldown"] == "true")
         #expect(analyticsRepo.userProperties["uses_timewindow"] == "false")
         #expect(analyticsRepo.userProperties["active_rule_profile"] == "wd0_dl2_tw0_cd1")
         #expect(analyticsRepo.userProperties["strict_rule_profile"] == "wd0_dl0_tw0_cd0")
+        #expect(analyticsRepo.userProperties["authorized_screen_time"] == "true")
+        #expect(analyticsRepo.userProperties["authorized_notification"] == "true")
+        #expect(analyticsRepo.parameters(for: "group_snapshot")?["applied_group_count"] as? Int == 3)
+        #expect(analyticsRepo.events.filter { $0.name == "rule_uniform_daily" }.count == 2)
+        #expect(analyticsRepo.events.filter { $0.name == "rule_uniform_cooldown" }.count == 1)
+        let groupSnapshotID = analyticsRepo.parameters(for: "group_snapshot")?["snapshot_id"] as? String
+        let ruleSnapshotIDs = analyticsRepo.events
+            .filter { $0.name.hasPrefix("rule_") }
+            .compactMap { $0.parameters["snapshot_id"] as? String }
+        #expect(groupSnapshotID?.isEmpty == false)
+        #expect(ruleSnapshotIDs.count == 3)
+        #expect(ruleSnapshotIDs.allSatisfy { $0 == groupSnapshotID })
 
         SharedStore.clearGroupStateForTesting()
     }
 
-    @Test func doesNotSetCohortUserPropertiesWhenUnauthorized() {
+    @Test func doesNotSetCohortUserPropertiesWhenUnauthorized() async {
         let analyticsRepo = FakeAnalyticsRepository()
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .denied
         let viewModel = AppLifecycleViewModel(
             authorizeUseCase: makeAuthorizeUseCase(isAuthorized: false),
             syncProtectionUseCase: makeSyncProtectionUseCase(),
             shieldRepository: FakeShieldRepository(),
+            notificationRepository: notifRepo,
             analyticsRepository: analyticsRepo
         )
 
-        viewModel.appDidBecomeActive()
+        await viewModel.appDidBecomeActive()
 
-        #expect(analyticsRepo.userProperties.isEmpty)
+        #expect(analyticsRepo.userProperties["primary_rule_kind"] == nil)
+        #expect(analyticsRepo.userProperties["authorized_screen_time"] == "false")
+        #expect(analyticsRepo.userProperties["authorized_notification"] == "false")
+        #expect(analyticsRepo.parameters(for: "group_snapshot") == nil)
     }
 
-    @Test func clearsDeliveredNotificationsOnActivation() {
+    @Test func logsZeroAppliedGroupsSnapshotWhenAuthorized() async {
+        SharedStore.clearGroupStateForTesting()
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: FakeShieldRepository(),
+            notificationRepository: FakeNotificationRepository(),
+            analyticsRepository: analyticsRepo
+        )
+
+        await viewModel.appDidBecomeActive()
+
+        #expect(analyticsRepo.parameters(for: "group_snapshot")?["applied_group_count"] as? Int == 0)
+    }
+
+    @Test func logsCompletedStrictLocksOnceOnAuthorizedActivation() async {
+        let analyticsRepo = FakeAnalyticsRepository()
+        analyticsRepo.completedStrictLockDays = [3, 7]
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: makeAuthorizeUseCase(isAuthorized: true),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: FakeShieldRepository(),
+            notificationRepository: FakeNotificationRepository(),
+            analyticsRepository: analyticsRepo
+        )
+
+        await viewModel.appDidBecomeActive()
+        await viewModel.appDidBecomeActive()
+
+        let completed = analyticsRepo.events.filter { $0.name == "strict_lock_completed" }
+        #expect(completed.count == 2)
+        // 시작·연장의 strict_lock_days("이번 선택분")와 섞이지 않게 이름이 분리돼 있어야 한다.
+        #expect(completed.compactMap { $0.parameters["strict_lock_total_days"] as? Int } == [3, 7])
+        #expect(completed.allSatisfy { $0.parameters["strict_lock_days"] == nil })
+    }
+
+    /// 미승인 활성화는 완료를 **보내지 않되 약정을 버리지도 않는다**. 콜드 스타트의 transient
+    /// `false` 한 번으로 진행 중 약정이 사라지면 그 사용자는 영영 완주로 안 잡혀 완주율의 분자만
+    /// 깎인다(2026-08-17 수정). 실제 철회 폐기는 복구 화면 도달이라는 증거가 있는 경로가 맡는다.
+    @Test func unauthorizedActivationKeepsPendingStrictLockCommitments() async {
+        let analyticsRepo = FakeAnalyticsRepository()
+        analyticsRepo.recordStrictLockCommitment(
+            groupID: UUID(),
+            startedAt: .distantPast,
+            expiresAt: .distantPast
+        )
+        let authRepo = FakeAuthorizationRepository(isAuthorized: false)
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: FakeNotificationRepository()
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: FakeShieldRepository(),
+            notificationRepository: FakeNotificationRepository(),
+            analyticsRepository: analyticsRepo
+        )
+
+        await viewModel.appDidBecomeActive()
+
+        #expect(analyticsRepo.strictLockCommitments.count == 1)
+        #expect(analyticsRepo.events.contains { $0.name == "strict_lock_completed" } == false)
+
+        // 권한이 제자리를 찾은 다음 활성화에서 완주가 그대로 전송돼야 한다(유실 방지의 핵심).
+        authRepo.isAuthorized = true
+        await viewModel.appDidBecomeActive()
+
+        #expect(analyticsRepo.events.filter { $0.name == "strict_lock_completed" }.count == 1)
+        #expect(analyticsRepo.strictLockCommitments.isEmpty)
+    }
+
+    @Test func updatesAuthorizationUserPropertiesOnEveryActivation() async {
+        let authRepo = FakeAuthorizationRepository(isAuthorized: true)
+        let notifRepo = FakeNotificationRepository()
+        notifRepo.authorizationStateValue = .provisional
+        let analyticsRepo = FakeAnalyticsRepository()
+        let viewModel = AppLifecycleViewModel(
+            authorizeUseCase: AuthorizeUseCase(
+                authRepository: authRepo,
+                notificationRepository: notifRepo
+            ),
+            syncProtectionUseCase: makeSyncProtectionUseCase(),
+            shieldRepository: FakeShieldRepository(),
+            notificationRepository: notifRepo,
+            analyticsRepository: analyticsRepo
+        )
+
+        await viewModel.appDidBecomeActive()
+        #expect(analyticsRepo.userProperties["authorized_screen_time"] == "true")
+        #expect(analyticsRepo.userProperties["authorized_notification"] == "true")
+
+        authRepo.setAuthorized(false)
+        notifRepo.authorizationStateValue = .denied
+        await viewModel.appDidBecomeActive()
+
+        #expect(analyticsRepo.userProperties["authorized_screen_time"] == "false")
+        #expect(analyticsRepo.userProperties["authorized_notification"] == "false")
+        #expect(notifRepo.authorizationStateCallCount == 2)
+    }
+
+    @Test func clearsDeliveredNotificationsOnActivation() async {
         let notifRepo = FakeNotificationRepository()
         let viewModel = AppLifecycleViewModel(
             authorizeUseCase: makeAuthorizeUseCase(),
@@ -4138,12 +4115,12 @@ struct AppLifecycleViewModelTests {
             analyticsRepository: FakeAnalyticsRepository()
         )
 
-        viewModel.appDidBecomeActive()
+        await viewModel.appDidBecomeActive()
 
         #expect(notifRepo.clearDeliveredCallCount == 1)
     }
 
-    @Test func logsUnlockOptionsShownOnceWhenPendingRequest() {
+    @Test func pendingShieldRequestPresentsLockOptionsWithoutLoggingBeforeViewAppears() {
         let shieldRepo = FakeShieldRepository()
         shieldRepo.pendingShieldOpenRequest = true
         shieldRepo.lockedGroupsValue = [
@@ -4161,9 +4138,8 @@ struct AppLifecycleViewModelTests {
         viewModel.refreshLockOptionsPresentation()
         viewModel.refreshLockOptionsPresentation()  // 재호출해도 중복 로깅 없음
 
-        let unlockEvents = analyticsRepo.events.filter { $0.name == "unlock_options_shown" }
-        #expect(unlockEvents.count == 1)
-        #expect(analyticsRepo.parameters(for: "unlock_options_shown")?["locked_count"] as? Int == 2)
+        #expect(viewModel.showLockOptions)
+        #expect(analyticsRepo.events.allSatisfy { $0.name != "shield_extend_options_viewed" })
     }
 
     private func makeSyncProtectionUseCase() -> SyncProtectionUseCase {
@@ -4197,7 +4173,6 @@ struct UserCohortPropertiesTests {
         let result = properties([])
 
         #expect(result["primary_rule_kind"] == "none")
-        #expect(result["active_group_count"] == "count_0")
         #expect(result["uses_daily"] == "false")
         #expect(result["uses_timewindow"] == "false")
         #expect(result["uses_cooldown"] == "false")
@@ -4211,7 +4186,6 @@ struct UserCohortPropertiesTests {
         ])
 
         #expect(result["primary_rule_kind"] == "none")
-        #expect(result["active_group_count"] == "count_0")
         #expect(result["uses_cooldown"] == "false")
     }
 
@@ -4223,7 +4197,6 @@ struct UserCohortPropertiesTests {
         ])
 
         #expect(result["primary_rule_kind"] == "dailyLimit")
-        #expect(result["active_group_count"] == "count_2_3")
         #expect(result["uses_daily"] == "true")
         #expect(result["uses_cooldown"] == "true")
         #expect(result["uses_timewindow"] == "false")
@@ -4268,7 +4241,6 @@ struct UserCohortPropertiesTests {
         ])
 
         #expect(result["primary_rule_kind"] == "none")
-        #expect(result["active_group_count"] == "count_2_3")
     }
 
     @Test func weekdayGroupCountsDayKindsAndPrimaryWeekday() {
@@ -4297,16 +4269,64 @@ struct UserCohortPropertiesTests {
         #expect(result["primary_rule_kind"] == "dailyLimit")
     }
 
-    @Test func bucketsLargeGroupCount() {
+    @Test func largeGroupCountPreservesRuleProfile() {
         let groups = (0..<4).map {
             SharedStore.ScreenTimeGroup(name: "g\($0)", ruleKind: .timeWindows)
         }
 
         let result = properties(groups)
 
-        #expect(result["active_group_count"] == "count_4_plus")
         #expect(result["primary_rule_kind"] == "timeWindows")
         #expect(result["uses_timewindow"] == "true")
+    }
+}
+
+// MARK: - Strict lock analytics persistence
+
+@MainActor
+struct StrictLockAnalyticsPersistenceTests {
+    @Test func completionIsPersistedUpdatedAndDrainedOnlyOnce() throws {
+        let suiteName = "strict-lock.analytics.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let repository = AnalyticsRepositoryImpl(userDefaults: defaults)
+        let calendar = Calendar.current
+        let startedAt = calendar.startOfDay(for: Date(timeIntervalSinceReferenceDate: 800_000_000))
+        let firstExpiry = try #require(calendar.date(byAdding: .day, value: 3, to: startedAt))
+        let extendedExpiry = try #require(calendar.date(byAdding: .day, value: 7, to: startedAt))
+        let groupID = UUID()
+
+        repository.recordStrictLockCommitment(
+            groupID: groupID,
+            startedAt: startedAt,
+            expiresAt: firstExpiry
+        )
+        repository.recordStrictLockCommitment(
+            groupID: groupID,
+            startedAt: startedAt,
+            expiresAt: extendedExpiry
+        )
+
+        #expect(repository.drainCompletedStrictLockDays(at: firstExpiry) == [])
+        #expect(repository.drainCompletedStrictLockDays(at: extendedExpiry) == [7])
+        #expect(repository.drainCompletedStrictLockDays(at: extendedExpiry) == [])
+    }
+
+    @Test func discardedCommitmentNeverCompletes() throws {
+        let suiteName = "strict-lock.analytics.discard.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let repository = AnalyticsRepositoryImpl(userDefaults: defaults)
+        let groupID = UUID()
+
+        repository.recordStrictLockCommitment(
+            groupID: groupID,
+            startedAt: .distantPast,
+            expiresAt: .distantPast
+        )
+        repository.discardStrictLockCommitments(groupIDs: [groupID])
+
+        #expect(repository.drainCompletedStrictLockDays(at: Date()) == [])
     }
 }
 
@@ -4521,17 +4541,52 @@ private enum TestScreenTimeError: Error {
 @MainActor
 private final class FakeAnalyticsRepository: AnalyticsRepository {
     private(set) var events: [AnalyticsEvent] = []
-    private(set) var userProperties: [String: String?] = [:]
+    private(set) var userProperties: [String: String] = [:]
+    private(set) var strictLockCommitments: [UUID: (startedAt: Date, expiresAt: Date)] = [:]
+    var completedStrictLockDays: [Int] = []
 
     func log(_ event: AnalyticsEvent) {
         events.append(event)
     }
 
     func setUserProperty(_ value: String?, for name: String) {
-        userProperties[name] = value
+        if let value {
+            userProperties[name] = value
+        } else {
+            userProperties.removeValue(forKey: name)
+        }
     }
 
     func recordError(_ error: Error, context: String) {}
+
+    func recordStrictLockCommitment(groupID: UUID, startedAt: Date, expiresAt: Date) {
+        strictLockCommitments[groupID] = (startedAt, expiresAt)
+    }
+
+    func discardStrictLockCommitments(groupIDs: [UUID]) {
+        for groupID in groupIDs { strictLockCommitments.removeValue(forKey: groupID) }
+    }
+
+    /// 실제 `AnalyticsRepositoryImpl`과 같은 규칙으로 만료된 약정을 소비한다 — fake가 약정을 무시하고
+    /// 시드 배열만 비우면 "약정이 유실돼도 테스트는 통과"하는 사각지대가 생긴다.
+    /// `completedStrictLockDays`는 약정을 만들 필요 없이 완료 건수만 보고 싶을 때 쓰는 시드다.
+    func drainCompletedStrictLockDays(at now: Date) -> [Int] {
+        defer { completedStrictLockDays.removeAll() }
+        let expired = strictLockCommitments.filter { $0.value.expiresAt <= now }
+        for groupID in expired.keys { strictLockCommitments.removeValue(forKey: groupID) }
+        let calendar = Calendar.current
+        let expiredDays = expired.values.map { commitment in
+            max(
+                1,
+                calendar.dateComponents(
+                    [.day],
+                    from: calendar.startOfDay(for: commitment.startedAt),
+                    to: commitment.expiresAt
+                ).day ?? 1
+            )
+        }
+        return completedStrictLockDays + expiredDays
+    }
 
     func parameters(for eventName: String) -> [String: Any]? {
         events.first { $0.name == eventName }?.parameters
