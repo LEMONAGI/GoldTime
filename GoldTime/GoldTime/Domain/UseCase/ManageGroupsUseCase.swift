@@ -131,11 +131,12 @@ final class ManageGroupsUseCase {
     }
 
     /// 연장 불가 기간 빠른 선택 칩(일). 그 외 기간은 커스텀 입력(`strictLockDayRange`).
-    static let strictLockDayPresets: [Int] = [1, 3, 7]
+    static let strictLockDayPresets: [Int] = [1, 7, 14]
 
-    /// 커스텀 입력 포함 허용 범위. **상한 30일은 실수 보호** — 한 번 걸면 어떤 수단으로도 못 풀기
-    /// 때문에 무한정 긴 기간은 도움이 아니라 사고가 된다. 이 상한을 올리기 전에 반드시 재고할 것.
-    static let strictLockDayRange: ClosedRange<Int> = 1...30
+    /// 커스텀 입력 포함 허용 범위. **상한 14일은 실수 보호** — 한 번 걸면 어떤 수단으로도 못 풀기
+    /// 때문에 무한정 긴 기간은 도움이 아니라 사고가 된다(2026-09-01 30→14일로 축소, 우선 보수적으로).
+    /// 이 상한을 올리기 전에 반드시 재고할 것.
+    static let strictLockDayRange: ClosedRange<Int> = 1...14
 
     /// 시트를 열었을 때 기본으로 잡히는 기간. **가장 짧은 프리셋(1일)** — 한 번 걸면 못 푸는
     /// 모드라 기본값은 사용자가 가장 잃을 게 적은 쪽이어야 한다. **프리셋에 있는 값이라 시트가
@@ -144,8 +145,9 @@ final class ManageGroupsUseCase {
     static let strictLockDefaultDays = 1
 
     /// 커스텀 칩을 눌렀을 때 휠이 처음 잡는 기간. **프리셋에 없는 값이어야** 커스텀 칩이 선택된
-    /// 상태로 표시된다(프리셋 값이면 칩 선택이 프리셋으로 되돌아간다).
-    static let strictLockCustomSeedDays = 14
+    /// 상태로 표시된다(프리셋 값이면 칩 선택이 프리셋으로 되돌아간다). 프리셋이 1/7/14가 되면서
+    /// 구 시드 14는 프리셋이 됐으므로 그 사이의 비프리셋 값 10으로 둔다(2026-09-01).
+    static let strictLockCustomSeedDays = 10
 
     /// 연장 불가 모드를 쓸 수 있는지(설정 토글, **기본 On**, 2026-09-01 재도입). Off면 그룹 카드에서
     /// 연장 불가 기간 행이 숨겨져 카드가 가벼워진다(안 쓰는 사용자용) — 새로 걸기·연장도 막힌다.

@@ -338,8 +338,8 @@ struct StrictLockTests {
     }
 
     @Test func activateStrictLockRejectsDaysOutsideRange() {
-        // (c) 허용 범위(1...30일) 밖은 거부. 상한 30일은 실수 보호 — 못 푸는 모드라 무한정 긴
-        // 연장 불가 기간은 사고가 된다. 범위 안이면 프리셋 칩(1/3/7)에 없는 커스텀 값도 허용한다.
+        // (c) 허용 범위(1...14일) 밖은 거부. 상한 14일은 실수 보호 — 못 푸는 모드라 무한정 긴
+        // 연장 불가 기간은 사고가 된다. 범위 안이면 프리셋 칩(1/7/14)에 없는 커스텀 값도 허용한다.
         let useCase = makeManageUseCase()
         let now = date(2026, 7, 12, 14, 30)
         let id = UUID()
@@ -347,13 +347,13 @@ struct StrictLockTests {
             id: id, name: "게임", selection: validSelection(),
             dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
         )]
-        for bad in [0, -1, 31, 365] {
+        for bad in [0, -1, 15, 365] {
             var groups = base
             #expect(useCase.activateStrictLock(id: id, days: bad, now: now, in: &groups) == false)
             #expect(groups[0].strictUntil == nil)
         }
-        // 직접 입력 값(프리셋 아님)과 상한값은 허용.
-        for good in [2, 12, 30] {
+        // 직접 입력 값(프리셋 아님)과 상한값(14)은 허용.
+        for good in [2, 10, 14] {
             var groups = base
             #expect(useCase.activateStrictLock(id: id, days: good, now: now, in: &groups) == true)
             #expect(groups[0].strictUntil == expectedExpiry(days: good, from: now))
@@ -408,7 +408,7 @@ struct StrictLockTests {
     @Test func strictLockDefaultDaysStartsOnShortestPresetChipAndCommits() {
         // (g) 시트 초기 상태 계약(2026-07-31 변경): 기본 기간은 **가장 짧은 프리셋(1일)** 이어야 한다 —
         // 프리셋에서 빠지는 순간 시트가 커스텀 칩 선택 + 휠 펼침으로 열려 처음 화면이 긴 기간을 권한다.
-        // 커스텀 시드(14일)는 반대로 **프리셋에 없어야** 커스텀 칩 선택 상태가 유지된다.
+        // 커스텀 시드(10일)는 반대로 **프리셋에 없어야** 커스텀 칩 선택 상태가 유지된다.
         let defaultDays = ManageGroupsUseCase.strictLockDefaultDays
         #expect(ManageGroupsUseCase.strictLockDayRange.contains(defaultDays))
         #expect(defaultDays == ManageGroupsUseCase.strictLockDayPresets.min())

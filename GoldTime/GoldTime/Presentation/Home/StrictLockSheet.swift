@@ -133,7 +133,6 @@ struct StrictLockSheet: View {
                 periodSection
                 expiryPreview.font(.subheadline.weight(.semibold))
                 disclosureList
-                targetSection
             }
             .padding(20)
         }
@@ -161,13 +160,13 @@ struct StrictLockSheet: View {
                     selectedDays = day
                 }
             }
-            // 커스텀: 선택된 값이 프리셋에 없으면 칩에 그 값을 그대로 보여준다("14일").
+            // 커스텀: 선택된 값이 프리셋에 없으면 칩에 그 값을 그대로 보여준다(예: "10일").
             chip(
                 title: isCustomSelected ? Text("strict.sheet.day \(selectedDays)") : Text("strict.sheet.day.custom"),
                 selected: isCustomSelected,
                 enabled: !selectableCustomDays.isEmpty
             ) {
-                // 커스텀으로 전환할 때는 시드 기간(14일)을 우선 잡고, 연장이라 그게 이미 짧으면
+                // 커스텀으로 전환할 때는 시드 기간(10일)을 우선 잡고, 연장이라 그게 이미 짧으면
                 // 고를 수 있는 가장 작은 비프리셋 기간부터 시작한다.
                 selectedDays = selectableCustomDays.first(where: { $0 == ManageGroupsUseCase.strictLockCustomSeedDays })
                     ?? selectableCustomDays.first(where: { !presets.contains($0) })
@@ -257,27 +256,6 @@ struct StrictLockSheet: View {
         } icon: {
             Image(systemName: icon)
                 .foregroundStyle(Color.accent)
-        }
-    }
-
-    /// 잠글 그룹 재확인(이름 + 항목 개수). 토큰 아이콘 나열은 과해서 텍스트로만 요약한다.
-    private var targetSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("strict.sheet.target")
-                .font(.subheadline.weight(.semibold))
-            HStack {
-                Text(group.displayName)
-                    .font(.body.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Spacer(minLength: 8)
-                Text("strict.sheet.itemCount \(group.selectionCount)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(12)
-            .background(Color(.tertiarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 

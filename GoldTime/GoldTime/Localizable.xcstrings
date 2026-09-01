@@ -2078,19 +2078,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Once locked, no more extensions"
+            "value": "No extensions during that period"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ロックされたら延長できません"
+            "value": "その期間中は延長できません"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "잠그면 더 이상 연장할 수 없어요"
+            "value": "해당 기간 동안 더 이상 연장할 수 없어요"
           }
         }
       }
@@ -8992,29 +8992,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "기간"
-          }
-        }
-      }
-    },
-    "strict.sheet.target": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Group to lock in"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "延長不可にするグループ"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "연장 불가로 둘 그룹"
           }
         }
       }
