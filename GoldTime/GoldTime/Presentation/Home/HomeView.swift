@@ -19,6 +19,10 @@ struct HomeView: View {
     let onApplyGroup: (UUID) -> Void
     let onPresentStrictLock: (ScreenTimeGroup) -> Void
     let isStrictLockFeatureEnabled: Bool
+    /// 홈 상단 연장 불가 베타 배너의 금빛 발광 여부(첫 탭 전까지 true).
+    let isStrictLockBetaBannerGlowing: Bool
+    /// 배너 탭 — 상위(ContentView)가 발광을 끄고 안내 시트를 띄운다.
+    let onTapStrictLockBetaBanner: () -> Void
 
     init(
         groups: [ScreenTimeGroup],
@@ -47,7 +51,9 @@ struct HomeView: View {
         onUnlockGroup: @escaping (UUID) -> Void = { _ in },
         onApplyGroup: @escaping (UUID) -> Void = { _ in },
         onPresentStrictLock: @escaping (ScreenTimeGroup) -> Void = { _ in },
-        isStrictLockFeatureEnabled: Bool = false
+        isStrictLockFeatureEnabled: Bool = false,
+        isStrictLockBetaBannerGlowing: Bool = false,
+        onTapStrictLockBetaBanner: @escaping () -> Void = {}
     ) {
         self.viewModel = HomeViewModel(
             groups: groups,
@@ -78,11 +84,22 @@ struct HomeView: View {
         self.onApplyGroup = onApplyGroup
         self.onPresentStrictLock = onPresentStrictLock
         self.isStrictLockFeatureEnabled = isStrictLockFeatureEnabled
+        self.isStrictLockBetaBannerGlowing = isStrictLockBetaBannerGlowing
+        self.onTapStrictLockBetaBanner = onTapStrictLockBetaBanner
     }
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // 베타 기간에만 노출되는 신기능 안내 배너. 게이트가 유료 판정으로 바뀌는 정식
+                // 출시 때는 이 배너 자체를 재검토/제거한다(베타 안내라 베타 기간 한정).
+                if isStrictLockFeatureEnabled {
+                    StrictLockBetaBanner(
+                        isGlowing: isStrictLockBetaBannerGlowing,
+                        onTap: onTapStrictLockBetaBanner
+                    )
+                }
+
                 timeBillHero
                     .padding(.bottom, 20)
                 

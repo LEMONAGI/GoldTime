@@ -50,6 +50,9 @@ struct ApplyGroupConfirmation: Identifiable {
 @Observable
 final class ContentViewModel {
     private static let hasCompletedInitialHomeEntryKey = "hasCompletedInitialHomeEntry"
+    /// 연장 불가 베타 배너의 금빛 발광을 이미 봤는지(첫 탭 후 true). 메인 앱 전용 일회성 플래그라
+    /// `UserDefaults.standard`에 둔다(extension 공유 불필요 — `hasCompletedInitialHomeEntry` 선례).
+    private static let hasSeenStrictLockBetaAnnouncementKey = "hasSeenStrictLockBetaAnnouncement"
 
     var selectedTab = GoldTimeTab.home
     var isAuthorized: Bool
@@ -57,6 +60,8 @@ final class ContentViewModel {
     var isCheckingPermissions: Bool = true
     var isFullyAuthorized: Bool { isAuthorized && isNotificationAuthorized }
     var hasCompletedInitialHomeEntry: Bool
+    /// 연장 불가 베타 배너의 금빛 발광을 이미 봤는지(첫 탭 시 true로 올라가 발광이 꺼진다).
+    var hasSeenStrictLockBetaAnnouncement: Bool
     // 온보딩 완료 플래그가 진입의 단일 기준. 스크린타임 허용 직후 isAuthorized가 true로
     // 바뀌어도 온보딩(알림/광고 단계)을 끝까지 마치기 전에는 홈으로 넘어가면 안 된다.
     var shouldShowInitialOnboarding: Bool { !hasCompletedInitialHomeEntry }
@@ -177,6 +182,7 @@ final class ContentViewModel {
 
         isAuthorized = self.authorizeUseCase.isAuthorized
         hasCompletedInitialHomeEntry = userDefaults.bool(forKey: Self.hasCompletedInitialHomeEntryKey)
+        hasSeenStrictLockBetaAnnouncement = userDefaults.bool(forKey: Self.hasSeenStrictLockBetaAnnouncementKey)
         isStrictLockFeatureEnabled = self.manageGroupsUseCase.isStrictLockEnabled
         usedTimeByGroupID = shieldRepo.usedTimeByGroupID
         isShieldActive = shieldRepo.isShieldActive
@@ -882,6 +888,18 @@ final class ContentViewModel {
     /// true, 정식 출시 때 구독 entitlement 판정이 들어올 자리). 닫히면 카드에 연장 불가 행을
     /// 그리지 않고 시트 진입도 거부한다. 단 **이미 걸린 기간은 게이트와 무관**하다(아래 참조).
     var isStrictLockFeatureEnabled: Bool = false
+
+    /// 홈 상단 연장 불가 베타 배너가 금빛으로 발광해야 하는지(베타 노출 중 + 아직 첫 탭 전).
+    var isStrictLockBetaBannerGlowing: Bool {
+        isStrictLockFeatureEnabled && !hasSeenStrictLockBetaAnnouncement
+    }
+
+    /// 배너 첫 탭 — 발광을 끄고 그 상태를 영구 저장한다(다음 실행부터 발광 없음).
+    func markStrictLockBetaAnnouncementSeen() {
+        guard !hasSeenStrictLockBetaAnnouncement else { return }
+        hasSeenStrictLockBetaAnnouncement = true
+        userDefaults.set(true, forKey: Self.hasSeenStrictLockBetaAnnouncementKey)
+    }
 
     /// 연장 불가 시트 열기. 게이트 열림 + applied + **유효 규칙** 그룹만 — `activateStrictLock`이 같은
     /// 검증으로 거부하므로, 무효 그룹(예: 적용 후 항목을 전부 해제)에서 진입을 허용하면 최종 확인까지

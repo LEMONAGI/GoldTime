@@ -157,6 +157,11 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   `.isButton` trait로 보전). ⑥ 설정 행에 있던 발광 테두리(`StrictLockGlowBorder`)는 행과 함께
   제거했다(2026-08-15) — 그 연출은 "설정 깊숙이 숨어서 안 보임"을 보정하려던 장치였고, 카드 행은
   홈 메인이라 필요 없다. 카드로 되살리면 적용 그룹 수만큼 동시에 회전·발광해 시끄러워진다.
+  단 **홈 상단 "연장 불가 모드 베타 출시" 배너(`StrictLockBetaBanner`)에는 회전 발광을 의도적으로
+  재도입했다** — 카드 행과 다른 맥락이라 위 제거 사유에 걸리지 않는다: **단 하나의 배너**이고
+  **첫 탭 전까지만** 발광하며(탭 후 `hasSeenStrictLockBetaAnnouncement`로 영구히 꺼짐) 신기능을
+  한 번 강하게 알리는 용도다("N개 동시 회전" 아님). 회귀로 오인해 제거하지 말 것. 발광은
+  `TimelineView` + accent `AngularGradient` 회전 + blur/shadow이고, 동작 줄이기 ON이면 회전을 멈춘다.
 - **확정 순간의 피드백**: `confirmStrictLock` 성공 시 시작/연장 alert(`content.alert.strictStarted.*`
   /`.strictExtended.*`, 확정 **전** `isStrictLockActive`로 분기)을 띄우며 `LockFeedback.play()`
   (Core/Feedback)를 함께 재생한다. 둘 다 **시트가 닫히는 사이클과 겹치면 누락**되므로 실패

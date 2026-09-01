@@ -2981,6 +2981,29 @@
         }
       }
     },
+    "home.strictLockBeta.banner": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New: Locked-In Mode beta!"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新機能：延長不可モード ベータ公開！"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연장 불가 모드 베타 출시 안내!"
+          }
+        }
+      }
+    },
     "home.strictLockBeta.message": {
       "extractionState": "manual",
       "localizations": {
