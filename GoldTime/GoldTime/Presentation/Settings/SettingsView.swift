@@ -118,10 +118,42 @@ struct SettingsView: View {
                 weekStartDayRow
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
+
+                Divider().padding(.horizontal, 20)
+
+                strictLockRow
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
             }
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 20))
         }
+    }
+
+    /// 연장 불가 모드 토글(기본 On, 2026-09-01 재도입) — 일반 카드의 주 시작 요일 아래 행. 토글 아래
+    /// 캡션이 "무슨 기능인지"를 설명한다. Off면 그룹 카드에서 연장 불가 기간 행이 숨겨져 카드가
+    /// 가벼워진다. 진행 중인 연장 불가 기간은 이 값과 무관하게 유지·집행되므로 언제든 끌 수 있다
+    /// (끄기 방어·발광 테두리 없음). 상세 설명 팝오버는 홈 카드의 연장 불가 행이 맡는다.
+    private var strictLockRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                IconTile(systemName: "lock.square.stack", tint: Color.accent)
+                Text("settings.strictLock.title")
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 8)
+                Toggle("settings.strictLock.title", isOn: Binding(
+                    get: { viewModel.isStrictLockEnabled },
+                    set: { viewModel.setStrictLockEnabled($0) }
+                ))
+                .labelsHidden()
+            }
+            Text("settings.strictLock.caption")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 
     private var troubleshootingCard: some View {

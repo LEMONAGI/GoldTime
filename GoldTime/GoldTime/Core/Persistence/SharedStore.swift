@@ -50,16 +50,33 @@ enum SharedStore {
         static let statsTrackingStartDate = "statsTrackingStartDate"
         static let pendingAnalyticsEvents = "pendingAnalyticsEvents"
         static let isStrictLockEnabled = "isStrictLockEnabled"
+        static let isStrictLockOptionEnabled = "isStrictLockOptionEnabled"
     }
 
-    /// 구 "연장 불가 모드" 설정 토글 값. **2026-08-15부터 아무도 읽지 않는다** — 기능이 베타
-    /// 기간 동안 전원에게 열리면서 설정 토글을 제거했고, 게이트는 `ManageGroupsUseCase`
-    /// .`isStrictLockEnabled`(현재 항상 true, 정식 출시 때 구독 entitlement로 교체)가 맡는다.
-    /// **이 저장값을 다시 읽지 말 것**: Off로 저장해 둔 기존 사용자가 업데이트 후 기능을 못 쓴다.
+    /// 구 "연장 불가 모드" 설정 토글 값(**기본 Off 시절**). **아무도 읽지 않는다** — 2026-08-15에
+    /// 토글을 제거했고, 2026-09-01에 토글을 되살릴 때도 **이 키는 재사용하지 않았다**: 기본 Off
+    /// 시절 값이라 재사용하면 그때 Off로 저장해 둔 기존 사용자가 업데이트 후 기능을 못 쓴다. 새
+    /// 토글은 아래 `isStrictLockOptionEnabled`(**미설정 시 true = 전원 On 시작**)가 맡는다.
     /// key·프로퍼티는 App Group 하위 호환(구버전 왕복)과 롤백 여지를 위해 남겨 둔다.
     static var isStrictLockEnabled: Bool {
         get { defaults.bool(forKey: Key.isStrictLockEnabled) }
         set { defaults.set(newValue, forKey: Key.isStrictLockEnabled) }
+    }
+
+    /// 연장 불가 모드 옵션 사용 여부(설정 토글, **기본 On**, 2026-09-01 재도입). Off면 그룹 카드에서
+    /// 연장 불가 기간 행이 숨겨져 카드가 가벼워진다(안 쓰는 사용자용). **집행부는 이 값을 보지
+    /// 않는다** — 이미 걸린 기간은 Off로 내려도 그대로 유지·집행되고(`hasActiveStrictLock`/
+    /// `strictUntil`), 행도 `HomeViewModel.showsStrictRow`가 잠긴 동안 계속 보인다. 게이트 역할은
+    /// `ManageGroupsUseCase.isStrictLockEnabled`(정식 출시 때 이 토글 ∧ 구독 entitlement로 합성).
+    /// **미설정 = true**라 신규·기존(구 키 값 무관) 사용자 모두 On으로 시작한다(하위 호환).
+    static var isStrictLockOptionEnabled: Bool {
+        get {
+            if defaults.object(forKey: Key.isStrictLockOptionEnabled) == nil {
+                return true
+            }
+            return defaults.bool(forKey: Key.isStrictLockOptionEnabled)
+        }
+        set { defaults.set(newValue, forKey: Key.isStrictLockOptionEnabled) }
     }
 
     /// 하루 요약(오전 9시) 알림 수신 여부. 기본값 On.

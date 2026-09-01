@@ -558,15 +558,18 @@ draft 그룹은 게이트 없이 자유롭게 편집·삭제할 수 있습니다
 
 ### 기능 게이트 (무료 베타 — 전원 사용 가능, 2026-08-15)
 
-- 설정의 옵트인 토글은 **제거**했다. 정식 출시 후 유료 구독으로 전환할 기능이라 그전에 써 보고
-  가치를 느낀 사용자 모수가 필요한데, 설정 깊숙한 기본 Off 토글이 그 모수를 깎고 있었다.
-  페이월도 설정보다 카드의 연장 불가 행(쓰려고 손을 뻗는 자리)에 서는 편이 맞다.
-- 게이트 자체는 남아 있다: `ManageGroupsUseCase.isStrictLockEnabled`(현재 항상 true) →
-  `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView`의 행 노출 +
-  `presentStrictLockSheet`·`activateStrictLock` guard. **정식 출시 때 이 프로퍼티만 구독
-  entitlement 판정으로 교체하면 그대로 페이월이 된다.**
-- 구 토글 저장값 `SharedStore.isStrictLockEnabled`는 더 이상 읽지 않는다(Off로 저장돼 있던 기존
-  사용자가 업데이트 후 못 쓰게 되므로). key는 하위 호환·롤백 여지로만 남겨 둔다.
+- 설정의 옵트인 토글은 2026-08-15에 제거했다가 **2026-09-01에 되살렸다 — 단 기본값을 반대로
+  `On`으로** 뒀다. 목적이 바뀌었다: 구 토글은 "기본 Off라 발견율을 깎는 옵트인"이었고, 새 토글은
+  "기본 On이되 **안 쓰는 사용자가 그룹 카드를 가볍게** 하려고 끄는" 표시 옵션이다.
+- 게이트 자체는 남아 있다: `SharedStore.isStrictLockOptionEnabled`(설정 토글, 기본 On) →
+  `ManageGroupsUseCase.isStrictLockEnabled` → `ContentViewModel.isStrictLockFeatureEnabled` →
+  `GroupCardView`의 행 노출 + `presentStrictLockSheet`·`activateStrictLock` guard. **정식 출시 때
+  이 프로퍼티를 토글 ∧ 구독 entitlement로 합성하면 그대로 페이월이 된다.**
+- 저장은 **새 키** `SharedStore.isStrictLockOptionEnabled`(미설정 시 true)다. 구 토글 저장값
+  `SharedStore.isStrictLockEnabled`(기본 Off 시절)는 **재사용하지 않는다** — 재사용하면 Off로
+  저장돼 있던 기존 사용자가 업데이트 후 못 쓴다. 구 key는 하위 호환·롤백 여지로만 남겨 둔다.
+- **끄기 방어(`canDisableStrictLock`)는 되살리지 않았다**: 집행부가 게이트를 안 보므로 Off로
+  내려도 진행 중 잠금은 유지·집행되고 잠긴 행도 계속 보여 "끄기로 우회 해제" 구멍이 없다.
 - **게이트가 막는 것은 "새로 걸기·연장"뿐이다. 이미 걸린 기간은 게이트와 무관하게 만료까지
   유지·표시된다.** 집행부(편집·연장 차단, Shield, `denyAppRemoval`·`requireAutomaticDateAndTime`
   전역 설정, extension)는 게이트를 참조하지 않고 `strictUntil`만 본다. 카드의 연장 불가 행도

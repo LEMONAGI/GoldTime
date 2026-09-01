@@ -7363,6 +7363,52 @@
         }
       }
     },
+    "settings.strictLock.caption": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This enables the option to set a locked-in period for each group.\nDuring that period, you can't add time with ads or 1-minute extensions, or change its rules."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "グループごとに延長不可期間を設定できるオプションが有効になります。\nその期間中は、広告や1分延長で時間を増やしたり、ルールを変更したりできません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그룹별로 연장 불가 기간을 설정할 수 있는 옵션이 활성화돼요.\n해당 기간 동안에는 광고·1분 연장으로 시간을 늘리거나 규칙을 바꿀 수 없어요."
+          }
+        }
+      }
+    },
+    "settings.strictLock.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locked-In Option"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "延長不可オプション"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연장 불가 옵션"
+          }
+        }
+      }
+    },
     "settings.title": {
       "extractionState": "manual",
       "localizations": {

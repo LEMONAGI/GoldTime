@@ -147,17 +147,23 @@ final class ManageGroupsUseCase {
     /// 상태로 표시된다(프리셋 값이면 칩 선택이 프리셋으로 되돌아간다).
     static let strictLockCustomSeedDays = 14
 
-    /// 연장 불가 모드를 쓸 수 있는지. **베타 기간에는 모든 사용자에게 열려 있다**(2026-08-15 —
-    /// 설정 토글 제거). 정식 출시 후 유료 구독으로 전환할 기능이라 그전에 써 보고 가치를 느낀
-    /// 사용자 모수가 필요한데, 설정 깊숙한 기본 Off 토글이 그 모수를 스스로 깎고 있었다.
-    /// 페이월도 설정보다 카드의 연장 불가 행(쓰려고 손을 뻗는 자리)에 서는 게 맞다.
+    /// 연장 불가 모드를 쓸 수 있는지(설정 토글, **기본 On**, 2026-09-01 재도입). Off면 그룹 카드에서
+    /// 연장 불가 기간 행이 숨겨져 카드가 가벼워진다(안 쓰는 사용자용) — 새로 걸기·연장도 막힌다.
+    /// **게이트는 "새로 걸기·연장"만 막는다**: 집행부는 이 값을 보지 않고 `strictUntil`만 보므로
+    /// Off로 내려도 진행 중 잠금은 유지·집행되고, 행도 `HomeViewModel.showsStrictRow`가 잠긴 동안
+    /// 계속 보인다(`strictRowStaysVisibleWhileLockedEvenIfGateClosed`).
     ///
-    /// **게이트 자체는 남긴다** — 정식 출시 때 이 프로퍼티만 구독 entitlement 판정으로 갈아끼우면
-    /// `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView` 노출 경로가 그대로 산다.
-    /// 구 토글 저장값(`groupRepository.isStrictLockEnabled`)은 **읽지 않는다**: Off로 저장돼 있던
-    /// 기존 사용자도 업데이트 직후 바로 쓸 수 있어야 한다(회귀 테스트
-    /// `strictLockAvailableEvenWhenLegacyToggleValueIsOff`).
-    var isStrictLockEnabled: Bool { true }
+    /// 저장은 `groupRepository.isStrictLockEnabled` → **새 키** `SharedStore.isStrictLockOptionEnabled`.
+    /// 구 토글 키(`isStrictLockEnabled`, 기본 Off 시절)는 재사용하지 않는다 — 재사용하면 과거 Off
+    /// 사용자가 업데이트 후 못 쓴다(하위 호환). 정식 출시 때는 이 값 ∧ 구독 entitlement로 합성한다.
+    var isStrictLockEnabled: Bool { groupRepository.isStrictLockEnabled }
+
+    /// 연장 불가 모드 옵션 토글(설정). **끄기를 막지 않는다**(구 `canDisableStrictLock`/`setStrictLockEnabled`
+    /// false 반환 방어는 되살리지 않는다): 집행부가 게이트를 안 보므로 Off로 내려도 진행 중 잠금은
+    /// 그대로 유지·집행되고 잠긴 행도 계속 보인다 — "끄기로 우회 해제" 구멍이 애초에 없다.
+    func setStrictLockEnabled(_ enabled: Bool) {
+        groupRepository.isStrictLockEnabled = enabled
+    }
 
     /// 연장 불가 기간을 시작하거나 연장한다(만료가 늘어나는 방향만 — 축소 불가).
     /// applied + 유효 규칙 그룹만. 성공 시 true.

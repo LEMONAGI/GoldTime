@@ -99,24 +99,27 @@ ViewModel + View (MVVM). 화면별 폴더 + 공용 `Component/`. 구성요소는
   허용. **만료 표기는 `goldTimeStrictLockedUntilText` 공용** — 저장값 `strictUntil`은 자정 경계라
   그대로 쓰면 "7/14 0시에 풀려요"처럼 하루 밀린 느낌이 든다. 1초를 빼 마지막 잠금 날을 뽑고
   문구는 "%@ 23:59까지 연장 불가"로 통일한다(시각 리터럴은 문구 키 안에). 시작일 등 "날짜 자체"는
-  `goldTimeShortDateText`. **기능 게이트는 남아 있지만 베타 기간엔 항상 열려 있다**(2026-08-15 —
-  설정 토글 제거): `ManageGroupsUseCase.isStrictLockEnabled`(= `true`) →
-  `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView`. 정식 출시 때 이 프로퍼티만
-  **구독 entitlement 판정으로 갈아끼우면** 카드 노출·`presentStrictLockSheet`·`activateStrictLock`
-  guard가 그대로 페이월이 된다 — 게이트 체인을 "어차피 true니까"라며 지우지 말 것. 구 토글 저장값
-  (`SharedStore.isStrictLockEnabled`)은 **읽지 않는다**(Off로 저장돼 있던 기존 사용자가 업데이트 후
-  못 쓰게 된다 — 회귀 테스트 `strictLockAvailableEvenWhenLegacyToggleValueIsOff`). 설정에 토글을
-  되살리지 말 것: 유료 전환 전 "써 보고 가치를 느낀 사용자" 모수를 스스로 깎고, 페이월도 설정보다
-  카드 행(쓰려고 손을 뻗는 자리)에 서는 게 맞다.
+  `goldTimeShortDateText`. **기능 게이트 = 설정 토글 값**(2026-09-01 — 토글 재도입, **기본 On**):
+  `SharedStore.isStrictLockOptionEnabled` → `ManageGroupsUseCase.isStrictLockEnabled` →
+  `ContentViewModel.isStrictLockFeatureEnabled` → `GroupCardView`. 토글의 목적은 **카드 가볍게 하기**다 —
+  안 쓰는 사용자가 Off로 내리면 그룹 카드에서 연장 불가 기간 행이 숨는다(2026-08-15에 "발견율을 깎는
+  기본 Off 토글"이라 제거했으나 이번엔 반대로 **기본 On**이라 그 우려가 없다). 정식 출시 때 이 프로퍼티를
+  **토글 ∧ 구독 entitlement로 합성**하면 카드 노출·`presentStrictLockSheet`·`activateStrictLock` guard가
+  그대로 페이월이 된다 — 게이트 체인을 지우지 말 것(회귀 테스트 `strictLockGateReflectsUserToggle`).
+  **저장은 새 키** `isStrictLockOptionEnabled`(미설정 시 true)이고, 구 토글 키
+  `SharedStore.isStrictLockEnabled`(기본 Off 시절)는 **재사용하지 않는다** — 재사용하면 Off로 저장돼
+  있던 기존 사용자가 업데이트 후 못 쓴다(하위 호환, 회귀 테스트
+  `strictLockOptionDefaultsOnWhenUnsetRegardlessOfLegacyKey`).
   **게이트는 "새로 걸기·연장"만 막는다 — 이미 걸린 기간은 게이트와 무관하다.** 집행부(편집·연장
   차단, Shield, `denyAppRemoval` 전역 설정, extension 전부)는 게이트를 **한 번도 참조하지 않고**
-  `strictUntil`만 본다. 그래서 게이트를 닫아도 진행 중인 잠금은 안 풀리고, 행 노출을 게이트만으로
+  `strictUntil`만 본다. 그래서 토글을 Off로 내려도 진행 중인 잠금은 안 풀리고, 행 노출을 게이트만으로
   결정하면 **잠긴 채 만료일만 못 보는** 상태가 된다 → `HomeViewModel.showsStrictRow(for:featureEnabled:)`가
   `featureEnabled || isStrictLocked`로 판정한다(회귀 테스트
-  `strictRowStaysVisibleWhileLockedEvenIfGateClosed`). 구독 페이월이 붙으면 **구독 만료로 게이트가
-  닫히는 경로**가 실제로 생기는데 이건 사용자 액션이 아니라 시스템 이벤트라 "끄기 금지" 같은 UI
-  방어로는 못 막는다 — 구 설정 토글의 끄기 방어(`setStrictLockEnabled` false 반환)를 되살리는 대신
-  이 계약을 지킬 것. 구독 해지로 잠금이 풀리면 "해지하면 풀린다"는 탈출구를 알려주는 셈이라
+  `strictRowStaysVisibleWhileLockedEvenIfGateClosed`). 이 계약 덕에 **끄기 방어는 되살리지 않았다**
+  (구 `canDisableStrictLock`/`setStrictLockEnabled` false 반환): 집행부가 게이트를 안 보므로 Off로
+  내려도 잠금이 유지·집행되고 잠긴 행도 계속 보여 "끄기로 우회 해제" 구멍이 애초에 없다. 구독
+  페이월이 붙으면 **구독 만료로 게이트가 닫히는 경로**(사용자 액션 아닌 시스템 이벤트)도 같은
+  계약으로 커버된다. 구독 해지로 잠금이 풀리면 "해지하면 풀린다"는 탈출구를 알려주는 셈이라
   "권한 끄면 풀린다"를 켜기 화면에 안 적는 규칙과 같은 이유로 금지다.
   **연장 불가 그룹에서는 광고 게이트 다이얼로그를 절대 먼저 띄우지 않는다**(`GroupCardView`의
   `tapEditSelection`·trash 분기): "광고 보고 편집하기"는 연장 불가 모드와 모순되는 안내이고, 다이얼로그가

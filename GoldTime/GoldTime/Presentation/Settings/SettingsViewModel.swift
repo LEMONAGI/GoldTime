@@ -26,6 +26,9 @@ final class SettingsViewModel {
     var isRequestingNotificationAuthorization = false
     var isDailyMorningNotificationEnabled: Bool
     var isUsageAlertEnabled: Bool
+    /// 연장 불가 모드 옵션 사용 여부(기본 On). Off면 그룹 카드에서 연장 불가 기간 행이 숨겨진다.
+    /// 진행 중인 연장 불가 기간은 이 값과 무관하게 유지·집행되므로 언제든 끌 수 있다(끄기 방어 없음).
+    var isStrictLockEnabled: Bool
     var alertMessage: SettingsAlertMessage?
     var weekStartDay: Int = SharedStore.weekStartDay {
         didSet { SharedStore.weekStartDay = weekStartDay }
@@ -43,17 +46,32 @@ final class SettingsViewModel {
     }
 
     private let manageSettingsUseCase: ManageSettingsUseCase
+    private let manageGroupsUseCase: ManageGroupsUseCase
 
-    init(manageSettingsUseCase: ManageSettingsUseCase? = nil) {
+    init(
+        manageSettingsUseCase: ManageSettingsUseCase? = nil,
+        manageGroupsUseCase: ManageGroupsUseCase? = nil
+    ) {
         let authRepo = AuthorizationRepositoryImpl()
         let notifRepo = NotificationRepositoryImpl()
         self.manageSettingsUseCase = manageSettingsUseCase ?? ManageSettingsUseCase(
             authRepository: authRepo,
             notificationRepository: notifRepo
         )
+        self.manageGroupsUseCase = manageGroupsUseCase ?? ManageGroupsUseCase(
+            groupRepository: GroupRepositoryImpl(),
+            screenTimeRepository: ScreenTimeRepositoryImpl()
+        )
         isScreenTimeAuthorized = self.manageSettingsUseCase.isScreenTimeAuthorized
         isDailyMorningNotificationEnabled = self.manageSettingsUseCase.isDailyMorningNotificationEnabled
         isUsageAlertEnabled = self.manageSettingsUseCase.isUsageAlertEnabled
+        isStrictLockEnabled = self.manageGroupsUseCase.isStrictLockEnabled
+    }
+
+    /// 연장 불가 모드 옵션 토글. 끄기를 막지 않는다(진행 중 잠금은 게이트와 무관하게 유지·집행).
+    func setStrictLockEnabled(_ enabled: Bool) {
+        isStrictLockEnabled = enabled
+        manageGroupsUseCase.setStrictLockEnabled(enabled)
     }
 
     func setDailyMorningNotificationEnabled(_ enabled: Bool) {
@@ -72,6 +90,7 @@ final class SettingsViewModel {
         isNotificationDeferredBySummary = await manageSettingsUseCase.isNotificationDeferredByScheduledSummary()
         isDailyMorningNotificationEnabled = manageSettingsUseCase.isDailyMorningNotificationEnabled
         isUsageAlertEnabled = manageSettingsUseCase.isUsageAlertEnabled
+        isStrictLockEnabled = manageGroupsUseCase.isStrictLockEnabled
     }
 
     func requestScreenTimeAuthorization() async {

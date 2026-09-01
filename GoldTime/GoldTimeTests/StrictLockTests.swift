@@ -447,13 +447,12 @@ struct StrictLockTests {
         #expect(SharedStore.hasActiveStrictLock())
     }
 
-    // MARK: - 9-b. 기능 게이트 — 베타 기간엔 전원 사용 가능(설정 토글 제거, 2026-08-15)
+    // MARK: - 9-b. 기능 게이트 — 설정 토글 값을 그대로 따른다(기본 On, 2026-09-01 재도입)
 
-    @Test func strictLockAvailableEvenWhenLegacyToggleValueIsOff() {
-        // 구 설정 토글이 Off로 저장돼 있던 기존 사용자도 업데이트 직후 바로 쓸 수 있어야 한다 —
-        // 게이트는 App Group 저장값을 읽지 않고 항상 열려 있다(정식 출시 때 구독 판정으로 교체).
-        let repo = StrictFakeGroupRepository()
-        repo.isStrictLockEnabled = false            // 구 토글 저장값(Off) — 더 이상 읽지 않는다
+    @Test func strictLockGateReflectsUserToggle() {
+        // 게이트(= 새로 걸기·연장 허용)는 설정 토글 값을 따른다. On이면 걸 수 있고, Off면
+        // `activateStrictLock`이 거부한다. 저장까지 반영되는지도 확인한다.
+        let repo = StrictFakeGroupRepository()      // 프로덕션 기본값과 같은 On
         let useCase = ManageGroupsUseCase(
             groupRepository: repo,
             screenTimeRepository: StrictFakeScreenTimeRepository()
@@ -464,9 +463,44 @@ struct StrictLockTests {
             dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
         )]
 
+        // On: 새로 걸 수 있다.
         #expect(useCase.isStrictLockEnabled)
         #expect(useCase.activateStrictLock(id: id, days: 3, now: date(2026, 7, 12), in: &groups))
-        #expect(groups[0].strictUntil != nil)
+
+        // Off: 게이트가 닫혀 새로 걸기가 거부되고 저장값도 내려간다.
+        useCase.setStrictLockEnabled(false)
+        #expect(!useCase.isStrictLockEnabled)
+        #expect(!repo.isStrictLockEnabled)
+        var fresh = [SharedStore.ScreenTimeGroup(
+            id: UUID(), name: "게임2", selection: validSelection(),
+            dailyLimitMinutes: 30, ruleKind: .dailyLimit, isApplied: true
+        )]
+        #expect(!useCase.activateStrictLock(id: fresh[0].id, days: 3, now: date(2026, 7, 12), in: &fresh))
+        #expect(fresh[0].strictUntil == nil)
+    }
+
+    @Test func strictLockOptionDefaultsOnWhenUnsetRegardlessOfLegacyKey() {
+        // 하위 호환: 새 키(`isStrictLockOptionEnabled`)는 미설정 시 On으로 시작해 신규·기존 사용자가
+        // 모두 켠 상태로 업데이트된다. 구 토글 키(`isStrictLockEnabled`, 기본 Off 시절 값)가 Off로
+        // 남아 있어도 새 값은 영향받지 않는다 — "구 키 재사용 금지" 계약의 실증.
+        let suite = UserDefaults(suiteName: "group.com.goldtime.shared")!
+        let legacyOriginal = suite.object(forKey: "isStrictLockEnabled")
+        let optionOriginal = suite.object(forKey: "isStrictLockOptionEnabled")
+        defer {
+            if let v = legacyOriginal { suite.set(v, forKey: "isStrictLockEnabled") }
+            else { suite.removeObject(forKey: "isStrictLockEnabled") }
+            if let v = optionOriginal { suite.set(v, forKey: "isStrictLockOptionEnabled") }
+            else { suite.removeObject(forKey: "isStrictLockOptionEnabled") }
+        }
+
+        // 구 키 Off + 새 키 미설정 → On으로 읽힌다.
+        suite.set(false, forKey: "isStrictLockEnabled")
+        suite.removeObject(forKey: "isStrictLockOptionEnabled")
+        #expect(SharedStore.isStrictLockOptionEnabled)
+
+        // 명시적으로 끈 값은 그대로 존중한다.
+        SharedStore.isStrictLockOptionEnabled = false
+        #expect(!SharedStore.isStrictLockOptionEnabled)
     }
 
     @Test func strictRowStaysVisibleWhileLockedEvenIfGateClosed() {
@@ -845,8 +879,8 @@ struct StrictLockTests {
 private final class StrictFakeGroupRepository: GroupRepository {
     var screenTimeGroups: [ScreenTimeGroup] = []
     func defaultGroupName(for index: Int) -> String { "그룹 \(index + 1)" }
-    /// 연장 불가 기능 토글. 대부분의 테스트가 연장 불가 기간 켜기를 다루므로 기본 On으로 둔다
-    /// (기본 Off인 프로덕션 기본값은 `activateStrictLockRejectedWhenFeatureDisabled`가 검증).
+    /// 연장 불가 옵션 토글. 프로덕션 기본값도 On이며(2026-09-01 재도입), Off일 때 게이트가 닫히는지는
+    /// `strictLockGateReflectsUserToggle`이 검증한다.
     var isStrictLockEnabled: Bool = true
 }
 
