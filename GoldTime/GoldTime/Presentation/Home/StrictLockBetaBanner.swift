@@ -38,7 +38,7 @@ struct StrictLockBetaBanner: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         // 발광 중엔 accent 틴트로 온기를 주고, 탭 후엔 그룹 카드와 같은 연한 회색 배경만 남긴다.
         .background(isGlowing ? Color.accent.opacity(0.08) : Color(.secondarySystemGroupedBackground))

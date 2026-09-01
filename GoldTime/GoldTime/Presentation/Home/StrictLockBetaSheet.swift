@@ -13,19 +13,38 @@ struct StrictLockBetaSheet: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 20) {
                 Text("home.strictLockBeta.title")
                     .font(.title2.bold())
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 24)
 
+                // 본문은 primary + .body로 또렷하게(과거 subheadline·secondary는 넓은 시트에서
+                // 흐리고 성겨 보였다). 줄바꿈은 문단 사이 여백으로 읽기 쉽게 둔다.
                 Text("home.strictLockBeta.message")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.body)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
+                    .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                // 베타·유료 전환 안내는 별도 콜아웃으로 분리해 시선을 끈다.
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "gift.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.accent)
+                    Text("home.strictLockBeta.betaNote")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(14)
+                .background(Color.accent.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .padding(24)
         }
