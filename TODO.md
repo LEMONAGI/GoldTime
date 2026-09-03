@@ -13,18 +13,13 @@
 
 > 2026-08-05 출시 전 점검에서 도출. 1.2.0(요일별 규칙)은 제출 완료 — 연장 불가 모드는 **1.3.0**으로 나간다.
 
-- [ ] **릴리스 노트 1.3.0 작성**(ko/en/ja) — `docs/release-notes/1.3.0.md` 신규. 연장 불가 모드가
-      이번 버전의 핵심이고 앱 홈 상단에 "베타 출시 안내" 배너(탭 → 안내 시트)를 노출하므로, 스토어
-      "이번 버전의 새로운 기능"에 반드시 같은 내용이 있어야 한다. `1.2.0.md`는 제출 기록으로 그대로 둔다
-- [ ] **제출 절차** — `main` 푸시, 아카이브·업로드, 스크린샷 갱신 여부 판단(연장 불가 모드 시트·
-      카드 배지가 이번 버전 핵심)
-- [ ] **App Store Connect — App Review Information "Notes" 작성**(필수). 연장 불가 모드는 켜는 순간
-      `denyAppRemoval`(**기기 전체** 앱 삭제 차단) + `requireAutomaticDateAndTime`(날짜·시간 자동 고정)을
-      거는데, **앱 안에는 해제 방법이 의도적으로 없다**(feature-spec §5.8 — 잠그려는 순간에 탈출구를
-      알려주지 않는다). 리뷰어가 기능을 켜면 리뷰어 기기가 그 상태가 되므로 노트에 반드시 적을 것:
-      ① 사용자 opt-in + 2단계 확인을 거쳐야만 활성화된다 ② 최소 기간은 1일이고 만료 시 자동 해제된다
-      ③ **즉시 해제 방법 = iOS 설정 → 스크린 타임 → GoldTime 권한 해제**(권한이 풀리면 전역 설정도 함께
-      풀린다) ④ 전역 차단은 Apple의 `ManagedSettings` 제약이라 GoldTime만 선택적으로 막을 수 없다
+- [ ] **제출 절차** — `main` 푸시, 아카이브·**빌드 업로드**(ASC 1.3.0에 아직 빌드 미연결 —
+      `selectedBuild: None`), 스크린샷 갱신 여부 판단(연장 불가 모드 시트·카드 배지가 이번 버전 핵심)
+- [ ] **App Store Connect — App Review "Notes" 수동 입력만 남음**(필수). 원문 작성 완료:
+      `docs/release-notes/1.3.0-review-notes.md`. **대시보드로는 못 올린다**(쓰기 API에
+      `appStoreReviewDetail` 없음) → ASC → App Review Information → Notes에 그 파일의 영어 블록을 붙여넣는다.
+      핵심: 연장 불가 모드는 opt-in+2단계 확인으로만 켜지고, 앱 내 해제 버튼이 없으며, 즉시 해제 =
+      iOS 설정 → 스크린 타임 → GoldTime 권한 회수(전역 제약도 함께 풀림)
 - [ ] **연장 불가 기간 만료 피드백** — 시작은 alert+햅틱인데 끝은 배지가 조용히 사라질 뿐이다.
       만료 후 첫 홈 진입에서 완주 안내를 1회 띄운다(feature-spec §5.8은 "선택 사항"으로 뒀지만,
       구독으로 팔 기능이라 완주 경험이 곧 재적용 동기다)
@@ -95,8 +90,12 @@
       ⚠️ 반대 방향도 반드시 볼 것: **권한이 정상인데 완료가 안 오는** 경우(콜드 스타트에서
       `AuthorizationCenter`가 transient false로 읽히면 약정이 통째로 폐기되던 버그의 회귀)
 
-- [ ] **연장 불가 모드(기간 강력 잠금)** (`Feat/AbsoluteLock` 구현 완료 2026-07-13 —
-      **검증 완료 전 머지·제출 금지**) 런북: [docs/verify-strictlock-runbook.md](docs/verify-strictlock-runbook.md)
+- [ ] **연장 불가 모드(기간 강력 잠금)** (`Feat/AbsoluteLock` — **main 머지 완료 2026-07-31 `62063e0`**.
+      집행 엔진(denyAppRemoval·자정 재무장·약정 시작/연장/만료)은 그때 실기기 검증(세션 1~3)했고,
+      이후 커밋은 UI·분석 이벤트·설정 토글뿐이라(2026-09-03 diff 재점검: `a9b2ce8..HEAD`에서
+      DailyMonitor·CooldownMonitor 무변경, ScreenTimeManager·Monitor extension은 분석만)
+      **집행 재검증은 제출 게이트 아님** — 아래 항목은 시뮬 육안·참조용으로 강등)
+      런북: [docs/verify-strictlock-runbook.md](docs/verify-strictlock-runbook.md)
   - [ ] **자정 재무장 실기기 재검증** — 자정 직후 `00:05~00:15`에 `--last 30m`으로 로그 수집.
         00:00 정각은 하트비트 지연 실측 00:02:50 때문에 이르고, 오후에는 GTLog가 유실돼 판정 불가
   - [ ] 시뮬 육안(런북 하단 체크리스트): 시트 2단계·연장 칩 활성/비활성·배지·차단 alert·
