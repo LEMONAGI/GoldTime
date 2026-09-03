@@ -3033,19 +3033,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Locked-In Mode is for when you want to firmly stick to the usage rules you set for yourself.\n\nOnce you start, there's no way to unlock it for the period you chose (1–14 days). You can't add time with ads or 1-minute extensions, and you can't change the rules or delete the group.\n\nIt helps the decision you already made hold, even in the moments your willpower slips.\n\nTo start, open “Set Locked-In Period” on an applied group and choose a duration."
+            "value": "Locked-In Mode is for when you want to firmly stick to the usage rules you set for yourself.\n\nOnce you start, there's no way to unlock it for the period you chose (1–14 days). You can't add time with ads or 1-minute extensions, and you can't change the rules or delete the group.\n\nIt helps the decision you already made hold, even in the moments your willpower slips.\n\nTo start, open “Set Locked-In Period” on an applied group and choose a duration.\n\nIf you’d rather not use this, you can turn off “Locked-In Option” in Settings. The related row is then hidden from your group cards."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "自分で決めた使用ルールをしっかり守りたいときのための機能です。\n\n一度始めると、選んだ期間（1〜14日）の間はどんな方法でもロックを解除できません。広告や1分延長で時間を増やすことはできず、ルールの変更やグループの削除もできなくなります。\n\n意志が弱くなる瞬間でも、すでに下した決断がそのまま守られるようサポートします。\n\n始めるには、適用したグループの「延長不可期間の設定」を開いて期間を選んでください。"
+            "value": "自分で決めた使用ルールをしっかり守りたいときのための機能です。\n\n一度始めると、選んだ期間（1〜14日）の間はどんな方法でもロックを解除できません。広告や1分延長で時間を増やすことはできず、ルールの変更やグループの削除もできなくなります。\n\n意志が弱くなる瞬間でも、すでに下した決断がそのまま守られるようサポートします。\n\n始めるには、適用したグループの「延長不可期間の設定」を開いて期間を選んでください。\n\nこの機能を使わない場合は、設定で「延長不可オプション」をオフにしておけます。グループカードから関連項目が非表示になります。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "스스로 정한 사용 규칙을 확실히 지키고 싶을 때를 위한 기능이에요.\n\n한 번 시작하면 정한 기간(1~14일) 동안에는 어떤 방법으로도 잠금을 풀 수 없어요. 광고나 1분 연장으로 시간을 늘릴 수 없고, 규칙을 바꾸거나 그룹을 삭제할 수도 없어요.\n\n의지가 약해지는 순간에도 이미 내린 결정이 그대로 지켜지도록 도와줘요.\n\n시작하려면 적용한 그룹의 ‘연장 불가 기간 설정’을 눌러 기간을 정하세요."
+            "value": "스스로 정한 사용 규칙을 확실히 지키고 싶을 때를 위한 기능이에요.\n\n한 번 시작하면 정한 기간(1~14일) 동안에는 어떤 방법으로도 잠금을 풀 수 없어요. 광고나 1분 연장으로 시간을 늘릴 수 없고, 규칙을 바꾸거나 그룹을 삭제할 수도 없어요.\n\n의지가 약해지는 순간에도 이미 내린 결정이 그대로 지켜지도록 도와줘요.\n\n시작하려면 적용한 그룹의 ‘연장 불가 기간 설정’을 눌러 기간을 정하세요.\n\n이 기능을 쓰지 않는다면 설정에서 ‘연장 불가 옵션’을 꺼 두면 돼요. 그룹 카드에서 관련 항목이 숨겨져요."
           }
         }
       }
@@ -8611,19 +8611,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Back"
+            "value": "Let me reconsider"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "戻る"
+            "value": "もう一度考える"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "돌아가기"
+            "value": "다시 생각해 볼게요"
           }
         }
       }
@@ -8634,19 +8634,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Applied for %1$lld days — until 11:59 PM on %2$@.\nIt can't be turned off early."
+            "value": "Once applied, there’s no way to turn this off for %1$lld days — until 11:59 PM on %2$@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%2$@ 23:59まで%1$lld日間適用されます。\n途中で解除できません。"
+            "value": "一度適用すると、%2$@ 23:59まで%1$lld日間、どんな方法でも解除できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%2$@ 23:59까지 %1$lld일간 적용돼요.\n중간에 해제할 수 없어요."
+            "value": "한 번 적용하면 %2$@ 23:59까지 %1$lld일 동안 어떤 방법으로도 해제할 수 없어요."
           }
         }
       }
@@ -8657,19 +8657,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apply"
+            "value": "Yes, apply"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "適用する"
+            "value": "はい、適用します"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "적용하기"
+            "value": "네, 적용할게요"
           }
         }
       }
@@ -8680,19 +8680,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lock in this group?"
+            "value": "Apply Locked-In Mode to this group?"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このグループを延長不可にしますか？"
+            "value": "このグループに延長不可モードを適用しますか？"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 그룹을 연장 불가로 둘까요?"
+            "value": "해당 그룹에 연장 불가 모드를 적용할까요?"
           }
         }
       }

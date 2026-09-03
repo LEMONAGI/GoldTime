@@ -370,9 +370,10 @@ struct StrictLockSheet: View {
         .buttonStyle(GoldTimeButtonStyle(background: Color.accent, foreground: .black))
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.45)
+        // 배경(.bar 등)을 두지 않아 하단 버튼 영역이 시트 배경과 같은 색으로 자연스럽게 이어진다
+        // (StrictLockBetaSheet의 확인 버튼과 동일한 처리).
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(.bar)
     }
 }
 
